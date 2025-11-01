@@ -13,6 +13,8 @@ services:
       - ../../frontend:/work
       # Persist node_modules inside a named volume to avoid reinstall on every start
       - frontend_node_modules:/work/node_modules
+      # Keep Next.js build cache out of OneDrive path to avoid file churn and prompts
+      - frontend_next_cache:/work/.next
     command: >
       bash -lc "npm ci && npm run dev -- -H 0.0.0.0 -p 3000"
     depends_on:
@@ -20,3 +22,4 @@ services:
 
 volumes:
   frontend_node_modules:
+  frontend_next_cache:

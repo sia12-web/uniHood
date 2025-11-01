@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  frontend:
+    name: Frontend – lint, typecheck, build, unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint
+        env:
+          NEXT_DISABLE_TS_DETECTION: '1'
+        run: npm run -s lint
+
+      - name: Typecheck (app only)
+        run: npm run -s typecheck
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run -s build
+
+      - name: Unit tests (Vitest)
+        run: npm test -- -r
+
+  backend:
+    name: Backend – pytest
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: divan
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Install deps with Poetry
+        working-directory: backend
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-root
+
+      - name: Wait for Postgres/Redis
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+        run: |
+          timeout 60s bash -c 'until echo > /dev/tcp/localhost/5432; do sleep 1; done'
+          timeout 60s bash -c 'until echo > /dev/tcp/localhost/6379; do sleep 1; done'
+
+      - name: Apply DB migrations (optional)
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/divan
+        run: |
+          python scripts/apply_migrations.py
+
+      - name: Run pytest
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/divan
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend
+          pytest -q

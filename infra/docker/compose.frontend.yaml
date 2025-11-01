@@ -1,0 +1,22 @@
+services:
+  frontend:
+    image: node:20
+    working_dir: /work
+    ports:
+      - "3000:3000"
+    environment:
+      # Improve file watching on Windows/host-mounted volumes
+      CHOKIDAR_USEPOLLING: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: ""
+    volumes:
+      - ../../frontend:/work
+      # Persist node_modules inside a named volume to avoid reinstall on every start
+      - frontend_node_modules:/work/node_modules
+    command: >
+      bash -lc "npm ci && npm run dev -- -H 0.0.0.0 -p 3000"
+    depends_on:
+      - backend
+
+volumes:
+  frontend_node_modules:

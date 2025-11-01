@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cream: #f5f3ff;
+  --color-warm-sand: #e8defc;
+  --color-ink: #1f1a38;
+  --color-navy: #2d2a8d;
+  --color-coral: #ff8a65;
+  --color-midnight: #3b2e7a;
+  --color-aqua: #4dd0e1;
+  --color-sunrise: #ffd166;
+}
+
+html,
+body {
+  background: radial-gradient(circle at top left, rgba(77, 208, 225, 0.28), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(255, 209, 102, 0.24), transparent 60%),
+    var(--color-cream);
+  color: var(--color-ink);
+}
+
+.bg-cream {
+  background-color: var(--color-cream);
+}
+
+.bg-warm-sand {
+  background-color: var(--color-warm-sand);
+}
+
+.bg-midnight {
+  background-color: var(--color-midnight);
+}
+
+.bg-aurora {
+  background: linear-gradient(135deg, rgba(77, 208, 225, 0.28), rgba(255, 138, 101, 0.18));
+}
+
+.bg-glass {
+  background: rgba(255, 255, 255, 0.75);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.text-navy {
+  color: var(--color-navy);
+}
+
+.text-coral {
+  color: var(--color-coral);
+}
+
+.border-warm-sand {
+  border-color: var(--color-warm-sand);
+}
+
+.shadow-soft {
+  box-shadow: 0 20px 50px rgba(43, 42, 141, 0.12);
+}

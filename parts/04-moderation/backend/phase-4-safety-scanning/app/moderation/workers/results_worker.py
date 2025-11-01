@@ -1,0 +1,1 @@
+"""Documentation stub for results worker (implementation lives in backend package)."""

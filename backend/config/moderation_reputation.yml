@@ -1,0 +1,70 @@
+surfaces:
+  post:
+    windows:
+      - name: window_60s
+        seconds: 60
+        limit: 3
+        cooldown_minutes: 15
+      - name: window_5m
+        seconds: 300
+        limit: 8
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 20
+        cooldown_minutes: 60
+  comment:
+    windows:
+      - name: window_60s
+        seconds: 60
+        limit: 10
+        cooldown_minutes: 15
+      - name: window_5m
+        seconds: 300
+        limit: 40
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 200
+        cooldown_minutes: 60
+  message:
+    windows:
+      - name: window_10s
+        seconds: 10
+        limit: 8
+        cooldown_minutes: 15
+      - name: window_60s
+        seconds: 60
+        limit: 30
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 120
+        cooldown_minutes: 60
+  invite:
+    windows:
+      - name: window_1h
+        seconds: 3600
+        limit: 10
+        cooldown_minutes: 60
+  upload:
+    windows:
+      - name: window_10m
+        seconds: 600
+        limit: 10
+        cooldown_minutes: 60
+band_multipliers:
+  good: 1.0
+  neutral: 1.0
+  watch: 0.7
+  risk: 0.5
+  bad: 0.3
+shadow_defaults:
+  ttl_hours: 24
+captcha:
+  ttl_hours: 24
+honey:
+  shadow_hours: 24
+  captcha_hours: 24
+link_cooloff:
+  ttl_hours: 24

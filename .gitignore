@@ -1,0 +1,50 @@
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- Root env / logs ----
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+coverage/
+
+# ---- Node / Next.js (frontend) ----
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+frontend/.turbo/
+frontend/.cache/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
+# ---- TypeScript / Tooling ----
+*.tsbuildinfo
+
+# ---- Python (backend) ----
+__pycache__/
+*.py[cod]
+*.pyo
+backend/.venv/
+.venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/.cache/
+backend/.ruff_cache/
+
+# ---- Local data / secrets ----
+infra/docker/pgdata/
+
+# ---- Misc build artifacts ----
+dist/
+build/

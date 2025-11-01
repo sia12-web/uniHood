@@ -1,0 +1,32 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000101",
+    "campus_id": "00000000-0000-0000-0000-00000000c001",
+    "name": "Campus Creators",
+    "slug": "campus-creators",
+    "description": "Rapid prototyping and maker sessions.",
+    "visibility": "public",
+    "tags": ["makers", "hardware"],
+    "created_by": "00000000-0000-0000-0000-00000000u001"
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000102",
+    "campus_id": "00000000-0000-0000-0000-00000000c001",
+    "name": "Campus Mentors",
+    "slug": "campus-mentors",
+    "description": "Mentorship, feedback, and career prep.",
+    "visibility": "private",
+    "tags": ["mentorship", "career"],
+    "created_by": "00000000-0000-0000-0000-00000000u002"
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000103",
+    "campus_id": null,
+    "name": "Secret Launch Lab",
+    "slug": "secret-launch",
+    "description": "Invite-only stealth builders.",
+    "visibility": "secret",
+    "tags": ["startups"],
+    "created_by": "00000000-0000-0000-0000-00000000u003"
+  }
+]

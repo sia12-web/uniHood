@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: Divan Moderation Scanning API
+  version: "v1"
+paths:
+  /api/mod/v1/quarantine:
+    get:
+      summary: List attachments requiring moderation review
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [needs_review, quarantined]
+        - name: after
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+  /api/mod/v1/quarantine/{attachment_id}/decision:
+    post:
+      summary: Resolve a quarantined attachment
+      parameters:
+        - name: attachment_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: OK
+  /api/mod/v1/hashes/import:
+    post:
+      summary: Import perceptual hashes (admin only)
+      responses:
+        '202':
+          description: Accepted

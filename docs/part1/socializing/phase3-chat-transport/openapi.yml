@@ -1,0 +1,188 @@
+# OpenAPI spec for chat transport
+openapi: 3.0.0
+info:
+  title: Chat Transport API
+  version: 1.0.0
+paths:
+  /chat/messages:
+    post:
+      summary: Send a chat message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /chat/conversations/{userId}/messages:
+    get:
+      summary: List conversation messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+  /chat/conversations/{userId}/deliveries:
+    post:
+      summary: Acknowledge delivery
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryAckRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryAckResponse'
+  /chat/conversations/{userId}/outbox:
+    get:
+      summary: Load pending messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboxResponse'
+components:
+  schemas:
+    Attachment:
+      type: object
+      properties:
+        attachment_id:
+          type: string
+        media_type:
+          type: string
+        size_bytes:
+          type: integer
+          nullable: true
+        file_name:
+          type: string
+          nullable: true
+        remote_url:
+          type: string
+          format: uri
+          nullable: true
+    SendMessageRequest:
+      type: object
+      required:
+        - to_user_id
+        - body
+      properties:
+        to_user_id:
+          type: string
+        body:
+          type: string
+        client_msg_id:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+    MessageResponse:
+      type: object
+      properties:
+        message_id:
+          type: string
+        client_msg_id:
+          type: string
+        seq:
+          type: integer
+        conversation_id:
+          type: string
+        sender_id:
+          type: string
+        recipient_id:
+          type: string
+        body:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        created_at:
+          type: string
+          format: date-time
+    MessageListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponse'
+        next_cursor:
+          type: string
+          nullable: true
+    DeliveryAckRequest:
+      type: object
+      required:
+        - delivered_seq
+      properties:
+        delivered_seq:
+          type: integer
+          minimum: 0
+    DeliveryAckResponse:
+      type: object
+      properties:
+        conversation_id:
+          type: string
+        delivered_seq:
+          type: integer
+    OutboxResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponse'
+        reset_cursor:
+          type: string
+          nullable: true

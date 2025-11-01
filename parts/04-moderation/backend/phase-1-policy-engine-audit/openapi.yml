@@ -1,0 +1,44 @@
+openapi: 3.0.3
+info:
+  title: Divan Moderation API
+  version: v1
+paths:
+  /api/mod/v1/reports:
+    post:
+      summary: Create report
+      requestBody:
+        required: true
+      responses:
+        "201":
+          description: Created
+  /api/mod/v1/cases/{case_id}:
+    get:
+      summary: Get moderation case (staff)
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+  /api/mod/v1/policies/dry_run:
+    post:
+      summary: Evaluate payload against active policy (no side effects)
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/audit:
+    get:
+      summary: List audit entries
+      parameters:
+        - name: after
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: OK

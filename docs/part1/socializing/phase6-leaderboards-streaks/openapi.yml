@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Leaderboards & Streaks API
+  version: "0.1.0"
+  description: >-
+    Phase 6 REST surface for querying leaderboard snapshots, streak progress,
+    and personal summaries.
+servers:
+  - url: https://api.divan.local
+paths:
+  /leaderboards/{scope}:
+    get:
+      summary: Fetch leaderboard snapshot
+      description: >-
+        Returns the current leaderboard entries for a given scope, period, and campus.
+        Defaults to the latest daily snapshot when no date is supplied.
+      parameters:
+        - in: path
+          name: scope
+          description: Leaderboard scope/pillar
+          required: true
+          schema:
+            $ref: '#/components/schemas/LeaderboardScope'
+        - in: query
+          name: period
+          description: Leaderboard period window
+          required: false
+          schema:
+            $ref: '#/components/schemas/LeaderboardPeriod'
+          default: daily
+        - in: query
+          name: campus_id
+          description: Campus identifier bucket
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: ymd
+          description: Calendar date formatted as YYYYMMDD
+          required: false
+          schema:
+            type: integer
+            minimum: 20240101
+        - in: query
+          name: limit
+          description: Maximum number of entries to return (default 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        '200':
+          description: Leaderboard snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardResponse'
+        '400':
+          description: Invalid arguments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /leaderboards/me/summary:
+    get:
+      summary: Retrieve current user summary
+      description: >-
+        Returns the caller's current leaderboard ranks, scores, streak, and recent badges.
+      parameters:
+        - in: header
+          name: X-User-Id
+          description: Authenticated user identifier
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: X-Campus-Id
+          description: Campus context for the user
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: ymd
+          description: Calendar date to evaluate (YYYYMMDD). Defaults to today.
+          required: false
+          schema:
+            type: integer
+            minimum: 20240101
+      responses:
+        '200':
+          description: Personal leaderboard summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MySummary'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid authentication
+  /leaderboards/streaks/{user_id}:
+    get:
+      summary: Fetch streak summary for a user
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Streak summary record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreakSummary'
+        '404':
+          description: User not found or streak not tracked
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+    LeaderboardScope:
+      type: string
+      enum:
+        - overall
+        - social
+        - engagement
+        - popularity
+    LeaderboardPeriod:
+      type: string
+      enum:
+        - daily
+        - weekly
+        - monthly
+    LeaderboardRow:
+      type: object
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        user_id:
+          type: string
+          format: uuid
+        score:
+          type: number
+      required:
+        - rank
+        - user_id
+        - score
+    LeaderboardResponse:
+      type: object
+      properties:
+        scope:
+          $ref: '#/components/schemas/LeaderboardScope'
+        period:
+          $ref: '#/components/schemas/LeaderboardPeriod'
+        ymd:
+          type: integer
+        campus_id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardRow'
+      required:
+        - scope
+        - period
+        - ymd
+        - campus_id
+        - items
+    StreakSummary:
+      type: object
+      properties:
+        current:
+          type: integer
+        best:
+          type: integer
+        last_active_ymd:
+          type: integer
+      required:
+        - current
+        - best
+        - last_active_ymd
+    BadgeSummary:
+      type: object
+      properties:
+        kind:
+          type: string
+        earned_ymd:
+          type: integer
+        meta:
+          type: object
+          additionalProperties: true
+      required:
+        - kind
+        - earned_ymd
+    MySummary:
+      type: object
+      properties:
+        ymd:
+          type: integer
+        campus_id:
+          type: string
+          format: uuid
+        ranks:
+          type: object
+          additionalProperties:
+            type: integer
+            nullable: true
+        scores:
+          type: object
+          additionalProperties:
+            type: number
+            nullable: true
+        streak:
+          $ref: '#/components/schemas/StreakSummary'
+        badges:
+          type: array
+          items:
+            $ref: '#/components/schemas/BadgeSummary'
+      required:
+        - ymd
+        - campus_id
+        - ranks
+        - scores
+        - streak
+        - badges

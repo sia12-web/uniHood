@@ -1,0 +1,1 @@
+"""Documentation stub for quarantine manager (see backend implementation)."""

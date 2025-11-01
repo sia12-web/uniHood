@@ -1,0 +1,100 @@
+{
+  "title": "Backend Overview",
+  "uid": "divan-backend-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "HTTP Requests / s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(divan_http_requests_total[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP Error Rate %",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(divan_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(divan_http_requests_total[5m])) * 100"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HTTP Latency p95 (s)",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le)(rate(divan_http_request_duration_seconds_bucket[5m])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Socket.IO Online Clients",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(divan_socketio_clients)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Redis & Postgres Availability",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "divan_redis_up",
+          "legendFormat": "redis"
+        },
+        {
+          "refId": "B",
+          "expr": "divan_postgres_up",
+          "legendFormat": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool"
+        }
+      }
+    }
+  ]
+}

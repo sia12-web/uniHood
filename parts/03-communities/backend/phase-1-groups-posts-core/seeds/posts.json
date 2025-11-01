@@ -1,0 +1,20 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-00000000p001",
+    "group_id": "00000000-0000-0000-0000-000000000101",
+    "author_id": "00000000-0000-0000-0000-00000000u001",
+    "title": "Build Night Kickoff",
+    "body": "Grab your soldering irons. We're prototyping wearable badges tonight at 7pm.",
+    "topic_tags": ["hardware", "events"],
+    "created_at": "2025-01-10T18:00:00Z"
+  },
+  {
+    "id": "00000000-0000-0000-0000-00000000p002",
+    "group_id": "00000000-0000-0000-0000-000000000102",
+    "author_id": "00000000-0000-0000-0000-00000000u004",
+    "title": "Resume Review Roundtable",
+    "body": "Drop in on Friday for 1:1 resume coaching with alumni mentors.",
+    "topic_tags": ["career", "resume"],
+    "created_at": "2025-01-12T21:00:00Z"
+  }
+]

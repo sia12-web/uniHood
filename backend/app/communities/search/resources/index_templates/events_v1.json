@@ -1,0 +1,26 @@
+{
+  "index_patterns": ["communities-events-v1"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": {"type": "keyword"},
+        "group_id": {"type": "keyword"},
+        "campus_id": {"type": "keyword"},
+        "title": {"type": "text", "fields": {"raw": {"type": "keyword"}}},
+        "description": {"type": "text"},
+        "start_at": {"type": "date", "format": "strict_date_time"},
+        "end_at": {"type": "date", "format": "strict_date_time"},
+        "tags": {"type": "keyword"},
+        "visibility": {"type": "keyword"},
+        "deleted": {"type": "boolean"},
+        "created_at": {"type": "date", "format": "strict_date_time"},
+        "updated_at": {"type": "date", "format": "strict_date_time"}
+      }
+    }
+  }
+}

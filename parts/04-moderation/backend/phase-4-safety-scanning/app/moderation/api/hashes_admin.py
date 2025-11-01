@@ -1,0 +1,1 @@
+"""Stub for Phase 4 documentation. Implementation resides in backend.app.moderation.api.hashes_admin."""

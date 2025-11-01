@@ -1,0 +1,31 @@
+openapi: 3.0.0
+info:
+  title: Communities Permissions & Roles API
+  version: 1.0.0
+paths:
+  /groups/{group_id}/roles:
+    get:
+      summary: List roles in a group
+    post:
+      summary: Assign or update a role
+  /groups/{group_id}/invites:
+    get:
+      summary: List invites
+    post:
+      summary: Create invite
+  /groups/{group_id}/join-requests:
+    get:
+      summary: List join requests
+    post:
+      summary: Submit join request
+  /groups/{group_id}/bans-mutes:
+    get:
+      summary: List bans/mutes
+    post:
+      summary: Ban or mute member
+  /groups/{group_id}/audit:
+    get:
+      summary: List audit events
+  /groups/{group_id}/escalate:
+    post:
+      summary: Escalate moderation action

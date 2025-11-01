@@ -1,0 +1,105 @@
+bands:
+  good:
+    min: 0
+    max: 25
+  neutral:
+    min: 26
+    max: 45
+  watch:
+    min: 46
+    max: 60
+  risk:
+    min: 61
+    max: 80
+  bad:
+    min: 81
+    max: 100
+band_multipliers:
+  good: 1.0
+  neutral: 1.0
+  watch: 0.7
+  risk: 0.5
+  bad: 0.3
+surfaces:
+  post:
+    windows:
+      - name: window_60s
+        seconds: 60
+        limit: 3
+        cooldown_minutes: 15
+      - name: window_5m
+        seconds: 300
+        limit: 8
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 20
+        cooldown_minutes: 60
+    link_cooloff_minutes: 1440
+  comment:
+    windows:
+      - name: window_60s
+        seconds: 60
+        limit: 10
+        cooldown_minutes: 15
+      - name: window_5m
+        seconds: 300
+        limit: 40
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 200
+        cooldown_minutes: 60
+  message:
+    windows:
+      - name: window_10s
+        seconds: 10
+        limit: 8
+        cooldown_minutes: 15
+      - name: window_60s
+        seconds: 60
+        limit: 30
+        cooldown_minutes: 60
+      - name: window_1h
+        seconds: 3600
+        limit: 120
+        cooldown_minutes: 60
+  invite:
+    windows:
+      - name: window_1h
+        seconds: 3600
+        limit: 10
+        cooldown_minutes: 60
+  upload:
+    windows:
+      - name: window_10m
+        seconds: 600
+        limit: 10
+        cooldown_minutes: 60
+cooldowns:
+  base_minutes: 15
+  escalate_minutes: 60
+shadow_defaults:
+  ttl_hours: 24
+captcha:
+  enabled: true
+  provider: null
+  ttl_hours: 24
+link_cooloff:
+  ttl_hours: 24
+positive_deltas:
+  verified_email: -5
+  accepted_invite: -3
+  account_age_days: -5
+negative_deltas:
+  velocity_trip_window_5m: 5
+  velocity_trip_window_1h: 10
+  velocity_trip_window_24h: 15
+  policy_remove: 15
+  honey_trip: 20
+ip_risk_adjustment:
+  max_bonus: 20
+  baseline: 50
+  high: 100
+shared_device_threshold: 3
+```}

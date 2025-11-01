@@ -1,0 +1,487 @@
+"""Enforcement utilities for moderation decisions."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Mapping, Optional, Protocol
+
+from app.moderation.domain.policy_engine import Decision
+
+
+@dataclass
+class ModerationReport:
+    """Represents a structured user report linked to a case."""
+
+    report_id: str
+    case_id: str
+    reporter_id: str
+    reason_code: str
+    note: Optional[str]
+    created_at: datetime
+
+
+@dataclass
+class ModerationAppeal:
+    """Represents an appeal submitted against a moderation decision."""
+
+    appeal_id: str
+    case_id: str
+    appellant_id: str
+    note: str
+    status: str
+    reviewed_by: Optional[str]
+    created_at: datetime
+    reviewed_at: Optional[datetime]
+
+
+@dataclass
+class ModerationCase:
+    """Represents a moderation case persisted in storage."""
+
+    case_id: str
+    subject_type: str
+    subject_id: str
+    status: str
+    reason: str
+    severity: int
+    policy_id: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] | None = None
+    assigned_to: Optional[str] | None = None
+    escalation_level: int = 0
+    appeal_open: bool = False
+    appealed_by: Optional[str] | None = None
+    appeal_note: Optional[str] | None = None
+
+
+@dataclass
+class ModerationAction:
+    """Represents an action that should be applied to a case."""
+
+    case_id: str
+    action: str
+    payload: Mapping[str, object]
+    actor_id: Optional[str]
+    created_at: datetime
+
+
+@dataclass
+class AuditLogEntry:
+    """Represents an immutable audit trail row."""
+
+    actor_id: Optional[str]
+    action: str
+    target_type: str
+    target_id: str
+    meta: Mapping[str, object]
+    created_at: datetime
+
+
+class ModerationRepository(Protocol):
+    """Storage contract used by the enforcement layer."""
+
+    async def upsert_case(
+        self,
+        subject_type: str,
+        subject_id: str,
+        reason: str,
+        severity: int,
+        policy_id: Optional[str],
+        created_by: Optional[str],
+    ) -> ModerationCase:
+        ...
+
+    async def record_action(self, case_id: str, action: str, payload: Mapping[str, object], actor_id: Optional[str]) -> ModerationAction:
+        ...
+
+    async def already_applied(self, case_id: str, action: str) -> bool:
+        ...
+
+    async def update_case_status(self, case_id: str, status: str) -> None:
+        ...
+
+    async def audit(self, actor_id: Optional[str], action: str, target_type: str, target_id: str, meta: Mapping[str, object]) -> AuditLogEntry:
+        ...
+
+    async def get_case(self, case_id: str) -> ModerationCase | None:
+        ...
+
+    async def list_actions(self, case_id: str) -> list[ModerationAction]:
+        ...
+
+    async def list_audit(self, *, after: datetime | None, limit: int) -> list[AuditLogEntry]:
+        ...
+
+    async def list_cases(self, *, status: Optional[str], assigned_to: Optional[str]) -> list[ModerationCase]:
+        ...
+
+    async def assign_case(self, case_id: str, moderator_id: str) -> ModerationCase:
+        ...
+
+    async def escalate_case(self, case_id: str) -> ModerationCase:
+        ...
+
+    async def dismiss_case(self, case_id: str) -> ModerationCase:
+        ...
+
+    async def create_report(
+        self,
+        case_id: str,
+        reporter_id: str,
+        reason_code: str,
+        note: str | None,
+    ) -> ModerationReport:
+        ...
+
+    async def report_exists(self, case_id: str, reporter_id: str) -> bool:
+        ...
+
+    async def count_active_reports(self, reporter_id: str) -> int:
+        ...
+
+    async def list_reports_for_case(self, case_id: str) -> list[ModerationReport]:
+        ...
+
+    async def create_appeal(self, case_id: str, appellant_id: str, note: str) -> ModerationAppeal:
+        ...
+
+    async def get_appeal(self, appeal_id: str) -> ModerationAppeal | None:
+        ...
+
+    async def resolve_appeal(
+        self,
+        appeal_id: str,
+        reviewer_id: str,
+        status: str,
+        note: str | None,
+    ) -> ModerationAppeal:
+        ...
+
+    async def set_case_closed(self, case_id: str) -> ModerationCase:
+        ...
+
+
+class EnforcementHooks(Protocol):
+    """Hooks into upstream domains for applying side effects."""
+
+    async def tombstone(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def remove(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def shadow_hide(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def mute(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def ban(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def warn(self, case: ModerationCase, payload: Mapping[str, object]) -> None:
+        ...
+
+    async def restrict_create(self, case: ModerationCase, payload: Mapping[str, object], expires_at: datetime) -> None:
+        ...
+
+
+class ModerationEnforcer:
+    """Coordinates decision enforcement and persistence."""
+
+    def __init__(self, repository: ModerationRepository, hooks: EnforcementHooks) -> None:
+        self.repository = repository
+        self.hooks = hooks
+
+    async def apply_decision(
+        self,
+        subject_type: str,
+        subject_id: str,
+        actor_id: Optional[str],
+        base_reason: str,
+        decision: Decision,
+        policy_id: Optional[str],
+    ) -> tuple[ModerationCase, ModerationAction]:
+        case = await self.repository.upsert_case(
+            subject_type=subject_type,
+            subject_id=subject_id,
+            reason=base_reason,
+            severity=decision.severity,
+            policy_id=policy_id,
+            created_by=actor_id,
+        )
+        if await self.repository.already_applied(case.case_id, decision.action):
+            action = ModerationAction(
+                case.case_id,
+                decision.action,
+                decision.payload,
+                actor_id,
+                datetime.now(timezone.utc),
+            )
+            return case, action
+        await self._dispatch(case, decision)
+        action = await self.repository.record_action(case.case_id, decision.action, decision.payload, actor_id)
+        new_status = "actioned" if decision.action != "none" else case.status
+        await self.repository.update_case_status(case.case_id, new_status)
+        await self.repository.audit(
+            actor_id,
+            "action.apply",
+            case.subject_type,
+            case.subject_id,
+            {"action": decision.action},
+        )
+        return case, action
+
+    async def _dispatch(self, case: ModerationCase, decision: Decision) -> None:
+        action = decision.action
+        payload = decision.payload
+        if action == "none":
+            return
+        handler = getattr(self.hooks, action, None)
+        if not handler:
+            raise ValueError(f"Unsupported moderation action: {action}")
+        if action == "restrict_create":
+            ttl = int(payload.get("ttl_minutes", 0)) if payload else 0
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=ttl)
+            await handler(case, payload, expires_at)  # type: ignore[arg-type]
+            return
+        await handler(case, payload)
+
+    async def revert_case_actions(self, case: ModerationCase) -> None:
+        actions = await self.repository.list_actions(case.case_id)
+        if not actions:
+            return
+        await self.repository.audit(
+            actor_id=None,
+            action="action.revert",
+            target_type=case.subject_type,
+            target_id=case.subject_id,
+            meta={
+                "case_id": case.case_id,
+                "actions": [entry.action for entry in actions],
+            },
+        )
+
+
+class InMemoryModerationRepository(ModerationRepository):
+    """Lightweight in-memory repository for local development and tests."""
+
+    def __init__(self) -> None:
+        self.cases: dict[str, ModerationCase] = {}
+        self.actions: dict[str, list[ModerationAction]] = {}
+        self.audit_log: list[AuditLogEntry] = []
+        self.reports: dict[str, list[ModerationReport]] = {}
+        self.appeals: dict[str, ModerationAppeal] = {}
+
+    async def upsert_case(
+        self,
+        subject_type: str,
+        subject_id: str,
+        reason: str,
+        severity: int,
+        policy_id: Optional[str],
+        created_by: Optional[str],
+    ) -> ModerationCase:
+        key = f"{subject_type}:{subject_id}"
+        now = datetime.now(timezone.utc)
+        if key in self.cases:
+            case = self.cases[key]
+            case.updated_at = now
+            case.severity = severity
+            case.policy_id = policy_id
+            case.reason = reason
+        else:
+            case = ModerationCase(
+                case_id=key,
+                subject_type=subject_type,
+                subject_id=subject_id,
+                status="open",
+                reason=reason,
+                severity=severity,
+                policy_id=policy_id,
+                created_at=now,
+                updated_at=now,
+                created_by=created_by,
+                assigned_to=None,
+                escalation_level=0,
+                appeal_open=False,
+                appealed_by=None,
+                appeal_note=None,
+            )
+            self.cases[key] = case
+        return case
+
+    async def record_action(self, case_id: str, action: str, payload: Mapping[str, object], actor_id: Optional[str]) -> ModerationAction:
+        action_entry = ModerationAction(
+            case_id=case_id,
+            action=action,
+            payload=dict(payload),
+            actor_id=actor_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        self.actions.setdefault(case_id, []).append(action_entry)
+        return action_entry
+
+    async def already_applied(self, case_id: str, action: str) -> bool:
+        return any(entry.action == action for entry in self.actions.get(case_id, []))
+
+    async def update_case_status(self, case_id: str, status: str) -> None:
+        if case_id in self.cases:
+            self.cases[case_id].status = status
+            self.cases[case_id].updated_at = datetime.now(timezone.utc)
+
+    async def audit(self, actor_id: Optional[str], action: str, target_type: str, target_id: str, meta: Mapping[str, object]) -> AuditLogEntry:
+        entry = AuditLogEntry(
+            actor_id=actor_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            meta=dict(meta),
+            created_at=datetime.now(timezone.utc),
+        )
+        self.audit_log.append(entry)
+        return entry
+
+    async def get_case(self, case_id: str) -> ModerationCase | None:
+        return self.cases.get(case_id)
+
+    async def list_actions(self, case_id: str) -> list[ModerationAction]:
+        return list(self.actions.get(case_id, []))
+
+    async def list_audit(self, *, after: datetime | None, limit: int) -> list[AuditLogEntry]:
+        entries = self.audit_log
+        if after:
+            entries = [entry for entry in entries if entry.created_at > after]
+        return entries[:limit]
+
+    async def list_cases(self, *, status: Optional[str], assigned_to: Optional[str]) -> list[ModerationCase]:
+        cases = list(self.cases.values())
+        if status:
+            cases = [case for case in cases if case.status == status]
+        if assigned_to == "none":
+            cases = [case for case in cases if case.assigned_to is None]
+        elif assigned_to:
+            cases = [case for case in cases if case.assigned_to == assigned_to]
+        return sorted(cases, key=lambda case: case.updated_at, reverse=True)
+
+    async def assign_case(self, case_id: str, moderator_id: str) -> ModerationCase:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        case.assigned_to = moderator_id
+        case.updated_at = datetime.now(timezone.utc)
+        return case
+
+    async def escalate_case(self, case_id: str) -> ModerationCase:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        case.escalation_level += 1
+        case.status = "escalated"
+        case.updated_at = datetime.now(timezone.utc)
+        return case
+
+    async def dismiss_case(self, case_id: str) -> ModerationCase:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        case.status = "dismissed"
+        case.updated_at = datetime.now(timezone.utc)
+        return case
+
+    async def create_report(
+        self,
+        case_id: str,
+        reporter_id: str,
+        reason_code: str,
+        note: str | None,
+    ) -> ModerationReport:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        if await self.report_exists(case_id, reporter_id):
+            raise ValueError("report_duplicate")
+        report = ModerationReport(
+            report_id=f"{case_id}:{reporter_id}",
+            case_id=case_id,
+            reporter_id=reporter_id,
+            reason_code=reason_code,
+            note=note,
+            created_at=datetime.now(timezone.utc),
+        )
+        self.reports.setdefault(case_id, []).append(report)
+        return report
+
+    async def report_exists(self, case_id: str, reporter_id: str) -> bool:
+        return any(report.reporter_id == reporter_id for report in self.reports.get(case_id, []))
+
+    async def count_active_reports(self, reporter_id: str) -> int:
+        active_statuses = {"open", "escalated"}
+        count = 0
+        for case in self.cases.values():
+            if case.status not in active_statuses:
+                continue
+            for report in self.reports.get(case.case_id, []):
+                if report.reporter_id == reporter_id:
+                    count += 1
+        return count
+
+    async def list_reports_for_case(self, case_id: str) -> list[ModerationReport]:
+        return list(self.reports.get(case_id, []))
+
+    async def create_appeal(self, case_id: str, appellant_id: str, note: str) -> ModerationAppeal:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        appeal = ModerationAppeal(
+            appeal_id=f"appeal:{case_id}",
+            case_id=case_id,
+            appellant_id=appellant_id,
+            note=note,
+            status="pending",
+            reviewed_by=None,
+            created_at=datetime.now(timezone.utc),
+            reviewed_at=None,
+        )
+        self.appeals[appeal.appeal_id] = appeal
+        case.appeal_open = True
+        case.appealed_by = appellant_id
+        case.appeal_note = note
+        case.updated_at = datetime.now(timezone.utc)
+        return appeal
+
+    async def get_appeal(self, appeal_id: str) -> ModerationAppeal | None:
+        return self.appeals.get(appeal_id)
+
+    async def resolve_appeal(
+        self,
+        appeal_id: str,
+        reviewer_id: str,
+        status: str,
+        note: str | None,
+    ) -> ModerationAppeal:
+        appeal = self.appeals.get(appeal_id)
+        if not appeal:
+            raise KeyError(appeal_id)
+        appeal.status = status
+        appeal.reviewed_by = reviewer_id
+        appeal.reviewed_at = datetime.now(timezone.utc)
+        case = self.cases.get(appeal.case_id)
+        if case:
+            case.appeal_open = False
+            case.appealed_by = None
+            if note is not None:
+                case.appeal_note = note
+            case.status = "closed"
+            case.updated_at = datetime.now(timezone.utc)
+        return appeal
+
+    async def set_case_closed(self, case_id: str) -> ModerationCase:
+        case = self.cases.get(case_id)
+        if not case:
+            raise KeyError(case_id)
+        case.status = "closed"
+        case.updated_at = datetime.now(timezone.utc)
+        return case

@@ -1,0 +1,47 @@
+{
+  "name": "divan-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "cross-env NEXT_DISABLE_TS_DETECTION=1 eslint app components lib --ext ts,tsx --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node ./scripts/prep-e2e.js && npm run build && cross-env PLAYWRIGHT_USE_BUILD=1 playwright test"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "@tanstack/react-query": "^5.90.5",
+    "axios": "^1.13.1",
+    "date-fns": "^3.6.0",
+    "next": "^14.2.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socket.io-client": "^4.7.5",
+    "ulidx": "^2.4.1",
+    "web-vitals": "^3.5.2",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@tanstack/react-virtual": "^3.13.12",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.2.73",
+    "@types/react-dom": "^18.2.22",
+    "autoprefixer": "^10.4.19",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "jsdom": "^27.0.1",
+    "playwright": "^1.43.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "vitest": "^1.4.0"
+  }
+}

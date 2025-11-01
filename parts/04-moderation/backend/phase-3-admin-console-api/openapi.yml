@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: Divan Moderation Admin API
+  version: "v1"
+paths:
+  /api/mod/v1/admin/cases:
+    get:
+      summary: List cases (staff)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: severity_min
+          in: query
+          schema:
+            type: integer
+        - name: severity_max
+          in: query
+          schema:
+            type: integer
+        - name: assigned_to
+          in: query
+          schema:
+            type: string
+        - name: subject_type
+          in: query
+          schema:
+            type: string
+        - name: campus_id
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, updated_at, severity]
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            default: 50
+        - name: after
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/cases/{id}:
+    get:
+      summary: Case detail
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/cases/batch_action:
+    post:
+      summary: Batch action
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/audit:
+    get:
+      summary: Audit list
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/dashboard/kpis:
+    get:
+      summary: KPIs
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/dashboard/trends:
+    get:
+      summary: Trends
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/dashboard/workload:
+    get:
+      summary: Workload
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/dashboard/moderator_perf:
+    get:
+      summary: Moderator performance
+      responses:
+        "200":
+          description: OK
+  /api/mod/v1/admin/cases/export.csv:
+    get:
+      summary: CSV export
+      responses:
+        "200":
+          description: OK

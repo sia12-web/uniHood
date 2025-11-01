@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Divan Communities Events API
+  version: "v1"
+paths:
+  /api/communities/v1/groups/{group_id}/events:
+    get:
+      summary: List group events
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, past, all]
+            default: upcoming
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 50
+            default: 20
+        - name: after
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Create event
+      responses:
+        "201":
+          description: Created
+  /api/communities/v1/events/{event_id}/rsvps:
+    post:
+      summary: Upsert caller RSVP
+      responses:
+        "200":
+          description: OK
+  /api/communities/v1/events/{event_id}/ics:
+    get:
+      summary: Download ICS
+      responses:
+        "200":
+          description: OK
+          content:
+            text/calendar: {}

@@ -1,0 +1,181 @@
+openapi: 3.0.3
+info:
+  title: Divan Communities API
+  version: v1
+servers:
+  - url: https://api.divan.local/api/communities/v1
+paths:
+  /groups:
+    post:
+      summary: Create group
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, visibility]
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+                slug:
+                  type: string
+                description:
+                  type: string
+                visibility:
+                  type: string
+                  enum: [public, private, secret]
+                campus_id:
+                  type: string
+                  format: uuid
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: Created
+  /groups/{group_id}:
+    get:
+      summary: Get group
+      operationId: getGroup
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200': { description: OK }
+    patch:
+      summary: Update group
+      operationId: updateGroup
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Delete group
+      operationId: deleteGroup
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204': { description: Deleted }
+  /groups/{group_id}/posts:
+    get:
+      summary: List posts
+      operationId: listGroupPosts
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 50
+            default: 20
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: after
+          in: query
+          schema:
+            type: string
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create post
+      operationId: createPost
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                title:
+                  type: string
+                  maxLength: 140
+                body:
+                  type: string
+                  maxLength: 40000
+                topic_tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201': { description: Created }
+  /posts/{post_id}/comments:
+    get:
+      summary: List comments
+      operationId: listPostComments
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 50
+            default: 20
+        - name: after
+          in: query
+          schema:
+            type: string
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create comment
+      operationId: createComment
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                parent_id:
+                  type: string
+                  format: uuid
+                body:
+                  type: string
+                  maxLength: 10000
+      responses:
+        '201': { description: Created }

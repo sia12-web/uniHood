@@ -1,0 +1,88 @@
+{
+  "title": "Chat & Proximity",
+  "uid": "divan-chat-proximity",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Chat Send Rate",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(divan_chat_send_total[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "msg/s"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Delivery & Read Updates",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(divan_chat_delivered_updates_total[5m]))",
+          "legendFormat": "delivered"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(divan_chat_read_updates_total[5m]))",
+          "legendFormat": "read"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "msg/s"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Nearby Query Rate",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(divan_proximity_queries_total[5m]))",
+          "legendFormat": "all"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (radius)(rate(divan_proximity_queries_total[5m]))",
+          "legendFormat": "radius={{radius}}m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Nearby Request p95 Latency (s)",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le)(rate(divan_http_request_duration_seconds_bucket{route=\"/proximity/nearby\"}[5m])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    }
+  ]
+}

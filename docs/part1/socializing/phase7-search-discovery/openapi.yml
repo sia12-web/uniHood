@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Divan — Search & Discovery
+  version: "1.0.0"
+paths:
+  /search/users:
+    get:
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: campus_id
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserResult'
+                  cursor:
+                    type: string
+                    nullable: true
+        "401":
+          description: Unauthorized
+        "429":
+          description: Rate limited
+
+  /discover/people:
+    get:
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: campus_id
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        "200":
+          description: People discovery results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListUser'
+        "401":
+          description: Unauthorized
+
+  /discover/rooms:
+    get:
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: campus_id
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rooms discovery results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRoom'
+        "401":
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserResult:
+      type: object
+      required:
+        - user_id
+        - handle
+        - display_name
+        - is_friend
+        - mutual_count
+        - score
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        handle:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+        is_friend:
+          type: boolean
+        mutual_count:
+          type: integer
+        score:
+          type: number
+    ListUser:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResult'
+        cursor:
+          type: string
+          nullable: true
+    RoomResult:
+      type: object
+      required:
+        - room_id
+        - name
+        - preset
+        - members_count
+        - msg_24h
+        - score
+      properties:
+        room_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        preset:
+          type: string
+          enum: ["2-4", "4-6", "12+"]
+        members_count:
+          type: integer
+        msg_24h:
+          type: integer
+        score:
+          type: number
+    ListRoom:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomResult'
+        cursor:
+          type: string
+          nullable: true

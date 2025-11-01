@@ -1,0 +1,12 @@
+{
+  "mappings": {
+    "properties": {
+      "id": {"type": "keyword"},
+      "group_id": {"type": "keyword"},
+      "title": {"type": "text"},
+      "body": {"type": "text"},
+      "author_id": {"type": "keyword"},
+      "created_at": {"type": "date"}
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "title": "Redis & Postgres",
+  "uid": "divan-redis-postgres",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Redis Ping Latency",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "divan_redis_latency_seconds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Postgres Round-trip Latency",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "divan_postgres_latency_seconds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Service Availability",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "divan_redis_up",
+          "legendFormat": "redis"
+        },
+        {
+          "refId": "B",
+          "expr": "divan_postgres_up",
+          "legendFormat": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool"
+        }
+      }
+    }
+  ]
+}

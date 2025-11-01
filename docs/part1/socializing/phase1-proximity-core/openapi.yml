@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+	title: Divan — Proximity Core
+	version: "1.0.0"
+paths:
+	/presence/heartbeat:
+		post:
+			security:
+				- bearerAuth: []
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							$ref: '#/components/schemas/HeartbeatPayload'
+			responses:
+				"200":
+					description: OK
+				"400":
+					description: Invalid payload
+				"401":
+					description: Unauthorized
+				"429":
+					description: Rate limited
+
+	/proximity/nearby:
+		get:
+			security:
+				- bearerAuth: []
+			parameters:
+				- in: query
+					name: campus_id
+					schema:
+						type: string
+						format: uuid
+				- in: query
+					name: radius_m
+					required: true
+					schema:
+						type: integer
+						enum: [10, 20, 50, 200]
+				- in: query
+					name: cursor
+					schema:
+						type: string
+				- in: query
+					name: limit
+					schema:
+						type: integer
+						minimum: 1
+						maximum: 200
+						default: 50
+				- in: query
+					name: filter
+					schema:
+						type: string
+						enum: [all, friends]
+						default: all
+				- in: query
+					name: include
+					schema:
+						type: array
+						items:
+							type: string
+							enum: [profile, distance]
+			responses:
+				"200":
+					description: Nearby users
+					content:
+						application/json:
+							schema:
+								type: object
+								properties:
+									items:
+										type: array
+										items:
+											$ref: '#/components/schemas/UserLite'
+									cursor:
+										type: string
+										nullable: true
+				"401":
+					description: Unauthorized
+				"429":
+					description: Rate limited
+
+	/presence/status/self:
+		get:
+			security:
+				- bearerAuth: []
+			responses:
+				"200":
+					description: Online status
+					content:
+						application/json:
+							schema:
+								type: object
+								properties:
+									online:
+										type: boolean
+									ts:
+										type: integer
+
+components:
+	securitySchemes:
+		bearerAuth:
+			type: http
+			scheme: bearer
+			bearerFormat: JWT
+	schemas:
+		HeartbeatPayload:
+			type: object
+			required: [lat, lon, accuracy_m, campus_id, device_id, ts_client]
+			properties:
+				lat:
+					type: number
+					format: double
+				lon:
+					type: number
+					format: double
+				accuracy_m:
+					type: integer
+					minimum: 1
+					maximum: 50
+				campus_id:
+					type: string
+					format: uuid
+				venue_id:
+					type: string
+					format: uuid
+					nullable: true
+				device_id:
+					type: string
+				ts_client:
+					type: integer
+					description: ms since epoch
+		UserLite:
+			type: object
+			required: [user_id, display_name, handle]
+			properties:
+				user_id:
+					type: string
+					format: uuid
+				display_name:
+					type: string
+				handle:
+					type: string
+				avatar_url:
+					type: string
+				distance_m:
+					type: integer
+				is_friend:
+					type: boolean

@@ -1,0 +1,17 @@
+{
+  "description": "Communities generic ingest pipeline",
+  "processors": [
+    {
+      "set": {
+        "field": "ingested_at",
+        "value": "{{_ingest.timestamp}}"
+      }
+    },
+    {
+      "set": {
+        "field": "deleted",
+        "value": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+"""Stub mapping for documentation. Implementation: backend.app.moderation.api.quarantine."""

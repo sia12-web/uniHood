@@ -1,0 +1,267 @@
+openapi: 3.1.0
+info:
+	title: Divan Identity Verification API
+	version: 0.4.0
+	description: |
+		Phase 4 endpoints covering SSO verification, document upload, trust status, and admin moderation.
+servers:
+	- url: https://api.divan.local
+paths:
+	/verify/status:
+		get:
+			summary: Fetch the authenticated user's verification status and trust profile snapshot.
+			tags: [verification]
+			responses:
+				"200":
+					description: Current verification entries and computed trust metadata.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/VerificationStatus"
+	/verify/sso/{provider}/start:
+		post:
+			summary: Begin an SSO verification flow for the given provider.
+			tags: [verification]
+			parameters:
+				- name: provider
+					in: path
+					required: true
+					schema:
+						type: string
+						enum: [google, microsoft]
+				- name: redirect_uri
+					in: query
+					required: false
+					schema:
+						type: string
+			responses:
+				"200":
+					description: PKCE bundle and authorize URL for client-side completion.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/SsoStart"
+	/verify/sso/{provider}/complete:
+		post:
+			summary: Complete an SSO verification after receiving the ID token from the provider.
+			tags: [verification]
+			parameters:
+				- name: provider
+					in: path
+					required: true
+					schema:
+						type: string
+						enum: [google, microsoft]
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							$ref: "#/components/schemas/SsoCompleteRequest"
+			responses:
+				"200":
+					description: Persisted verification entry.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/VerificationEntry"
+	/verify/doc/presign:
+		post:
+			summary: Presign an S3 upload URL for student ID uploads.
+			tags: [verification]
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							$ref: "#/components/schemas/DocumentPresignRequest"
+			responses:
+				"200":
+					description: Presigned URL details.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/DocumentPresignResponse"
+	/verify/doc/submit:
+		post:
+			summary: Submit a previously uploaded student document for moderation.
+			tags: [verification]
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							$ref: "#/components/schemas/DocumentSubmitRequest"
+			responses:
+				"200":
+					description: Pending verification entry now awaiting review.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/VerificationEntry"
+	/admin/verify/queue:
+		get:
+			summary: List verification submissions awaiting moderation.
+			tags: [admin]
+			parameters:
+				- name: state
+					in: query
+					required: false
+					schema:
+						type: string
+						enum: [pending, approved, rejected, expired]
+				- name: limit
+					in: query
+					required: false
+					schema:
+						type: integer
+						minimum: 1
+						maximum: 200
+			responses:
+				"200":
+					description: Verification entries filtered by the requested state.
+					content:
+						application/json:
+							schema:
+								type: array
+								items:
+									$ref: "#/components/schemas/VerificationEntry"
+	/admin/verify/{verification_id}/decide:
+		post:
+			summary: Approve or reject a pending verification.
+			tags: [admin]
+			parameters:
+				- name: verification_id
+					in: path
+					required: true
+					schema:
+						type: string
+						format: uuid
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							$ref: "#/components/schemas/AdminDecision"
+			responses:
+				"200":
+					description: Updated verification entry reflecting the moderator's decision.
+					content:
+						application/json:
+							schema:
+								$ref: "#/components/schemas/VerificationEntry"
+components:
+	schemas:
+		VerificationEntry:
+			type: object
+			properties:
+				id:
+					type: string
+					format: uuid
+				user_id:
+					type: string
+					format: uuid
+				method:
+					type: string
+					enum: [sso, doc]
+				state:
+					type: string
+					enum: [pending, approved, rejected, expired]
+				evidence:
+					type: object
+					additionalProperties: {}
+				reason:
+					type: string
+					nullable: true
+				expires_at:
+					type: string
+					format: date-time
+					nullable: true
+				created_at:
+					type: string
+					format: date-time
+				decided_at:
+					type: string
+					format: date-time
+					nullable: true
+			required: [id, user_id, method, state, evidence, created_at]
+		VerificationStatus:
+			type: object
+			properties:
+				trust:
+					type: object
+					properties:
+						trust_level:
+							type: integer
+						badge:
+							type: string
+							nullable: true
+						verified_at:
+							type: string
+							format: date-time
+							nullable: true
+						expires_at:
+							type: string
+							format: date-time
+							nullable: true
+					required: [trust_level]
+				verifications:
+					type: array
+					items:
+						$ref: "#/components/schemas/VerificationEntry"
+			required: [trust, verifications]
+		SsoStart:
+			type: object
+			properties:
+				authorize_url:
+					type: string
+				state:
+					type: string
+				code_verifier:
+					type: string
+				code_challenge:
+					type: string
+			required: [authorize_url, state, code_verifier, code_challenge]
+		SsoCompleteRequest:
+			type: object
+			properties:
+				state:
+					type: string
+				id_token:
+					type: string
+			required: [state, id_token]
+		DocumentPresignRequest:
+			type: object
+			properties:
+				mime:
+					type: string
+				bytes:
+					type: integer
+			required: [mime, bytes]
+		DocumentPresignResponse:
+			type: object
+			properties:
+				key:
+					type: string
+				url:
+					type: string
+				expires_s:
+					type: integer
+			required: [key, url, expires_s]
+		DocumentSubmitRequest:
+			type: object
+			properties:
+				key:
+					type: string
+				mime:
+					type: string
+			required: [key]
+		AdminDecision:
+			type: object
+			properties:
+				approve:
+					type: boolean
+				note:
+					type: string
+					nullable: true
+			required: [approve]

@@ -1,0 +1,15 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "next/typescript"
+  ],
+  "overrides": [
+    {
+      "files": ["**/__tests__/**/*.{ts,tsx}"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@next/next/no-assign-module-variable": "off"
+      }
+    }
+  ]
+}

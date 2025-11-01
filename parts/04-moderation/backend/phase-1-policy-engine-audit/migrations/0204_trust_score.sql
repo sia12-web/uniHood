@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS trust_score (
+    user_id UUID PRIMARY KEY,
+    score SMALLINT NOT NULL DEFAULT 50,
+    last_event_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

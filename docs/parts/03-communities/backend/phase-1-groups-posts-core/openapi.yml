@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+	title: Divan Communities API
+	version: v1
+servers:
+	- url: https://api.divan.local
+paths:
+	/api/communities/v1/groups:
+		post:
+			summary: Create group
+			operationId: createGroup
+			tags: [groups]
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							type: object
+							required: [name, visibility]
+							properties:
+								name:
+									type: string
+									minLength: 3
+									maxLength: 80
+								slug:
+									type: string
+								description:
+									type: string
+								visibility:
+									type: string
+									enum: [public, private, secret]
+								campus_id:
+									type: string
+									format: uuid
+								tags:
+									type: array
+									items:
+										type: string
+			responses:
+				'201':
+					description: Created
+		get:
+			summary: List discoverable groups
+			operationId: listGroups
+			tags: [groups]
+			parameters:
+				- name: visibility
+					in: query
+					schema:
+						type: string
+						enum: [public]
+				- name: limit
+					in: query
+					schema:
+						type: integer
+						default: 20
+						maximum: 50
+			responses:
+				'200': { description: OK }
+	/api/communities/v1/groups/{group_id}:
+		get:
+			summary: Get group
+			operationId: getGroup
+			tags: [groups]
+			parameters:
+				- name: group_id
+					in: path
+					required: true
+					schema:
+						type: string
+						format: uuid
+			responses:
+				'200': { description: OK }
+		patch:
+			summary: Update group
+			operationId: patchGroup
+			tags: [groups]
+			responses:
+				'200': { description: Updated }
+		delete:
+			summary: Delete group
+			operationId: deleteGroup
+			tags: [groups]
+			responses:
+				'204': { description: Deleted }
+	/api/communities/v1/groups/{group_id}/posts:
+		get:
+			summary: List posts
+			operationId: listGroupPosts
+			tags: [posts]
+			parameters:
+				- name: group_id
+					in: path
+					required: true
+					schema:
+						type: string
+						format: uuid
+				- name: limit
+					in: query
+					schema:
+						type: integer
+						default: 20
+						maximum: 50
+				- name: before
+					in: query
+					schema:
+						type: string
+				- name: after
+					in: query
+					schema:
+						type: string
+			responses:
+				'200': { description: OK }
+		post:
+			summary: Create post
+			operationId: createPost
+			tags: [posts]
+			requestBody:
+				required: true
+				content:
+					application/json:
+						schema:
+							type: object
+							required: [body]
+							properties:
+								title:
+									type: string
+									maxLength: 140
+								body:
+									type: string
+									maxLength: 40000
+								topic_tags:
+									type: array
+									items:
+										type: string
+			responses:
+				'201': { description: Created }

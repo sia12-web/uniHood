@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7.2
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ../docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: divan
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ../../backend:/app
+    command: >
+      bash -c "pip install poetry &&
+               poetry config virtualenvs.create false &&
+               poetry install --no-root &&
+               poetry run uvicorn app.main:socket_app --host 0.0.0.0 --port 8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/divan
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

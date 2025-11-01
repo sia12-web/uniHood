@@ -1,0 +1,135 @@
+openapi: 3.0.0
+info:
+  title: Phase 4: Rooms & Group Chat API
+  version: 1.0.0
+paths:
+  /rooms:
+    post:
+      summary: Create a new room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomCreate'
+      responses:
+        '200':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomOut'
+    get:
+      summary: List rooms
+      responses:
+        '200':
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomOut'
+  /rooms/{id}/messages:
+    get:
+      summary: List messages in a room
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomMessageOut'
+    post:
+      summary: Send message to room
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomMessageOut'
+      responses:
+        '200':
+          description: Message sent
+  /rooms/{id}/members:
+    get:
+      summary: List room members
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomMemberOut'
+components:
+  schemas:
+    RoomCreate:
+      type: object
+      properties:
+        name:
+          type: string
+        is_group:
+          type: boolean
+        member_ids:
+          type: array
+          items:
+            type: string
+    RoomOut:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        is_group:
+          type: boolean
+        owner_id:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    RoomMemberOut:
+      type: object
+      properties:
+        user_id:
+          type: string
+        joined_at:
+          type: string
+    RoomMessageOut:
+      type: object
+      properties:
+        id:
+          type: string
+        sender_id:
+          type: string
+        content:
+          type: string
+        sent_at:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string

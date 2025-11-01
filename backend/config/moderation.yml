@@ -1,0 +1,26 @@
+text:
+  hard_block:
+    hate: 0.98
+    selfharm: 0.98
+  soft_enforce:
+    toxicity: 0.92
+    harassment: 0.92
+image:
+  hard_block:
+    nsfw: 0.97
+    gore: 0.8
+  soft_review:
+    nsfw: 0.85
+url:
+  malicious: tombstone
+  suspicious: warn
+surfaces:
+  profile_avatar:
+    image:
+      hard_block:
+        nsfw: 0.9
+        gore: 0.7
+      soft_review:
+        nsfw: 0.75
+sampling:
+  borderline_nsfw: 0.1

@@ -1,0 +1,24 @@
+{
+  "index_patterns": ["communities-posts-v1"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": {"type": "keyword"},
+        "group_id": {"type": "keyword"},
+        "campus_id": {"type": "keyword"},
+        "title": {"type": "text", "fields": {"raw": {"type": "keyword"}}},
+        "body": {"type": "text"},
+        "author_id": {"type": "keyword"},
+        "tags": {"type": "keyword"},
+        "deleted": {"type": "boolean"},
+        "created_at": {"type": "date", "format": "strict_date_time"},
+        "updated_at": {"type": "date", "format": "strict_date_time"}
+      }
+    }
+  }
+}

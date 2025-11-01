@@ -1,0 +1,63 @@
+openapi: 3.0.0
+info:
+  title: Passkey API
+  version: 1.0.0
+paths:
+  /passkeys:
+    get:
+      summary: List passkeys
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of passkey devices
+  /passkeys/register:
+    post:
+      summary: Register passkey (challenge)
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Challenge for registration
+  /passkeys/attest:
+    post:
+      summary: Attest passkey
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Attestation result
+  /passkeys/{device_id}:
+    delete:
+      summary: Remove passkey device
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device removed

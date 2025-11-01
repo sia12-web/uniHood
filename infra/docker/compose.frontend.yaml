@@ -3,7 +3,7 @@ services:
     image: node:20
     working_dir: /work
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       # Improve file watching on Windows/host-mounted volumes
       CHOKIDAR_USEPOLLING: "1"

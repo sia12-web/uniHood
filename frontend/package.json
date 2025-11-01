@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "cross-env NEXT_DISABLE_TS_DETECTION=1 eslint app components lib --ext ts,tsx --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "node ./scripts/prep-e2e.js && npm run build && cross-env PLAYWRIGHT_USE_BUILD=1 playwright test"

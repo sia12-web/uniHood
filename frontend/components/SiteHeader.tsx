@@ -43,8 +43,7 @@ export default function SiteHeader() {
         : authUser.handle
         ? `@${authUser.handle}`
         : "Profile";
-      const href = authUser.handle ? `/u/${authUser.handle}` : "/settings/profile";
-      return [{ href, label }];
+      return [{ href: "/me", label }];
     }
     return [{ href: "/login", label: "Sign in" }];
   }, [authUser]);

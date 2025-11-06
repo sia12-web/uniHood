@@ -8,12 +8,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { isRecentlyLive } from "@/lib/presence/api";
 
-const NAV_LINKS = [
-  { href: "/social/nearby", label: "Social Hub" },
-  { href: "/settings/profile", label: "Profile" },
-  { href: "/rooms", label: "Rooms" },
-  { href: "/friends", label: "Friends" },
-];
+// MVP header: no nav; show Join in/Sign in for guests, Profile/Sign out for members
 
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -67,17 +62,6 @@ export default function HomePage() {
       <header className="relative border-b border-warm-sand/70 bg-glass shadow-soft">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
           <BrandLogo withWordmark />
-          <nav className="hidden items-center gap-4 rounded-full bg-white/60 px-4 py-2 text-sm font-medium text-navy/70 shadow-sm md:flex">
-            {(hydrated && authUser ? NAV_LINKS : hydrated ? NAV_LINKS.filter((item) => item.href === "/social/nearby") : []).map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-full px-3 py-1 transition hover:bg-white/80 hover:text-midnight"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
           <div className="hidden items-center gap-3 md:flex">
             {hydrated && authUser ? (
               <>
@@ -85,11 +69,7 @@ export default function HomePage() {
                   href={profileLink ?? "/settings/profile"}
                   className="rounded-full border border-warm-sand px-4 py-2 text-sm font-semibold text-navy transition hover:bg-warm-sand hover:text-midnight"
                 >
-                  {authUser.displayName?.trim()
-                    ? authUser.displayName
-                    : authUser.handle
-                    ? `@${authUser.handle}`
-                    : "Profile"}
+                  Profile
                 </Link>
                 <button
                   type="button"
@@ -105,7 +85,7 @@ export default function HomePage() {
                   href="/onboarding"
                   className="rounded-full border border-warm-sand px-4 py-2 text-sm font-semibold text-navy transition hover:bg-warm-sand hover:text-midnight"
                 >
-                  Join beta
+                  Join in
                 </Link>
                 <Link
                   href="/login"

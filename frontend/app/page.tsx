@@ -113,6 +113,13 @@ export default function HomePage() {
     setAuthUser(null);
   }, []);
 
+  const profileLabel = useMemo(() => {
+    if (!authUser) return null;
+    if (authUser.displayName && authUser.displayName.trim()) return authUser.displayName;
+    if (authUser.handle) return `@${authUser.handle}`;
+    return "Profile";
+  }, [authUser]);
+
   const currentUserId = authUser?.userId ?? DEMO_USER_ID;
   const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
   const isDemoMode = currentCampusId === DEMO_CAMPUS_ID;
@@ -388,18 +395,23 @@ export default function HomePage() {
 
       {/* Embedded proximity on homepage */}
       <section className="relative mx-auto w-full max-w-6xl px-4 py-8">
-        {/* Centered medium logo */}
-        <div className="mb-6 flex items-center justify-center">
+        {/* Centered larger logo (matches page bg) */}
+        <div className="mb-4 flex items-center justify-center">
           <Image
-            src="/brand/divan-logo.jpg"
+            src="/brand/divan- logo.png"
             alt="Divan"
-            width={128}
-            height={128}
+            width={256}
+            height={256}
             priority
-            className="h-16 w-auto select-none"
+            className="h-24 w-auto select-none"
             draggable={false}
           />
         </div>
+        {hydrated && authUser ? (
+          <p className="mb-6 text-center text-sm font-medium text-navy/80">
+            Welcome, <span className="font-semibold text-navy">{profileLabel}</span>
+          </p>
+        ) : null}
         {/* Badge under title, replaces previous marketing sections */}
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-navy">Home</h1>
@@ -409,6 +421,15 @@ export default function HomePage() {
             </span>
           ) : null}
         </div>
+
+        {/* Prompt for unauthenticated users to use proximity */}
+        {hydrated && !authUser ? (
+          <div className="mb-4 rounded-2xl border border-warm-sand bg-white/70 p-4 shadow-soft">
+            <p className="text-sm text-navy/80">
+              To use live proximity, please <Link href="/onboarding" className="font-semibold underline">Join in</Link> or <Link href="/login" className="font-semibold underline">Sign in</Link>.
+            </p>
+          </div>
+        ) : null}
 
         {locationNotice ? (
           <p className="mb-3 rounded bg-amber-100 px-3 py-2 text-sm text-amber-800">{locationNotice}</p>
@@ -443,7 +464,7 @@ export default function HomePage() {
                 <Radar users={users} radius={radius} />
               </div>
               <GoLiveStrip
-                enabled={goLiveAllowed}
+                enabled={goLiveAllowed && !!authUser}
                 heartbeatSeconds={heartbeatSeconds}
                 radius={radius}
                 // Use range slider on home

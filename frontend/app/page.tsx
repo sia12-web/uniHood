@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
-import BrandLogo from "@/components/BrandLogo";
 import GoLiveStrip from "@/components/proximity/GoLiveStrip";
 import { NearbyList } from "@/app/proximity/components/NearbyList";
+import Radar from "@/components/proximity/Radar";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { applyDiff } from "@/lib/diff";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
@@ -328,7 +329,7 @@ export default function HomePage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_rgba(255,209,102,0.25)_0%,_rgba(255,255,255,0)_60%)]" />
       <header className="relative border-b border-warm-sand/70 bg-glass shadow-soft">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
-          <BrandLogo withWordmark />
+          <div />
           <div className="hidden items-center gap-3 md:flex">
             {hydrated && authUser ? (
               <>
@@ -368,6 +369,18 @@ export default function HomePage() {
 
       {/* Embedded proximity on homepage */}
       <section className="relative mx-auto w-full max-w-6xl px-4 py-8">
+        {/* Centered medium logo */}
+        <div className="mb-6 flex items-center justify-center">
+          <Image
+            src="/brand/divan-logo.jpg"
+            alt="Divan"
+            width={128}
+            height={128}
+            priority
+            className="h-16 w-auto select-none"
+            draggable={false}
+          />
+        </div>
         {/* Badge under title, replaces previous marketing sections */}
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-navy">Home</h1>
@@ -407,7 +420,9 @@ export default function HomePage() {
           <div className="lg:col-span-4">
             <div className="rounded-3xl border border-warm-sand bg-glass p-4 shadow-soft">
               <h2 className="mb-3 text-lg font-semibold text-navy">Mini map</h2>
-              <div className="mb-4 h-64 w-full rounded-2xl border border-warm-sand/60 bg-white/60" />
+              <div className="mb-4 rounded-2xl border border-warm-sand/60 bg-white/40 p-2">
+                <Radar users={users} radius={radius} />
+              </div>
               <GoLiveStrip
                 enabled={goLiveAllowed}
                 heartbeatSeconds={heartbeatSeconds}

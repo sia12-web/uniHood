@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { isRecentlyLive } from "@/lib/presence/api";
 
 const NAV_LINKS = [
   { href: "/social/nearby", label: "Social Hub" },
@@ -17,6 +18,7 @@ const NAV_LINKS = [
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [liveNow, setLiveNow] = useState(false);
   const GO_LIVE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
   useEffect(() => {
@@ -27,6 +29,24 @@ export default function HomePage() {
     setHydrated(true);
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!GO_LIVE_ENABLED) {
+      setLiveNow(false);
+      return;
+    }
+    const update = () => setLiveNow(isRecentlyLive());
+    update();
+    const id = window.setInterval(update, 15000);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "divan:lastHeartbeatAt") update();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [GO_LIVE_ENABLED]);
 
   const handleSignOut = useCallback(() => {
     clearAuthSnapshot();
@@ -168,7 +188,7 @@ export default function HomePage() {
                   Proximity
                   {GO_LIVE_ENABLED ? (
                     <span className="ml-2 align-middle rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                      Go Live available
+                      {liveNow ? "Live now" : "Go Live available"}
                     </span>
                   ) : null}
                 </h2>

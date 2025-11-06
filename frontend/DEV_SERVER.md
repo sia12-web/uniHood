@@ -22,6 +22,26 @@ npm run dev
 - Leave the shell open while you work; the dev server rebuilds on every file change.
 - Configure demo links by copying `.env.example` to `.env.local` and populating any `NEXT_PUBLIC_DEMO_*` variables (handles, chat peer IDs, activity IDs). Restart the server after changes so the new values propagate.
 
+### Go Live quickstart (optional)
+
+- Enable the feature flag (persisted across sessions):
+
+  ```powershell
+  setx NEXT_PUBLIC_ENABLE_GO_LIVE "true"
+  ```
+
+  Restart your terminal/editor so the new env var is visible to `npm run dev`, or put it in `frontend/.env.local`:
+
+  ```env
+  NEXT_PUBLIC_ENABLE_GO_LIVE=true
+  ```
+
+- Visit http://localhost:3000/proximity and click "Go live now". In demo mode (logged out or demo campus), a fallback location is used; when you grant location permission, the browser’s position is used instead.
+- Heartbeats run every few seconds; a successful heartbeat stores a timestamp in `localStorage`.
+- The homepage shows a subtle badge next to "Proximity":
+  - "Go Live available" when the flag is on
+  - "Live now" if a recent heartbeat (≈90s window) exists; the badge updates roughly every 15s
+
 ## 3. Run the Playwright smoke test
 
 ```powershell

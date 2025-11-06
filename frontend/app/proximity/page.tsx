@@ -21,6 +21,8 @@ const BACKEND_URL = getBackendUrl();
 const RADIUS_OPTIONS = [10, 50, 100];
 const HEARTBEAT_VISIBLE_MS = 2000;
 const HEARTBEAT_HIDDEN_MS = 6000;
+const GO_LIVE_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
@@ -98,6 +100,7 @@ export default function ProximityPage() {
   const currentUserId = authUser?.userId ?? DEMO_USER_ID;
   const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
   const isDemoMode = currentCampusId === DEMO_CAMPUS_ID;
+  const goLiveAllowed = GO_LIVE_ENABLED || isDemoMode;
 
   const socket = useMemo(() => {
     disconnectPresenceSocket();
@@ -172,6 +175,10 @@ export default function ProximityPage() {
   }, [currentUserId, currentCampusId, radius]);
 
   const primeHeartbeat = useCallback(() => {
+    if (!goLiveAllowed) {
+      return;
+    }
+
     if (!positionRef.current || sentInitialHeartbeat.current) {
       return;
     }
@@ -181,10 +188,17 @@ export default function ProximityPage() {
       sentInitialHeartbeat.current = false;
       setError(err instanceof Error ? err.message : "Heartbeat failed");
     });
-  }, [currentCampusId, currentUserId, radius]);
+  }, [currentCampusId, currentUserId, radius, goLiveAllowed]);
 
   const handleGoLive = useCallback(async () => {
     setPresenceStatus(null);
+
+    if (!goLiveAllowed) {
+      const disabledMessage = "Live presence is temporarily disabled.";
+      setError(disabledMessage);
+      setLocationNotice(disabledMessage);
+      return;
+    }
 
     if (!positionRef.current) {
       if (isDemoMode) {
@@ -214,7 +228,7 @@ export default function ProximityPage() {
       setPresenceStatus(null);
       setError(err instanceof Error ? err.message : "Unable to share your location");
     }
-  }, [currentCampusId, currentUserId, radius, isDemoMode]);
+  }, [currentCampusId, currentUserId, radius, goLiveAllowed, isDemoMode]);
 
   useEffect(() => {
     if (!positionRef.current || sentInitialHeartbeat.current) {
@@ -224,6 +238,11 @@ export default function ProximityPage() {
   }, [primeHeartbeat]);
 
   useEffect(() => {
+    if (!goLiveAllowed) {
+      setLocationNotice("Live presence is temporarily disabled.");
+      return;
+    }
+
     if (!navigator.geolocation) {
       setError("Geolocation unsupported");
       return;
@@ -263,9 +282,17 @@ export default function ProximityPage() {
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [primeHeartbeat, isDemoMode]);
+  }, [goLiveAllowed, primeHeartbeat, isDemoMode]);
 
   useEffect(() => {
+    if (!goLiveAllowed) {
+      if (heartbeatTimer.current) {
+        clearInterval(heartbeatTimer.current);
+        heartbeatTimer.current = null;
+      }
+      return;
+    }
+
     const scheduleHeartbeat = () => {
       if (heartbeatTimer.current) {
         clearInterval(heartbeatTimer.current);
@@ -300,7 +327,7 @@ export default function ProximityPage() {
         clearInterval(heartbeatTimer.current);
       }
     };
-  }, [radius, currentCampusId, currentUserId]);
+  }, [radius, currentCampusId, currentUserId, goLiveAllowed]);
 
   const handleInvite = useCallback(
     async (targetUserId: string) => {
@@ -385,7 +412,12 @@ export default function ProximityPage() {
             <button
               type="button"
               onClick={handleGoLive}
-              className="inline-flex items-center justify-center rounded-full bg-midnight px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
+              disabled={!goLiveAllowed}
+              className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                goLiveAllowed
+                  ? "bg-midnight text-white hover:bg-navy"
+                  : "cursor-not-allowed bg-slate-200 text-slate-500"
+              }`}
             >
               Go live now
             </button>

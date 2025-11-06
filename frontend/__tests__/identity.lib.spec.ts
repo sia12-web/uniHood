@@ -1,15 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-
-// Mock isDevApiProxyEnabled to always return false so URLs are absolute in tests
-
-vi.mock("@/lib/env", async (importOriginal) => {
-	const actual = await importOriginal();
-	return Object.assign({}, actual, {
-		isDevApiProxyEnabled: () => false,
-	});
-});
-
 import {
 	commitAvatar,
 	listCampuses,

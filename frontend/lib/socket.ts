@@ -14,8 +14,7 @@ export function getPresenceSocket(userId: string, campusId: string): Socket {
 	}
 	presenceSocket = io(`${ENDPOINT}/presence`, {
 		autoConnect: true,
-		// Allow fallback to HTTP long-polling if direct websocket is unavailable
-		transports: ["websocket", "polling"],
+		transports: ["websocket"],
 		auth: {
 			userId,
 			campusId,

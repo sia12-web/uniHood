@@ -4,32 +4,21 @@ import Link from "next/link";
 type BrandLogoProps = {
   withWordmark?: boolean;
   className?: string;
-  logoClassName?: string;
-  logoWidth?: number;
-  logoHeight?: number;
 };
 
-export default function BrandLogo({
-  withWordmark = false,
-  className,
-  logoClassName,
-  logoWidth = 56,
-  logoHeight = 56,
-}: BrandLogoProps) {
-  const baseClasses = "inline-flex items-center gap-3 text-navy";
+export default function BrandLogo({ withWordmark = false, className }: BrandLogoProps) {
+  const baseClasses = "flex items-center gap-3 text-navy";
   const mergedClasses = className ? `${baseClasses} ${className}` : baseClasses;
-  const baseLogoClasses = "h-14 w-auto";
-  const mergedLogoClasses = logoClassName ? `${baseLogoClasses} ${logoClassName}` : baseLogoClasses;
 
   return (
     <Link href="/" className={mergedClasses}>
       <Image
-        src="/brand/divan-logo.png"
+        src="/brand/divan-logo.jpg"
         alt="Divan logo"
-        width={logoWidth}
-        height={logoHeight}
+        width={56}
+        height={72}
         priority
-        className={mergedLogoClasses}
+        className="h-14 w-auto"
       />
       {withWordmark ? <span className="text-lg font-semibold tracking-tight">Divan</span> : null}
     </Link>

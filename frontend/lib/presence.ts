@@ -1,4 +1,4 @@
-import { API_BASE, api } from "./api";
+import { api } from "./api";
 
 export type PresenceRecord = {
   user_id: string;
@@ -12,9 +12,6 @@ export type PresenceResponse = {
 
 export async function fetchPresence(userIds: string[]): Promise<PresenceRecord[]> {
   if (userIds.length === 0) {
-    return [];
-  }
-  if (process.env.NODE_ENV !== "production" && API_BASE === "/api/communities/v1") {
     return [];
   }
   const search = new URLSearchParams();

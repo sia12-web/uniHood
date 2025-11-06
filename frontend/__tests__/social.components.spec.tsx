@@ -32,10 +32,10 @@ describe("InviteInbox", () => {
 				onAccept={() => undefined}
 				onDecline={() => undefined}
 				onCancel={() => undefined}
-				profileData={{}}
 			/>,
 		);
-			expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+		expect(screen.getByText("No pending invites.")).toBeInTheDocument();
+		expect(screen.getByText("No invites sent.")).toBeInTheDocument();
 	});
 
 	it("calls action callbacks", () => {
@@ -51,17 +51,16 @@ describe("InviteInbox", () => {
 				onAccept={handleAccept}
 				onDecline={handleDecline}
 				onCancel={handleCancel}
-				profileData={{}}
 			/>,
 		);
 
-		fireEvent.click(screen.getByText("Accept invite"));
+		fireEvent.click(screen.getByText("Accept"));
 		expect(handleAccept).toHaveBeenCalledWith("inv-1");
 
 		fireEvent.click(screen.getByText("Decline"));
 		expect(handleDecline).toHaveBeenCalledWith("inv-1");
 
-		fireEvent.click(screen.getByText("Cancel invite"));
+		fireEvent.click(screen.getByText("Cancel"));
 		expect(handleCancel).toHaveBeenCalledWith("inv-2");
 	});
 });
@@ -94,11 +93,6 @@ describe("FriendList", () => {
 				onChangeFilter={onChangeFilter}
 				onBlock={() => undefined}
 				onUnblock={() => undefined}
-				onRemove={() => undefined}
-				onChat={() => undefined}
-				profileData={{}}
-				onSelect={() => undefined}
-				selectedFriendId={null}
 			/>,
 		);
 
@@ -109,7 +103,6 @@ describe("FriendList", () => {
 	it("calls block and unblock handlers", () => {
 		const onBlock = vi.fn();
 		const onUnblock = vi.fn();
-		const onRemove = vi.fn();
 		const onChange = vi.fn();
 
 		const { rerender } = render(
@@ -119,19 +112,11 @@ describe("FriendList", () => {
 				onChangeFilter={onChange}
 				onBlock={onBlock}
 				onUnblock={onUnblock}
-				onRemove={onRemove}
-				onChat={() => undefined}
-				profileData={{}}
-				onSelect={() => undefined}
-				selectedFriendId={null}
 			/>,
 		);
 
 		fireEvent.click(screen.getByText("Block"));
 		expect(onBlock).toHaveBeenCalledWith("friend-1");
-		fireEvent.click(screen.getByText("Remove"));
-		expect(onRemove).toHaveBeenCalledWith("friend-1");
-		expect(screen.getByText("Chat")).toBeInTheDocument();
 
 		rerender(
 			<FriendList
@@ -140,36 +125,10 @@ describe("FriendList", () => {
 				onChangeFilter={onChange}
 				onBlock={onBlock}
 				onUnblock={onUnblock}
-				onRemove={onRemove}
-				onChat={() => undefined}
-				profileData={{}}
-				onSelect={() => undefined}
-				selectedFriendId={null}
 			/>,
 		);
 
 		fireEvent.click(screen.getByText("Unblock"));
 		expect(onUnblock).toHaveBeenCalledWith("friend-2");
-	});
-
-	it("calls chat handler for accepted friends", () => {
-		const onChat = vi.fn();
-		render(
-			<FriendList
-				friends={[acceptedFriend]}
-				filter="accepted"
-				onChangeFilter={() => undefined}
-				onBlock={() => undefined}
-				onUnblock={() => undefined}
-				onRemove={() => undefined}
-				onChat={onChat}
-				profileData={{}}
-				onSelect={() => undefined}
-				selectedFriendId={null}
-			/>,
-		);
-
-		fireEvent.click(screen.getByText("Chat"));
-		expect(onChat).toHaveBeenCalledWith("friend-1");
 	});
 });

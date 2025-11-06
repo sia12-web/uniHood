@@ -1,9 +1,8 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useState, useContext } from "react";
 
 import AvatarUploader from "./AvatarUploader";
-import ProfileGalleryManager from "./ProfileGalleryManager";
 import type { ProfilePatchPayload } from "@/lib/identity";
 import type { ProfileRecord } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
@@ -12,16 +11,8 @@ type ProfileFormProps = {
 	profile: ProfileRecord;
 	onSubmit: (patch: ProfilePatchPayload) => Promise<ProfileRecord>;
 	onAvatarUpload: (file: File) => Promise<ProfileRecord>;
-	onGalleryUpload: (file: File) => Promise<ProfileRecord>;
-	onGalleryRemove: (key: string) => Promise<ProfileRecord>;
 	onRequestDeletion?: () => void;
 	deleteLoading?: boolean;
-	onDirtyChange?: (dirty: boolean, fields: string[]) => void;
-	galleryUploading?: boolean;
-	galleryRemovingKey?: string | null;
-	galleryError?: string | null;
-	galleryDisabled?: boolean;
-	galleryLimit?: number;
 };
 
 const HANDLE_PATTERN = /[^a-z0-9_]/g;
@@ -31,18 +22,10 @@ export default function ProfileForm({
 	profile,
 	onSubmit,
 	onAvatarUpload,
-	onGalleryUpload,
-	onGalleryRemove,
 	onRequestDeletion,
 	deleteLoading = false,
-	onDirtyChange,
-	galleryUploading = false,
-	galleryRemovingKey = null,
-	galleryError = null,
-	galleryDisabled = false,
-	galleryLimit,
 }: ProfileFormProps) {
-	const toast = useContext(ToastContext);
+    const toast = useContext(ToastContext);
 	const [current, setCurrent] = useState<ProfileRecord>(profile);
 	const [handle, setHandle] = useState<string>(profile.handle ?? "");
 	const [bio, setBio] = useState<string>(profile.bio ?? "");
@@ -87,7 +70,7 @@ export default function ProfileForm({
 	const statusCount = useMemo(() => `${statusText.length}/120`, [statusText.length]);
 	const passionSlots = useMemo(() => PASSION_LIMIT - passions.length, [passions.length]);
 
-	const buildPatch = useCallback((): { patch: ProfilePatchPayload; changed: boolean; error?: string } => {
+	const buildPatch = (): { patch: ProfilePatchPayload; changed: boolean; error?: string } => {
 		const patch: ProfilePatchPayload = {};
 		let changed = false;
 		const trimmedBio = bio.trim();
@@ -145,22 +128,7 @@ export default function ProfileForm({
 			changed = true;
 		}
 		return { patch, changed };
-	}, [bio, current, ghostMode, graduationYear, handle, major, passions, statusEmoji, statusText, visibility]);
-
-	const dirtyStateRef = useRef<{ dirty: boolean; key: string }>({ dirty: false, key: "" });
-
-	useEffect(() => {
-		if (!onDirtyChange) {
-			return;
-		}
-		const { patch, changed } = buildPatch();
-		const fields = Object.keys(patch);
-		const key = fields.slice().sort().join("|");
-		if (dirtyStateRef.current.dirty !== changed || dirtyStateRef.current.key !== key) {
-			dirtyStateRef.current = { dirty: changed, key };
-			onDirtyChange(changed, fields);
-		}
-	}, [buildPatch, onDirtyChange]);
+	};
 
 	const handleSubmitForm = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -199,12 +167,6 @@ export default function ProfileForm({
 			const updated = await onAvatarUpload(file);
 			syncProfile(updated);
 			setFeedback("Avatar updated.");
-			if (process.env.NODE_ENV !== "production") {
-				console.info("[settings/profile] Avatar saved", {
-					avatarKey: updated.avatar_key,
-					avatarUrl: updated.avatar_url,
-				});
-			}
             toast?.push({ title: "Photo updated", description: "Your profile photo has been saved.", variant: "success" });
 			return updated;
 		} catch (err) {
@@ -214,24 +176,6 @@ export default function ProfileForm({
 			throw err;
 		}
 	};
-
-	const handleGalleryUpload = useCallback(
-		async (file: File) => {
-			const updated = await onGalleryUpload(file);
-			syncProfile(updated);
-			return updated;
-		},
-		[onGalleryUpload, syncProfile],
-	);
-
-	const handleGalleryRemove = useCallback(
-		async (key: string) => {
-			const updated = await onGalleryRemove(key);
-			syncProfile(updated);
-			return updated;
-		},
-		[onGalleryRemove, syncProfile],
-	);
 
 	const addPassion = useCallback(
 		(value: string) => {
@@ -291,16 +235,6 @@ export default function ProfileForm({
 				disabled={saving}
 				onChange={(next) => syncProfile(next)}
 			/>
-			<ProfileGalleryManager
-				images={current.gallery ?? []}
-				onUpload={handleGalleryUpload}
-				onRemove={handleGalleryRemove}
-				uploading={galleryUploading}
-				removingKey={galleryRemovingKey ?? undefined}
-				error={galleryError ?? undefined}
-				disabled={galleryDisabled}
-				limit={galleryLimit}
-			/>
 			{feedback ? (
 				<p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{feedback}</p>
 			) : null}
@@ -334,38 +268,26 @@ export default function ProfileForm({
 				</label>
 				<div className="grid gap-4 md:grid-cols-2">
 					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">What&apos;s your vibe?</span>
+						<span className="font-medium">Status Text</span>
 						<input
 							type="text"
 							value={statusText}
 							onChange={(event) => setStatusText(event.target.value)}
 							maxLength={120}
-							placeholder="Open to study collabs today"
 							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
 						/>
-						<span className="flex items-start justify-between text-xs text-slate-500">
-							<span>{statusCount}</span>
-							<span className="max-w-[12rem] text-right text-slate-400">
-								Let friends know how you&apos;re feeling—e.g., &ldquo;Open to study collabs today&rdquo; or &ldquo;Busy with finals&rdquo;.
-							</span>
-						</span>
+						<span className="text-xs text-slate-500">{statusCount}</span>
 					</label>
 					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Mood emoji</span>
+						<span className="font-medium">Status Emoji</span>
 						<input
 							type="text"
 							value={statusEmoji}
 							onChange={(event) => setStatusEmoji(event.target.value.slice(0, 4))}
 							maxLength={4}
-							placeholder="🧠📚"
 							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
 						/>
-						<span className="flex items-start justify-between text-xs text-slate-500">
-							<span>Up to 4 characters.</span>
-							<span className="max-w-[12rem] text-right text-slate-400">
-								Try quick cues like 🧠📚, 🎨✨, or ✅ so classmates know your vibe at a glance.
-							</span>
-						</span>
+						<span className="text-xs text-slate-500">Up to 4 characters.</span>
 					</label>
 				</div>
 				<div className="grid gap-4 md:grid-cols-2">

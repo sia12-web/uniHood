@@ -43,12 +43,11 @@ export async function sendInvite(
 	userId: string,
 	campusId: string | null,
 	toUserId: string,
-	options: { campus_id?: string | null; note?: string | null } = {},
+	options: { campus_id?: string | null } = {},
 ): Promise<InviteSummary> {
 	return request<InviteSummary>("/invites/send", userId, campusId, "POST", {
 		to_user_id: toUserId,
 		campus_id: options.campus_id ?? campusId,
-		note: options.note ?? undefined,
 	});
 }
 
@@ -98,13 +97,5 @@ export async function unblockUser(
 	targetId: string,
 ): Promise<void> {
 	await request(`/friends/${targetId}/unblock`, userId, campusId, "POST");
-}
-
-export async function removeFriend(
-	userId: string,
-	campusId: string | null,
-	targetId: string,
-): Promise<void> {
-	await request(`/friends/${targetId}/remove`, userId, campusId, "POST");
 }
 

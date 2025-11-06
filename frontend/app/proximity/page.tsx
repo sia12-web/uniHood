@@ -4,17 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { NearbyList } from "./components/NearbyList";
 import { applyDiff } from "@/lib/diff";
-import {
-  getBackendUrl,
-  getDemoCampusId,
-  getDemoLatitude,
-  getDemoLongitude,
-  getDemoUserId,
-} from "@/lib/env";
-import { canSendHeartbeat, clampHeartbeatAccuracy } from "@/lib/geo";
+import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
 import { sendInvite } from "@/lib/social";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import {
+  LOCATION_PERMISSION_MESSAGE,
+  createFallbackPosition,
+  requestBrowserPosition,
+  sendHeartbeat,
+  sendOffline,
+} from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
 
 const BACKEND_URL = getBackendUrl();
@@ -24,36 +24,6 @@ const HEARTBEAT_HIDDEN_MS = 6000;
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
-const DEMO_LAT = getDemoLatitude();
-const DEMO_LON = getDemoLongitude();
-
-function createFallbackPosition(): GeolocationPosition {
-  const coords = {
-    latitude: DEMO_LAT,
-    longitude: DEMO_LON,
-    accuracy: 50,
-    altitude: null,
-    altitudeAccuracy: null,
-    heading: null,
-    speed: null,
-    toJSON() {
-      return {
-        latitude: DEMO_LAT,
-        longitude: DEMO_LON,
-        accuracy: 50,
-        altitude: null,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      };
-    },
-  } as unknown as GeolocationCoordinates;
-  return {
-    coords,
-    timestamp: Date.now(),
-  } as GeolocationPosition;
-}
-
 async function fetchNearby(userId: string, campusId: string, radius: number) {
   const url = new URL("/proximity/nearby", BACKEND_URL);
   url.searchParams.set("campus_id", campusId);
@@ -86,68 +56,6 @@ async function fetchNearby(userId: string, campusId: string, radius: number) {
   return body.items as NearbyUser[];
 }
 
-async function sendHeartbeat(
-  position: GeolocationPosition,
-  userId: string,
-  campusId: string,
-  radius: number,
-) {
-  const rawAccuracy = position.coords.accuracy;
-
-  if (!canSendHeartbeat(rawAccuracy)) {
-    throw new Error("Location unavailable");
-  }
-
-  const payload = {
-    lat: position.coords.latitude,
-    lon: position.coords.longitude,
-    accuracy_m: clampHeartbeatAccuracy(rawAccuracy),
-    campus_id: campusId,
-    device_id: "web",
-    ts_client: Date.now(),
-    radius_m: radius,
-  };
-
-  if (process.env.NODE_ENV !== "production") {
-    console.debug("sendHeartbeat", {
-      userId,
-      campusId,
-      radius,
-      payload,
-    });
-  }
-
-  const response = await fetch(`${BACKEND_URL}/presence/heartbeat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": userId,
-      "X-Campus-Id": campusId,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Heartbeat failed (${response.status})`);
-  }
-}
-
-async function sendOffline(userId: string, campusId: string) {
-  try {
-    // Use fetch with keepalive so the POST completes during unload
-    await fetch(`${BACKEND_URL}/presence/offline`, {
-      method: "POST",
-      keepalive: true,
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Id": userId,
-        "X-Campus-Id": campusId,
-      },
-    });
-  } catch {
-    // best-effort; ignore errors on unload
-  }
-}
 
 export default function ProximityPage() {
   const [radius, setRadius] = useState<number>(50);
@@ -277,16 +185,26 @@ export default function ProximityPage() {
 
   const handleGoLive = useCallback(async () => {
     setPresenceStatus(null);
+
     if (!positionRef.current) {
       if (isDemoMode) {
         positionRef.current = createFallbackPosition();
         setLocationNotice("Using demo location. Enable location access for real positioning.");
       } else {
-        setError("Location permission needed to go live. Please allow location access in your browser.");
-        return;
+        try {
+          positionRef.current = await requestBrowserPosition();
+          setLocationNotice(null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
+          setError(message);
+          setLocationNotice(message);
+          return;
+        }
       }
     }
+
     const position = positionRef.current;
+
     try {
       await sendHeartbeat(position, currentUserId, currentCampusId, radius);
       sentInitialHeartbeat.current = true;

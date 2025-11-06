@@ -49,14 +49,6 @@ export default function Radar({ users, radius }: RadarProps) {
         <circle cx="50" cy="50" r="20" fill="none" stroke="rgba(222,205,178,0.3)" />
         <circle cx="50" cy="50" r="10" fill="none" stroke="rgba(222,205,178,0.2)" />
 
-        {/* Sweep wedge (20deg) */}
-        <g className="origin-center animate-[sweep_2.5s_linear_infinite]">
-          <path
-            d="M50,50 L95,50 A45,45 0 0,1 50,95 Z"
-            fill="rgba(16,185,129,0.2)"
-          />
-        </g>
-
         {/* Points */}
         {points.map((p) => (
           <circle
@@ -70,13 +62,6 @@ export default function Radar({ users, radius }: RadarProps) {
           </circle>
         ))}
       </svg>
-
-      <style jsx>{`
-        @keyframes sweep {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

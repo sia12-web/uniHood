@@ -158,6 +158,28 @@ export default function HomePage() {
             </ul>
           </article>
 
+          {/* Proximity CTA: lightweight and safe */}
+          <article className="w-full rounded-3xl border border-warm-sand/70 bg-white/70 p-6 text-left shadow-soft">
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Try it</p>
+                <h2 className="text-2xl font-semibold text-navy">Proximity</h2>
+              </div>
+              {hydrated ? (
+                <Link
+                  href={authUser ? "/proximity" : "/onboarding"}
+                  className="w-fit rounded-full bg-emerald-700 px-6 py-2 text-sm font-semibold text-white shadow-soft transition hover:scale-[1.02] hover:bg-emerald-800"
+                >
+                  {authUser ? "Open proximity" : "Get started"}
+                </Link>
+              ) : null}
+            </header>
+            <p className="mt-4 text-sm text-navy/70">
+              See classmates who are within a short walk. Tune your discovery radius and send quick invites when the
+              timing is right.
+            </p>
+          </article>
+
           <p className="text-xs uppercase tracking-[0.3em] text-navy/40">More spaces coming soon</p>
         </div>
       </section>

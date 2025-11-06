@@ -215,6 +215,12 @@ export type ProfileRecord = {
   passions: string[];
 };
 
+// Minimal image shape used by profile gallery UI
+export type ProfileGalleryImage = {
+  key: string;
+  url: string;
+};
+
 export type BlockEntry = {
   blocked_id: string;
   blocked_handle?: string | null;

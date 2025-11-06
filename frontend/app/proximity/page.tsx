@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { NearbyList } from "./components/NearbyList";
+import GoLiveStrip from "@/components/proximity/GoLiveStrip";
 import { applyDiff } from "@/lib/diff";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
@@ -388,45 +389,16 @@ export default function ProximityPage() {
         <p className="rounded bg-emerald-100 px-3 py-2 text-sm text-emerald-800">{inviteMessage}</p>
       ) : null}
 
-          {presenceStatus ? (
-            <p className="rounded bg-emerald-100 px-3 py-2 text-sm text-emerald-800">{presenceStatus}</p>
-          ) : null}
-
-          <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">Radius</span>
-              <div className="flex gap-2">
-                {RADIUS_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    className={`rounded px-3 py-1 text-sm ${
-                      option === radius ? "bg-slate-900 text-white" : "bg-white text-slate-700 shadow"
-                    }`}
-                    onClick={() => setRadius(option)}
-                  >
-                    {option}m
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleGoLive}
-              disabled={!goLiveAllowed}
-              className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-                goLiveAllowed
-                  ? "bg-midnight text-white hover:bg-navy"
-                  : "cursor-not-allowed bg-slate-200 text-slate-500"
-              }`}
-            >
-              Go live now
-            </button>
-          </section>
-          {accuracyM != null && radius <= accuracyM ? (
-            <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Tip: your current location accuracy is about ~{accuracyM}m. At {radius}m, results may be empty. Try 50m or 100m.
-            </p>
-          ) : null}
+          <GoLiveStrip
+            enabled={goLiveAllowed}
+            heartbeatSeconds={heartbeatSeconds}
+            radius={radius}
+            radiusOptions={RADIUS_OPTIONS}
+            accuracyM={accuracyM}
+            presenceStatus={presenceStatus}
+            onRadiusChange={setRadius}
+            onGoLive={handleGoLive}
+          />
 
       <section className="grow">
         <NearbyList

@@ -42,6 +42,14 @@ npm run dev
   - "Go Live available" when the flag is on
   - "Live now" if a recent heartbeat (≈90s window) exists; the badge updates roughly every 15s
 
+### Component harnesses
+
+- GoLiveStrip sandbox (no network calls):
+
+  http://localhost:3000/_harness/proximity/golive
+
+  Use the controls to toggle enabled state, heartbeat seconds, radius, accuracy, and the presence status banner.
+
 ## 3. Run the Playwright smoke test
 
 ```powershell

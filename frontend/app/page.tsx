@@ -18,7 +18,8 @@ import type { NearbyDiff, NearbyUser } from "@/lib/types";
 // MVP header: no nav; show Join in/Sign in for guests, Profile/Sign out for members
 
 const BACKEND_URL = getBackendUrl();
-const RADIUS_OPTIONS = [10, 50, 100];
+// kept for legacy pages; homepage uses slider
+// Radius options are used by /proximity; homepage uses a slider.
 const HEARTBEAT_VISIBLE_MS = 2000;
 const HEARTBEAT_HIDDEN_MS = 6000;
 const GO_LIVE_FLAG = process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
@@ -72,6 +73,7 @@ export default function HomePage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState<boolean>(false);
   const [accuracyM, setAccuracyM] = useState<number | null>(null);
   const [heartbeatSeconds, setHeartbeatSeconds] = useState<number>(HEARTBEAT_VISIBLE_MS / 1000);
   const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
@@ -172,14 +174,14 @@ export default function HomePage() {
   }, [currentUserId, currentCampusId]);
 
   const primeHeartbeat = useCallback(() => {
-    if (!goLiveAllowed) return;
+    if (!goLiveAllowed || !isLive) return;
     if (!positionRef.current || sentInitialHeartbeat.current) return;
     sentInitialHeartbeat.current = true;
     sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
       sentInitialHeartbeat.current = false;
       setError(err instanceof Error ? err.message : "Heartbeat failed");
     });
-  }, [currentCampusId, currentUserId, radius, goLiveAllowed]);
+  }, [currentCampusId, currentUserId, radius, goLiveAllowed, isLive]);
 
   const handleGoLive = useCallback(async () => {
     setPresenceStatus(null);
@@ -215,6 +217,7 @@ export default function HomePage() {
       sentInitialHeartbeat.current = true;
       setPresenceStatus("You’re visible on the map—others nearby can see you now.");
       setError(null);
+      setIsLive(true);
     } catch (err) {
       setPresenceStatus(null);
       setError(err instanceof Error ? err.message : "Unable to share your location");
@@ -280,7 +283,7 @@ export default function HomePage() {
       const interval = visible ? HEARTBEAT_VISIBLE_MS : HEARTBEAT_HIDDEN_MS;
       setHeartbeatSeconds(interval / 1000);
       heartbeatTimer.current = setInterval(() => {
-        if (positionRef.current) {
+        if (positionRef.current && isLive) {
           sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
             setError(err.message);
           });
@@ -299,7 +302,23 @@ export default function HomePage() {
       }
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
     };
-  }, [radius, currentCampusId, currentUserId, goLiveAllowed]);
+  }, [radius, currentCampusId, currentUserId, goLiveAllowed, isLive]);
+
+  const handleToggleLive = useCallback(async () => {
+    if (!isLive) {
+      // turn on
+      await handleGoLive();
+      return;
+    }
+    // turn off
+    if (heartbeatTimer.current) {
+      clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = null;
+    }
+    await sendOffline(currentUserId, currentCampusId);
+    setIsLive(false);
+    setPresenceStatus("You’re hidden now. Others nearby can’t see you.");
+  }, [isLive, handleGoLive, currentUserId, currentCampusId]);
 
   const handleInvite = useCallback(
     async (targetUserId: string) => {
@@ -427,11 +446,16 @@ export default function HomePage() {
                 enabled={goLiveAllowed}
                 heartbeatSeconds={heartbeatSeconds}
                 radius={radius}
-                radiusOptions={RADIUS_OPTIONS}
+                // Use range slider on home
+                radiusOptions={[]}
+                sliderMin={10}
+                sliderMax={300}
+                sliderStep={10}
                 accuracyM={accuracyM}
                 presenceStatus={presenceStatus}
                 onRadiusChange={setRadius}
-                onGoLive={handleGoLive}
+                isLive={isLive}
+                onToggleLive={handleToggleLive}
               />
               {process.env.NODE_ENV !== "production" ? (
                 <p className="mt-2 text-xs text-navy/60">

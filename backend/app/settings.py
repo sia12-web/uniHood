@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     campus_ttl_seconds: int = 90
     # Presence entries older than this are considered stale and ignored by Nearby
     presence_stale_seconds: int = 20
+    # Keepalive loop interval and idle timeout for "go live" sessions
+    presence_keepalive_interval_seconds: float = 15.0
+    presence_keepalive_idle_seconds: float = 240.0
     # When users select a very small UI radius (e.g., 10m), expand the server-side
     # search slightly to account for GPS jitter. If radius_m <= 10, use this value.
     proximity_min_search_radius_10m: int = 15

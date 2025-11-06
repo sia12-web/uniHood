@@ -11,6 +11,12 @@ from pydantic import BaseModel, EmailStr, Field, HttpUrl, RootModel
 HANDLE_PATTERN = r"^[a-z0-9_]{3,20}$"
 
 
+class GalleryImage(BaseModel):
+	key: str
+	url: HttpUrl
+	uploaded_at: Optional[str] = None
+
+
 class CampusOut(BaseModel):
 	id: UUID
 	name: str
@@ -98,6 +104,7 @@ class ProfileOut(BaseModel):
 	major: Optional[Annotated[str, Field(max_length=80)]] = None
 	graduation_year: Optional[Annotated[int, Field(ge=1900, le=2100)]] = None
 	passions: list[Annotated[str, Field(max_length=40)]] = Field(default_factory=list)
+	gallery: list[GalleryImage] = Field(default_factory=list)
 
 
 class ProfilePatch(BaseModel):
@@ -123,6 +130,14 @@ class PresignResponse(BaseModel):
 
 
 class AvatarCommitRequest(BaseModel):
+	key: str
+
+
+class GalleryCommitRequest(BaseModel):
+	key: str
+
+
+class GalleryRemoveRequest(BaseModel):
 	key: str
 
 
@@ -710,6 +725,7 @@ class PublicProfileOut(BaseModel):
 	interests: list[str]
 	skills: list[PublicSkill]
 	links: list[PublicLink]
+	gallery: list[GalleryImage] = Field(default_factory=list)
 
 
 class MatchPerson(BaseModel):

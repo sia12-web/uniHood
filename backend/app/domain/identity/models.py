@@ -80,6 +80,63 @@ def _coerce_json_to_list(value: Any) -> list[str]:
 
 
 @dataclass(slots=True)
+class ProfileImage:
+	"""Lightweight representation of a gallery image stored on a profile."""
+
+	key: str
+	url: str
+	uploaded_at: str = ""
+
+	@classmethod
+	def from_mapping(cls, data: Mapping[str, Any]) -> "ProfileImage | None":
+		key = str(data.get("key") or "").strip()
+		url = str(data.get("url") or "").strip()
+		if not key or not url:
+			return None
+		uploaded_at_raw = data.get("uploaded_at")
+		uploaded_at = str(uploaded_at_raw).strip() if uploaded_at_raw is not None else ""
+		return cls(key=key, url=url, uploaded_at=uploaded_at)
+
+	def to_dict(self) -> dict[str, str]:
+		payload = {"key": self.key, "url": self.url}
+		if self.uploaded_at:
+			payload["uploaded_at"] = self.uploaded_at
+		return payload
+
+
+def parse_profile_gallery(value: Any) -> list[ProfileImage]:
+	"""Normalise gallery payloads stored in Postgres JSON columns."""
+	if not value:
+		return []
+	raw: Any = value
+	if isinstance(raw, (bytes, bytearray, memoryview)):
+		try:
+			raw = bytes(raw).decode("utf-8")
+		except Exception:
+			raw = value
+	if isinstance(raw, str):
+		try:
+			raw = json.loads(raw)
+		except json.JSONDecodeError:
+			return []
+	items: Sequence[Any]
+	if isinstance(raw, Mapping):
+		items = [raw]
+	elif isinstance(raw, (list, tuple, set)):
+		items = list(raw)
+	else:
+		return []
+	images: list[ProfileImage] = []
+	for entry in items:
+		if not isinstance(entry, Mapping):
+			continue
+		image = ProfileImage.from_mapping(entry)
+		if image:
+			images.append(image)
+	return images
+
+
+@dataclass(slots=True)
 class Campus:
 	"""Represents a campus location/tenant."""
 
@@ -118,6 +175,7 @@ class User:
 	major: Optional[str] = None
 	graduation_year: Optional[int] = None
 	passions: list[str] = field(default_factory=list)
+	profile_gallery: list[ProfileImage] = field(default_factory=list)
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -140,6 +198,7 @@ class User:
 			major=(str(record.get("major", "")).strip() or None),
 			graduation_year=int(record.get("graduation_year")) if record.get("graduation_year") is not None else None,
 			passions=_coerce_json_to_list(record.get("passions")),
+			profile_gallery=parse_profile_gallery(record.get("profile_gallery")),
 		)
 
 

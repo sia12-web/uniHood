@@ -11,14 +11,14 @@ psql "$DATABASE_URL" -f infra/migrations/0001_init.sql
 psql "$DATABASE_URL" <<'SQL'
 INSERT INTO campuses (id, name, lat, lon)
 VALUES
-	('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Main Campus', 37.7749, -122.4194)
+	('33333333-3333-3333-3333-333333333333', 'Main Campus', 37.7749, -122.4194)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO users (id, handle, display_name, avatar_url, campus_id, privacy)
 VALUES
-	('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'alice', 'Alice Example', NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '{"visibility":"everyone","blur_distance_m":10}'),
-	('cccccccc-cccc-cccc-cccc-cccccccccccc', 'bob', 'Bob Example', NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '{"visibility":"friends","blur_distance_m":20}'),
-	('dddddddd-dddd-dddd-dddd-dddddddddddd', 'carol', 'Carol Example', NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '{"visibility":"none"}')
+	('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'alice', 'Alice Example', NULL, '33333333-3333-3333-3333-333333333333', '{"visibility":"everyone","blur_distance_m":10}'),
+	('cccccccc-cccc-cccc-cccc-cccccccccccc', 'bob', 'Bob Example', NULL, '33333333-3333-3333-3333-333333333333', '{"visibility":"friends","blur_distance_m":20}'),
+	('dddddddd-dddd-dddd-dddd-dddddddddddd', 'carol', 'Carol Example', NULL, '33333333-3333-3333-3333-333333333333', '{"visibility":"none"}')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO friendships (user_id, friend_id, status)

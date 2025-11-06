@@ -299,8 +299,8 @@ async def _update_invite_status(
 			invite_id,
 			new_status.value,
 		)
-
-	summary = await _summarize_invite(conn, updated["id"])
+		# Summarize while the connection is still held to avoid using a released connection
+		summary = await _summarize_invite(conn, updated["id"])
 	await audit.log_invite_event(
 		new_status.value,
 		{
@@ -445,4 +445,20 @@ async def unblock_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> No
 		{"user_id": blocker_id, "friend_id": target_id, "status": "none"},
 	)
 	await _emit_friend_update_pair(blocker_id, target_id, "none")
+
+
+async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> None:
+	user_id = str(auth_user.id)
+	target_id = str(target_user_id)
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		await policy.ensure_users_exist_conn(conn, user_id, target_id)
+		async with conn.transaction():
+			await policy.delete_friendship(conn, user_id, target_id)
+			await policy.delete_friendship(conn, target_id, user_id)
+	await audit.log_friend_event(
+		"removed",
+		{"user_id": user_id, "friend_id": target_id, "status": "none"},
+	)
+	await _emit_friend_update_pair(user_id, target_id, "none")
 

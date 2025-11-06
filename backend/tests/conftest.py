@@ -12,6 +12,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
 	sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.domain.proximity import live_sessions
 from app.infra import postgres
 from app.infra.redis import redis_client, set_redis_client
 from app.main import app
@@ -34,6 +35,7 @@ async def fake_redis():
 	try:
 		yield client
 	finally:
+		await live_sessions.shutdown()
 		set_redis_client(original)
 		await client.flushall()
 

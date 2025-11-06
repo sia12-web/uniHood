@@ -9,6 +9,7 @@ import time
 from typing import Dict, List, Sequence, Tuple
 from uuid import UUID
 
+from app.domain.identity.models import parse_profile_gallery
 from app.domain.proximity.models import PrivacySettings
 from app.domain.proximity.privacy import load_blocks, load_friendship_flags, load_privacy
 from app.domain.proximity.schemas import NearbyQuery, NearbyResponse, NearbyUser
@@ -42,21 +43,28 @@ def _encode_cursor(uid: str, distance_m: float) -> str:
 	return base64.b64encode(f"{uid}:{int(distance_m * 1000)}".encode("utf-8")).decode("utf-8")
 
 
-async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, str]]:
+async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object]]:
 	if not user_ids:
 		return {}
 	pool = await get_pool()
 	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
 	rows = await pool.fetch(
-			"SELECT id, display_name, handle, avatar_url, major FROM users WHERE id = ANY($1::uuid[])",
+		"""
+		SELECT id, display_name, handle, avatar_url, major, bio, graduation_year, profile_gallery
+		FROM users
+		WHERE id = ANY($1::uuid[])
+		""",
 		list({uid for uid in user_ids}),
 	)
 	return {
 		str(row["id"]): {
 			"display_name": row["display_name"],
 			"handle": row["handle"],
-				"avatar_url": row["avatar_url"],
-				"major": row.get("major"),
+			"avatar_url": row["avatar_url"],
+			"major": row.get("major"),
+			"bio": row.get("bio"),
+			"graduation_year": row.get("graduation_year"),
+			"gallery": [image.to_dict() for image in parse_profile_gallery(row.get("profile_gallery"))],
 		}
 		for row in rows
 	}
@@ -214,6 +222,9 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 				major=profile.get("major"),
 				distance_m=distance_value,
 				is_friend=is_friend,
+				bio=profile.get("bio") or None,
+				graduation_year=profile.get("graduation_year"),
+				gallery=profile.get("gallery", []),
 			)
 		)
 

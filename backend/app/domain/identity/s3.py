@@ -42,3 +42,14 @@ def presign_avatar(user_id: str, payload: PresignRequest) -> PresignResponse:
 	key = build_avatar_key(user_id)
 	url = f"{DEFAULT_BASE_URL.rstrip('/')}/{key}"
 	return PresignResponse(key=key, url=url, expires_s=DEFAULT_EXPIRES)
+
+
+def build_gallery_key(user_id: str) -> str:
+	return f"{DEFAULT_BUCKET_PREFIX}/{user_id}/gallery/{ulid.new()}"
+
+
+def presign_gallery(user_id: str, payload: PresignRequest) -> PresignResponse:
+	validate_presign(payload)
+	key = build_gallery_key(user_id)
+	url = f"{DEFAULT_BASE_URL.rstrip('/')}/{key}"
+	return PresignResponse(key=key, url=url, expires_s=DEFAULT_EXPIRES)

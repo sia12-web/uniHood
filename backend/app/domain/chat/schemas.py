@@ -49,12 +49,12 @@ class MessageResponse(BaseModel):
 		moderation: dict[str, bool] | None = None,
 	) -> "MessageResponse":
 		return cls(
-			message_id=message.message_id,
-			client_msg_id=message.client_msg_id,
-			seq=message.seq,
-			conversation_id=message.conversation_id,
-			sender_id=message.sender_id,
-			recipient_id=message.recipient_id,
+			message_id=str(message.message_id),
+			client_msg_id=str(message.client_msg_id),
+			seq=int(message.seq),
+			conversation_id=str(message.conversation_id),
+			sender_id=str(message.sender_id),
+			recipient_id=str(message.recipient_id),
 			body=message.body,
 			attachments=[MessageAttachment.from_meta(meta) for meta in message.attachments],
 			created_at=message.created_at,

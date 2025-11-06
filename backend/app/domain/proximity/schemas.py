@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.domain.identity.schemas import GalleryImage
+
 
 class HeartbeatPayload(BaseModel):
 	"""Payload emitted by the client when reporting the current location."""
@@ -48,6 +50,9 @@ class NearbyUser(BaseModel):
 	major: Optional[str] = None
 	distance_m: Optional[int] = Field(default=None, ge=0)
 	is_friend: bool = False
+	bio: Optional[str] = None
+	graduation_year: Optional[int] = None
+	gallery: list[GalleryImage] = Field(default_factory=list)
 
 
 class NearbyResponse(BaseModel):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -15,6 +17,12 @@ from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
 
 
+logger = logging.getLogger(__name__)
+
+
+MAX_GALLERY_ITEMS = 6
+
+
 def _now_iso() -> str:
 	return datetime.now(timezone.utc).isoformat()
 
@@ -25,6 +33,13 @@ def _avatar_url(user: models.User) -> Optional[str]:
 	if user.avatar_key:
 		return f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{user.avatar_key}"
 	return None
+
+
+def _to_gallery(images: list[models.ProfileImage]) -> list[schemas.GalleryImage]:
+	return [
+		schemas.GalleryImage(key=item.key, url=item.url, uploaded_at=item.uploaded_at or None)
+		for item in images
+	]
 
 
 def _to_profile(user: models.User) -> schemas.ProfileOut:
@@ -43,6 +58,7 @@ def _to_profile(user: models.User) -> schemas.ProfileOut:
 		major=user.major,
 		graduation_year=user.graduation_year,
 		passions=user.passions,
+		gallery=_to_gallery(user.profile_gallery),
 	)
 
 
@@ -111,33 +127,42 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				setattr(user, key, value)
 			user.display_name = user.handle
 			user.status["updated_at"] = user.status.get("updated_at") or _now_iso()
+			privacy_payload = json.dumps(user.privacy or {})
+			status_payload = json.dumps(user.status or {})
+			passions_payload = json.dumps(user.passions or [])
 			await conn.execute(
 				"""
 				UPDATE users
 				SET handle = $1,
 					display_name = $2,
 					bio = $3,
-					privacy = $4,
-					status = $5,
+					privacy = $4::jsonb,
+					status = $5::jsonb,
 					major = $6,
 					graduation_year = $7,
-					passions = $8,
+					passions = $8::jsonb,
 					updated_at = NOW()
 				WHERE id = $9
 				""",
 				user.handle,
 				user.handle,
 				user.bio,
-				user.privacy,
-				user.status,
+				privacy_payload,
+				status_payload,
 				user.major,
 				user.graduation_year,
-				user.passions,
+				passions_payload,
 				auth_user.id,
 			)
 	profile = _to_profile(user)
-	obs_metrics.inc_profile_update()
-	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	try:
+		obs_metrics.inc_profile_update()
+	except Exception:  # pragma: no cover - metrics backend failures should not block profile saves
+		logger.warning("Failed to record profile update metric", exc_info=True)
+	try:
+		await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	except Exception:  # pragma: no cover - cache rebuild should not block profile saves
+		logger.warning("Failed to rebuild public profile", exc_info=True)
 	return profile
 
 
@@ -170,5 +195,69 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 			user.avatar_url = url
 	profile = _to_profile(user)
 	obs_metrics.inc_avatar_upload()
+	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	return profile
+
+
+async def presign_gallery(auth_user: AuthenticatedUser, payload: schemas.PresignRequest) -> schemas.PresignResponse:
+	return s3.presign_gallery(auth_user.id, payload)
+
+
+def _serialize_gallery(images: list[models.ProfileImage]) -> str:
+	return json.dumps([image.to_dict() for image in images])
+
+
+async def commit_gallery(auth_user: AuthenticatedUser, request: schemas.GalleryCommitRequest) -> schemas.ProfileOut:
+	key = request.key
+	if not key.startswith(f"{s3.DEFAULT_BUCKET_PREFIX}/{auth_user.id}/"):
+		raise policy.IdentityPolicyError("avatar_key_invalid")
+	url = f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{key}"
+	entry = models.ProfileImage(key=key, url=url, uploaded_at=_now_iso())
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		async with conn.transaction():
+			user = await _load_user(conn, auth_user.id)
+			gallery = [image for image in user.profile_gallery if image.key != key]
+			gallery.insert(0, entry)
+			trimmed = gallery[:MAX_GALLERY_ITEMS]
+			await conn.execute(
+				"""
+				UPDATE users
+				SET profile_gallery = $1::jsonb,
+					updated_at = NOW()
+				WHERE id = $2
+				""",
+				_serialize_gallery(trimmed),
+				auth_user.id,
+			)
+			user.profile_gallery = trimmed
+	profile = _to_profile(user)
+	obs_metrics.inc_profile_update()
+	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	return profile
+
+
+async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.GalleryRemoveRequest) -> schemas.ProfileOut:
+	key = request.key
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		async with conn.transaction():
+			user = await _load_user(conn, auth_user.id)
+			gallery = [image for image in user.profile_gallery if image.key != key]
+			if len(gallery) == len(user.profile_gallery):
+				return _to_profile(user)
+			await conn.execute(
+				"""
+				UPDATE users
+				SET profile_gallery = $1::jsonb,
+					updated_at = NOW()
+				WHERE id = $2
+				""",
+				_serialize_gallery(gallery),
+				auth_user.id,
+			)
+			user.profile_gallery = gallery
+	profile = _to_profile(user)
+	obs_metrics.inc_profile_update()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	return profile

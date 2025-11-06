@@ -7,6 +7,7 @@ import clsx from "clsx";
 
 import type { NotificationRecord } from "@/lib/notifications";
 import { useNotificationsDropdown } from "@/hooks/notifications/use-dropdown";
+import { useInviteNotificationBridge } from "@/hooks/notifications/use-invite-bridge";
 import { useNotificationsSocketBridge } from "@/hooks/notifications/use-notifications-socket";
 
 import { NotificationsEmpty } from "./empty";
@@ -27,6 +28,7 @@ export function NotificationsBell() {
     refetch,
   } = useNotificationsDropdown();
   useNotificationsSocketBridge();
+  useInviteNotificationBridge();
 
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);

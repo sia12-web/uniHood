@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 import asyncpg
 
 from app.domain.identity import schemas, s3
+from app.domain.identity.models import parse_profile_gallery
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
@@ -30,6 +31,13 @@ def _avatar_url(avatar_url: Optional[str], avatar_key: Optional[str]) -> Optiona
 	if avatar_key:
 		return f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{avatar_key}"
 	return None
+
+
+def _gallery_payload(raw: object) -> list[schemas.GalleryImage]:
+	return [
+		schemas.GalleryImage(key=image.key, url=image.url, uploaded_at=image.uploaded_at or None)
+		for image in parse_profile_gallery(raw)
+	]
 
 
 def _visibility_for_scope(scope: str) -> Tuple[str, ...]:
@@ -183,7 +191,7 @@ async def _load_projection(conn: asyncpg.Connection, handle: str, user_id: str) 
 	row = await conn.fetchrow(
 		"""
 		SELECT p.user_id, p.handle, p.display_name, p.avatar_key, p.campus_id, p.bio,
-			p.program, p.year, p.interests, p.skills, p.links, u.avatar_url
+			p.program, p.year, p.interests, p.skills, p.links, u.avatar_url, u.profile_gallery
 		FROM public_profiles p
 		JOIN users u ON u.id = p.user_id
 		WHERE p.handle = $1
@@ -195,7 +203,7 @@ async def _load_projection(conn: asyncpg.Connection, handle: str, user_id: str) 
 		row = await conn.fetchrow(
 			"""
 			SELECT p.user_id, p.handle, p.display_name, p.avatar_key, p.campus_id, p.bio,
-				p.program, p.year, p.interests, p.skills, p.links, u.avatar_url
+				p.program, p.year, p.interests, p.skills, p.links, u.avatar_url, u.profile_gallery
 			FROM public_profiles p
 			JOIN users u ON u.id = p.user_id
 			WHERE p.handle = $1
@@ -236,13 +244,14 @@ async def _load_projection(conn: asyncpg.Connection, handle: str, user_id: str) 
 			schemas.PublicLink(kind=item.get("kind", ""), url=item.get("url", ""))
 			for item in links_payload
 		],
+		gallery=_gallery_payload(row.get("profile_gallery")),
 	)
 
 
 async def _load_live(conn: asyncpg.Connection, user_id: str, scope: str) -> schemas.PublicProfileOut:
 	user_row = await conn.fetchrow(
 		"""
-		SELECT id, handle, display_name, bio, campus_id, avatar_key, avatar_url
+		SELECT id, handle, display_name, bio, campus_id, avatar_key, avatar_url, profile_gallery
 		FROM users
 		WHERE id = $1
 		""",
@@ -314,6 +323,7 @@ async def _load_live(conn: asyncpg.Connection, user_id: str, scope: str) -> sche
 		interests=interest_list,
 		skills=skill_list,
 		links=link_list,
+		gallery=_gallery_payload(user_row.get("profile_gallery")),
 	)
 
 

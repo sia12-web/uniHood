@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.domain.proximity import live_sessions
 from app.domain.proximity.anti_spoof import is_plausible_movement
 from app.domain.proximity.schemas import (
     HeartbeatPayload,
@@ -74,6 +75,15 @@ async def heartbeat(
         {"user_id": auth_user.id, "campus_id": campus_id, "acc": payload.accuracy_m},
     )
     obs_metrics.inc_presence_heartbeat(campus_id)
+    await live_sessions.record_heartbeat(
+        auth_user.id,
+        campus_id,
+        lat=payload.lat,
+        lon=payload.lon,
+        accuracy_m=payload.accuracy_m,
+        device_id=payload.device_id,
+        venue_id=str(payload.venue_id) if payload.venue_id else None,
+    )
     return {"ts": now_ms, "ok": True}
 
 
@@ -85,6 +95,7 @@ async def go_offline(auth_user: AuthenticatedUser = Depends(get_current_user)):
     - Delete presence hash and online key
     - Emit an observability event
     """
+    await live_sessions.end_session(auth_user.id)
     presence_key = f"presence:{auth_user.id}"
     presence = await redis_client.hgetall(presence_key)
     campus_id = presence.get("campus_id") if presence else None

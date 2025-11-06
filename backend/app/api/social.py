@@ -135,3 +135,15 @@ async def unblock_user(
 		raise _map_error(exc) from None
 	return {"status": "ok"}
 
+
+@router.post("/friends/{user_id}/remove")
+async def remove_friend(
+	user_id: UUID,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> dict:
+	try:
+		await service.remove_friend(auth_user, user_id)
+	except Exception as exc:
+		raise _map_error(exc) from None
+	return {"status": "ok"}
+

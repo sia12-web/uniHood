@@ -23,6 +23,7 @@ services:
     working_dir: /app
     volumes:
       - ../../backend:/app
+      - backend_uploads:/app/app/uploads
     command: >
       bash -c "pip install poetry &&
                poetry config virtualenvs.create false &&
@@ -36,3 +37,4 @@ services:
 
 volumes:
   pgdata:
+  backend_uploads:

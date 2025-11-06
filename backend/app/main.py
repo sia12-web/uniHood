@@ -9,6 +9,10 @@ from contextlib import asynccontextmanager
 import socketio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
+from starlette.staticfiles import StaticFiles
+import os
+from pathlib import Path
 
 from app.api import (
 	account_link,
@@ -54,6 +58,7 @@ from app.moderation import router as moderation_router
 from app.moderation import spawn_workers as spawn_moderation_workers
 from app.domain.activities.sockets import ActivitiesNamespace, set_namespace as set_activities_namespace
 from app.domain.chat.sockets import ChatNamespace, set_namespace as set_chat_namespace
+from app.domain.proximity import live_sessions
 from app.domain.proximity.sockets import PresenceNamespace
 from app.domain.rooms.sockets import RoomsNamespace, set_namespace as set_rooms_namespace
 from app.domain.social.sockets import SocialNamespace, set_namespace
@@ -147,12 +152,17 @@ async def lifespan(app: FastAPI):
 			for task in worker_tasks:
 				task.cancel()
 			await asyncio.gather(*worker_tasks, return_exceptions=True)
+		await live_sessions.shutdown()
 		await postgres.close_pool()
 
 
 app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
 
 if settings.environment == "dev":
+	# In local dev, make avatar uploads work without external object storage
+	from app.domain.identity import s3 as _s3  # local import to avoid circulars
+	_s3.DEFAULT_BASE_URL = "http://localhost:8000/uploads"
+
 	allow_origins = [
 		"http://localhost",
 		"http://127.0.0.1",
@@ -173,6 +183,28 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
+
+# Static serving for uploaded files in dev
+if settings.environment == "dev":
+	upload_root = Path(os.environ.get("DIVAN_UPLOAD_ROOT", Path(__file__).parent / "uploads")).resolve()
+	upload_root.mkdir(parents=True, exist_ok=True)
+
+	@app.put("/uploads/{path:path}")
+	async def _put_upload(path: str, request: Request):
+		# Naive dev-only uploader; do NOT use in production
+		rel = Path(path)
+		# Prevent path traversal
+		target = (upload_root / rel).resolve()
+		if not str(target).startswith(str(upload_root)):
+			from fastapi import HTTPException
+			raise HTTPException(status_code=400, detail="invalid_path")
+		target.parent.mkdir(parents=True, exist_ok=True)
+		data = await request.body()
+		with open(target, "wb") as fh:
+			fh.write(data)
+		return {"ok": True, "bytes": len(data)}
+
+	app.mount("/uploads", StaticFiles(directory=str(upload_root), check_dir=True), name="uploads")
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 sio.register_namespace(PresenceNamespace())
 social_namespace = SocialNamespace()

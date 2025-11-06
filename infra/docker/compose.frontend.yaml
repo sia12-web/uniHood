@@ -1,3 +1,6 @@
+# DEPRECATED: This compose file is not used by default.
+# Prefer backend-only stack: infra/docker/compose.yaml
+# Keep for reference; do NOT include this file with -f unless you intend to run the frontend container.
 services:
   frontend:
     image: node:20
@@ -9,6 +12,9 @@ services:
       CHOKIDAR_USEPOLLING: "1"
       NEXT_TELEMETRY_DISABLED: "1"
       NODE_OPTIONS: ""
+      # Frontend (browser) should call the host port; SSR (Node in container) should call the backend service name
+      NEXT_PUBLIC_BACKEND_URL: "http://localhost:8000"
+      NEXT_SERVER_BACKEND_URL: "http://backend:8000"
     volumes:
       - ../../frontend:/work
       # Persist node_modules inside a named volume to avoid reinstall on every start

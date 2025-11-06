@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
 
 const PRIMARY_LINKS = [
   { href: "/social", label: "Overview" },
@@ -27,6 +29,8 @@ function isActive(pathname: string, href: string) {
 export function SocialHubShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { hasNotification, acknowledge } = useFriendAcceptanceIndicator();
+  const friendsHref = hasNotification ? "/social/friends?filter=pending" : "/social/friends";
 
   const activeMap = useMemo(() => {
     return PRIMARY_LINKS.reduce<Record<string, boolean>>((acc, link) => {
@@ -35,34 +39,59 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
     }, {});
   }, [pathname]);
 
-  const mobileLinks = PRIMARY_LINKS.map((link) => (
-    <Link
-      key={`mobile-${link.href}`}
-      href={link.href}
-      onClick={() => setMobileNavOpen(false)}
-      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-        activeMap[link.href]
-          ? "bg-midnight text-white shadow-soft"
-          : "text-navy hover:bg-warm-sand/90 hover:text-midnight"
-      }`}
-    >
-      {link.label}
-    </Link>
-  ));
+  useEffect(() => {
+    if (activeMap["/social/friends"] && hasNotification) {
+      acknowledge();
+    }
+  }, [acknowledge, activeMap, hasNotification]);
 
-  const desktopLinks = PRIMARY_LINKS.map((link) => (
-    <Link
-      key={link.href}
-      href={link.href}
-      className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-        activeMap[link.href]
-          ? "bg-midnight text-white shadow-soft"
-          : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
-      }`}
-    >
-      {link.label}
-    </Link>
-  ));
+  const mobileLinks = PRIMARY_LINKS.map((link) => {
+    const targetHref = link.href === "/social/friends" ? friendsHref : link.href;
+    return (
+      <Link
+        key={`mobile-${link.href}`}
+        href={targetHref}
+        onClick={() => setMobileNavOpen(false)}
+        className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+          activeMap[link.href]
+            ? "bg-midnight text-white shadow-soft"
+            : "text-navy hover:bg-warm-sand/90 hover:text-midnight"
+        }`}
+      >
+        <span className="inline-flex items-center gap-2">
+          {link.label}
+          {link.href === "/social/friends" && hasNotification && !activeMap[link.href] ? (
+            <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          ) : null}
+        </span>
+      </Link>
+    );
+  });
+
+  const desktopLinks = PRIMARY_LINKS.map((link) => {
+    const targetHref = link.href === "/social/friends" ? friendsHref : link.href;
+    return (
+      <Link
+        key={link.href}
+        href={targetHref}
+        className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+          activeMap[link.href]
+            ? "bg-midnight text-white shadow-soft"
+            : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
+        }`}
+      >
+        <span className="inline-flex items-center gap-2">
+          {link.label}
+          {link.href === "/social/friends" && hasNotification && !activeMap[link.href] ? (
+            <span
+              className="inline-flex h-2 w-2 rounded-full bg-emerald-500"
+              aria-label="New friend accepted"
+            />
+          ) : null}
+        </span>
+      </Link>
+    );
+  });
 
   return (
     <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 text-navy md:flex-row md:gap-10">

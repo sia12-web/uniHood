@@ -298,13 +298,14 @@ class ChatRepository:
 		else:
 			payload = attachments_raw or []
 		attachments_meta = [AttachmentMeta(**item) for item in payload]
+		client_msg_id = row["client_msg_id"] or row["message_id"]
 		return ChatMessage(
-			message_id=row["message_id"],
-			client_msg_id=row["client_msg_id"],
+			message_id=str(row["message_id"]),
+			client_msg_id=str(client_msg_id),
 			conversation_id=conversation_id,
 			seq=int(row["seq"]),
-			sender_id=row["sender_id"],
-			recipient_id=row["recipient_id"],
+			sender_id=str(row["sender_id"]),
+			recipient_id=str(row["recipient_id"]),
 			body=row["body"],
 			attachments=attach_iterable(attachments_meta),
 			created_at=row["created_at"],

@@ -27,10 +27,11 @@ class SocialNamespace(socketio.AsyncNamespace):
 		super().__init__("/social")
 		self._sessions: dict[str, AuthenticatedUser] = {}
 
-	async def on_connect(self, sid: str, environ: dict) -> None:
+	async def on_connect(self, sid: str, environ: dict, auth: Optional[dict] = None) -> None:
 		obs_metrics.socket_connected(self.namespace)
 		scope = environ.get("asgi.scope", environ)
-		auth_payload = environ.get("auth") or scope.get("auth") or {}
+		# python-socketio >=5 passes client-provided auth as a separate argument
+		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
 		user_id = auth_payload.get("userId") or _header(scope, "x-user-id")
 		campus_id = auth_payload.get("campusId") or _header(scope, "x-campus-id")
 		if not user_id:

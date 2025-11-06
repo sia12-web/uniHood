@@ -6,6 +6,7 @@ from typing import Dict, Optional
 
 import socketio
 
+from app.domain.proximity import live_sessions
 from app.infra.auth import AuthenticatedUser
 from app.obs import metrics as obs_metrics
 
@@ -27,10 +28,10 @@ class ChatNamespace(socketio.AsyncNamespace):
 		super().__init__("/chat")
 		self._sessions: Dict[str, AuthenticatedUser] = {}
 
-	async def on_connect(self, sid: str, environ: dict) -> None:
+	async def on_connect(self, sid: str, environ: dict, auth: Optional[dict] = None) -> None:
 		obs_metrics.socket_connected(self.namespace)
 		scope = environ.get("asgi.scope", environ)
-		auth_payload = environ.get("auth") or scope.get("auth") or {}
+		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
 		user_id = auth_payload.get("userId") or _header(scope, "x-user-id")
 		campus_id = auth_payload.get("campusId") or _header(scope, "x-campus-id") or ""
 		if not user_id:
@@ -40,19 +41,22 @@ class ChatNamespace(socketio.AsyncNamespace):
 		self._sessions[sid] = user
 		await self.enter_room(sid, self.user_room(user_id))
 		await self.emit("chat:ack", {"ok": True}, room=sid)
+		await live_sessions.attach_activity(user.id)
 
 	async def on_disconnect(self, sid: str) -> None:
 		obs_metrics.socket_disconnected(self.namespace)
 		user = self._sessions.pop(sid, None)
 		if user:
 			await self.leave_room(sid, self.user_room(user.id))
+			await live_sessions.detach_activity(user.id)
 
-	async def on_typing(self, sid: str, payload: dict) -> None:
+	async def on_typing(self, sid: str, payload: dict | None = None) -> None:
 		obs_metrics.socket_event(self.namespace, "typing")
 		user = self._sessions.get(sid)
 		if not user:
 			raise ConnectionRefusedError("unauthenticated")
-		peer_id = str(payload.get("peer_id"))
+		payload = payload or {}
+		peer_id = str(payload.get("peer_id")) if payload.get("peer_id") is not None else ""
 		if not peer_id:
 			return
 		await self.emit(

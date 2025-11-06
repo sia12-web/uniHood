@@ -1,9 +1,18 @@
-import { getBackendUrl } from "./env";
+import { getBackendUrl, getExplicitBackendUrl, isDevApiProxyEnabled } from "./env";
+import { readAuthSnapshot } from "./auth-storage";
 import type { CampusRow, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
 
 type HttpMethod = "GET" | "POST" | "PATCH";
 
+// Resolve backend base URL with a strong preference for the public client env var when
+// available. This avoids accidental relative requests to the frontend origin.
 const BASE_URL = getBackendUrl();
+
+if (process.env.NODE_ENV !== "production") {
+	// Helpful runtime diagnostic during development only
+	// eslint-disable-next-line no-console
+	console.info("[identity] BASE_URL set to:", BASE_URL);
+}
 
 type RequestOptions = {
 	method?: HttpMethod;
@@ -11,41 +20,135 @@ type RequestOptions = {
 	headers?: Record<string, string>;
 };
 
-async function decodeError(response: Response): Promise<never> {
+export class HttpError extends Error {
+	status: number;
+	details?: unknown;
+
+	constructor(status: number, message: string, details?: unknown) {
+		super(message);
+		this.name = "HttpError";
+		this.status = status;
+		this.details = details;
+	}
+}
+
+async function decodeError(path: string, response: Response): Promise<never> {
 	let message = `Request failed (${response.status})`;
+	let details: unknown = null;
+	const contentType = response.headers.get("Content-Type") ?? "";
 	try {
-		const data = await response.json();
-		if (typeof data === "string") {
-			message = data;
-		} else if (data?.detail) {
-			message = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-		}
-	} catch {
-		try {
+		if (contentType.includes("application/json")) {
+			details = await response.json();
+			if (typeof details === "string") {
+				message = details;
+			} else if (details && typeof (details as Record<string, unknown>).detail !== "undefined") {
+				const detailValue = (details as Record<string, unknown>).detail;
+				if (typeof detailValue === "string") {
+					message = detailValue;
+				} else if (detailValue !== null && detailValue !== undefined) {
+					message = JSON.stringify(detailValue);
+				}
+			}
+		} else if (contentType.includes("text/html")) {
+			// Many development misconfigurations cause the frontend to respond to API
+			// requests with an HTML page (Next.js 404). Detect that and return a
+			// concise, actionable error message instead of embedding the full HTML.
+			const text = await response.text();
+			details = (text || "").slice(0, 400); // cap details to avoid huge logs
+			message = `Unexpected HTML response from API (status=${response.status}). Check that NEXT_PUBLIC_BACKEND_URL is set and the backend is running.`;
+		} else {
 			const text = await response.text();
 			if (text) {
+				details = text;
 				message = text;
 			}
-		} catch {
-			// swallow secondary failure
+		}
+	} catch (err) {
+		if (process.env.NODE_ENV !== "production") {
+			console.warn("[identity] Failed to decode error response", {
+				path,
+				status: response.status,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
 	}
-	throw new Error(message);
+
+	if (process.env.NODE_ENV !== "production") {
+		console.error("[identity] Request failed", {
+			path,
+			status: response.status,
+			message,
+			details,
+		});
+	}
+
+	throw new HttpError(response.status, message, details ?? undefined);
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 	const { method = "GET", body, headers = {} } = options;
-	const response = await fetch(`${BASE_URL}${path}`, {
+	const devProxy = typeof window !== "undefined" && isDevApiProxyEnabled();
+	const url = devProxy ? path : `${BASE_URL}${path}`;
+	if (process.env.NODE_ENV !== "production") {
+		// eslint-disable-next-line no-console
+		console.info("[identity] request", { url, method, devProxy });
+	}
+	const response = await fetch(url, {
 		method,
 		headers: {
 			...(body !== undefined ? { "Content-Type": "application/json" } : {}),
 			...headers,
 		},
 		body: body !== undefined ? JSON.stringify(body) : undefined,
+		credentials: "include",
 		cache: "no-store",
 	});
 	if (!response.ok) {
-		await decodeError(response);
+		await decodeError(path, response);
+	}
+
+	// If the API responded with HTML (e.g. a Next.js 404 page) treat this as an error.
+	const respContentType = response.headers.get("Content-Type") ?? "";
+	if (respContentType.includes("text/html")) {
+		// Read body for diagnostics.
+		const html = await response.text();
+		if (process.env.NODE_ENV !== "production") {
+			console.error("[identity] API returned HTML; likely hit frontend instead of backend", {
+				path,
+				baseUrl: BASE_URL,
+				status: response.status,
+				preview: html.slice(0, 300),
+			});
+			// Attempt a one-time retry using the explicit env backend URL if different.
+			const explicit = getExplicitBackendUrl();
+			if (explicit && explicit !== BASE_URL) {
+				const retryUrl = `${explicit}${path}`;
+				console.warn("[identity] retrying against explicit backend URL", { retryUrl });
+				const retryResp = await fetch(retryUrl, {
+					method,
+					headers: {
+						...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+						...headers,
+					},
+					body: body !== undefined ? JSON.stringify(body) : undefined,
+					credentials: "include",
+					cache: "no-store",
+				});
+				if (retryResp.ok) {
+					const retryType = retryResp.headers.get("Content-Type") ?? "";
+					if (retryType.includes("application/json")) {
+						return (await retryResp.json()) as T;
+					}
+					return (await retryResp.text()) as unknown as T;
+				}
+				await decodeError(path, retryResp);
+			}
+		}
+		throw new HttpError(
+			response.status,
+			`Unexpected HTML response from API (status=${response.status}). Check that NEXT_PUBLIC_BACKEND_URL is configured and the backend is reachable.`,
+			html.slice(0, 400),
+		);
 	}
 	if (response.status === 204) {
 		return undefined as unknown as T;
@@ -139,9 +242,12 @@ export async function resendVerification(email: string): Promise<void> {
 }
 
 function authHeaders(userId: string, campusId: string | null): Record<string, string> {
+	const snapshot = readAuthSnapshot();
+	const accessToken = snapshot?.access_token;
 	return {
 		"X-User-Id": userId,
 		...(campusId ? { "X-Campus-Id": campusId } : {}),
+		...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 	};
 }
 
@@ -179,6 +285,42 @@ export async function commitAvatar(
 	key: string,
 ): Promise<ProfileRecord> {
 	return request<ProfileRecord>("/profile/avatar/commit", {
+		method: "POST",
+		body: { key },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function presignGallery(
+	userId: string,
+	campusId: string | null,
+	payload: PresignPayload,
+): Promise<PresignResponse> {
+	return request<PresignResponse>("/profile/gallery/presign", {
+		method: "POST",
+		body: payload,
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function commitGalleryImage(
+	userId: string,
+	campusId: string | null,
+	key: string,
+): Promise<ProfileRecord> {
+	return request<ProfileRecord>("/profile/gallery/commit", {
+		method: "POST",
+		body: { key },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function removeGalleryImage(
+	userId: string,
+	campusId: string | null,
+	key: string,
+): Promise<ProfileRecord> {
+	return request<ProfileRecord>("/profile/gallery/remove", {
 		method: "POST",
 		body: { key },
 		headers: authHeaders(userId, campusId),

@@ -63,3 +63,36 @@ async def avatar_commit(
 	except IdentityServiceError as exc:
 		obs_metrics.inc_identity_reject(exc.reason)
 		raise HTTPException(status_code=exc.status_code, detail=exc.reason) from None
+
+
+@router.post("/profile/gallery/presign", response_model=schemas.PresignResponse)
+async def gallery_presign(
+	payload: schemas.PresignRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.PresignResponse:
+	try:
+		return await profile_service.presign_gallery(auth_user, payload)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+
+
+@router.post("/profile/gallery/commit", response_model=schemas.ProfileOut)
+async def gallery_commit(
+	payload: schemas.GalleryCommitRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ProfileOut:
+	try:
+		return await profile_service.commit_gallery(auth_user, payload)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+
+
+@router.post("/profile/gallery/remove", response_model=schemas.ProfileOut)
+async def gallery_remove(
+	payload: schemas.GalleryRemoveRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ProfileOut:
+	try:
+		return await profile_service.remove_gallery_image(auth_user, payload)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None

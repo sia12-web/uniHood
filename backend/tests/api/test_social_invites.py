@@ -96,3 +96,22 @@ async def test_block_user_success(monkeypatch, api_client):
     body = response.json()
     assert body["status"] == "blocked"
     assert body["friend_id"] == str(row.friend_id)
+
+
+@pytest.mark.asyncio
+async def test_remove_friend_success(monkeypatch, api_client):
+    user_id = uuid4()
+    target_id = uuid4()
+
+    async def fake_remove(auth_user, target_user_id):
+        return None
+
+    monkeypatch.setattr(service, "remove_friend", fake_remove)
+
+    response = await api_client.post(
+        f"/friends/{target_id}/remove",
+        headers={"X-User-Id": str(user_id), "X-Campus-Id": "campus"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"

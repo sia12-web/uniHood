@@ -17,6 +17,7 @@ const NAV_LINKS = [
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const GO_LIVE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
   useEffect(() => {
     setAuthUser(readAuthUser());
@@ -134,7 +135,7 @@ export default function HomePage() {
                   href={authUser ? "/social/nearby" : "/onboarding"}
                   className="w-fit rounded-full bg-midnight px-6 py-2 text-sm font-semibold text-white shadow-soft transition hover:scale-[1.02] hover:bg-navy"
                 >
-                  {authUser ? "Open the hub" : "See who&apos;s nearby"}
+                  {authUser ? "Open the hub" : "See who\'s nearby"}
                 </Link>
               ) : null}
             </header>
@@ -163,7 +164,14 @@ export default function HomePage() {
             <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Try it</p>
-                <h2 className="text-2xl font-semibold text-navy">Proximity</h2>
+                <h2 className="text-2xl font-semibold text-navy">
+                  Proximity
+                  {GO_LIVE_ENABLED ? (
+                    <span className="ml-2 align-middle rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                      Go Live available
+                    </span>
+                  ) : null}
+                </h2>
               </div>
               {hydrated ? (
                 <Link

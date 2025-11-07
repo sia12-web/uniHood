@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import GoLiveStrip from "@/components/proximity/GoLiveStrip";
 
 const DEFAULT_OPTIONS = [10, 50, 100];
@@ -9,12 +9,11 @@ export default function GoLiveHarnessPage() {
   const [enabled, setEnabled] = useState(true);
   const [heartbeatSeconds, setHeartbeatSeconds] = useState(2);
   const [radius, setRadius] = useState(50);
-  const [accuracyM, setAccuracyM] = useState<number | null>(50);
   const [presenceStatus, setPresenceStatus] = useState<string | null>(
     "You’re visible on the map—others nearby can see you now.",
   );
 
-  const options = useMemo(() => DEFAULT_OPTIONS, []);
+  const options = DEFAULT_OPTIONS;
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-6">
@@ -47,25 +46,6 @@ export default function GoLiveHarnessPage() {
             />
           </label>
 
-          <label className="flex items-center gap-2">
-            <span className="text-slate-700">Accuracy (m)</span>
-            <input
-              type="number"
-              className="w-24 rounded border border-slate-300 px-2 py-1"
-              value={accuracyM ?? ""}
-              placeholder="null"
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === "") {
-                  setAccuracyM(null);
-                } else {
-                  const n = Number(raw);
-                  setAccuracyM(Number.isFinite(n) ? n : null);
-                }
-              }}
-            />
-          </label>
-
           <label className="flex items-center gap-2 sm:col-span-2">
             <span className="text-slate-700">Presence status</span>
             <input
@@ -87,7 +67,6 @@ export default function GoLiveHarnessPage() {
         heartbeatSeconds={heartbeatSeconds}
         radius={radius}
         radiusOptions={options}
-        accuracyM={accuracyM}
         presenceStatus={presenceStatus}
         onRadiusChange={setRadius}
         onGoLive={() => undefined}

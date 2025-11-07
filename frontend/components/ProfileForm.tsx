@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useState, useContext } from "react";
+import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import AvatarUploader from "./AvatarUploader";
 import type { ProfilePatchPayload } from "@/lib/identity";
@@ -13,6 +13,7 @@ type ProfileFormProps = {
 	onAvatarUpload: (file: File) => Promise<ProfileRecord>;
 	onRequestDeletion?: () => void;
 	deleteLoading?: boolean;
+	gallerySlot?: ReactNode;
 };
 
 const HANDLE_PATTERN = /[^a-z0-9_]/g;
@@ -24,8 +25,9 @@ export default function ProfileForm({
 	onAvatarUpload,
 	onRequestDeletion,
 	deleteLoading = false,
+	gallerySlot,
 }: ProfileFormProps) {
-    const toast = useContext(ToastContext);
+	const toast = useContext(ToastContext);
 	const [current, setCurrent] = useState<ProfileRecord>(profile);
 	const [handle, setHandle] = useState<string>(profile.handle ?? "");
 	const [bio, setBio] = useState<string>(profile.bio ?? "");
@@ -255,6 +257,7 @@ export default function ProfileForm({
 					/>
 					<span className="text-xs text-slate-500">Lowercase letters, numbers, underscores only.</span>
 				</label>
+				{gallerySlot ? <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">{gallerySlot}</div> : null}
 				<label className="flex flex-col gap-1 text-sm text-slate-700">
 					<span className="font-medium">Bio</span>
 					<textarea

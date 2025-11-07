@@ -6,6 +6,8 @@ import type { NearbyUser } from "@/lib/types";
 interface RadarProps {
   users: NearbyUser[];
   radius: number; // meters
+  onSelect?: (userId: string) => void;
+  activeUserId?: string | null;
 }
 
 // Simple stable hash to spread users around the circle deterministically
@@ -16,7 +18,7 @@ function hashToAngle(input: string): number {
   return angle * (Math.PI / 180);
 }
 
-export default function Radar({ users, radius }: RadarProps) {
+export default function Radar({ users, radius, onSelect, activeUserId }: RadarProps) {
   const points = useMemo(() => {
     return users
       .filter((u) => typeof u.distance_m === "number")
@@ -26,13 +28,19 @@ export default function Radar({ users, radius }: RadarProps) {
         const theta = hashToAngle(u.user_id);
         const x = 50 + rNorm * 45 * Math.cos(theta); // 0..100 viewBox coords
         const y = 50 + rNorm * 45 * Math.sin(theta);
-        return { id: u.user_id, x, y, isFriend: !!u.is_friend };
+        return {
+          id: u.user_id,
+          x,
+          y,
+          isFriend: !!u.is_friend,
+          label: u.display_name || "Nearby classmate",
+        };
       });
   }, [users, radius]);
 
   return (
-    <div className="relative h-64 w-full">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
+    <div className="w-full h-64">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
         <defs>
           <radialGradient id="rg" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
@@ -50,17 +58,47 @@ export default function Radar({ users, radius }: RadarProps) {
         <circle cx="50" cy="50" r="10" fill="none" stroke="rgba(222,205,178,0.2)" />
 
         {/* Points */}
-        {points.map((p) => (
-          <circle
-            key={p.id}
-            cx={p.x}
-            cy={p.y}
-            r={1.6}
-            className={p.isFriend ? "fill-emerald-600" : "fill-coral"}
-          >
-            <title>{p.id}</title>
-          </circle>
-        ))}
+        {points.map((p) => {
+          const isActive = activeUserId === p.id;
+          const pulseRadius = isActive ? 2.8 : 1.8;
+          const fillClass = p.isFriend ? "fill-emerald-500" : "fill-coral";
+          const strokeClass = isActive ? "stroke-white stroke-[0.6]" : "stroke-transparent";
+          const ariaPressed: "true" | "false" = isActive ? "true" : "false";
+          const ariaLabel = `${p.label}${p.isFriend ? " (friend)" : ""}`;
+          const accessibilityProps = onSelect
+            ? {
+                role: "button" as const,
+                tabIndex: 0,
+                "aria-label": ariaLabel,
+                "aria-pressed": ariaPressed,
+              }
+            : {};
+          const interactiveClass = onSelect ? "cursor-pointer" : "cursor-default";
+          return (
+            <circle
+              key={p.id}
+              cx={p.x}
+              cy={p.y}
+              r={pulseRadius}
+              className={`${fillClass} ${strokeClass} ${interactiveClass} transition-[r,fill] duration-150 ease-out`}
+              onClick={() => onSelect?.(p.id)}
+              onKeyDown={(event) => {
+                if (!onSelect) {
+                  return;
+                }
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(p.id);
+                }
+              }}
+              {...accessibilityProps}
+              data-friend={p.isFriend ? "true" : undefined}
+              data-active={isActive ? "true" : undefined}
+            >
+              <title>{ariaLabel}</title>
+            </circle>
+          );
+        })}
       </svg>
     </div>
   );

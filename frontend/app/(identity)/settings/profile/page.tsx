@@ -5,16 +5,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import BrandLogo from "@/components/BrandLogo";
 import ProfileForm from "@/components/ProfileForm";
+import ProfileGalleryManager from "@/components/ProfileGalleryManager";
 import {
 	commitAvatar,
+	commitGallery,
 	fetchProfile,
 	patchProfile,
 	presignAvatar,
+	presignGallery,
+	removeGalleryImage,
 	type PresignPayload,
 	type ProfilePatchPayload,
 } from "@/lib/identity";
 import { requestDeletion } from "@/lib/privacy";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
+import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import type { ProfileRecord } from "@/lib/types";
 
 const DEMO_USER_ID = getDemoUserId();
@@ -52,16 +57,17 @@ type StoredProfileDraft = {
 	major?: string | null;
 	graduation_year?: number | null;
 	passions: string[];
+	gallery?: ProfileRecord["gallery"];
 };
 
-async function uploadAvatar(url: string, file: File): Promise<void> {
+async function uploadToPresignedUrl(url: string, file: File): Promise<void> {
 	const response = await fetch(url, {
 		method: "PUT",
 		headers: { "Content-Type": file.type || "application/octet-stream" },
 		body: file,
 	});
 	if (!response.ok) {
-		throw new Error(`Avatar upload failed (${response.status})`);
+		throw new Error(`Upload failed (${response.status})`);
 	}
 }
 
@@ -91,6 +97,7 @@ function createOfflineProfile(userId: string, campusId: string | null): ProfileR
 		major: null,
 		graduation_year: null,
 		passions: [],
+		gallery: [],
 	};
 }
 
@@ -107,6 +114,12 @@ function normaliseDraft(candidate: Partial<StoredProfileDraft> | null, userId: s
 		passions: Array.isArray(candidate.passions)
 			? candidate.passions.filter((item) => typeof item === "string").map((item) => item.trim()).filter(Boolean)
 			: base.passions,
+		gallery: Array.isArray(candidate.gallery)
+			? candidate.gallery.filter(
+				(item): item is { key: string; url: string } =>
+					Boolean(item) && typeof (item as { key?: unknown }).key === "string" && typeof (item as { url?: unknown }).url === "string",
+			  )
+			: base.gallery,
 	};
 }
 
@@ -143,6 +156,7 @@ function storeDraftProfile(profile: ProfileRecord): void {
 		major: profile.major ?? null,
 		graduation_year: profile.graduation_year ?? null,
 		passions: profile.passions ?? [],
+		gallery: profile.gallery ?? [],
 	};
 	try {
 		window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
@@ -249,6 +263,8 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export default function ProfileSettingsPage() {
+	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
 	const [draftProfile, setDraftProfile] = useState<ProfileRecord | null>(null);
 	const [loading, setLoading] = useState<boolean>(true);
@@ -256,6 +272,9 @@ export default function ProfileSettingsPage() {
 	const [reloadToken, setReloadToken] = useState<number>(0);
 	const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 	const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+	const [galleryUploading, setGalleryUploading] = useState<boolean>(false);
+	const [galleryRemovingKey, setGalleryRemovingKey] = useState<string | null>(null);
+	const [galleryError, setGalleryError] = useState<string | null>(null);
 
 	const isDraftMode = profile === null && draftProfile !== null;
 	const activeProfile = profile ?? draftProfile;
@@ -267,11 +286,35 @@ export default function ProfileSettingsPage() {
 	const missingTasks = useMemo(() => (activeProfile ? buildMissingTasks(activeProfile) : []), [activeProfile]);
 
 	useEffect(() => {
+		setAuthUser(readAuthUser());
+		setAuthReady(true);
+		const cleanup = onAuthChange(() => {
+			setAuthUser(readAuthUser());
+			setAuthReady(true);
+		});
+		return cleanup;
+	}, []);
+
+	useEffect(() => {
+		if (!authReady) {
+			return;
+		}
+		const userId = authUser?.userId ?? null;
+		const campusId = authUser?.campusId ?? null;
+		if (!userId) {
+			setProfile(null);
+			setDraftProfile(createOfflineProfile(DEMO_USER_ID, DEMO_CAMPUS_ID));
+			setLoading(false);
+			setError("Sign in to manage your profile.");
+			return;
+		}
+		const safeUserId = userId;
+		const safeCampusId = campusId;
 		let cancelled = false;
+		setLoading(true);
 		async function loadProfile() {
-			setLoading(true);
 			try {
-				const record = await fetchProfile(DEMO_USER_ID, DEMO_CAMPUS_ID);
+				const record = await fetchProfile(safeUserId, safeCampusId);
 				if (!cancelled) {
 					setProfile(record);
 					setDraftProfile(null);
@@ -280,9 +323,14 @@ export default function ProfileSettingsPage() {
 			} catch (err) {
 				if (!cancelled) {
 					const rawMessage = err instanceof Error ? err.message : null;
-					const displayMessage = rawMessage && rawMessage !== "Failed to fetch" ? rawMessage : null;
+					const displayMessage = rawMessage && rawMessage !== "Failed to fetch"
+						? rawMessage
+						: "Unable to load profile. Working from your last saved draft.";
 					setProfile(null);
-					setDraftProfile(loadDraftFromStorage(DEMO_USER_ID, DEMO_CAMPUS_ID) ?? createOfflineProfile(DEMO_USER_ID, DEMO_CAMPUS_ID));
+					setDraftProfile(
+						loadDraftFromStorage(safeUserId, safeCampusId) ??
+							createOfflineProfile(safeUserId, safeCampusId),
+					);
 					setError(displayMessage);
 				}
 			} finally {
@@ -295,7 +343,7 @@ export default function ProfileSettingsPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [reloadToken]);
+	}, [authReady, authUser?.userId, authUser?.campusId, reloadToken]);
 
 	useEffect(() => {
 		if (!isDraftMode || !draftProfile) {
@@ -312,19 +360,27 @@ export default function ProfileSettingsPage() {
 	}, [profile]);
 
 	const handleSubmit = useCallback(async (patch: ProfilePatchPayload) => {
-		const updated = await patchProfile(DEMO_USER_ID, DEMO_CAMPUS_ID, patch);
+		if (!authUser) {
+			throw new Error("Sign in to update your profile.");
+		}
+		const updated = await patchProfile(authUser.userId, authUser.campusId ?? null, patch);
 		setProfile(updated);
+		setDraftProfile(null);
 		return updated;
-	}, []);
+	}, [authUser]);
 
 	const handleAvatarUpload = useCallback(async (file: File) => {
+		if (!authUser) {
+			throw new Error("Sign in to update your profile photo.");
+		}
 		const payload: PresignPayload = { mime: file.type || "application/octet-stream", bytes: file.size };
-		const presigned = await presignAvatar(DEMO_USER_ID, DEMO_CAMPUS_ID, payload);
-		await uploadAvatar(presigned.url, file);
-		const updated = await commitAvatar(DEMO_USER_ID, DEMO_CAMPUS_ID, presigned.key);
+		const presigned = await presignAvatar(authUser.userId, authUser.campusId ?? null, payload);
+		await uploadToPresignedUrl(presigned.url, file);
+		const updated = await commitAvatar(authUser.userId, authUser.campusId ?? null, presigned.key);
 		setProfile(updated);
+		setDraftProfile(null);
 		return updated;
-	}, []);
+	}, [authUser]);
 
 	const handleDraftSubmit = useCallback(async (patch: ProfilePatchPayload) => {
 		let result: ProfileRecord | null = null;
@@ -363,14 +419,74 @@ export default function ProfileSettingsPage() {
 		return result;
 	}, []);
 
+	const handleGalleryUpload = useCallback(
+		async (file: File) => {
+			if (!authUser || isDraftMode) {
+				const message = isDraftMode
+					? "Reconnect to Divan to sync your gallery."
+					: "Sign in to manage your gallery.";
+				setGalleryError(message);
+				throw new Error(message);
+			}
+			setGalleryError(null);
+			setGalleryUploading(true);
+			try {
+				const payload: PresignPayload = { mime: file.type || "application/octet-stream", bytes: file.size };
+				const presigned = await presignGallery(authUser.userId, authUser.campusId ?? null, payload);
+				await uploadToPresignedUrl(presigned.url, file);
+				const updated = await commitGallery(authUser.userId, authUser.campusId ?? null, presigned.key);
+				setProfile(updated);
+				setDraftProfile(null);
+				return updated;
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Failed to upload photo";
+				setGalleryError(message);
+				throw err instanceof Error ? err : new Error(message);
+			} finally {
+				setGalleryUploading(false);
+			}
+		},
+		[authUser, isDraftMode],
+	);
+
+	const handleGalleryRemove = useCallback(
+		async (key: string) => {
+			if (!authUser || isDraftMode) {
+				const message = isDraftMode
+					? "Reconnect to Divan to sync your gallery."
+					: "Sign in to manage your gallery.";
+				setGalleryError(message);
+				throw new Error(message);
+			}
+			setGalleryError(null);
+			setGalleryRemovingKey(key);
+			try {
+				const updated = await removeGalleryImage(authUser.userId, authUser.campusId ?? null, key);
+				setProfile(updated);
+				setDraftProfile(null);
+				return updated;
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Failed to remove photo";
+				setGalleryError(message);
+				throw err instanceof Error ? err : new Error(message);
+			} finally {
+				setGalleryRemovingKey(null);
+			}
+		},
+		[authUser, isDraftMode],
+	);
+
 	const retryFetch = useCallback(() => {
 		setReloadToken((prev) => prev + 1);
 	}, []);
 
 	const handleRequestDeletion = useCallback(async () => {
-		if (!profile || isDraftMode || deleteLoading) {
+		if (!profile || isDraftMode || deleteLoading || !authUser) {
 			if (isDraftMode) {
 				setDeleteNotice("Account deletion is available after you create and verify your Divan account.");
+			}
+			if (!authUser) {
+				setDeleteNotice("Sign in to request account deletion.");
 			}
 			return;
 		}
@@ -383,7 +499,7 @@ export default function ProfileSettingsPage() {
 		setDeleteLoading(true);
 		setDeleteNotice(null);
 		try {
-			await requestDeletion(DEMO_USER_ID, DEMO_CAMPUS_ID);
+			await requestDeletion(authUser.userId, authUser.campusId ?? null);
 			setDeleteNotice("Deletion request sent. Check your inbox for the confirmation link.");
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Unable to request deletion";
@@ -391,11 +507,13 @@ export default function ProfileSettingsPage() {
 		} finally {
 			setDeleteLoading(false);
 		}
-	}, [profile, isDraftMode, deleteLoading]);
+	}, [profile, isDraftMode, deleteLoading, authUser]);
 
 	const formSubmit = isDraftMode ? handleDraftSubmit : handleSubmit;
 	const avatarUpload = isDraftMode ? handleDraftAvatarUpload : handleAvatarUpload;
 	const deletionHandler = !isDraftMode ? handleRequestDeletion : undefined;
+	const galleryImages = activeProfile?.gallery ?? [];
+	const galleryDisabled = isDraftMode || !authUser;
 
 	return (
 		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200">
@@ -404,7 +522,10 @@ export default function ProfileSettingsPage() {
 				<div className="flex items-center justify-between">
 					<BrandLogo
 						withWordmark
-						className="rounded-full bg-white/80 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-white hover:text-slate-950"
+						logoWidth={96}
+						logoHeight={96}
+						className="inline-flex items-center gap-4 rounded-3xl border border-slate-200 bg-white/95 px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg ring-1 ring-slate-100 transition hover:bg-white hover:text-slate-950"
+						logoClassName="h-20 w-auto drop-shadow-[0_14px_35px_rgba(15,23,42,0.18)] saturate-[0.8] hue-rotate-[315deg] brightness-110"
 					/>
 				</div>
 				<header className="flex flex-col gap-2">
@@ -464,6 +585,18 @@ export default function ProfileSettingsPage() {
 								onAvatarUpload={avatarUpload}
 								onRequestDeletion={deletionHandler}
 								deleteLoading={deleteLoading}
+								gallerySlot={(
+									<ProfileGalleryManager
+										images={galleryImages}
+										onUpload={handleGalleryUpload}
+										onRemove={handleGalleryRemove}
+										uploading={galleryUploading}
+										removingKey={galleryRemovingKey}
+										error={galleryError}
+										disabled={galleryDisabled}
+										limit={6}
+									/>
+								)}
 							/>
 						</section>
 						<aside className="flex flex-col gap-5">

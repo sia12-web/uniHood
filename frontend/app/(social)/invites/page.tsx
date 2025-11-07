@@ -98,6 +98,7 @@ export default function InvitesPage() {
         onAccept={(inviteId) => void handleAction("accept", inviteId)}
         onDecline={(inviteId) => void handleAction("decline", inviteId)}
         onCancel={(inviteId) => void handleAction("cancel", inviteId)}
+        profileData={{}}
       />
     </main>
   );

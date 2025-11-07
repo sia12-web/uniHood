@@ -213,6 +213,7 @@ export type ProfileRecord = {
   major?: string | null;
   graduation_year?: number | null;
   passions: string[];
+  gallery?: ProfileGalleryImage[];
 };
 
 // Minimal image shape used by profile gallery UI

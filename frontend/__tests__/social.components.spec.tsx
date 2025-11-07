@@ -32,6 +32,7 @@ describe("InviteInbox", () => {
 				onAccept={() => undefined}
 				onDecline={() => undefined}
 				onCancel={() => undefined}
+				profileData={{}}
 			/>,
 		);
 		expect(screen.getByText("No pending invites.")).toBeInTheDocument();
@@ -51,6 +52,7 @@ describe("InviteInbox", () => {
 				onAccept={handleAccept}
 				onDecline={handleDecline}
 				onCancel={handleCancel}
+				profileData={{}}
 			/>,
 		);
 
@@ -93,6 +95,11 @@ describe("FriendList", () => {
 				onChangeFilter={onChangeFilter}
 				onBlock={() => undefined}
 				onUnblock={() => undefined}
+				onRemove={() => undefined}
+				onChat={() => undefined}
+				profileData={{}}
+				onSelect={() => undefined}
+				selectedFriendId={null}
 			/>,
 		);
 
@@ -112,6 +119,11 @@ describe("FriendList", () => {
 				onChangeFilter={onChange}
 				onBlock={onBlock}
 				onUnblock={onUnblock}
+				onRemove={() => undefined}
+				onChat={() => undefined}
+				profileData={{}}
+				onSelect={() => undefined}
+				selectedFriendId={null}
 			/>,
 		);
 
@@ -125,6 +137,11 @@ describe("FriendList", () => {
 				onChangeFilter={onChange}
 				onBlock={onBlock}
 				onUnblock={onUnblock}
+				onRemove={() => undefined}
+				onChat={() => undefined}
+				profileData={{}}
+				onSelect={() => undefined}
+				selectedFriendId={null}
 			/>,
 		);
 

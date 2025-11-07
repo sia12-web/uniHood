@@ -154,3 +154,46 @@ function transformMessage(raw: unknown): ChatMessage {
 export function newClientMessageId(): string {
 	return ulid();
 }
+
+export function normalizeChatMessages(raw: unknown): ChatMessage[] {
+	if (Array.isArray(raw)) {
+		return raw.map((entry) => transformMessage(entry));
+	}
+	if (isRecord(raw)) {
+		if (Array.isArray(raw.items)) {
+			return raw.items.map((entry) => transformMessage(entry));
+		}
+		if (Array.isArray(raw.messages)) {
+			return raw.messages.map((entry) => transformMessage(entry));
+		}
+		if (Array.isArray(raw.data)) {
+			return raw.data.map((entry) => transformMessage(entry));
+		}
+	}
+	return [];
+}
+
+export function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+	if (!incoming.length) {
+		return existing;
+	}
+	const byId = new Map<string, ChatMessage>();
+	for (const message of existing) {
+		const key = message.clientMsgId || message.messageId;
+		if (key) {
+			byId.set(key, message);
+		}
+	}
+	for (const message of incoming) {
+		const key = message.clientMsgId || message.messageId;
+		if (key) {
+			byId.set(key, message);
+		}
+	}
+	return [...byId.values()].sort((a, b) => {
+		if (a.seq !== b.seq) {
+			return a.seq - b.seq;
+		}
+		return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+	});
+}

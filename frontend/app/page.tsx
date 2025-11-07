@@ -1,515 +1,202 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
-import GoLiveStrip from "@/components/proximity/GoLiveStrip";
-import { NearbyList } from "@/app/proximity/components/NearbyList";
-import Radar from "@/components/proximity/Radar";
+import BrandLogo from "@/components/BrandLogo";
+import HomeProximityPreview from "@/components/HomeProximityPreview";
+import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
+import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
+import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { applyDiff } from "@/lib/diff";
-import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
-import { isRecentlyLive, LOCATION_PERMISSION_MESSAGE, createFallbackPosition, requestBrowserPosition, sendHeartbeat, sendOffline } from "@/lib/presence/api";
-import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
-import { sendInvite } from "@/lib/social";
-import type { NearbyDiff, NearbyUser } from "@/lib/types";
 
-// MVP header: no nav; show Join in/Sign in for guests, Profile/Sign out for members
-
-const BACKEND_URL = getBackendUrl();
-// kept for legacy pages; homepage uses slider
-// Radius options are used by /proximity; homepage uses a slider.
-const HEARTBEAT_VISIBLE_MS = 2000;
-const HEARTBEAT_HIDDEN_MS = 6000;
-const GO_LIVE_FLAG = process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
-const DEMO_USER_ID = getDemoUserId();
-const DEMO_CAMPUS_ID = getDemoCampusId();
-
-async function fetchNearby(userId: string, campusId: string, radius: number) {
-  const url = new URL("/proximity/nearby", BACKEND_URL);
-  url.searchParams.set("campus_id", campusId);
-  url.searchParams.set("radius_m", String(radius));
-  const response = await fetch(url.toString(), {
-    headers: {
-      "X-User-Id": userId,
-      "X-Campus-Id": campusId,
-    },
-  });
-
-  if (!response.ok) {
-    let detail: string | null = null;
-    try {
-      const body = await response.json();
-      detail = typeof body?.detail === "string" ? body.detail : null;
-    } catch {
-      detail = null;
-    }
-
-    if (response.status === 400 && detail === "presence not found") {
-      return [];
-    }
-
-    const suffix = detail ? ` - ${detail}` : "";
-    throw new Error(`Nearby request failed (${response.status})${suffix}`);
-  }
-
-  const body = await response.json();
-  return body.items as NearbyUser[];
-}
+type SimpleLink = {
+  href: string;
+  title: string;
+  description: string;
+  accentDefault: string;
+};
 
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const [liveNow, setLiveNow] = useState(false);
 
-  // Proximity state (embedded on home)
-  const [radius, setRadius] = useState<number>(50);
-  const [users, setUsers] = useState<NearbyUser[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [invitePendingId, setInvitePendingId] = useState<string | null>(null);
-  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [locationNotice, setLocationNotice] = useState<string | null>(null);
-  const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState<boolean>(false);
-  const [accuracyM, setAccuracyM] = useState<number | null>(null);
-  const [heartbeatSeconds, setHeartbeatSeconds] = useState<number>(HEARTBEAT_VISIBLE_MS / 1000);
-  const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
-
-  const positionRef = useRef<GeolocationPosition | null>(null);
-  const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sentInitialHeartbeat = useRef(false);
+  const { inboundPending } = useInviteInboxCount();
+  const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
+  const { totalUnread: chatUnreadCount, acknowledgeAll: acknowledgeChatUnread } = useChatUnreadIndicator();
+  const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
+  const friendsHref = hasFriendAcceptanceNotification
+    ? "/friends?filter=accepted"
+    : inboundPending > 0
+      ? "/friends?filter=pending"
+      : "/friends";
+  const rightLinks = useMemo<SimpleLink[]>(
+    () => [
+      {
+        href: friendsHref,
+        title: "Friends",
+        description: "Review pending invites and see who is live right now.",
+        accentDefault: "from-blue-200 via-blue-100 to-transparent",
+      },
+      {
+        href: "/chat",
+        title: "Chat",
+        description: "Pick up conversations without leaving the radar view.",
+        accentDefault: "from-rose-200 via-rose-100 to-transparent",
+      },
+    ],
+    [friendsHref],
+  );
 
   useEffect(() => {
     setAuthUser(readAuthUser());
-    const unsubscribe = onAuthChange(() => setAuthUser(readAuthUser()));
+    const unsubscribe = onAuthChange(() => {
+      setAuthUser(readAuthUser());
+    });
     setHydrated(true);
     return () => unsubscribe();
   }, []);
 
-  // Live badge polling
-  useEffect(() => {
-    if (!GO_LIVE_FLAG) {
-      setLiveNow(false);
-      return;
-    }
-    const update = () => setLiveNow(isRecentlyLive());
-    update();
-    const id = window.setInterval(update, 15000);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "divan:lastHeartbeatAt") update();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
+  const greeting = useMemo(() => {
+    if (!authUser) return "Welcome";
+    if (authUser.displayName?.trim()) return `Welcome, ${authUser.displayName.split(" ")[0]}`;
+    if (authUser.handle) return `Welcome, @${authUser.handle}`;
+    return "Welcome";
+  }, [authUser]);
 
   const handleSignOut = useCallback(() => {
     clearAuthSnapshot();
     setAuthUser(null);
   }, []);
 
-  const profileLabel = useMemo(() => {
-    if (!authUser) return null;
-    if (authUser.displayName && authUser.displayName.trim()) return authUser.displayName;
-    if (authUser.handle) return `@${authUser.handle}`;
-    return "Profile";
-  }, [authUser]);
-
-  const currentUserId = authUser?.userId ?? DEMO_USER_ID;
-  const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
-  const isDemoMode = currentCampusId === DEMO_CAMPUS_ID;
-  const goLiveAllowed = (process.env.NODE_ENV !== "production" || GO_LIVE_FLAG) || isDemoMode;
-
-  // Socket wiring for diff updates
-  const socket = useMemo(() => {
-    disconnectPresenceSocket();
-    return getPresenceSocket(currentUserId, currentCampusId);
-  }, [currentUserId, currentCampusId]);
-
-  useEffect(() => {
-    const handleUpdate = (payload: NearbyDiff) => {
-      setUsers((prev) => applyDiff(prev, payload, radius));
-    };
-
-    socket.on("nearby:update", handleUpdate);
-    socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: radius });
-    return () => {
-      socket.off("nearby:update", handleUpdate);
-      socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: radius });
-    };
-  }, [socket, radius, currentCampusId]);
-
-  useEffect(() => () => disconnectPresenceSocket(), []);
-
-  // Initial and radius-changed fetch
-  useEffect(() => {
-    setLoading(true);
-    fetchNearby(currentUserId, currentCampusId, radius)
-      .then((items) => {
-        setUsers(items);
-        setLastFetchCount(items.length);
-        setError(null);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [radius, currentCampusId, currentUserId]);
-
-  // Best-effort offline on unload
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let called = false;
-    const goOffline = () => {
-      if (called) return;
-      called = true;
-      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
-      try { disconnectPresenceSocket(); } catch {}
-      void sendOffline(currentUserId, currentCampusId);
-    };
-    const handleBeforeUnload = () => goOffline();
-    const handlePageHide = () => goOffline();
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("pagehide", handlePageHide);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("pagehide", handlePageHide);
-    };
-  }, [currentUserId, currentCampusId]);
-
-  const primeHeartbeat = useCallback(() => {
-    if (!goLiveAllowed || !isLive) return;
-    if (!positionRef.current || sentInitialHeartbeat.current) return;
-    sentInitialHeartbeat.current = true;
-    sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
-      sentInitialHeartbeat.current = false;
-      setError(err instanceof Error ? err.message : "Heartbeat failed");
-    });
-  }, [currentCampusId, currentUserId, radius, goLiveAllowed, isLive]);
-
-  const handleGoLive = useCallback(async () => {
-    setPresenceStatus(null);
-
-    if (!goLiveAllowed) {
-      const disabledMessage = "Live presence is temporarily disabled.";
-      setError(disabledMessage);
-      setLocationNotice(disabledMessage);
-      return;
-    }
-
-    if (!positionRef.current) {
-      if (isDemoMode) {
-        positionRef.current = createFallbackPosition();
-        setAccuracyM(50);
-        setLocationNotice("Using demo location. Enable location access for real positioning.");
-      } else {
-        try {
-          positionRef.current = await requestBrowserPosition();
-          setLocationNotice(null);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
-          setError(message);
-          setLocationNotice(message);
-          return;
-        }
-      }
-    }
-
-    const position = positionRef.current;
-    try {
-      await sendHeartbeat(position, currentUserId, currentCampusId, radius);
-      sentInitialHeartbeat.current = true;
-      setPresenceStatus("You’re visible on the map—others nearby can see you now.");
-      setError(null);
-      setIsLive(true);
-    } catch (err) {
-      setPresenceStatus(null);
-      setError(err instanceof Error ? err.message : "Unable to share your location");
-    }
-  }, [currentCampusId, currentUserId, radius, goLiveAllowed, isDemoMode]);
-
-  // Geolocation watcher
-  useEffect(() => {
-    if (!goLiveAllowed) {
-      setLocationNotice("Live presence is temporarily disabled.");
-      return;
-    }
-    if (!navigator.geolocation) {
-      setError("Geolocation unsupported");
-      return;
-    }
-    let isResolved = false;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        positionRef.current = pos;
-        if (typeof pos.coords?.accuracy === "number") {
-          setAccuracyM(Math.round(pos.coords.accuracy));
-        }
-        sentInitialHeartbeat.current = false;
-        setLocationNotice(null);
-        isResolved = true;
-        primeHeartbeat();
-      },
-      (err) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("Geolocation unavailable", err);
-        }
-        if (isDemoMode) {
-          if (!positionRef.current || !isResolved) {
-            positionRef.current = createFallbackPosition();
-            setAccuracyM(50);
-          }
-          sentInitialHeartbeat.current = false;
-          setLocationNotice("Using demo location. Enable location access for real positioning.");
-          primeHeartbeat();
-        } else {
-          setLocationNotice("Location blocked. Please allow location access to appear on the map.");
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [goLiveAllowed, primeHeartbeat, isDemoMode]);
-
-  // Heartbeat scheduling based on tab visibility
-  useEffect(() => {
-    if (!goLiveAllowed) {
-      if (heartbeatTimer.current) {
-        clearInterval(heartbeatTimer.current);
-        heartbeatTimer.current = null;
-      }
-      return;
-    }
-
-    const scheduleHeartbeat = () => {
-      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
-      const visible = typeof document === "undefined" ? true : document.visibilityState === "visible";
-      const interval = visible ? HEARTBEAT_VISIBLE_MS : HEARTBEAT_HIDDEN_MS;
-      setHeartbeatSeconds(interval / 1000);
-      heartbeatTimer.current = setInterval(() => {
-        if (positionRef.current && isLive) {
-          sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
-            setError(err.message);
-          });
-        }
-      }, interval);
-    };
-
-    scheduleHeartbeat();
-    const handleVisibility = () => scheduleHeartbeat();
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", handleVisibility);
-    }
-    return () => {
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", handleVisibility);
-      }
-      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
-    };
-  }, [radius, currentCampusId, currentUserId, goLiveAllowed, isLive]);
-
-  const handleToggleLive = useCallback(async () => {
-    if (!isLive) {
-      // turn on
-      await handleGoLive();
-      return;
-    }
-    // turn off
-    if (heartbeatTimer.current) {
-      clearInterval(heartbeatTimer.current);
-      heartbeatTimer.current = null;
-    }
-    await sendOffline(currentUserId, currentCampusId);
-    setIsLive(false);
-    setPresenceStatus("You’re hidden now. Others nearby can’t see you.");
-  }, [isLive, handleGoLive, currentUserId, currentCampusId]);
-
-  const handleInvite = useCallback(
-    async (targetUserId: string) => {
-      setInviteMessage(null);
-      setInviteError(null);
-      setInvitePendingId(targetUserId);
-      try {
-        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId);
-        if (summary.status === "accepted") {
-          setInviteMessage("Invite auto-accepted - you're now friends!");
-          setUsers((prev) => prev.map((u) => (u.user_id === targetUserId ? { ...u, is_friend: true } : u)));
-        } else {
-          setInviteMessage("Invite sent.");
-        }
-      } catch (err) {
-        setInviteError(err instanceof Error ? err.message : "Failed to send invite");
-      } finally {
-        setInvitePendingId(null);
-      }
-    },
-    [currentCampusId, currentUserId],
-  );
-
   return (
-    <main className="relative flex min-h-screen flex-col bg-aurora">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(77,208,225,0.28)_0%,_rgba(255,255,255,0)_60%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_rgba(255,209,102,0.25)_0%,_rgba(255,255,255,0)_60%)]" />
-      <header className="relative border-b border-warm-sand/70 bg-glass shadow-soft">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
-          <div />
-          <div className="hidden items-center gap-3 md:flex">
-            {hydrated && authUser ? (
+    <main className="min-h-screen bg-lavender-haze overflow-y-scroll">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-14 pt-16 sm:pb-16 sm:pt-20">
+        <header className="relative flex w-full flex-col items-center gap-3 text-slate-900">
+          <nav aria-label="Primary" className="absolute right-0 top-0 flex items-center gap-2 text-sm font-semibold">
+            {authUser ? (
               <>
                 <Link
-                  href="/me"
-                  className="rounded-full border border-warm-sand px-4 py-2 text-sm font-semibold text-navy transition hover:bg-warm-sand hover:text-midnight"
+                  href="/settings/profile"
+                  className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
                 >
                   Profile
                 </Link>
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="rounded-full bg-midnight px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
+                  className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
                   Sign out
                 </button>
               </>
-            ) : hydrated ? (
+            ) : (
               <>
                 <Link
                   href="/onboarding"
-                  className="rounded-full border border-warm-sand px-4 py-2 text-sm font-semibold text-navy transition hover:bg-warm-sand hover:text-midnight"
+                  className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
                 >
-                  Join in
+                  Join
                 </Link>
                 <Link
                   href="/login"
-                  className="rounded-full bg-midnight px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
+                  className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
                   Sign in
                 </Link>
               </>
-            ) : null}
+            )}
+          </nav>
+          <div className="flex flex-col items-center gap-2 pt-6">
+            <BrandLogo className="h-32" />
+            <span className="text-lg font-semibold tracking-[0.4em] text-slate-700">DIVAN</span>
           </div>
-        </div>
-      </header>
-
-      {/* Embedded proximity on homepage */}
-      <section className="relative mx-auto w-full max-w-6xl px-4 py-8">
-        {/* Centered larger logo (matches page bg) */}
-        <div className="mb-4 flex items-center justify-center">
-          <Image
-            src="/brand/divan- logo.png"
-            alt="Divan"
-            width={256}
-            height={256}
-            priority
-            className="h-24 w-auto select-none"
-            draggable={false}
-          />
-        </div>
-        {hydrated && authUser ? (
-          <p className="mb-6 text-center text-sm font-medium text-navy/80">
-            Welcome, <span className="font-semibold text-navy">{profileLabel}</span>
+          <h1 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">{greeting}</h1>
+          <p className="text-center text-base font-medium text-slate-600 sm:text-lg">Find people near you.</p>
+          <p className="text-center text-sm text-slate-600 sm:text-base">
+            Use your discovery radius to spotlight classmates, then jump into invitations, friends, or chat when the timing feels right.
           </p>
-        ) : null}
-        {/* Badge under title, replaces previous marketing sections */}
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-navy">Home</h1>
-          {GO_LIVE_FLAG ? (
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-              {liveNow ? "Live now" : "Go Live available"}
-            </span>
-          ) : null}
-        </div>
+        </header>
 
-        {/* Prompt for unauthenticated users to use proximity */}
         {hydrated && !authUser ? (
-          <div className="mb-4 rounded-2xl border border-warm-sand bg-white/70 p-4 shadow-soft">
-            <p className="text-sm text-navy/80">
-              To use live proximity, please <Link href="/onboarding" className="font-semibold underline">Join in</Link> or <Link href="/login" className="font-semibold underline">Sign in</Link>.
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700 shadow-sm">
+            <p className="text-center">
+              Sign up to unlock proximity, invitations, and chat.{" "}
+              <Link href="/onboarding" className="font-semibold text-slate-900 underline-offset-4 hover:underline">
+                Create your account
+              </Link>{" "}
+              or{" "}
+              <Link href="/login" className="font-semibold text-slate-900 underline-offset-4 hover:underline">
+                sign in
+              </Link>{" "}
+              to continue.
             </p>
           </div>
         ) : null}
 
-        {locationNotice ? (
-          <p className="mb-3 rounded bg-amber-100 px-3 py-2 text-sm text-amber-800">{locationNotice}</p>
-        ) : null}
-        {inviteError ? (
-          <p className="mb-3 rounded bg-red-100 px-3 py-2 text-sm text-red-800">{inviteError}</p>
-        ) : null}
-        {inviteMessage ? (
-          <p className="mb-3 rounded bg-emerald-100 px-3 py-2 text-sm text-emerald-800">{inviteMessage}</p>
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Left: People nearby */}
-          <div className="lg:col-span-4">
-            <div className="rounded-3xl border border-warm-sand bg-white/70 p-4 shadow-soft">
-              <h2 className="mb-3 text-lg font-semibold text-navy">People nearby</h2>
-              <NearbyList
-                users={users}
-                loading={loading}
-                error={error}
-                onInvite={handleInvite}
-                invitePendingId={invitePendingId}
-              />
-            </div>
-          </div>
-
-          {/* Center: Mini map placeholder + controls */}
-          <div className="lg:col-span-4">
-            <div className="rounded-3xl border border-warm-sand bg-glass p-4 shadow-soft">
-              <h2 className="mb-3 text-lg font-semibold text-navy">Mini map</h2>
-              <div className="mb-4 rounded-2xl border border-warm-sand/60 bg-white/40 p-2">
-                <Radar users={users} radius={radius} />
-              </div>
-              <GoLiveStrip
-                enabled={goLiveAllowed && !!authUser}
-                heartbeatSeconds={heartbeatSeconds}
-                radius={radius}
-                // Use range slider on home
-                radiusOptions={[]}
-                sliderMin={10}
-                sliderMax={300}
-                sliderStep={10}
-                accuracyM={accuracyM}
-                presenceStatus={presenceStatus}
-                onRadiusChange={setRadius}
-                isLive={isLive}
-                onToggleLive={handleToggleLive}
-              />
-              {process.env.NODE_ENV !== "production" ? (
-                <p className="mt-2 text-xs text-navy/60">
-                  debug: user={currentUserId} campus={currentCampusId} radius={radius}m fetched={lastFetchCount ?? "-"}
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Right: Friends + Chats quick links */}
-          <div className="lg:col-span-4">
-            <div className="flex flex-col gap-4">
-              <div className="rounded-3xl border border-warm-sand bg-white/70 p-4 shadow-soft">
-                <h3 className="mb-2 text-base font-semibold text-navy">Friends</h3>
-                <p className="mb-3 text-sm text-navy/70">Manage your connections and invites.</p>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+          <HomeProximityPreview />
+          <div className="flex w-full flex-col gap-3.5 lg:w-72 xl:w-80">
+            {rightLinks.map((link) => {
+              const isFriendsLink = link.title === "Friends" && Boolean(authUser);
+              const showFriendsBadge = isFriendsLink && hasFriendsNotification;
+              const friendsBadgeLabel = inboundPending > 0 ? (inboundPending > 99 ? "99+" : String(inboundPending)) : "●";
+              const isChatLink = link.title === "Chat" && Boolean(authUser);
+              const showChatBadge = isChatLink && chatUnreadCount > 0;
+              const chatBadgeLabel = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount);
+              return (
                 <Link
-                  href="/friends"
-                  className="inline-block rounded-full bg-midnight px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
+                  key={link.href}
+                  href={link.href}
+                  className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                  onClick={() => {
+                    if (isChatLink) {
+                      acknowledgeChatUnread();
+                    }
+                  }}
                 >
-                  Open Friends
+                  <span
+                    className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${link.accentDefault} opacity-0 transition-opacity group-hover:opacity-100`}
+                    aria-hidden
+                  />
+                  <div className="relative flex h-full flex-col gap-2">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                      {link.title}
+                      {showFriendsBadge ? (
+                        <span
+                          className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[0.65rem] font-semibold text-white shadow-sm"
+                          aria-label={`${friendsBadgeLabel} pending invites`}
+                        >
+                          {friendsBadgeLabel}
+                        </span>
+                      ) : null}
+                      {showChatBadge ? (
+                        <span
+                          className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-sky-500 px-1.5 text-[0.65rem] font-semibold text-white shadow-sm"
+                          aria-label={`${chatBadgeLabel} unread chats`}
+                        >
+                          {chatBadgeLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    <p className="text-sm text-slate-600">{link.description}</p>
+                    <span className="mt-auto inline-flex items-center gap-2 text-xs font-semibold text-slate-900">
+                      Open
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  </div>
                 </Link>
-              </div>
-              <div className="rounded-3xl border border-warm-sand bg-white/70 p-4 shadow-soft">
-                <h3 className="mb-2 text-base font-semibold text-navy">Chats</h3>
-                <p className="mb-3 text-sm text-navy/70">Catch up on conversations with classmates.</p>
-                <Link
-                  href="/chat"
-                  className="inline-block rounded-full bg-midnight px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy"
-                >
-                  Open Chats
-                </Link>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>

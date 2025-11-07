@@ -43,8 +43,8 @@ describe("GoLiveStrip", () => {
       />,
     );
 
-  const disabledBtn = screen.getByLabelText("Go live disabled");
-  expect(disabledBtn).toBeDisabled();
+    const disabledBtn = screen.getByLabelText("Go live disabled");
+    expect(disabledBtn).toBeDisabled();
 
     rerender(
       <GoLiveStrip
@@ -78,35 +78,5 @@ describe("GoLiveStrip", () => {
     expect(
       screen.getByText("You’re visible on the map—others nearby can see you now."),
     ).toBeInTheDocument();
-  });
-
-  it("shows accuracy tip only when radius <= accuracyM", () => {
-    const { rerender } = render(
-      <GoLiveStrip
-        enabled={true}
-        heartbeatSeconds={2}
-        radius={50}
-        radiusOptions={[10, 50, 100]}
-        accuracyM={60}
-        onRadiusChange={() => undefined}
-        onGoLive={() => undefined}
-      />,
-    );
-
-    expect(screen.getByText(/Tip: your current location accuracy/i)).toBeInTheDocument();
-
-    rerender(
-      <GoLiveStrip
-        enabled={true}
-        heartbeatSeconds={2}
-        radius={50}
-        radiusOptions={[10, 50, 100]}
-        accuracyM={40}
-        onRadiusChange={() => undefined}
-        onGoLive={() => undefined}
-      />,
-    );
-
-    expect(screen.queryByText(/Tip: your current location accuracy/i)).not.toBeInTheDocument();
   });
 });

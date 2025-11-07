@@ -12,7 +12,6 @@ type GoLiveStripProps = {
   sliderMin?: number;
   sliderMax?: number;
   sliderStep?: number;
-  accuracyM?: number | null;
   presenceStatus?: string | null;
   onRadiusChange: (r: number) => void;
   // Legacy one-shot Go Live handler
@@ -30,7 +29,6 @@ export default function GoLiveStrip({
   sliderMin,
   sliderMax,
   sliderStep = 10,
-  accuracyM = null,
   presenceStatus = null,
   onRadiusChange,
   onGoLive,
@@ -69,6 +67,7 @@ export default function GoLiveStrip({
                 step={sliderStep}
                 value={radius}
                 onChange={(e) => onRadiusChange(Number(e.target.value))}
+                aria-label="Discovery radius"
                 className="h-1.5 w-40 cursor-pointer appearance-none rounded bg-slate-200 accent-slate-900"
               />
               <span className="text-sm font-medium text-slate-800">{radius}m</span>
@@ -107,11 +106,7 @@ export default function GoLiveStrip({
         )}
       </section>
 
-      {accuracyM != null && radius <= accuracyM ? (
-        <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Tip: your current location accuracy is about ~{accuracyM}m. At {radius}m, results may be empty. Try 50m or 100m.
-        </p>
-      ) : null}
+      {/* Accuracy tip removed per request */}
     </>
   );
 }

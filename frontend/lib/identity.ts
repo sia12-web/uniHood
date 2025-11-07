@@ -184,3 +184,39 @@ export async function commitAvatar(
 		headers: authHeaders(userId, campusId),
 	});
 }
+
+export async function presignGallery(
+	userId: string,
+	campusId: string | null,
+	payload: PresignPayload,
+): Promise<PresignResponse> {
+	return request<PresignResponse>("/profile/gallery/presign", {
+		method: "POST",
+		body: payload,
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function commitGallery(
+	userId: string,
+	campusId: string | null,
+	key: string,
+): Promise<ProfileRecord> {
+	return request<ProfileRecord>("/profile/gallery/commit", {
+		method: "POST",
+		body: { key },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function removeGalleryImage(
+	userId: string,
+	campusId: string | null,
+	key: string,
+): Promise<ProfileRecord> {
+	return request<ProfileRecord>("/profile/gallery/remove", {
+		method: "POST",
+		body: { key },
+		headers: authHeaders(userId, campusId),
+	});
+}

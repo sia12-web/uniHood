@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { NearbyList } from "./components/NearbyList";
 import GoLiveStrip from "@/components/proximity/GoLiveStrip";
@@ -17,6 +18,8 @@ import {
   sendOffline,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
+import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
+import { emitFriendshipFormed } from "@/lib/friends-events";
 
 const BACKEND_URL = getBackendUrl();
 const RADIUS_OPTIONS = [10, 50, 100];
@@ -71,9 +74,8 @@ export default function ProximityPage() {
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
-  const [lastFetchCount, setLastFetchCount] = useState<number | null>(null);
   const sentInitialHeartbeat = useRef(false);
-  const [accuracyM, setAccuracyM] = useState<number | null>(null);
+  const router = useRouter();
 
   const positionRef = useRef<GeolocationPosition | null>(null);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -90,7 +92,6 @@ export default function ProximityPage() {
     const demoMode = (readAuthUser()?.campusId ?? DEMO_CAMPUS_ID) === DEMO_CAMPUS_ID;
     if (demoMode && !positionRef.current) {
       positionRef.current = createFallbackPosition();
-      setAccuracyM(50);
       setLocationNotice("Using demo location. Enable location access for real positioning.");
     }
 
@@ -130,7 +131,6 @@ export default function ProximityPage() {
     fetchNearby(currentUserId, currentCampusId, radius)
       .then((items) => {
         setUsers(items);
-        setLastFetchCount(items.length);
         setError(null);
       })
       .catch((err) => setError(err.message))
@@ -162,19 +162,6 @@ export default function ProximityPage() {
       window.removeEventListener("pagehide", handlePageHide);
     };
   }, [currentUserId, currentCampusId]);
-
-  const refreshNearby = useCallback(() => {
-    setLoading(true);
-    fetchNearby(currentUserId, currentCampusId, radius)
-      .then((items) => {
-        setUsers(items);
-        setLastFetchCount(items.length);
-        setError(null);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [currentUserId, currentCampusId, radius]);
-
   const primeHeartbeat = useCallback(() => {
     if (!goLiveAllowed) {
       return;
@@ -253,9 +240,6 @@ export default function ProximityPage() {
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         positionRef.current = pos;
-        if (typeof pos.coords?.accuracy === "number") {
-          setAccuracyM(Math.round(pos.coords.accuracy));
-        }
         sentInitialHeartbeat.current = false;
         setLocationNotice(null);
         isResolved = true;
@@ -269,7 +253,6 @@ export default function ProximityPage() {
         if (isDemoMode) {
           if (!positionRef.current || !isResolved) {
             positionRef.current = createFallbackPosition();
-            setAccuracyM(50);
           }
           sentInitialHeartbeat.current = false;
           setLocationNotice("Using demo location. Enable location access for real positioning.");
@@ -344,9 +327,11 @@ export default function ProximityPage() {
           setUsers((prev) =>
             prev.map((user) => (user.user_id === targetUserId ? { ...user, is_friend: true } : user)),
           );
+          emitFriendshipFormed(targetUserId);
         } else {
           setInviteMessage("Invite sent.");
         }
+        emitInviteCountRefresh();
       } catch (err) {
         setInviteError(err instanceof Error ? err.message : "Failed to send invite");
       } finally {
@@ -354,6 +339,13 @@ export default function ProximityPage() {
       }
     },
     [currentCampusId, currentUserId],
+  );
+
+  const handleChat = useCallback(
+    (targetUserId: string) => {
+      router.push(`/chat/${targetUserId}`);
+    },
+    [router],
   );
 
   return (
@@ -368,13 +360,6 @@ export default function ProximityPage() {
           You are in demo mode (demo campus). You will only see other demo users. Sign in to your account in this
           browser to join your real campus and see classmates.
         </p>
-      ) : null}
-
-      {process.env.NODE_ENV !== "production" ? (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500">debug: user={currentUserId} campus={currentCampusId} radius={radius}m fetched={lastFetchCount ?? "-"}</p>
-          <button type="button" onClick={refreshNearby} className="rounded bg-slate-200 px-2 py-1 text-xs text-slate-700">Refresh</button>
-        </div>
       ) : null}
 
       {locationNotice ? (
@@ -394,7 +379,6 @@ export default function ProximityPage() {
             heartbeatSeconds={heartbeatSeconds}
             radius={radius}
             radiusOptions={RADIUS_OPTIONS}
-            accuracyM={accuracyM}
             presenceStatus={presenceStatus}
             onRadiusChange={setRadius}
             onGoLive={handleGoLive}
@@ -407,6 +391,7 @@ export default function ProximityPage() {
           error={error}
           onInvite={handleInvite}
           invitePendingId={invitePendingId}
+          onChat={handleChat}
         />
       </section>
     </main>

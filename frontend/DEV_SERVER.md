@@ -21,12 +21,34 @@ npm run dev
 - Next.js listens on port `3000` by default. If that port is busy, the CLI will automatically fall back to the next free port (for example `3001`) and print the URL.
 - Leave the shell open while you work; the dev server rebuilds on every file change.
 - Configure demo links by copying `.env.example` to `.env.local` and populating any `NEXT_PUBLIC_DEMO_*` variables (handles, chat peer IDs, activity IDs). Restart the server after changes so the new values propagate.
-- The backend seed data uses campus `33333333-3333-3333-3333-333333333333`; keep `NEXT_PUBLIC_DEMO_CAMPUS_ID` aligned so chat requests send the correct header.
-- API proxying (development): the dev server rewrites the following paths to the backend at `http://localhost:8000` to avoid CORS and HTML responses:
-  - `/auth/*`, `/profile/*`, `/privacy/*`
-  - `/chat/conversations/*`, `/chat/messages`
-  - The `/chat` pages themselves continue to be served by Next.js.
-  - You can disable client-side usage of the proxy by setting `NEXT_PUBLIC_DEV_API_PROXY=0` in `.env.local` (the default is enabled in development).
+
+### Go Live quickstart (optional)
+
+- Enable the feature flag (persisted across sessions):
+
+  ```powershell
+  setx NEXT_PUBLIC_ENABLE_GO_LIVE "true"
+  ```
+
+  Restart your terminal/editor so the new env var is visible to `npm run dev`, or put it in `frontend/.env.local`:
+
+  ```env
+  NEXT_PUBLIC_ENABLE_GO_LIVE=true
+  ```
+
+- Visit http://localhost:3000/proximity and click "Go live now". In demo mode (logged out or demo campus), a fallback location is used; when you grant location permission, the browser’s position is used instead.
+- Heartbeats run every few seconds; a successful heartbeat stores a timestamp in `localStorage`.
+- The homepage shows a subtle badge next to "Proximity":
+  - "Go Live available" when the flag is on
+  - "Live now" if a recent heartbeat (≈90s window) exists; the badge updates roughly every 15s
+
+### Component harnesses
+
+- GoLiveStrip sandbox (no network calls):
+
+  http://localhost:3000/_harness/proximity/golive
+
+  Use the controls to toggle enabled state, heartbeat seconds, radius, accuracy, and the presence status banner.
 
 ## 3. Run the Playwright smoke test
 

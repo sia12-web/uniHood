@@ -3,15 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 
-import { useChatRosterContext } from "@/components/chat/chat-roster-context";
+import { useChatRosterContext } from "@/components/chat-roster-context";
 
 export default function ChatOverviewPage() {
-  const { entries, loading } = useChatRosterContext();
+  const { entries, loading, setActiveConversation } = useChatRosterContext();
   const router = useRouter();
   const hasNavigatedRef = useRef(false);
   const preferredEntry = useMemo(() => {
     return entries.find((entry) => !entry.isDemo) ?? entries[0] ?? null;
   }, [entries]);
+
+  useEffect(() => {
+    setActiveConversation(null);
+  }, [setActiveConversation]);
 
   useEffect(() => {
     if (hasNavigatedRef.current || loading) {

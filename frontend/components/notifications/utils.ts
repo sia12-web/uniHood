@@ -40,8 +40,6 @@ export function buildNotificationTitle(notification: NotificationRecord): string
         return `${actorName} shared a new post`;
       case "event.rsvp.promoted":
         return `${actorName} is attending an event`;
-      case "social.invite.received":
-        return `${actorName} sent you an invite`;
       default:
         return `${actorName} sent an update`;
     }
@@ -55,8 +53,6 @@ export function buildNotificationTitle(notification: NotificationRecord): string
       return "New post";
     case "event.rsvp.promoted":
       return "Event update";
-    case "social.invite.received":
-      return "New invite";
     default:
       return FALLBACK_TITLE;
   }
@@ -72,10 +68,6 @@ export function buildNotificationMessage(notification: NotificationRecord): stri
       return `${actorName} ${notification.verb.trim()}`;
     }
     return notification.verb.trim();
-  }
-  if (notification.entity.type === "social.invite.received") {
-    const actorName = getActorName(notification.actor) ?? "A new connection";
-    return `${actorName} wants to connect with you.`;
   }
   return FALLBACK_MESSAGE;
 }

@@ -1,29 +1,28 @@
-// Allow local development avatar previews from the backend origin.
-/** @type {import("next").NextConfig} */
-const nextConfig = {
-	images: {
-		remotePatterns: [
-			{
-				protocol: "http",
-				hostname: "localhost",
-				port: "8000",
-				pathname: "/uploads/avatars/**",
-			},
-		],
-	},
-	async rewrites() {
-		if (process.env.NODE_ENV !== "development") {
-			return [];
-		}
-		// Proxy identity and chat API endpoints to the backend in dev to avoid CORS while keeping Next.js pages local
-		return [
-			{ source: "/profile/:path*", destination: "http://localhost:8000/profile/:path*" },
-			{ source: "/auth/:path*", destination: "http://localhost:8000/auth/:path*" },
-			{ source: "/privacy/:path*", destination: "http://localhost:8000/privacy/:path*" },
-			{ source: "/chat/conversations/:path*", destination: "http://localhost:8000/chat/conversations/:path*" },
-			{ source: "/chat/messages", destination: "http://localhost:8000/chat/messages" },
-		];
-	},
-};
+/** @type {import('next').NextConfig} */
+const nextConfig = (() => {
+	const remotePatterns = [];
+
+	const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+		try {
+			const url = new URL(backendOrigin);
+			const pattern = {
+				protocol: url.protocol.replace(/:$/, ""),
+				hostname: url.hostname,
+				pathname: "/uploads/**",
+			};
+			if (url.port) {
+				pattern.port = url.port;
+			}
+			remotePatterns.push(pattern);
+	} catch (error) {
+		console.warn("Invalid NEXT_PUBLIC_BACKEND_URL for image configuration", error);
+	}
+
+	return {
+		images: {
+			remotePatterns,
+		},
+	};
+})();
 
 module.exports = nextConfig;

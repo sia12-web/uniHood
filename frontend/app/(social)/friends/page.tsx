@@ -4,394 +4,500 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import BrandLogo from "@/components/BrandLogo";
 import { FriendList, type FriendProfileState } from "@/components/FriendList";
 import { InviteInbox } from "@/components/InviteInbox";
 
 import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
+import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { fetchPublicProfile } from "@/lib/profiles";
 import {
-	acceptInvite,
-	blockUser,
-	cancelInvite,
-	declineInvite,
-	fetchFriends,
-	fetchInviteInbox,
-	fetchInviteOutbox,
-	removeFriend,
-	unblockUser,
+  acceptInvite,
+  blockUser,
+  cancelInvite,
+  declineInvite,
+  fetchFriends,
+  fetchInviteInbox,
+  fetchInviteOutbox,
+  removeFriend,
+  unblockUser,
 } from "@/lib/social";
+import { emitFriendshipFormed } from "@/lib/friends-events";
 import type { FriendRow, InviteSummary, PublicProfile } from "@/lib/types";
 
 type FriendFilter = "accepted" | "blocked" | "pending";
 
-// Minimal shape for InviteInbox profile enrichment map (optional feature)
-type InboxProfileStub = { profile: PublicProfile | null; loading: boolean; error: string | null };
+type InboxProfileStub = {
+  profile: PublicProfile | null;
+  loading: boolean;
+  error: string | null;
+};
 
 function FriendsPageInner() {
-	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-	const [filter, setFilter] = useState<FriendFilter>("accepted");
-	const { hasNotification, acknowledge } = useFriendAcceptanceIndicator();
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [filter, setFilter] = useState<FriendFilter>("accepted");
+  const { hasNotification, acknowledge } = useFriendAcceptanceIndicator();
 
-	// Friends state
-	const [friends, setFriends] = useState<FriendRow[]>([]);
-	const [friendsLoading, setFriendsLoading] = useState<boolean>(true);
-	const [friendsError, setFriendsError] = useState<string | null>(null);
+  const [friends, setFriends] = useState<FriendRow[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [friendsError, setFriendsError] = useState<string | null>(null);
 
-	// Pending invites state
-	const [inbox, setInbox] = useState<InviteSummary[]>([]);
-	const [outbox, setOutbox] = useState<InviteSummary[]>([]);
-	const [pendingLoading, setPendingLoading] = useState<boolean>(false);
-	const [pendingError, setPendingError] = useState<string | null>(null);
+  const [inbox, setInbox] = useState<InviteSummary[]>([]);
+  const [outbox, setOutbox] = useState<InviteSummary[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingError, setPendingError] = useState<string | null>(null);
 
-	// UI state
-	const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
-	const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-	// Profiles for FriendList (enrichment)
-	const [friendProfiles, setFriendProfiles] = useState<Record<string, FriendProfileState>>({});
-	const friendProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
-	const friendProfilesStateRef = useRef<Record<string, FriendProfileState>>({});
-	// Per-invite profile enrichment for InviteInbox
-	const [inviteProfileData, setInviteProfileData] = useState<Record<string, InboxProfileStub>>({});
-	const inviteProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
-	const inviteProfilesStateRef = useRef<Record<string, InboxProfileStub>>({});
+  const [friendProfiles, setFriendProfiles] = useState<Record<string, FriendProfileState>>({});
+  const friendProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
+  const friendProfilesStateRef = useRef<Record<string, FriendProfileState>>({});
 
-	useEffect(() => {
-		friendProfilesStateRef.current = friendProfiles;
-	}, [friendProfiles]);
+  const [inviteProfileData, setInviteProfileData] = useState<Record<string, InboxProfileStub>>({});
+  const inviteProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
+  const inviteProfilesStateRef = useRef<Record<string, InboxProfileStub>>({});
 
-	useEffect(() => {
-		inviteProfilesStateRef.current = inviteProfileData;
-	}, [inviteProfileData]);
+  useEffect(() => {
+    friendProfilesStateRef.current = friendProfiles;
+  }, [friendProfiles]);
 
-	const searchParams = useSearchParams();
+  useEffect(() => {
+    inviteProfilesStateRef.current = inviteProfileData;
+  }, [inviteProfileData]);
 
-	const currentUserId = authUser?.userId ?? getDemoUserId();
-	const currentCampusId = authUser?.campusId ?? getDemoCampusId();
+  const searchParams = useSearchParams();
 
-	// Reflect URL filter when present (e.g., /friends?filter=pending)
-	useEffect(() => {
-		const raw = searchParams?.get("filter");
-		if (raw === "accepted" || raw === "blocked" || raw === "pending") {
-			setFilter(raw);
-		}
-	}, [searchParams]);
+  const currentUserId = authUser?.userId ?? getDemoUserId();
+  const currentCampusId = authUser?.campusId ?? getDemoCampusId();
 
-	// Read auth from storage and subscribe to changes
-	useEffect(() => {
-		setAuthUser(readAuthUser());
-		const cleanup = onAuthChange(() => setAuthUser(readAuthUser()));
-		return cleanup;
-	}, []);
+  useEffect(() => {
+    const raw = searchParams?.get("filter");
+    if (raw === "accepted" || raw === "blocked" || raw === "pending") {
+      setFilter(raw);
+    }
+  }, [searchParams]);
 
-	useEffect(() => {
-		if (hasNotification) {
-			acknowledge();
-		}
-	}, [acknowledge, hasNotification]);
+  useEffect(() => {
+    setAuthUser(readAuthUser());
+    const cleanup = onAuthChange(() => setAuthUser(readAuthUser()));
+    return () => {
+      cleanup();
+    };
+  }, []);
 
-	const loadFriends = useCallback(async (status: Exclude<FriendFilter, "pending">) => {
-		setFriendsLoading(true);
-		setFriendsError(null);
-		try {
-			const rows = await fetchFriends(currentUserId, currentCampusId, status);
-			setFriends(rows);
-		} catch (err) {
-			setFriendsError(err instanceof Error ? err.message : "Failed to load friends");
-			setFriends([]);
-		} finally {
-			setFriendsLoading(false);
-		}
-	}, [currentUserId, currentCampusId]);
+  useEffect(() => {
+    if (!hasNotification) {
+      return;
+    }
+    setFilter("accepted");
+    acknowledge();
+  }, [acknowledge, hasNotification]);
 
-	const loadPending = useCallback(async () => {
-		setPendingLoading(true);
-		setPendingError(null);
-		try {
-			const [inboxRows, outboxRows] = await Promise.all([
-				fetchInviteInbox(currentUserId, currentCampusId),
-				fetchInviteOutbox(currentUserId, currentCampusId),
-			]);
-			setInbox(inboxRows);
-			setOutbox(outboxRows);
-		} catch (err) {
-			setPendingError(err instanceof Error ? err.message : "Failed to load invites");
-			setInbox([]);
-			setOutbox([]);
-		} finally {
-			setPendingLoading(false);
-		}
-	}, [currentUserId, currentCampusId]);
+  const loadFriends = useCallback(
+    async (scope: FriendFilter) => {
+      setFriendsLoading(true);
+      setFriendsError(null);
+      try {
+        const records = await fetchFriends(currentUserId, currentCampusId, scope);
+        setFriends(records);
+        if (scope === "accepted") {
+          const firstId = records[0]?.friend_id ?? null;
+          setSelectedFriendId((previous) =>
+            previous && records.some((item) => item.friend_id === previous) ? previous : firstId,
+          );
+        } else {
+          setSelectedFriendId(null);
+        }
+      } catch (err) {
+        setFriendsError(err instanceof Error ? err.message : "Failed to load friends");
+        setFriends([]);
+      } finally {
+        setFriendsLoading(false);
+      }
+    },
+    [currentCampusId, currentUserId],
+  );
 
-	// Load data based on active filter
-	useEffect(() => {
-		if (filter === "pending") {
-			void loadPending();
-		} else {
-			void loadFriends(filter);
-		}
-	}, [filter, loadFriends, loadPending]);
+  useEffect(() => {
+    if (filter !== "pending") {
+      void loadFriends(filter);
+    }
+  }, [filter, loadFriends]);
 
-		// Fetch profiles for friends when viewing accepted list
-		useEffect(() => {
-			if (filter !== "accepted" || friends.length === 0) return;
+  useEffect(() => {
+    if (filter !== "accepted") {
+      return;
+    }
 
-			let aborted = false;
-			const controllers: AbortController[] = [];
+    let aborted = false;
+    const controllers = new Set<AbortController>();
 
-			const ensureFriendProfile = async (friend: FriendRow) => {
-				const key = friend.friend_id;
-				const existing = friendProfilesStateRef.current[key];
-				if (existing?.loading || existing?.profile || existing?.error) {
-					return;
-				}
-				const handle = (friend.friend_handle ?? "").trim();
-				if (!handle) {
-					setFriendProfiles((prev) => ({ ...prev, [key]: { profile: null, loading: false, error: null } }));
-					return;
-				}
-				const cached = friendProfileCacheRef.current.get(handle);
-				if (cached) {
-					setFriendProfiles((prev) => ({ ...prev, [key]: { profile: cached, loading: false, error: null } }));
-					return;
-				}
-				const ctrl = new AbortController();
-				controllers.push(ctrl);
-				setFriendProfiles((prev) => ({ ...prev, [key]: { profile: null, loading: true, error: null } }));
-				try {
-					const profile = await fetchPublicProfile(handle, { userId: currentUserId, campusId: currentCampusId, signal: ctrl.signal });
-					if (aborted) return;
-					friendProfileCacheRef.current.set(handle, profile);
-					setFriendProfiles((prev) => ({ ...prev, [key]: { profile, loading: false, error: null } }));
-				} catch (err) {
-					if (aborted) return;
-					const message = err instanceof Error ? err.message : "Failed to load profile";
-					setFriendProfiles((prev) => ({ ...prev, [key]: { profile: null, loading: false, error: message } }));
-				}
-			};
+    const friendHandleIndex = new Map<string, string>();
+    for (const entry of friends) {
+      if (entry.friend_handle) {
+        friendHandleIndex.set(entry.friend_id, entry.friend_handle);
+      }
+    }
 
-			for (const f of friends) {
-				void ensureFriendProfile(f);
-			}
+    const ensureProfile = async (friendId: string) => {
+      const current = friendProfilesStateRef.current[friendId];
+      if (current && (!current.loading || current.profile || current.error)) {
+        return;
+      }
 
-			return () => {
-				aborted = true;
-				for (const c of controllers) c.abort();
-			};
-		}, [filter, friends, currentUserId, currentCampusId]);
+      const cached = friendProfileCacheRef.current.get(friendId);
+      if (cached) {
+        setFriendProfiles((prev) => ({
+          ...prev,
+          [friendId]: { profile: cached, loading: false, error: null },
+        }));
+        return;
+      }
 
-			// Fetch profiles for invites when viewing pending list
-		useEffect(() => {
-			if (filter !== "pending") return;
+      setFriendProfiles((prev) => ({
+        ...prev,
+        [friendId]: {
+          profile: prev[friendId]?.profile ?? null,
+          loading: true,
+          error: null,
+        },
+      }));
 
-			let aborted = false;
-			const controllers: AbortController[] = [];
+      const controller = new AbortController();
+      controllers.add(controller);
+      try {
+        const handle = friendHandleIndex.get(friendId);
+        if (!handle) {
+          if (!aborted) {
+            setFriendProfiles((prev) => ({
+              ...prev,
+              [friendId]: {
+                profile: prev[friendId]?.profile ?? null,
+                loading: false,
+                error: "Missing friend handle",
+              },
+            }));
+          }
+          return;
+        }
+        const profile = await fetchPublicProfile(handle, {
+          userId: currentUserId,
+          campusId: currentCampusId,
+          signal: controller.signal,
+        });
+        friendProfileCacheRef.current.set(friendId, profile);
+        if (!aborted) {
+          setFriendProfiles((prev) => ({
+            ...prev,
+            [friendId]: { profile, loading: false, error: null },
+          }));
+        }
+      } catch (err) {
+        if (!aborted) {
+          setFriendProfiles((prev) => ({
+            ...prev,
+            [friendId]: {
+              profile: prev[friendId]?.profile ?? null,
+              loading: false,
+              error: err instanceof Error ? err.message : "Failed to load profile",
+            },
+          }));
+        }
+      }
+    };
 
-				type Item = { id: string; handles: string[] };
-				const items: Item[] = [
-					// For inbox (incoming), prefer sender; fallback to recipient
-					...inbox.map((x) => ({
-						id: x.id,
-						handles: [x.from_handle, x.to_handle].filter((h): h is string => typeof h === "string" && h.trim().length > 0),
-					})),
-					// For outbox (outgoing), prefer recipient; fallback to sender
-					...outbox.map((x) => ({
-						id: x.id,
-						handles: [x.to_handle, x.from_handle].filter((h): h is string => typeof h === "string" && h.trim().length > 0),
-					})),
-				];
+    const friendIds = Array.from(new Set(friends.map((friend) => friend.friend_id)));
+    for (const friendId of friendIds) {
+      void ensureProfile(friendId);
+    }
 
-				const ensureInviteProfile = async (item: Item) => {
-				const key = item.id;
-					const existing = inviteProfilesStateRef.current[key];
-					// If already successfully loaded, skip
-					if (existing?.profile) return;
-					// If currently loading, skip (request in-flight)
-					if (existing?.loading) return;
+    return () => {
+      aborted = true;
+      for (const controller of controllers) {
+        controller.abort();
+      }
+    };
+  }, [currentCampusId, currentUserId, filter, friends]);
 
-					const candidates = item.handles.map((h) => h.trim().replace(/^@/, ""));
-					if (candidates.length === 0) {
-						setInviteProfileData((prev) => ({ ...prev, [key]: { profile: null, loading: false, error: null } }));
-						return;
-					}
+  const loadPending = useCallback(async () => {
+    setPendingLoading(true);
+    setPendingError(null);
+    try {
+      const [inboxEntries, outboxEntries] = await Promise.all([
+        fetchInviteInbox(currentUserId, currentCampusId),
+        fetchInviteOutbox(currentUserId, currentCampusId),
+      ]);
+      setInbox(inboxEntries);
+      setOutbox(outboxEntries);
+    } catch (err) {
+      setPendingError(err instanceof Error ? err.message : "Failed to load invites");
+      setInbox([]);
+      setOutbox([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [currentCampusId, currentUserId]);
 
-					// Try candidates in order until one succeeds
-					setInviteProfileData((prev) => ({ ...prev, [key]: { profile: null, loading: true, error: null } }));
-					for (const handle of candidates) {
-						const cached = inviteProfileCacheRef.current.get(handle);
-						if (cached) {
-							if (aborted) return;
-							setInviteProfileData((prev) => ({ ...prev, [key]: { profile: cached, loading: false, error: null } }));
-							return;
-						}
-						const ctrl = new AbortController();
-						controllers.push(ctrl);
-						try {
-							const profile = await fetchPublicProfile(handle, { userId: currentUserId, campusId: currentCampusId, signal: ctrl.signal });
-							if (aborted) return;
-							inviteProfileCacheRef.current.set(handle, profile);
-							setInviteProfileData((prev) => ({ ...prev, [key]: { profile, loading: false, error: null } }));
-							return;
-								} catch {
-							if (aborted) return;
-							// Try next candidate
-							continue;
-						}
-					}
-					// All candidates failed
-					setInviteProfileData((prev) => ({ ...prev, [key]: { profile: null, loading: false, error: "" } }));
-			};
+  useEffect(() => {
+    if (filter === "pending") {
+      void loadPending();
+    }
+  }, [filter, loadPending]);
 
-			for (const it of items) {
-				void ensureInviteProfile(it);
-			}
+  const ensureInviteProfiles = useCallback(() => {
+    if (filter !== "pending") {
+      return () => undefined;
+    }
 
-			return () => {
-				aborted = true;
-				for (const c of controllers) c.abort();
-			};
-	}, [filter, inbox, outbox, currentUserId, currentCampusId]);
+    let aborted = false;
+    const controllers = new Set<AbortController>();
 
-	// Friends actions
-	const handleBlock = useCallback(async (userId: string) => {
-		try {
-			await blockUser(currentUserId, currentCampusId, userId);
-			setStatusMessage("User blocked.");
-			if (filter !== "pending") {
-				await loadFriends(filter);
-			}
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to block user");
-		}
-	}, [currentUserId, currentCampusId, filter, loadFriends]);
+    const upsert = (key: string, data: InboxProfileStub) => {
+      setInviteProfileData((prev) => ({ ...prev, [key]: data }));
+    };
 
-	const handleUnblock = useCallback(async (userId: string) => {
-		try {
-			await unblockUser(currentUserId, currentCampusId, userId);
-			setStatusMessage("User unblocked.");
-			if (filter !== "pending") {
-				await loadFriends(filter);
-			}
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to unblock user");
-		}
-	}, [currentUserId, currentCampusId, filter, loadFriends]);
+    const ensureProfile = async (
+      entry: InviteSummary & { kind: "incoming" | "outgoing"; peer_id: string; peer_handle: string | null },
+    ) => {
+      const key = `${entry.peer_id}:${entry.kind}`;
+      const current = inviteProfilesStateRef.current[key];
+      if (current && (!current.loading || current.profile)) {
+        return;
+      }
 
-	const handleRemove = useCallback(async (userId: string) => {
-		try {
-			await removeFriend(currentUserId, currentCampusId, userId);
-			setStatusMessage("Friend removed.");
-			if (filter !== "pending") {
-				await loadFriends(filter);
-			}
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to remove friend");
-		}
-	}, [currentUserId, currentCampusId, filter, loadFriends]);
+      const cached = inviteProfileCacheRef.current.get(entry.peer_id);
+      if (cached) {
+        upsert(key, { profile: cached, loading: false, error: null });
+        return;
+      }
 
-	const handleChat = useCallback((userId: string) => {
-		// Wire to chat route if available
-		console.debug("Open chat with:", userId);
-	}, []);
+      upsert(key, { profile: null, loading: true, error: null });
 
-	// Invite actions
-	const handleAccept = useCallback(async (inviteId: string) => {
-		try {
-			await acceptInvite(currentUserId, currentCampusId, inviteId);
-			setStatusMessage("Invite accepted — new friend added.");
-			await loadPending();
-			if (filter !== "pending") {
-				await loadFriends(filter);
-			}
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to accept invite");
-		}
-	}, [currentUserId, currentCampusId, filter, loadFriends, loadPending]);
+      const controller = new AbortController();
+      controllers.add(controller);
+      try {
+        if (!entry.peer_handle) {
+          if (!aborted) {
+            upsert(key, {
+              profile: null,
+              loading: false,
+              error: "Missing profile handle",
+            });
+          }
+          return;
+        }
+        const profile = await fetchPublicProfile(entry.peer_handle, {
+          userId: currentUserId,
+          campusId: currentCampusId,
+          signal: controller.signal,
+        });
+        inviteProfileCacheRef.current.set(entry.peer_id, profile);
+        if (!aborted) {
+          upsert(key, { profile, loading: false, error: null });
+        }
+      } catch (err) {
+        if (!aborted) {
+          upsert(key, {
+            profile: null,
+            loading: false,
+            error: err instanceof Error ? err.message : "Failed to load profile",
+          });
+        }
+      }
+    };
 
-	const handleDecline = useCallback(async (inviteId: string) => {
-		try {
-			await declineInvite(currentUserId, currentCampusId, inviteId);
-			setStatusMessage("Invite declined.");
-			await loadPending();
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to decline invite");
-		}
-	}, [currentUserId, currentCampusId, loadPending]);
+    const pendingEntries: Array<
+      InviteSummary & { kind: "incoming" | "outgoing"; peer_id: string; peer_handle: string | null }
+    > = [
+      ...inbox.map((entry) => ({
+        ...entry,
+        kind: "incoming" as const,
+        peer_id: entry.from_user_id,
+        peer_handle: entry.from_handle ?? null,
+      })),
+      ...outbox.map((entry) => ({
+        ...entry,
+        kind: "outgoing" as const,
+        peer_id: entry.to_user_id,
+        peer_handle: entry.to_handle ?? null,
+      })),
+    ];
+    for (const entry of pendingEntries) {
+      void ensureProfile(entry);
+    }
 
-	const handleCancel = useCallback(async (inviteId: string) => {
-		try {
-			await cancelInvite(currentUserId, currentCampusId, inviteId);
-			setStatusMessage("Invite cancelled.");
-			await loadPending();
-		} catch (err) {
-			setStatusMessage(err instanceof Error ? err.message : "Failed to cancel invite");
-		}
-	}, [currentUserId, currentCampusId, loadPending]);
+    return () => {
+      aborted = true;
+      for (const controller of controllers) {
+        controller.abort();
+      }
+    };
+  }, [currentCampusId, currentUserId, filter, inbox, outbox]);
 
-	const pendingContent = useMemo(() => (
-		<div className="flex flex-col gap-3">
-			{statusMessage ? (
-				<div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-					{statusMessage}
-				</div>
-			) : null}
-			<InviteInbox
-				inbox={inbox}
-				outbox={outbox}
-				loading={pendingLoading}
-				error={pendingError}
-				onAccept={handleAccept}
-				onDecline={handleDecline}
-				onCancel={handleCancel}
-				profileData={inviteProfileData}
-			/>
-		</div>
-	), [handleAccept, handleCancel, handleDecline, inbox, outbox, pendingError, pendingLoading, statusMessage, inviteProfileData]);
+  useEffect(() => ensureInviteProfiles(), [ensureInviteProfiles]);
 
-	return (
-		<div className="mx-auto max-w-2xl px-3 py-6">
-			<header className="mb-6 flex items-center justify-between">
-				<BrandLogo logoWidth={56} logoHeight={56} withWordmark={false} />
-				<Link href="/chat" className="text-sm font-semibold text-coral hover:text-coral/80">
-					Open chats →
-				</Link>
-			</header>
-			<div className="mb-4 text-xl font-semibold text-slate-900">Friends</div>
-			{statusMessage && filter !== "pending" ? (
-				<div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-					{statusMessage}
-				</div>
-			) : null}
-			<FriendList
-				friends={friends}
-				filter={filter}
-				onChangeFilter={setFilter}
-				onBlock={handleBlock}
-				onUnblock={handleUnblock}
-				onRemove={handleRemove}
-				onChat={handleChat}
-						profileData={friendProfiles}
-				onSelect={setSelectedFriendId}
-				selectedFriendId={selectedFriendId}
-				pendingContent={pendingContent}
-			/>
-			{friendsError && filter !== "pending" ? (
-				<p className="mt-3 text-sm text-rose-700">{friendsError}</p>
-			) : null}
-			{friendsLoading && filter !== "pending" ? (
-				<p className="mt-3 text-sm text-slate-500">Loading…</p>
-			) : null}
-		</div>
-	);
+  const handleBlock = useCallback(
+    async (userId: string) => {
+      try {
+        await blockUser(currentUserId, currentCampusId, userId);
+        setStatusMessage("User blocked.");
+        if (filter !== "pending") {
+          await loadFriends(filter);
+        }
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to block user");
+      }
+    },
+    [currentCampusId, currentUserId, filter, loadFriends],
+  );
+
+  const handleUnblock = useCallback(
+    async (userId: string) => {
+      try {
+        await unblockUser(currentUserId, currentCampusId, userId);
+        setStatusMessage("User unblocked.");
+        if (filter !== "pending") {
+          await loadFriends(filter);
+        }
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to unblock user");
+      }
+    },
+    [currentCampusId, currentUserId, filter, loadFriends],
+  );
+
+  const handleRemove = useCallback(
+    async (userId: string) => {
+      try {
+        await removeFriend(currentUserId, currentCampusId, userId);
+        setStatusMessage("Friend removed.");
+        if (filter !== "pending") {
+          await loadFriends(filter);
+        }
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to remove friend");
+      }
+    },
+    [currentCampusId, currentUserId, filter, loadFriends],
+  );
+
+  const handleChat = useCallback((userId: string) => {
+    setSelectedFriendId(userId);
+    const anchor = document.querySelector(`#conversation-${CSS.escape(userId)}`);
+    if (anchor instanceof HTMLElement) {
+      anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const handleAccept = useCallback(
+    async (inviteId: string) => {
+      const invite = inbox.find((entry) => entry.id === inviteId);
+      const newFriendId = invite?.from_user_id ?? null;
+      try {
+        await acceptInvite(currentUserId, currentCampusId, inviteId);
+        setStatusMessage("Invite accepted.");
+        emitInviteCountRefresh();
+        if (newFriendId) {
+          emitFriendshipFormed(newFriendId);
+        }
+        await loadPending();
+        await loadFriends(filter === "pending" ? "accepted" : filter);
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to accept invite");
+      }
+    },
+    [currentCampusId, currentUserId, filter, inbox, loadFriends, loadPending],
+  );
+
+  const handleDecline = useCallback(
+    async (inviteId: string) => {
+      try {
+        await declineInvite(currentUserId, currentCampusId, inviteId);
+        setStatusMessage("Invite declined.");
+        await loadPending();
+        emitInviteCountRefresh();
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to decline invite");
+      }
+    },
+    [currentCampusId, currentUserId, loadPending],
+  );
+
+  const handleCancel = useCallback(
+    async (inviteId: string) => {
+      try {
+        await cancelInvite(currentUserId, currentCampusId, inviteId);
+        setStatusMessage("Invite cancelled.");
+        await loadPending();
+        emitInviteCountRefresh();
+      } catch (err) {
+        setStatusMessage(err instanceof Error ? err.message : "Failed to cancel invite");
+      }
+    },
+    [currentCampusId, currentUserId, loadPending],
+  );
+
+  const pendingContent = useMemo(
+    () => (
+      <div className="flex flex-col gap-3">
+        {statusMessage ? (
+          <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {statusMessage}
+          </div>
+        ) : null}
+        <InviteInbox
+          inbox={inbox}
+          outbox={outbox}
+          loading={pendingLoading}
+          error={pendingError}
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+          onCancel={handleCancel}
+          profileData={inviteProfileData}
+        />
+      </div>
+    ),
+    [handleAccept, handleCancel, handleDecline, inbox, inviteProfileData, outbox, pendingError, pendingLoading, statusMessage],
+  );
+
+  return (
+    <div className="mx-auto max-w-2xl px-3 py-6">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-slate-900">Friends</h1>
+        <Link href="/chat" className="text-sm font-semibold text-coral hover:text-coral/80">
+          Open chats →
+        </Link>
+      </header>
+      {statusMessage && filter !== "pending" ? (
+        <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {statusMessage}
+        </div>
+      ) : null}
+      <FriendList
+        friends={friends}
+        filter={filter}
+        onChangeFilter={setFilter}
+        onBlock={handleBlock}
+        onUnblock={handleUnblock}
+        onRemove={handleRemove}
+        onChat={handleChat}
+        profileData={friendProfiles}
+        onSelect={setSelectedFriendId}
+        selectedFriendId={selectedFriendId}
+        pendingContent={pendingContent}
+      />
+      {friendsError && filter !== "pending" ? <p className="mt-3 text-sm text-rose-700">{friendsError}</p> : null}
+      {friendsLoading && filter !== "pending" ? <p className="mt-3 text-sm text-slate-500">Loading…</p> : null}
+    </div>
+  );
 }
 
 export default function FriendsPage() {
-	return (
-		<Suspense fallback={<div className="mx-auto max-w-2xl px-3 py-6 text-sm text-slate-500">Loading friends…</div>}>
-			<FriendsPageInner />
-		</Suspense>
-	);
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-2xl px-3 py-6 text-sm text-slate-500">Loading friends…</div>}>
+      <FriendsPageInner />
+    </Suspense>
+  );
 }

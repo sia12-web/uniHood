@@ -4,8 +4,8 @@ import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import SiteHeader from "@/components/SiteHeader";
-import { ToastProvider } from "@/components/providers/toast-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ToastProvider } from "@/components/providers/toast-provider";
 
 const AUTH_CHROME_ROUTES = ["/login", "/onboarding", "/verify"];
 

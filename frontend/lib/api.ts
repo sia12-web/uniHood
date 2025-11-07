@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const API_BASE =
+const API_BASE =
 	process.env.NEXT_PUBLIC_COMMUNITIES_API_BASE ??
 	process.env.NEXT_PUBLIC_API_BASE_URL ??
 	process.env.API_BASE_URL ??

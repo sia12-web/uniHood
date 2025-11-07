@@ -2,13 +2,33 @@
 
 import clsx from "clsx";
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-import { ChatRosterProvider } from "@/components/chat/chat-roster-context";
-import BrandLogo from "@/components/BrandLogo";
+import { ChatRosterProvider } from "@/components/chat-roster-context";
 import { useChatRoster, type ChatRosterEntry } from "@/hooks/chat/use-chat-roster";
 import { getDemoChatPeerId } from "@/lib/env";
+
+function formatRosterTimestamp(isoString: string): string {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const now = new Date();
+  const isSameDay = date.toDateString() === now.toDateString();
+  if (isSameDay) {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+  const isSameYear = date.getFullYear() === now.getFullYear();
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: isSameYear ? undefined : "numeric",
+  }).format(date);
+}
 
 function buildDemoEntry(peerId: string): ChatRosterEntry {
   return {
@@ -17,6 +37,9 @@ function buildDemoEntry(peerId: string): ChatRosterEntry {
     handle: null,
     avatarUrl: null,
     isDemo: true,
+    lastMessageSnippet: "Seeded conversation",
+    lastMessageAt: null,
+    unreadCount: 0,
   };
 }
 
@@ -42,10 +65,19 @@ function getSecondaryText(entry: ChatRosterEntry): string {
 }
 
 export default function ChatLayout({ children }: { children: ReactNode }) {
-  const { entries, loading, error, refresh } = useChatRoster();
+  const { entries, loading, error, refresh, setActiveConversation, updateConversationSnapshot } = useChatRoster();
   const demoPeerId = getDemoChatPeerId();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const match = /^\/chat\/(.+)$/.exec(pathname ?? "");
+    if (match) {
+      setActiveConversation(match[1]);
+    } else if (pathname?.endsWith("/chat")) {
+      setActiveConversation(null);
+    }
+  }, [pathname, setActiveConversation]);
 
   const rosterEntries = useMemo(() => {
     if (!demoPeerId) {
@@ -69,26 +101,17 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
     });
   }, [rosterEntries, query]);
 
-  const layoutHeightClass = "min-h-[calc(100vh-4rem)]";
+  const layoutHeightClass = "h-[calc(100vh-4rem)]";
 
   return (
-    <ChatRosterProvider value={{ entries: rosterEntries, loading, error, refresh }}>
-      <div className={clsx("mx-auto flex w-full flex-1 flex-col gap-4 px-4 pb-6", layoutHeightClass)}>
-        <header className="flex items-center justify-between pt-6">
-          <BrandLogo logoWidth={56} logoHeight={56} withWordmark />
-          <Link href="/" className="text-sm font-semibold text-coral hover:text-coral/80">
-            Back to home
-          </Link>
-        </header>
-        <div className="flex h-full min-h-[520px] w-full flex-col overflow-hidden rounded-3xl border border-warm-sand bg-white shadow-xl md:flex-row">
+    <ChatRosterProvider
+      value={{ entries: rosterEntries, loading, error, refresh, setActiveConversation, updateConversationSnapshot }}
+    >
+      <div className={clsx("mx-auto flex w-full flex-1 flex-col gap-4 px-4 pb-4 pt-4", layoutHeightClass)}>
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-warm-sand bg-white shadow-xl md:flex-row">
           <aside className="flex h-full w-full flex-none flex-col border-b border-warm-sand bg-white/95 md:w-80 md:border-b-0 md:border-r">
             <div className="border-b border-warm-sand/80 px-5 py-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-midnight">Chats</h2>
-                <Link href="/friends" className="text-xs font-semibold text-coral hover:text-coral/80">
-                  New friend →
-                </Link>
-              </div>
+              <h2 className="text-lg font-semibold text-midnight">Chats</h2>
               <p className="mt-1 text-xs text-navy/60">Keep tabs on your latest conversations.</p>
               <div className="mt-3">
                 <label htmlFor="chat-search" className="sr-only">
@@ -128,6 +151,11 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                   {filteredEntries.map((entry) => {
                     const href = `/chat/${entry.peerId}`;
                     const isActive = pathname === href;
+                    const unreadCount = entry.unreadCount ?? 0;
+                    const secondaryText = entry.lastMessageSnippet ?? getSecondaryText(entry);
+                    const timestamp = entry.lastMessageAt ? formatRosterTimestamp(entry.lastMessageAt) : null;
+                    const unreadLabel = unreadCount > 9 ? "9+" : String(unreadCount);
+                    const showUnreadHighlight = unreadCount > 0 && !isActive;
                     return (
                       <li key={entry.peerId}>
                         <Link
@@ -136,6 +164,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                             "flex items-center gap-3 rounded-2xl px-4 py-3 transition",
                             isActive ? "bg-midnight text-white" : "hover:bg-warm-sand/50",
                           )}
+                          onClick={() => setActiveConversation(entry.peerId)}
                         >
                           <div
                             className={clsx(
@@ -147,11 +176,47 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                             {getInitialFor(entry)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className={clsx("truncate text-sm font-medium", isActive ? "text-white" : "text-midnight")}>
-                              {entry.displayName}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                {showUnreadHighlight ? (
+                                  <span className="inline-flex h-2 w-2 flex-none rounded-full bg-coral" aria-hidden />
+                                ) : null}
+                                <p
+                                  className={clsx(
+                                    "truncate text-sm",
+                                    isActive
+                                      ? "text-white font-semibold"
+                                      : showUnreadHighlight
+                                      ? "text-midnight font-semibold"
+                                      : "text-midnight font-medium",
+                                  )}
+                                >
+                                  {entry.displayName}
+                                </p>
+                              </div>
+                              {timestamp ? (
+                                <time
+                                  dateTime={entry.lastMessageAt ?? undefined}
+                                  className={clsx("flex-none text-[11px] uppercase", isActive ? "text-slate-200" : "text-navy/50")}
+                                >
+                                  {timestamp}
+                                </time>
+                              ) : null}
+                            </div>
+                            <p
+                              className={clsx(
+                                "truncate text-xs",
+                                isActive ? "text-slate-200" : showUnreadHighlight ? "text-midnight/80" : "text-navy/60",
+                              )}
+                            >
+                              {secondaryText}
                             </p>
-                            <p className={clsx("truncate text-xs", isActive ? "text-slate-200" : "text-navy/60")}>{getSecondaryText(entry)}</p>
                           </div>
+                          {unreadCount > 0 ? (
+                            <span className="ml-2 inline-flex min-w-[1.75rem] justify-center rounded-full bg-coral px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                              {unreadLabel}
+                            </span>
+                          ) : null}
                         </Link>
                       </li>
                     );

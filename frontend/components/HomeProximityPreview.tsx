@@ -1,16 +1,17 @@
 "use client";
 
-import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { MiniMap } from "@/app/proximity/components/MiniMap";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import Radar from "@/components/proximity/Radar";
 import { NearbyList } from "@/app/proximity/components/NearbyList";
-import { getBackendUrl, getDemoCampusId, getDemoLatitude, getDemoLongitude, getDemoUserId } from "@/lib/env";
-import { clampHeartbeatAccuracy, formatDistance } from "@/lib/geo";
+import { applyDiff } from "@/lib/diff";
+import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
+import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
+import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
 import { fetchFriends, sendInvite } from "@/lib/social";
-import type { InviteSummary, NearbyUser } from "@/lib/types";
-import type { AuthUser } from "@/lib/auth-storage";
-
+import { FRIENDSHIP_FORMED_EVENT, emitFriendshipFormed } from "@/lib/friends-events";
+import { fetchPublicProfile } from "@/lib/profiles";
 import {
   LOCATION_PERMISSION_MESSAGE,
   createFallbackPosition,
@@ -18,1066 +19,728 @@ import {
   sendHeartbeat,
   sendOffline,
 } from "@/lib/presence/api";
-
-const BACKEND_URL = getBackendUrl();
-
-const DEMO_CAMPUS_ID = getDemoCampusId();
-const DEMO_USER_ID = getDemoUserId();
-const DEMO_LAT = getDemoLatitude();
-const DEMO_LON = getDemoLongitude();
-const RADIUS_OPTIONS = [20, 50, 200];
-const MIN_REFRESH_INTERVAL_MS = 2500;
-const HEARTBEAT_INTERVAL_MS = 15000;
-const INVITE_SUCCESS_TIMEOUT_MS = 3200;
-
-const PASSION_POOL = [
-  "Sunset hikes",
-  "Museum wandering",
-  "Open-mic nights",
-  "Studio jam sessions",
-  "Coffee tastings",
-  "Thrift treasure hunts",
-  "Late-night coding sprints",
-  "Campus photography walks",
-  "Weekend road trips",
-  "Farmer's market runs",
-  "Board game showdowns",
-  "Cinematic marathons",
-];
-
-const FALLBACK_GALLERY_BACKDROPS = [
-  "from-amber-200 via-amber-100 to-white",
-  "from-rose-200 via-rose-100 to-white",
-  "from-blue-200 via-sky-100 to-white",
-  "from-emerald-200 via-emerald-100 to-white",
-  "from-purple-200 via-fuchsia-100 to-white",
-];
-
-// Demo showcase content removed in production
-
-function fallbackPassions(seed: string, count = 3): string[] {
-  const sanitized = seed || "divan";
-  let hash = 0;
-  for (let index = 0; index < sanitized.length; index += 1) {
-    hash = (hash << 5) - hash + sanitized.charCodeAt(index);
-    hash |= 0;
-  }
-
-  const selections: string[] = [];
-  const used = new Set<number>();
-  const max = Math.min(count, PASSION_POOL.length);
-
-  for (let step = 0; selections.length < max && step < PASSION_POOL.length * 2; step += 1) {
-    const candidate = Math.abs((hash + step * 7) % PASSION_POOL.length);
-    if (!used.has(candidate)) {
-      used.add(candidate);
-      selections.push(PASSION_POOL[candidate]);
-    }
-  }
-
-  return selections;
-}
-
-type RadiusMeta = {
-  count: number | null;
-  loading: boolean;
-  lastUpdated?: number;
-};
-
-// Note: demo-only helpers removed to avoid unused vars during production builds
-
-function createDefaultRadiusMeta(activeRadius: number = RADIUS_OPTIONS[1]): Record<number, RadiusMeta> {
-  const next: Record<number, RadiusMeta> = {};
-  RADIUS_OPTIONS.forEach((option) => {
-    next[option] = {
-      count: null,
-      loading: option === activeRadius,
-    };
-  });
-  return next;
-}
+import type { NearbyDiff, NearbyUser, ProfileGalleryImage, PublicProfile } from "@/lib/types";
 
 type HomeProximityPreviewProps = {
-  authUser: AuthUser | null;
-  className?: string;
+  rightRail?: ReactNode;
 };
 
-function toNearbyInviteStatus(status: InviteSummary["status"]): "pending" | "incoming" | "none" {
-  return status === "sent" ? "pending" : "none";
-}
+type ProfileWithGallery = PublicProfile & { gallery?: ProfileGalleryImage[] };
 
-function parseInviteErrorDetail(error: unknown): string | null {
-  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  if (!message) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(message);
-    if (typeof parsed === "object" && parsed && typeof (parsed as { detail?: unknown }).detail === "string") {
-      return (parsed as { detail: string }).detail;
-    }
-  } catch {
-    // ignore JSON parse failures
-  }
-  // Removed local createFallbackPosition implementation to rely on the shared helper
+type NearbyProfileState = {
+  profile: ProfileWithGallery | null;
+  loading: boolean;
+  error: string | null;
+};
 
-  if (message.includes("already_friends")) {
-    return "already_friends";
-  }
-  return null;
-}
+// Config parallels /proximity page
+const BACKEND_URL = getBackendUrl();
+const RADIUS_MIN = 10;
+const RADIUS_MAX = 300;
+const RADIUS_STEP = 10;
+const HEARTBEAT_VISIBLE_MS = 2000;
+const HEARTBEAT_HIDDEN_MS = 6000;
+const DEMO_USER_ID = getDemoUserId();
+const DEMO_CAMPUS_ID = getDemoCampusId();
+const GO_LIVE_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
-async function fetchNearby(
-  userId: string,
-  campusId: string,
-  radius: number,
-  signal: AbortSignal,
-): Promise<NearbyUser[]> {
+async function fetchNearby(userId: string, campusId: string, radius: number) {
   const url = new URL("/proximity/nearby", BACKEND_URL);
   url.searchParams.set("campus_id", campusId);
   url.searchParams.set("radius_m", String(radius));
-
   const response = await fetch(url.toString(), {
     headers: {
       "X-User-Id": userId,
       "X-Campus-Id": campusId,
     },
-    signal,
   });
-
   if (!response.ok) {
-    if (response.status === 400) {
-      try {
-        const body = await response.json();
-        if (body?.detail === "presence not found") {
-          return [];
-        }
-      } catch {
-        // ignore parse failure and fall through to error below
-      }
+    let detail: string | null = null;
+    try {
+      const body = await response.json();
+      detail = typeof body?.detail === "string" ? body.detail : null;
+    } catch {}
+    if (response.status === 400 && detail === "presence not found") {
+      return [];
     }
-
-    if (response.status === 429) {
-      throw new Error("Refreshing too quickly — give the radar a second.");
-    }
-
-    throw new Error(`Unable to load nearby pulses (${response.status})`);
+    throw new Error(`Nearby request failed (${response.status})${detail ? ` - ${detail}` : ""}`);
   }
-
-  const payload = await response.json();
-  return Array.isArray(payload?.items) ? (payload.items as NearbyUser[]) : [];
+  const body = await response.json();
+  return body.items as NearbyUser[];
 }
 
-type RadiusDialProps = {
-  options: number[];
-  activeRadius: number;
-  onRadiusChange: (radius: number) => void;
-  meta: Record<number, RadiusMeta>;
-  loading: boolean;
-};
+export default function HomeProximityPreview({ rightRail }: HomeProximityPreviewProps) {
+  const [radius, setRadius] = useState<number>(50);
+  const [users, setUsers] = useState<NearbyUser[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authEvaluated, setAuthEvaluated] = useState(false);
+  const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
+  const [isLiveMode, setIsLiveMode] = useState<boolean>(false);
+  const [invitePendingId, setInvitePendingId] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
+  const [profileStates, setProfileStates] = useState<Record<string, NearbyProfileState>>({});
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const sentInitialHeartbeat = useRef(false);
+  const profileCacheRef = useRef<Map<string, ProfileWithGallery>>(new Map());
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  const router = useRouter();
 
-function RadiusDial({ options, activeRadius, onRadiusChange, meta, loading }: RadiusDialProps) {
-  const sliderIndex = useMemo(() => {
-    const index = options.indexOf(activeRadius);
-    return index === -1 ? 0 : index;
-  }, [activeRadius, options]);
+  const positionRef = useRef<GeolocationPosition | null>(null);
+  const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [heartbeatSeconds, setHeartbeatSeconds] = useState<number>(HEARTBEAT_VISIBLE_MS / 1000);
 
-  const activeCount = meta[activeRadius]?.count;
+  // Hydrate auth
+  useEffect(() => {
+    setAuthUser(readAuthUser());
+    setAuthEvaluated(true);
+    const cleanup = onAuthChange(() => {
+      setAuthUser(readAuthUser());
+      setAuthEvaluated(true);
+    });
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    if (activeUserId && !users.some((entry) => entry.user_id === activeUserId)) {
+      setActiveUserId(null);
+    }
+  }, [activeUserId, users]);
+
+  useEffect(() => {
+    if (!users.length) {
+      return;
+    }
+    setUsers((prev) => {
+      let mutated = false;
+      const next = prev.map((entry) => {
+        if (entry.is_friend || !friendIds.has(entry.user_id)) {
+          return entry;
+        }
+        mutated = true;
+        return { ...entry, is_friend: true };
+      });
+      return mutated ? next : prev;
+    });
+  }, [friendIds, users.length]);
+
+  // Demo mode fallback position
+  useEffect(() => {
+    if (!authEvaluated) {
+      return;
+    }
+    const isDemoCampus = (authUser?.campusId ?? DEMO_CAMPUS_ID) === DEMO_CAMPUS_ID;
+    if (isDemoCampus) {
+      if (!positionRef.current) {
+        positionRef.current = createFallbackPosition();
+      }
+      setLocationNotice((prev) => prev ?? "Using demo location. Enable location access for real positioning.");
+    } else if (locationNotice === "Using demo location. Enable location access for real positioning.") {
+      setLocationNotice(null);
+    }
+  }, [authEvaluated, authUser?.campusId, locationNotice]);
+
+  const currentUserId = authUser?.userId ?? DEMO_USER_ID;
+  const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
+  const isDemoMode = authEvaluated && currentCampusId === DEMO_CAMPUS_ID;
+  const goLiveAllowed = GO_LIVE_ENABLED || isDemoMode;
+
+  const loadFriends = useCallback(async () => {
+    if (!authEvaluated) {
+      return;
+    }
+    try {
+      const rows = await fetchFriends(currentUserId, currentCampusId, "accepted");
+      setFriendIds(() => new Set(rows.map((row) => row.friend_id)));
+    } catch {
+      // ignored; we fall back to invite state if fetch fails
+    }
+  }, [authEvaluated, currentCampusId, currentUserId]);
+
+    const withFriendStatus = useCallback(
+      (entries: NearbyUser[]): NearbyUser[] =>
+        entries.map((entry) => {
+          if (entry.is_friend || !friendIds.has(entry.user_id)) {
+            return entry;
+          }
+          return { ...entry, is_friend: true };
+        }),
+      [friendIds],
+    );
+
+    useEffect(() => {
+      if (isLiveMode) {
+        return;
+      }
+      setActiveUserId(null);
+      setProfileStates({});
+      profileCacheRef.current.clear();
+      controllersRef.current.forEach((controller) => controller.abort());
+      controllersRef.current.clear();
+    }, [isLiveMode]);
+
+    useEffect(() => {
+      void loadFriends();
+    }, [loadFriends]);
+
+  // Socket lifecycle
+  const socket = useMemo(() => {
+    if (!authEvaluated || !isLiveMode) {
+      disconnectPresenceSocket();
+      return null;
+    }
+    disconnectPresenceSocket();
+    return getPresenceSocket(currentUserId, currentCampusId);
+  }, [authEvaluated, currentUserId, currentCampusId, isLiveMode]);
+
+  useEffect(() => {
+    if (!socket || !isLiveMode) {
+      return;
+    }
+    const handleUpdate = (payload: NearbyDiff) => {
+      setUsers((prev) => {
+        const next = applyDiff(prev, payload, radius);
+        const patched = withFriendStatus(next);
+        setActiveUserId((current) => (current && patched.some((entry) => entry.user_id === current) ? current : null));
+        return patched;
+      });
+    };
+    socket.on("nearby:update", handleUpdate);
+    socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: radius });
+    return () => {
+      socket.off("nearby:update", handleUpdate);
+      socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: radius });
+    };
+  }, [socket, radius, currentCampusId, isLiveMode, withFriendStatus]);
+
+  useEffect(() => () => disconnectPresenceSocket(), []);
+
+  useEffect(() => {
+    const controllers = controllersRef.current;
+    return () => {
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
+    };
+  }, []);
+
+  const refreshNearby = useCallback(async () => {
+    if (!authEvaluated) {
+      return;
+    }
+    if (!isLiveMode) {
+      setUsers([]);
+      setLoading(false);
+      setActiveUserId(null);
+      setProfileStates({});
+      return;
+    }
+    setLoading(true);
+    try {
+      const items = await fetchNearby(currentUserId, currentCampusId, radius);
+      const patched = withFriendStatus(items);
+      setUsers(patched);
+      setActiveUserId((prev) => (prev && patched.some((entry) => entry.user_id === prev) ? prev : null));
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load nearby classmates.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [authEvaluated, currentCampusId, currentUserId, radius, isLiveMode, withFriendStatus]);
+
+  // Initial nearby fetch
+  useEffect(() => {
+    if (!authEvaluated || !isLiveMode) {
+      if (!isLiveMode) {
+        setUsers([]);
+        setLoading(false);
+        setActiveUserId(null);
+        setProfileStates({});
+      }
+      return;
+    }
+    void refreshNearby();
+  }, [authEvaluated, isLiveMode, refreshNearby]);
+
+  // Offline on unload
+  useEffect(() => {
+    if (!authEvaluated) {
+      return;
+    }
+    let called = false;
+    const goOffline = () => {
+      if (called) return;
+      called = true;
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      try {
+        disconnectPresenceSocket();
+      } catch {}
+      void sendOffline(currentUserId, currentCampusId);
+    };
+    window.addEventListener("beforeunload", goOffline);
+    window.addEventListener("pagehide", goOffline);
+    return () => {
+      window.removeEventListener("beforeunload", goOffline);
+      window.removeEventListener("pagehide", goOffline);
+    };
+  }, [authEvaluated, currentUserId, currentCampusId]);
+
+  const primeHeartbeat = useCallback(() => {
+    if (!authEvaluated || !goLiveAllowed || !isLiveMode) return;
+    if (!positionRef.current || sentInitialHeartbeat.current) return;
+    sentInitialHeartbeat.current = true;
+    sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
+      sentInitialHeartbeat.current = false;
+      setError(err instanceof Error ? err.message : "Heartbeat failed");
+    });
+  }, [authEvaluated, currentCampusId, currentUserId, radius, goLiveAllowed, isLiveMode]);
+
+  const handleGoLive = useCallback(async () => {
+    if (!authEvaluated) {
+      return;
+    }
+    setPresenceStatus(null);
+    if (!goLiveAllowed) {
+      const msg = "Live presence is temporarily disabled.";
+      setError(msg);
+      setLocationNotice(msg);
+      return;
+    }
+    if (!positionRef.current) {
+      if (isDemoMode) {
+        positionRef.current = createFallbackPosition();
+        setLocationNotice("Using demo location. Enable location access for real positioning.");
+      } else {
+        try {
+          positionRef.current = await requestBrowserPosition();
+          setLocationNotice(null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
+          setError(message);
+          setLocationNotice(message);
+          return;
+        }
+      }
+    }
+    try {
+      await sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius);
+      sentInitialHeartbeat.current = true;
+      setPresenceStatus("You’re visible on the map—others nearby can see you now.");
+      setError(null);
+      setIsLiveMode(true);
+    } catch (err) {
+      setPresenceStatus(null);
+      setError(err instanceof Error ? err.message : "Unable to share your location");
+      setIsLiveMode(false);
+    }
+  }, [authEvaluated, currentCampusId, currentUserId, radius, goLiveAllowed, isDemoMode]);
+
+  const handleToggleLiveMode = useCallback(async () => {
+    if (!authEvaluated) {
+      return;
+    }
+    if (isLiveMode) {
+      setIsLiveMode(false);
+      setPresenceStatus("Passive mode enabled — you’re hidden from the map.");
+      sentInitialHeartbeat.current = false;
+      positionRef.current = null;
+      void sendOffline(currentUserId, currentCampusId);
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+    await handleGoLive();
+  }, [authEvaluated, currentCampusId, currentUserId, handleGoLive, isLiveMode]);
+
+  // Kick heartbeat once ready
+  useEffect(() => {
+    if (!authEvaluated || !isLiveMode) return;
+    if (!positionRef.current || sentInitialHeartbeat.current) return;
+    primeHeartbeat();
+  }, [authEvaluated, isLiveMode, primeHeartbeat]);
+
+  // Geolocation watch
+  useEffect(() => {
+    if (!authEvaluated || !isLiveMode) {
+      return;
+    }
+    if (!goLiveAllowed) {
+      setLocationNotice("Live presence is temporarily disabled.");
+      return;
+    }
+    if (!navigator.geolocation) {
+      setError("Geolocation unsupported");
+      return;
+    }
+    let isResolved = false;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        positionRef.current = pos;
+        sentInitialHeartbeat.current = false;
+        setLocationNotice(null);
+        isResolved = true;
+        primeHeartbeat();
+      },
+      (err) => {
+        if (process.env.NODE_ENV !== "production") console.warn("Geolocation unavailable", err);
+        if (isDemoMode) {
+          if (!positionRef.current || !isResolved) positionRef.current = createFallbackPosition();
+          sentInitialHeartbeat.current = false;
+          setLocationNotice("Using demo location. Enable location access for real positioning.");
+          primeHeartbeat();
+        } else {
+          setLocationNotice("Location blocked. Please allow location access to appear on the map.");
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [authEvaluated, goLiveAllowed, primeHeartbeat, isDemoMode, isLiveMode]);
+
+  // Heartbeat interval management
+  useEffect(() => {
+    if (!authEvaluated || !isLiveMode) {
+      if (heartbeatTimer.current) {
+        clearInterval(heartbeatTimer.current);
+        heartbeatTimer.current = null;
+      }
+      return;
+    }
+    if (!goLiveAllowed) {
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      return;
+    }
+    const schedule = () => {
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+      const visible = document.visibilityState === "visible";
+      const interval = visible ? HEARTBEAT_VISIBLE_MS : HEARTBEAT_HIDDEN_MS;
+      setHeartbeatSeconds(interval / 1000);
+      heartbeatTimer.current = setInterval(() => {
+        if (positionRef.current && isLiveMode) {
+          sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
+            setError(err.message);
+          });
+        }
+      }, interval);
+    };
+    schedule();
+    const vis = () => schedule();
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      document.removeEventListener("visibilitychange", vis);
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
+    };
+  }, [authEvaluated, radius, currentCampusId, currentUserId, goLiveAllowed, isLiveMode]);
+
+  const handleInvite = useCallback(
+    async (targetUserId: string) => {
+      if (!authEvaluated) {
+        setInviteError("Presence is still loading. Please try again in a moment.");
+        return;
+      }
+      setInviteMessage(null);
+      setInviteError(null);
+      setInvitePendingId(targetUserId);
+      try {
+        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId);
+        if (summary.status === "accepted") {
+          setInviteMessage("Invite auto-accepted - you're now friends!");
+          setUsers((prev) => prev.map((u) => (u.user_id === targetUserId ? { ...u, is_friend: true } : u)));
+          setFriendIds((prev) => {
+            if (prev.has(targetUserId)) {
+              return prev;
+            }
+            const next = new Set(prev);
+            next.add(targetUserId);
+            return next;
+          });
+          emitFriendshipFormed(targetUserId);
+        } else {
+          setInviteMessage("Invite sent.");
+        }
+        emitInviteCountRefresh();
+      } catch (err) {
+        setInviteError(err instanceof Error ? err.message : "Failed to send invite");
+      } finally {
+        setInvitePendingId(null);
+      }
+    },
+    [authEvaluated, currentCampusId, currentUserId],
+  );
+
+  const handleChat = useCallback(
+    (targetUserId: string) => {
+      router.push(`/chat/${targetUserId}`);
+    },
+    [router],
+  );
+
+  const handleSelectUser = useCallback(
+    (entry: NearbyUser) => {
+      const nextSelected = activeUserId === entry.user_id ? null : entry.user_id;
+      setActiveUserId(nextSelected);
+      if (!nextSelected) {
+        return;
+      }
+      if (profileCacheRef.current.has(entry.user_id)) {
+        const cached = profileCacheRef.current.get(entry.user_id)!;
+        setProfileStates((prev) => ({
+          ...prev,
+          [entry.user_id]: { profile: cached, loading: false, error: null },
+        }));
+        return;
+      }
+      if (!entry.handle) {
+        setProfileStates((prev) => ({
+          ...prev,
+          [entry.user_id]: { profile: prev[entry.user_id]?.profile ?? null, loading: false, error: "Profile unavailable" },
+        }));
+        return;
+      }
+      setProfileStates((prev) => ({
+        ...prev,
+        [entry.user_id]: { profile: prev[entry.user_id]?.profile ?? null, loading: true, error: null },
+      }));
+      controllersRef.current.get(entry.user_id)?.abort();
+      const controller = new AbortController();
+      controllersRef.current.set(entry.user_id, controller);
+      fetchPublicProfile(entry.handle, {
+        userId: currentUserId,
+        campusId: currentCampusId,
+        signal: controller.signal,
+      })
+        .then((profile) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          const enriched = profile as ProfileWithGallery;
+          profileCacheRef.current.set(entry.user_id, enriched);
+          setProfileStates((prev) => ({
+            ...prev,
+            [entry.user_id]: { profile: enriched, loading: false, error: null },
+          }));
+        })
+        .catch((err) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          setProfileStates((prev) => ({
+            ...prev,
+            [entry.user_id]: {
+              profile: prev[entry.user_id]?.profile ?? null,
+              loading: false,
+              error: err instanceof Error ? err.message : "Failed to load profile",
+            },
+          }));
+        })
+        .finally(() => {
+          controllersRef.current.delete(entry.user_id);
+        });
+    },
+    [activeUserId, currentCampusId, currentUserId],
+  );
+
+  const handleSelectUserById = useCallback(
+    (userId: string) => {
+      const entry = users.find((item) => item.user_id === userId);
+      if (!entry) {
+        return;
+      }
+      handleSelectUser(entry);
+    },
+    [handleSelectUser, users],
+  );
+
+  useEffect(() => {
+    if (!authEvaluated || typeof window === "undefined" || !isLiveMode) {
+      return;
+    }
+    const handleFriendship: EventListener = (event) => {
+      const detail = (event as CustomEvent<{ peerId?: string }>).detail;
+      const peerId = detail?.peerId;
+      if (!peerId) {
+        void refreshNearby();
+        return;
+      }
+      let seen = false;
+      let mutated = false;
+      setUsers((prev) => {
+        if (!prev.length) {
+          return prev;
+        }
+        const next = prev.map((entry) => {
+          if (entry.user_id === peerId) {
+            seen = true;
+            if (entry.is_friend) {
+              return entry;
+            }
+            mutated = true;
+            return { ...entry, is_friend: true };
+          }
+          return entry;
+        });
+        return mutated ? next : prev;
+      });
+      setFriendIds((prev) => {
+        if (prev.has(peerId)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.add(peerId);
+        return next;
+      });
+      if (!seen || !mutated) {
+        void refreshNearby();
+      }
+    };
+    window.addEventListener(FRIENDSHIP_FORMED_EVENT, handleFriendship);
+    return () => {
+      window.removeEventListener(FRIENDSHIP_FORMED_EVENT, handleFriendship);
+    };
+  }, [authEvaluated, refreshNearby, isLiveMode]);
+
+  const gridColumnsClass = rightRail
+    ? "lg:grid-cols-[minmax(0,300px)_minmax(0,1.4fr)_minmax(0,240px)] xl:grid-cols-[minmax(0,320px)_minmax(0,1.8fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,340px)_minmax(0,2fr)_minmax(0,300px)]"
+    : "lg:grid-cols-[minmax(0,340px)_minmax(0,1.9fr)] xl:grid-cols-[minmax(0,360px)_minmax(0,2.2fr)] 2xl:grid-cols-[minmax(0,380px)_minmax(0,2.4fr)]";
+
+  const liveToggleAriaProps = isLiveMode
+    ? { "aria-pressed": "true" as const }
+    : { "aria-pressed": "false" as const };
 
   return (
-    <div className="flex w-full flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Discovery radius</span>
-        <span className="text-sm font-semibold text-slate-900">{activeRadius}m</span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={options.length - 1}
-        step={1}
-        value={sliderIndex}
-        onChange={(event) => {
-          const index = Number(event.target.value) || 0;
-          const nextRadius = options[index];
-          if (typeof nextRadius === "number") {
-            onRadiusChange(nextRadius);
-          }
-        }}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-slate-900"
-        aria-label="Discovery radius"
-      />
-      <div className="flex items-center justify-between text-[0.55rem] uppercase tracking-wide text-slate-400">
-        <span>Closer</span>
-        <span>Wider</span>
-      </div>
-      <div className="text-[0.6rem] font-medium text-slate-500">
-        {loading
-          ? "Refreshing nearby pulses…"
-          : activeCount != null
-            ? `${activeCount} nearby pulse${activeCount === 1 ? "" : "s"}`
-            : "Scanning area…"}
+    <div className="flex w-full flex-col gap-6 rounded-3xl border border-warm-sand bg-white/80 p-6 shadow-soft">
+      <header className="flex flex-col gap-1">
+        <h2 className="text-base font-semibold text-midnight">Nearby on Campus</h2>
+        <p className="text-xs text-navy/70">
+          Heartbeats refresh every {heartbeatSeconds}s while this tab stays active.
+        </p>
+      </header>
+      {authEvaluated && currentCampusId === DEMO_CAMPUS_ID ? (
+        <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+          You are in demo mode (demo campus). You will only see other demo users. Sign in on this device to join your
+          real campus.
+        </p>
+      ) : null}
+      <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={() => void handleToggleLiveMode()}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60 ${
+              isLiveMode ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-900 hover:bg-slate-800"
+            }`}
+            disabled={!goLiveAllowed}
+            {...liveToggleAriaProps}
+          >
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${isLiveMode ? "bg-white" : "bg-emerald-200"}`}
+            />
+            {isLiveMode ? "Switch to passive mode" : "Go live now"}
+          </button>
+          <span className="text-xs text-slate-500">
+            Pulse updates refresh every {heartbeatSeconds}s while this tab is visible.
+          </span>
+        </div>
+        {presenceStatus ? (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700" aria-live="polite">
+            {presenceStatus}
+          </p>
+        ) : null}
+        {locationNotice ? (
+          <p className="rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-700">{locationNotice}</p>
+        ) : null}
+        {error ? <p className="rounded-2xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p> : null}
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-slate-500">
+              Discovery radius
+            </span>
+            <span className="text-sm font-semibold text-slate-900">{radius}m</span>
+          </div>
+          <input
+            type="range"
+            min={RADIUS_MIN}
+            max={RADIUS_MAX}
+            step={RADIUS_STEP}
+            value={radius}
+            onChange={(event) => setRadius(Number(event.target.value))}
+            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-slate-900"
+            aria-label="Discovery radius"
+          />
+          <div className="flex items-center justify-between text-[0.55rem] uppercase tracking-wide text-slate-400">
+            <span>Closer</span>
+            <span>Wider</span>
+          </div>
+          <p className="text-[0.7rem] text-slate-500" aria-live="polite">
+            {loading ? "Refreshing nearby pulses…" : `${users.length} nearby pulse${users.length === 1 ? "" : "s"}`}
+          </p>
+        </div>
+      </section>
+  <div className={`grid gap-4 ${gridColumnsClass}`}>
+        <section className="order-2 flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-soft lg:order-1">
+          <header className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">People nearby</h3>
+            <span className="text-xs text-slate-500">{loading ? "Updating…" : `${users.length} in range`}</span>
+          </header>
+          {inviteMessage ? (
+            <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700" aria-live="polite">
+              {inviteMessage}
+            </p>
+          ) : null}
+          {inviteError ? <p className="rounded-2xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{inviteError}</p> : null}
+          {!isLiveMode ? (
+            <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-6 text-center text-xs text-slate-500">
+              Go live to discover classmates nearby.
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto pr-1">
+              <NearbyList
+                users={users}
+                loading={loading}
+                error={error}
+                onInvite={handleInvite}
+                invitePendingId={invitePendingId}
+                onChat={handleChat}
+                onSelect={handleSelectUser}
+                selectedUserId={activeUserId}
+                profileStates={profileStates}
+              />
+            </div>
+          )}
+        </section>
+        <section className="order-1 flex flex-col gap-3 rounded-3xl border border-slate-800/40 bg-[#0b1226] p-5 text-slate-100 shadow-[0_20px_45px_rgba(11,18,38,0.45)] lg:order-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-slate-400">Live radar</span>
+            <span className="text-[0.65rem] text-slate-400">
+              Showing first {users.length} {users.length === 1 ? "peer" : "peers"}
+            </span>
+          </div>
+          <div className="rounded-3xl border border-slate-700/50 bg-gradient-to-b from-[#111b33] via-[#0b1226] to-[#070b16] p-4">
+            {isLiveMode ? (
+              <Radar users={users} radius={radius} onSelect={handleSelectUserById} activeUserId={activeUserId} />
+            ) : (
+              <div className="flex h-64 items-center justify-center text-center text-xs text-slate-400">
+                Go live to activate the radar view.
+              </div>
+            )}
+          </div>
+          <p className="text-[0.65rem] text-slate-400">
+            Tap a pulse to preview profile details and send a quick invite.
+          </p>
+        </section>
+        {rightRail ? (
+          <aside className="order-3 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-soft">
+            {rightRail}
+          </aside>
+        ) : null}
       </div>
     </div>
   );
 }
 
-export function HomeProximityPreview({ authUser, className }: HomeProximityPreviewProps) {
-  // Disable demo mode to avoid showing hardcoded sample user (Lily) on first paint
-  const isDemoMode = false;
-  const [activeRadius, setActiveRadius] = useState<number>(RADIUS_OPTIONS[1]);
-  const [meta, setMeta] = useState<Record<number, RadiusMeta>>(() => createDefaultRadiusMeta(RADIUS_OPTIONS[1]));
-  const [users, setUsers] = useState<NearbyUser[]>(() => []);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [galleryPreviewImage, setGalleryPreviewImage] = useState<{ url: string; alt: string } | null>(null);
-  const [isLiveMode, setIsLiveMode] = useState(false);
-  const [isLiveProcessing, setIsLiveProcessing] = useState(false);
-  const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
-  const [presenceError, setPresenceError] = useState<string | null>(null);
-  const [accuracyM, setAccuracyM] = useState<number | null>(null);
-  const [invitePendingId, setInvitePendingId] = useState<string | null>(null);
-  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [friendsReady, setFriendsReady] = useState<boolean>(false);
-  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
-  const galleryCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const lastFetchRef = useRef<Record<string, number>>({});
-  const positionRef = useRef<GeolocationPosition | null>(null);
-  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const inviteMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const friendIdsRef = useRef<Record<string, true>>({});
-  const friendMapReadyRef = useRef<boolean>(false);
-
-  const withFriendFlags = useCallback(
-    (list: NearbyUser[]) =>
-      list.map((user) => {
-        const shouldBeFriend = Boolean(friendIdsRef.current[user.user_id]);
-        if (shouldBeFriend) {
-          const inviteStatus: NearbyUser["invite_status"] = user.invite_status === "pending" ? "pending" : "none";
-          if (user.is_friend === true && user.invite_status === inviteStatus) {
-            return user;
-          }
-          return {
-            ...user,
-            is_friend: true,
-            invite_status: inviteStatus,
-          };
-        }
-
-        if (friendMapReadyRef.current && user.is_friend) {
-
-  const selectedUserBio = useMemo(() => {
-    if (!selectedUser) {
-      return null;
-    }
-    if (selectedUser.bio && selectedUser.bio.trim().length > 0) {
-      return selectedUser.bio.trim();
-    }
-    const firstPassion = selectedUserPassions[0];
-    return firstPassion
-      ? `Always game for ${firstPassion.toLowerCase()} and unplanned campus adventures.`
-      : "Always down for spontaneous meetups around campus.";
-  }, [selectedUser, selectedUserPassions]);
-
-  const selectedUserDistanceText = useMemo(() => {
-    if (!selectedUser) {
-      return null;
-    }
-    return formatDistance(selectedUser.distance_m ?? null);
-  }, [selectedUser]);
-
-  const userId = authUser?.userId ?? DEMO_USER_ID;
-  const campusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
-
-  useEffect(() => {
-    // Always start in non-demo mode; reset to clean state
-    friendIdsRef.current = {};
-    friendMapReadyRef.current = false;
-    setFriendsReady(false);
-    setUsers([]);
-    setSelectedUserId(null);
-    setActiveRadius(RADIUS_OPTIONS[1]);
-    setMeta(createDefaultRadiusMeta(RADIUS_OPTIONS[1]));
-  }, []);
-
-  // Demo mode disabled; no-op on activeRadius change
-
-  const clearHeartbeatTimer = useCallback(() => {
-    if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
-      heartbeatTimerRef.current = null;
-    }
-  }, []);
-
-  const stopWatchingPosition = useCallback(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      return;
-    }
-    if (watchIdRef.current != null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-  }, []);
-
-  const startWatchPosition = useCallback(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      return;
-    }
-    stopWatchingPosition();
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        positionRef.current = position;
-        setAccuracyM(position.coords.accuracy ?? null);
-      },
-      (err) => {
-        setPresenceError(err.message || "Unable to refresh location");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,
-      },
-    );
-  }, [stopWatchingPosition]);
-
-  const cleanupLiveMode = useCallback(() => {
-    clearHeartbeatTimer();
-    stopWatchingPosition();
-    positionRef.current = null;
-    setAccuracyM(null);
-  }, [clearHeartbeatTimer, stopWatchingPosition]);
-
-  const startHeartbeatLoop = useCallback(() => {
-    clearHeartbeatTimer();
-    heartbeatTimerRef.current = setInterval(() => {
-      if (!positionRef.current) {
-        return;
-      }
-      void sendHeartbeat(positionRef.current, userId, campusId, activeRadius)
-        .then(() => {
-          setPresenceError(null);
-        })
-        .catch((err) => {
-          setPresenceError(err instanceof Error ? err.message : "Unable to refresh location");
-        });
-    }, HEARTBEAT_INTERVAL_MS);
-  }, [activeRadius, campusId, clearHeartbeatTimer, userId]);
-
-  useEffect(() => {
-    if (!userId || !campusId) {
-      friendIdsRef.current = {};
-      friendMapReadyRef.current = true;
-      setFriendsReady(true);
-      setUsers((previous) => withFriendFlags(previous));
-      return;
-    }
-
-    if (isDemoMode) {
-      friendIdsRef.current = {};
-      friendMapReadyRef.current = true;
-      setFriendsReady(true);
-      setUsers((previous) => withFriendFlags(previous));
-      return;
-    }
-
-    let cancelled = false;
-    setFriendsReady(false);
-    friendMapReadyRef.current = false;
-
-    const loadFriends = async () => {
-      try {
-        const rows = await fetchFriends(userId, campusId, "accepted");
-        if (cancelled) {
-          return;
-        }
-        const map: Record<string, true> = {};
-        for (const row of rows) {
-          const peerId = row.friend_id === userId ? row.user_id : row.friend_id;
-          if (peerId && peerId !== userId) {
-            map[peerId] = true;
-          }
-        }
-        friendIdsRef.current = map;
-      } catch {
-        if (cancelled) {
-          return;
-        }
-        friendIdsRef.current = {};
-      } finally {
-        if (cancelled) {
-          return;
-        }
-        friendMapReadyRef.current = true;
-        setFriendsReady(true);
-        setUsers((previous) => withFriendFlags(previous));
-      }
-    };
-
-    void loadFriends();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [campusId, isDemoMode, userId, withFriendFlags]);
-
-  useEffect(() => {
-    if (!userId || !campusId) {
-      return undefined;
-    }
-
-    if (isDemoMode) {
-      return undefined;
-    }
-
-    if (!isLiveMode) {
-      setUsers([]);
-      setMeta((previous) => ({
-        ...previous,
-        [activeRadius]: {
-          ...previous[activeRadius],
-          count: previous[activeRadius]?.count ?? null,
-          loading: false,
-        },
-      }));
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const fetchKey = `${userId}:${campusId}:${activeRadius}`;
-    const lastFetch = lastFetchRef.current[fetchKey];
-    const now = Date.now();
-    if (lastFetch && now - lastFetch < MIN_REFRESH_INTERVAL_MS && !controller.signal.aborted) {
-      return () => {
-        controller.abort();
-      };
-    }
-    lastFetchRef.current[fetchKey] = now;
-
-    let cancelled = false;
-
-    setLoading(true);
-    setError(null);
-    setMeta((previous) => ({
-      ...previous,
-      [activeRadius]: {
-        ...previous[activeRadius],
-        loading: true,
-      },
-    }));
-
-    fetchNearby(userId, campusId, activeRadius, controller.signal)
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-        items.forEach((item) => {
-          if (item.is_friend) {
-            friendIdsRef.current[item.user_id] = true;
-          }
-        });
-        const nextUsers = withFriendFlags(items);
-        setUsers(nextUsers);
-        setMeta((previous) => ({
-          ...previous,
-          [activeRadius]: {
-            count: items.length,
-            loading: false,
-            lastUpdated: Date.now(),
-          },
-        }));
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        setError(err instanceof Error ? err.message : "Unable to load nearby pulses.");
-        setUsers([]);
-        setMeta((previous) => ({
-          ...previous,
-          [activeRadius]: {
-            count: null,
-            loading: false,
-            lastUpdated: Date.now(),
-          },
-        }));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [activeRadius, campusId, isDemoMode, isLiveMode, userId, withFriendFlags]);
-
-  useEffect(() => {
-    // Prefetch counts for outer radius once initial load finishes.
-    const largerRadius = RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1];
-    if (isDemoMode) {
-      return undefined;
-    }
-
-    if (!isLiveMode) {
-      return undefined;
-    }
-
-    if (activeRadius !== largerRadius && meta[largerRadius]?.count == null && !meta[largerRadius]?.loading) {
-      const controller = new AbortController();
-      const fetchKey = `${userId}:${campusId}:${largerRadius}`;
-      const lastFetch = lastFetchRef.current[fetchKey];
-      const now = Date.now();
-      if (lastFetch && now - lastFetch < MIN_REFRESH_INTERVAL_MS) {
-        return undefined;
-      }
-      lastFetchRef.current[fetchKey] = now;
-      setMeta((previous) => ({
-        ...previous,
-        [largerRadius]: {
-          ...previous[largerRadius],
-          loading: true,
-        },
-      }));
-      fetchNearby(userId, campusId, largerRadius, controller.signal)
-        .then((items) => {
-          setMeta((previous) => ({
-            ...previous,
-            [largerRadius]: {
-              count: items.length,
-              loading: false,
-              lastUpdated: Date.now(),
-            },
-          }));
-        })
-        .catch(() => {
-          setMeta((previous) => ({
-            ...previous,
-            [largerRadius]: {
-              count: previous[largerRadius]?.count ?? null,
-              loading: false,
-              lastUpdated: Date.now(),
-            },
-          }));
-        });
-      return () => {
-        controller.abort();
-      };
-    }
-    return undefined;
-  }, [activeRadius, campusId, isDemoMode, isLiveMode, meta, userId]);
-
-  useEffect(() => {
-    if (!selectedUserId) {
-      return;
-    }
-    if (!users.some((user) => user.user_id === selectedUserId)) {
-      setSelectedUserId(null);
-    }
-  }, [selectedUserId, users]);
-
-  const handleRadiusChange = useCallback((radius: number) => {
-    if (radius === activeRadius) {
-      return;
-    }
-    setActiveRadius(radius);
-    setSelectedUserId(null);
-  }, [activeRadius]);
-
-  const handleSelectUser = useCallback((user: NearbyUser) => {
-    setSelectedUserId((previous) => (previous === user.user_id ? null : user.user_id));
-  }, []);
-
-  const handleInvite = useCallback(
-    async (targetUserId: string) => {
-      if (isDemoMode) {
-        setInviteError("Sign up or log in to send invites.");
-        return;
-      }
-
-      setInvitePendingId(targetUserId);
-      setInviteError(null);
-      setInviteMessage(null);
-      if (inviteMessageTimer.current) {
-        clearTimeout(inviteMessageTimer.current);
-        inviteMessageTimer.current = null;
-      }
-
-      try {
-        const summary = await sendInvite(userId, campusId, targetUserId);
-        const accepted = summary.status === "accepted";
-        if (accepted) {
-          friendIdsRef.current[targetUserId] = true;
-          friendMapReadyRef.current = true;
-        }
-        setUsers((previous) => {
-          const updated = previous.map((user): NearbyUser =>
-            user.user_id === targetUserId
-              ? {
-                  ...user,
-                  invite_status: toNearbyInviteStatus(summary.status),
-                  is_friend: accepted ? true : user.is_friend,
-                }
-              : user,
-          );
-          return withFriendFlags(updated);
-        });
-        const successMessage =
-          accepted
-            ? "Invite auto-accepted — you're connected!"
-            : "Invite sent.";
-        setInviteMessage(successMessage);
-        inviteMessageTimer.current = setTimeout(() => {
-          setInviteMessage(null);
-          inviteMessageTimer.current = null;
-        }, INVITE_SUCCESS_TIMEOUT_MS);
-      } catch (err) {
-        const detail = parseInviteErrorDetail(err);
-        if (detail === "already_friends") {
-          friendIdsRef.current[targetUserId] = true;
-          friendMapReadyRef.current = true;
-          setUsers((previous) => {
-            const updated = previous.map((user): NearbyUser =>
-              user.user_id === targetUserId
-                ? {
-                    ...user,
-                    is_friend: true,
-                    invite_status: "none",
-                  }
-                : user,
-            );
-            return withFriendFlags(updated);
-          });
-          setInviteError(null);
-          const message = "You're already connected — open the chat to say hi.";
-          setInviteMessage(message);
-          inviteMessageTimer.current = setTimeout(() => {
-            setInviteMessage(null);
-            inviteMessageTimer.current = null;
-          }, INVITE_SUCCESS_TIMEOUT_MS);
-          return;
-        }
-        const fallbackMessage = detail
-          ? detail
-              .replace(/_/g, " ")
-              .replace(/\b\w/g, (char) => char.toUpperCase())
-          : err instanceof Error
-            ? err.message
-            : "Unable to send invite";
-        setInviteError(fallbackMessage);
-      } finally {
-        setInvitePendingId(null);
-      }
-    },
-    [campusId, isDemoMode, userId, withFriendFlags],
-  );
-
-  const handleToggleLiveMode = useCallback(async () => {
-    if (isLiveProcessing) {
-      return;
-    }
-
-    if (isLiveMode) {
-      setIsLiveProcessing(true);
-      setPresenceMessage("Passive mode enabled — you can browse anonymously.");
-      setPresenceError(null);
-      cleanupLiveMode();
-      setIsLiveMode(false);
-      setIsLiveProcessing(false);
-      positionRef.current = null;
-      lastFetchRef.current = {};
-      setUsers([]);
-      setMeta((previous) => ({
-        ...previous,
-        [activeRadius]: {
-          ...previous[activeRadius],
-          count: null,
-          loading: false,
-        },
-      }));
-      void sendOffline(userId, campusId);
-      return;
-    }
-
-    setIsLiveProcessing(true);
-    setPresenceMessage(null);
-    setPresenceError(null);
-
-    try {
-      const position = isDemoMode ? createFallbackPosition() : await requestBrowserPosition();
-      positionRef.current = position;
-      setAccuracyM(position.coords.accuracy ?? null);
-
-      await sendHeartbeat(position, userId, campusId, activeRadius);
-      startHeartbeatLoop();
-
-      if (!isDemoMode) {
-        startWatchPosition();
-      }
-
-      lastFetchRef.current = {};
-      setIsLiveMode(true);
-      setPresenceMessage("You are visible on the map now — classmates can invite you in real time.");
-    } catch (err) {
-      setPresenceError(err instanceof Error ? err.message : "Unable to share your location");
-      cleanupLiveMode();
-    } finally {
-      setIsLiveProcessing(false);
-    }
-  }, [
-    activeRadius,
-    campusId,
-    cleanupLiveMode,
-    isDemoMode,
-    isLiveMode,
-    isLiveProcessing,
-    startHeartbeatLoop,
-    startWatchPosition,
-    userId,
-  ]);
-
-  useEffect(() => {
-    if (!isLiveMode || !positionRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const pushHeartbeat = async () => {
-      try {
-        await sendHeartbeat(positionRef.current as GeolocationPosition, userId, campusId, activeRadius);
-        if (!cancelled) {
-          setPresenceError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setPresenceError(err instanceof Error ? err.message : "Unable to refresh location");
-        }
-      }
-    };
-
-    void pushHeartbeat();
-    startHeartbeatLoop();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRadius, campusId, isLiveMode, startHeartbeatLoop, userId]);
-
-  useEffect(() => {
-    return () => {
-      cleanupLiveMode();
-      if (inviteMessageTimer.current) {
-        clearTimeout(inviteMessageTimer.current);
-        inviteMessageTimer.current = null;
-      }
-    };
-  }, [campusId, cleanupLiveMode, userId]);
-
-  const sectionClass = "flex w-full min-w-0 flex-col gap-5";
-  const accessibilityProps = isLiveMode
-    ? { "aria-pressed": "true" as const }
-    : { "aria-pressed": "false" as const };
-
-  const busyProps = isLiveProcessing
-    ? { "aria-busy": "true" as const }
-    : { "aria-busy": "false" as const };
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    if (!galleryPreviewImage) {
-      if (lastFocusedElementRef.current) {
-        lastFocusedElementRef.current.focus();
-        lastFocusedElementRef.current = null;
-      }
-      return undefined;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setGalleryPreviewImage(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.requestAnimationFrame(() => {
-      galleryCloseButtonRef.current?.focus();
-    });
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [galleryPreviewImage]);
-
-  const selectedUserInviteStatusLabel = selectedUser
-    ? selectedUser.invite_status === "pending"
-      ? "Invite pending"
-      : selectedUser.invite_status === "incoming"
-        ? "Invite received"
-        : null
-    : null;
-  const selectedUserInitial = selectedUser
-    ? (selectedUser.display_name || selectedUser.handle || "D").slice(0, 1).toUpperCase()
-    : null;
-  const galleryPreview = selectedUser?.gallery
-    ? selectedUser.gallery.filter((item) => Boolean(item?.url)).slice(0, 4)
-    : [];
-  const selectedUserDisplayName = selectedUser?.display_name || selectedUser?.handle || "Divan member";
-
-  return (
-    <>
-      <section className={`${sectionClass}${className ? ` ${className}` : ""}`}>
-      <div className="grid gap-5 lg:grid-cols-[minmax(280px,320px)_minmax(320px,340px)] xl:grid-cols-[minmax(280px,320px)_minmax(360px,400px)]">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2.5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">People nearby</h2>
-              <span className="text-xs text-slate-500">
-                {meta[activeRadius]?.count != null ? `${meta[activeRadius]?.count ?? 0} visible` : "Scanning"}
-              </span>
-            </div>
-            {error ? (
-              <p className="rounded-2xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
-            ) : null}
-            <div className="max-h-[15rem] overflow-y-auto pr-1">
-              <NearbyList
-                users={users}
-                loading={loading || !friendsReady}
-                error={error}
-                selectedUserId={selectedUserId ?? undefined}
-                onSelect={handleSelectUser}
-                onInvite={handleInvite}
-                invitePendingId={invitePendingId}
-              />
-            </div>
-            <div className="text-xs" aria-live="polite">
-              {inviteMessage ? <p className="text-emerald-600">{inviteMessage}</p> : null}
-              {inviteError ? <p className="text-rose-600">{inviteError}</p> : null}
-            </div>
-          </div>
-
-          {selectedUser ? (
-            <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="relative h-16 w-16">
-                  {selectedUser.avatar_url ? (
-                    <Image
-                      src={selectedUser.avatar_url}
-                      alt={selectedUser.display_name || selectedUser.handle || "Divan member"}
-                      fill
-                      sizes="(max-width: 640px) 25vw, 120px"
-                      className="rounded-2xl object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 text-lg font-semibold text-slate-600">
-                      {selectedUserInitial}
-                    </div>
-                  )}
-                  <span className="absolute -bottom-1 -right-1 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[0.6rem] font-semibold text-emerald-100 shadow">
-                    <span aria-hidden>●</span>
-                    Live
-                  </span>
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {selectedUser.display_name || selectedUser.handle || "Divan member"}
-                    </h3>
-                    {selectedUser.handle ? <span className="text-xs text-slate-500">@{selectedUser.handle}</span> : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    {selectedUserDistanceText ? <span>{selectedUserDistanceText}</span> : null}
-                    {selectedUser.major ? <span>• {selectedUser.major}</span> : null}
-                    {selectedUser.graduation_year ? <span>• ’{String(selectedUser.graduation_year).slice(-2)}</span> : null}
-                    {selectedUser.last_activity ? <span>• {selectedUser.last_activity}</span> : null}
-                  </div>
-                  {selectedUserBio ? <p className="text-sm text-slate-600">{selectedUserBio}</p> : null}
-                </div>
-              </div>
-
-              {selectedUserPassions.length ? (
-                <div className="flex flex-col gap-2">
-                  <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Passions</span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedUserPassions.map((passion) => (
-                      <span
-                        key={passion}
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800"
-                      >
-                        <span aria-hidden>★</span>
-                        {passion}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex flex-col gap-2">
-                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Gallery</span>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {galleryPreview.length
-                    ? galleryPreview.map((item) => (
-                        <button
-                          type="button"
-                          key={item.key ?? item.url ?? `${selectedUser.user_id}-gallery`}
-                          onClick={(event) => {
-                            lastFocusedElementRef.current = event.currentTarget;
-                            setGalleryPreviewImage({
-                              url: String(item.url ?? ""),
-                              alt: `${selectedUserDisplayName} gallery preview`,
-                            });
-                          }}
-                          className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-                        >
-                          <Image
-                            src={String(item.url ?? "")}
-                            alt={`${selectedUserDisplayName} gallery thumbnail`}
-                            fill
-                            sizes="(max-width: 640px) 22vw, 110px"
-                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                          <span className="sr-only">Open larger preview</span>
-                        </button>
-                      ))
-                    : FALLBACK_GALLERY_BACKDROPS.slice(0, 4).map((backdrop, index) => (
-                        <div
-                          key={`fallback-${index}`}
-                          className={`flex aspect-[4/5] items-center justify-center rounded-2xl bg-gradient-to-br ${backdrop} text-center text-xs font-semibold text-slate-600`}
-                        >
-                          Campus snapshot
-                        </div>
-                      ))}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  {selectedUserInviteStatusLabel ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[0.65rem] font-semibold text-amber-700">
-                      <span aria-hidden>✨</span>
-                      {selectedUserInviteStatusLabel}
-                    </span>
-                  ) : null}
-                  {selectedUser.is_friend ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-700">
-                      <span aria-hidden>🤝</span>
-                      Friend
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleToggleLiveMode}
-                  {...accessibilityProps}
-                  {...busyProps}
-                  disabled={isLiveProcessing}
-                  className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
-                    isLiveMode
-                      ? "bg-emerald-500 text-slate-900 hover:bg-emerald-400 focus-visible:outline-emerald-600"
-                      : "bg-slate-900 text-white hover:bg-slate-800 focus-visible:outline-slate-900"
-                  }`}
-                >
-                  {isLiveMode ? "Switch to passive" : "Go live now"}
-                </button>
-                <span
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide ${
-                    isLiveMode
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-200 text-slate-700"
-                  }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${isLiveMode ? "bg-emerald-500" : "bg-slate-500"}`}
-                  />
-                  {isLiveMode ? "Live mode" : "Passive mode"}
-                </span>
-              </div>
-              <span className="text-xs text-slate-500">Pulse updates refresh every few seconds.</span>
-            </div>
-            <div className="flex flex-col gap-1 text-xs" aria-live="polite">
-              {isLiveProcessing ? <p className="text-slate-500">Preparing your location…</p> : null}
-              {presenceMessage ? <p className="text-emerald-600">{presenceMessage}</p> : null}
-              {presenceError ? <p className="text-rose-600">{presenceError}</p> : null}
-              {isLiveMode && accuracyM != null ? (
-                <p className="text-slate-500">Location accuracy ≈{Math.round(accuracyM)}m</p>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-6">
-              <RadiusDial
-                options={RADIUS_OPTIONS}
-                activeRadius={activeRadius}
-                onRadiusChange={handleRadiusChange}
-                meta={meta}
-                loading={loading}
-              />
-              <MiniMap
-                users={users}
-                radius={activeRadius}
-                selectedUserId={selectedUserId}
-                onSelect={handleSelectUser}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      </section>
-
-      {galleryPreviewImage ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Gallery image preview"
-        >
-          <div
-            className="absolute inset-0 cursor-zoom-out bg-slate-900/70"
-            onClick={() => setGalleryPreviewImage(null)}
-            role="presentation"
-            aria-hidden="true"
-          />
-          <div className="relative z-10 w-full max-w-3xl">
-            <div className="relative overflow-hidden rounded-3xl bg-slate-950/90 shadow-2xl">
-              <div className="relative h-[60vh] min-h-[320px] w-full">
-                <Image
-                  src={galleryPreviewImage.url}
-                  alt={galleryPreviewImage.alt}
-                  fill
-                  sizes="(max-width: 768px) 90vw, 1024px"
-                  className="object-contain"
-                />
-              </div>
-              <button
-                type="button"
-                ref={galleryCloseButtonRef}
-                onClick={() => setGalleryPreviewImage(null)}
-                className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/80 text-slate-100 transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-100"
-              >
-                <span aria-hidden>X</span>
-                <span className="sr-only">Close preview</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
-  );
-}

@@ -2,7 +2,15 @@
 
 import Image from "next/image";
 
-import type { InviteSummary, PublicProfile } from "@/lib/types";
+import type { InviteSummary, PublicProfile, ProfileGalleryImage } from "@/lib/types";
+
+type InviteProfileState = {
+  profile: PublicProfile | null;
+  loading: boolean;
+  error: string | null;
+};
+
+type ProfileWithGallery = PublicProfile & { gallery?: ProfileGalleryImage[] };
 
 interface InviteInboxProps {
   inbox: InviteSummary[];
@@ -15,18 +23,32 @@ interface InviteInboxProps {
   profileData: Record<string, InviteProfileState>;
 }
 
-type InviteProfileState = {
-  profile: PublicProfile | null;
-  loading: boolean;
-  error: string | null;
-};
-
 function resolveParty(invite: InviteSummary, role: "from" | "to") {
   const displayName = role === "from" ? invite.from_display_name : invite.to_display_name;
   const handle = role === "from" ? invite.from_handle : invite.to_handle;
   const userId = role === "from" ? invite.from_user_id : invite.to_user_id;
   const name = displayName ?? handle ?? userId;
   return { name, handle, userId };
+}
+
+function getProfileKey(invite: InviteSummary, kind: "incoming" | "outgoing") {
+  const peerUserId = kind === "incoming" ? invite.from_user_id : invite.to_user_id;
+  return `${peerUserId}:${kind}`;
+}
+
+function resolveProfileState(
+  invite: InviteSummary,
+  kind: "incoming" | "outgoing",
+  profileData: Record<string, InviteProfileState>,
+): InviteProfileState {
+  const key = getProfileKey(invite, kind);
+  return (
+    profileData[key] ?? {
+      profile: null,
+      loading: false,
+      error: null,
+    }
+  );
 }
 
 function formatTimestamp(isoDate: string) {
@@ -61,7 +83,11 @@ export function InviteInbox({
 
   const renderInbox = () => {
     if (inbox.length === 0) {
-      return null;
+      return (
+        <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          No pending invites.
+        </p>
+      );
     }
 
     return (
@@ -69,16 +95,11 @@ export function InviteInbox({
         {inbox.map((invite) => {
           const senderName = invite.from_display_name ?? invite.from_handle ?? invite.from_user_id;
           const initial = safeInitial(senderName);
-          const state: InviteProfileState = profileData[invite.id] ?? {
-            profile: null,
-            loading: false,
-            error: null,
-          };
+          const state = resolveProfileState(invite, "incoming", profileData);
           const avatarUrl = state.profile?.avatar_url ?? null;
           const major = state.profile?.program?.trim();
-          const galleryItems = state.profile?.gallery
-            ?.filter((item) => Boolean(item?.url))
-            .slice(0, 4);
+          const profileWithGallery = state.profile as ProfileWithGallery | null;
+          const galleryItems = profileWithGallery?.gallery?.filter((item) => Boolean(item?.url)).slice(0, 4) ?? [];
 
           return (
             <li key={invite.id} className="rounded-3xl border border-slate-200 bg-white/90 shadow-sm">
@@ -103,9 +124,7 @@ export function InviteInbox({
                   </div>
                   <div className="flex flex-1 flex-col gap-1">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Major</span>
-                    <span className="text-sm text-slate-700">
-                      {state.loading ? "Loading…" : major || "Not shared"}
-                    </span>
+                    <span className="text-sm text-slate-700">{state.loading ? "Loading…" : major || "Not shared"}</span>
                   </div>
                 </div>
 
@@ -113,7 +132,7 @@ export function InviteInbox({
                   <p className="rounded-2xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{state.error}</p>
                 ) : null}
 
-                {galleryItems && galleryItems.length > 0 ? (
+                {galleryItems.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {galleryItems.map((item) => (
                       <div key={item.key ?? item.url} className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-slate-100">
@@ -146,7 +165,7 @@ export function InviteInbox({
                     onClick={() => onAccept(invite.id)}
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-emerald-500"
                   >
-                    Accept invite
+                    Accept
                   </button>
                   <button
                     type="button"
@@ -163,15 +182,21 @@ export function InviteInbox({
       </ul>
     );
   };
+
   const renderOutbox = () => {
     if (outbox.length === 0) {
-      return null;
+      return (
+        <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          No invites sent.
+        </p>
+      );
     }
 
     return (
       <ul className="space-y-3">
         {outbox.map((invite) => {
           const toParty = resolveParty(invite, "to");
+          const state = resolveProfileState(invite, "outgoing", profileData);
           const sentAt = formatTimestamp(invite.created_at);
           return (
             <li
@@ -186,6 +211,7 @@ export function InviteInbox({
                   <span className="font-semibold text-slate-900">{toParty.name}</span>
                   {toParty.handle ? <span className="text-xs text-slate-500">@{toParty.handle}</span> : null}
                   <span className="text-xs text-slate-400">Sent {sentAt}</span>
+                  {state.error ? <span className="text-xs text-rose-600">{state.error}</span> : null}
                 </div>
               </div>
               <div className="flex items-center justify-end">
@@ -194,7 +220,7 @@ export function InviteInbox({
                   onClick={() => onCancel(invite.id)}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-300"
                 >
-                  Cancel invite
+                  Cancel
                 </button>
               </div>
             </li>
@@ -204,10 +230,13 @@ export function InviteInbox({
     );
   };
 
+  const inboxContent = renderInbox();
+  const outboxContent = renderOutbox();
+
   return (
     <div className="flex flex-col gap-8">
-      {renderInbox()}
-      {renderOutbox()}
+      {inboxContent}
+      {outboxContent}
     </div>
   );
 }

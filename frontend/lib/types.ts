@@ -1,9 +1,3 @@
-export type ProfileGalleryImage = {
-  key: string;
-  url: string;
-  uploaded_at?: string | null;
-};
-
 export type NearbyUser = {
   user_id: string;
   display_name: string;
@@ -12,15 +6,6 @@ export type NearbyUser = {
   major?: string | null;
   distance_m?: number | null;
   is_friend?: boolean;
-  invite_status?: "pending" | "incoming" | "none";
-  is_new?: boolean;
-  trust_score?: number | null;
-  last_activity?: string | null;
-  heartbeat_ts?: number | null;
-  bio?: string | null;
-  graduation_year?: number | null;
-  passions?: string[];
-  gallery?: ProfileGalleryImage[];
 };
 
 export type NearbyDiff = {
@@ -180,7 +165,6 @@ export type PublicProfile = {
   interests: string[];
   skills: PublicSkill[];
   links: PublicLink[];
-  gallery: ProfileGalleryImage[];
 };
 
 export type MatchPerson = {
@@ -229,7 +213,13 @@ export type ProfileRecord = {
   major?: string | null;
   graduation_year?: number | null;
   passions: string[];
-  gallery: ProfileGalleryImage[];
+  gallery?: ProfileGalleryImage[];
+};
+
+// Minimal image shape used by profile gallery UI
+export type ProfileGalleryImage = {
+  key: string;
+  url: string;
 };
 
 export type BlockEntry = {
@@ -339,7 +329,6 @@ export type FeatureFlagKind = "bool" | "percentage" | "allowlist" | "experiment"
 
 export type FeatureFlagRow = {
   key: string;
-  gallery: ProfileGalleryImage[];
   kind: FeatureFlagKind;
   description: string;
   payload: Record<string, unknown>;

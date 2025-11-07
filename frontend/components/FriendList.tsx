@@ -47,7 +47,8 @@ export function FriendList({
       {friends.map((friend) => {
         const profileState = profileData[friend.friend_id];
         const profile = profileState?.profile ?? null;
-        const rawPrimary = profile?.display_name ?? friend.friend_display_name ?? friend.friend_handle ?? friend.friend_id;
+        const rawPrimary =
+          profile?.display_name ?? friend.friend_display_name ?? friend.friend_handle ?? friend.friend_id;
         const primaryLabel = rawPrimary && rawPrimary.trim().length > 0 ? rawPrimary : "Friend";
         const secondaryLabel = profile?.handle
           ? `@${profile.handle}`
@@ -72,6 +73,8 @@ export function FriendList({
               <div className="relative h-20 w-20 shrink-0">
                 {avatarUrl ? (
                   <Image src={avatarUrl} alt={primaryLabel} fill sizes="120px" className="rounded-3xl object-cover" />
+                ) : profileState?.loading ? (
+                  <div className="h-full w-full animate-pulse rounded-3xl bg-slate-200" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center rounded-3xl bg-slate-200 text-lg font-semibold text-slate-600">
                     {initial}
@@ -97,7 +100,10 @@ export function FriendList({
                     {firstPassions.length ? (
                       <div className="flex flex-wrap gap-1.5">
                         {firstPassions.map((passion) => (
-                          <span key={passion} className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-medium text-amber-800">
+                          <span
+                            key={passion}
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-medium text-amber-800"
+                          >
                             {passion}
                           </span>
                         ))}
@@ -166,11 +172,7 @@ export function FriendList({
 
   let body: React.ReactNode;
   if (filter === "pending") {
-    if (pendingContent) {
-      body = pendingContent;
-    } else {
-      body = <p className="text-sm text-slate-500">No pending invites.</p>;
-    }
+    body = pendingContent ?? <p className="text-sm text-slate-500">No pending invites.</p>;
   } else if (friends.length === 0) {
     body = <p className="text-sm text-slate-500">No entries.</p>;
   } else if (filter === "accepted") {

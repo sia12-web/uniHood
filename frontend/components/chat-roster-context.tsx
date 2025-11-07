@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
+import type { ChatMessage } from "@/lib/chat";
 import type { ChatRosterEntry } from "@/hooks/chat/use-chat-roster";
 
 export type ChatRosterContextValue = {
@@ -9,11 +10,19 @@ export type ChatRosterContextValue = {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  setActiveConversation: (peerId: string | null) => void;
+  updateConversationSnapshot: (peerId: string, message: ChatMessage | null) => void;
 };
 
 const ChatRosterContext = createContext<ChatRosterContextValue | null>(null);
 
-export function ChatRosterProvider({ value, children }: { value: ChatRosterContextValue; children: ReactNode }) {
+export function ChatRosterProvider({
+  value,
+  children,
+}: {
+  value: ChatRosterContextValue;
+  children: ReactNode;
+}) {
   return <ChatRosterContext.Provider value={value}>{children}</ChatRosterContext.Provider>;
 }
 

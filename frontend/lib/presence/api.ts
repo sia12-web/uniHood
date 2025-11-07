@@ -7,7 +7,8 @@ const DEMO_USER_ID = getDemoUserId();
 const DEMO_LAT = getDemoLatitude();
 const DEMO_LON = getDemoLongitude();
 
-export const LOCATION_PERMISSION_MESSAGE = "Location permission needed to go live. Please allow location access in your browser.";
+export const LOCATION_PERMISSION_MESSAGE =
+  "Location permission needed to go live. Please allow location access in your browser.";
 
 export function getDemoIdentifiers(): { userId: string; campusId: string } {
   return {
@@ -105,6 +106,15 @@ export async function sendHeartbeat(
   if (!response.ok) {
     throw new Error(`Heartbeat failed (${response.status})`);
   }
+
+  // Record last successful heartbeat time for lightweight UI indicators
+  try {
+    if (typeof window !== "undefined" && "localStorage" in window) {
+      window.localStorage.setItem("divan:lastHeartbeatAt", String(Date.now()));
+    }
+  } catch {
+    // best-effort; ignore storage errors
+  }
 }
 
 export async function sendOffline(userId: string, campusId: string): Promise<void> {
@@ -121,4 +131,21 @@ export async function sendOffline(userId: string, campusId: string): Promise<voi
   } catch {
     // best-effort
   }
+}
+
+export function getLastHeartbeatAt(): number | null {
+  try {
+    if (typeof window === "undefined" || !("localStorage" in window)) return null;
+    const raw = window.localStorage.getItem("divan:lastHeartbeatAt");
+    const ts = raw ? Number(raw) : NaN;
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isRecentlyLive(windowMs = 90_000): boolean {
+  const ts = getLastHeartbeatAt();
+  if (!ts) return false;
+  return Date.now() - ts <= windowMs;
 }

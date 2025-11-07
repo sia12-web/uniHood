@@ -8,7 +8,6 @@ import { getSocialSocket } from "@/lib/socket";
 import { fetchFriends } from "@/lib/social";
 import type { FriendRow } from "@/lib/types";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
@@ -31,7 +30,6 @@ export function FriendsSnapshot() {
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
 
   const currentUserId = authUser?.userId ?? DEMO_USER_ID;
   const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
@@ -77,7 +75,6 @@ export function FriendsSnapshot() {
 
   const visibleFriends = friends.slice(0, MAX_PREVIEW);
   const hasOverflow = friends.length > MAX_PREVIEW;
-  const manageHref = hasFriendAcceptanceNotification ? "/friends?filter=pending" : "/friends";
 
   return (
     <aside className="flex flex-col rounded-2xl border border-warm-sand bg-glass p-5 shadow-soft">
@@ -104,7 +101,7 @@ export function FriendsSnapshot() {
       )}
       <div className="mt-auto flex items-center justify-between text-sm">
         <span className="text-navy/60">{friends.length} total</span>
-        <Link href={manageHref} className="font-medium text-midnight hover:underline">
+        <Link href="/friends" className="font-medium text-midnight hover:underline">
           Manage friends →
         </Link>
       </div>

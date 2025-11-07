@@ -37,6 +37,10 @@ PowerShell (Windows):
   - Copy `.env.example` to `.env.local` in `frontend/`
   - Fill any `NEXT_PUBLIC_DEMO_*` variables (handles, chat peer IDs, activity IDs) to unlock direct links on hub pages
   - Restart `npm run dev` after edits so the values refresh
+  - Optional: enable the proximity "Go Live" feature for local testing
+    - Add `NEXT_PUBLIC_ENABLE_GO_LIVE=true` to `frontend/.env.local` (or run `setx NEXT_PUBLIC_ENABLE_GO_LIVE "true"` in PowerShell and restart your terminal)
+    - Visit `/proximity` and click "Go live now"; in demo mode (logged out or demo campus) a fallback location is used, otherwise grant location permission
+    - A successful heartbeat records a timestamp in `localStorage`; the homepage Proximity card shows "Live now" for ~90 seconds after a heartbeat (polls every ~15s)
 - Key routes
   - Home: http://localhost:3000/
   - Login: http://localhost:3000/login

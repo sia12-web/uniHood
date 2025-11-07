@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
-import { HomeProximityPreview } from "@/components/HomeProximityPreview";
-import { useInviteInboxCount } from "@/hooks/invites/use-invite-count";
+import HomeProximityPreview from "@/components/HomeProximityPreview";
 import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
+import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
+import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 
 type SimpleLink = {
@@ -20,12 +21,19 @@ export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  const { pendingCount: inviteCount } = useInviteInboxCount(authUser);
+  const { inboundPending } = useInviteInboxCount();
   const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
+  const { totalUnread: chatUnreadCount, acknowledgeAll: acknowledgeChatUnread } = useChatUnreadIndicator();
+  const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
+  const friendsHref = hasFriendAcceptanceNotification
+    ? "/friends?filter=accepted"
+    : inboundPending > 0
+      ? "/friends?filter=pending"
+      : "/friends";
   const rightLinks = useMemo<SimpleLink[]>(
     () => [
       {
-        href: hasFriendAcceptanceNotification ? "/friends?filter=pending" : "/friends",
+        href: friendsHref,
         title: "Friends",
         description: "Review pending invites and see who is live right now.",
         accentDefault: "from-blue-200 via-blue-100 to-transparent",
@@ -37,7 +45,7 @@ export default function HomePage() {
         accentDefault: "from-rose-200 via-rose-100 to-transparent",
       },
     ],
-    [hasFriendAcceptanceNotification],
+    [friendsHref],
   );
 
   useEffect(() => {
@@ -50,15 +58,9 @@ export default function HomePage() {
   }, []);
 
   const greeting = useMemo(() => {
-    if (!authUser) {
-      return "Welcome";
-    }
-    if (authUser.displayName?.trim()) {
-      return `Welcome, ${authUser.displayName.split(" ")[0]}`;
-    }
-    if (authUser.handle) {
-      return `Welcome, @${authUser.handle}`;
-    }
+    if (!authUser) return "Welcome";
+    if (authUser.displayName?.trim()) return `Welcome, ${authUser.displayName.split(" ")[0]}`;
+    if (authUser.handle) return `Welcome, @${authUser.handle}`;
     return "Welcome";
   }, [authUser]);
 
@@ -67,8 +69,8 @@ export default function HomePage() {
     setAuthUser(null);
   }, []);
 
-  const renderDefaultLayout = () => (
-    <main className="min-h-screen bg-lavender-haze">
+  return (
+    <main className="min-h-screen bg-lavender-haze overflow-y-scroll">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-14 pt-16 sm:pb-16 sm:pt-20">
         <header className="relative flex w-full flex-col items-center gap-3 text-slate-900">
           <nav aria-label="Primary" className="absolute right-0 top-0 flex items-center gap-2 text-sm font-semibold">
@@ -106,7 +108,7 @@ export default function HomePage() {
             )}
           </nav>
           <div className="flex flex-col items-center gap-2 pt-6">
-            <BrandLogo logoClassName="h-32" logoWidth={128} logoHeight={128} />
+            <BrandLogo className="h-32" />
             <span className="text-lg font-semibold tracking-[0.4em] text-slate-700">DIVAN</span>
           </div>
           <h1 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">{greeting}</h1>
@@ -133,17 +135,25 @@ export default function HomePage() {
         ) : null}
 
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          <HomeProximityPreview authUser={hydrated ? authUser : null} className="lg:flex-1" />
+          <HomeProximityPreview />
           <div className="flex w-full flex-col gap-3.5 lg:w-72 xl:w-80">
             {rightLinks.map((link) => {
               const isFriendsLink = link.title === "Friends" && Boolean(authUser);
-              const showBadge = isFriendsLink && inviteCount > 0;
-              const badgeLabel = inviteCount > 99 ? "99+" : String(inviteCount);
+              const showFriendsBadge = isFriendsLink && hasFriendsNotification;
+              const friendsBadgeLabel = inboundPending > 0 ? (inboundPending > 99 ? "99+" : String(inboundPending)) : "●";
+              const isChatLink = link.title === "Chat" && Boolean(authUser);
+              const showChatBadge = isChatLink && chatUnreadCount > 0;
+              const chatBadgeLabel = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                  onClick={() => {
+                    if (isChatLink) {
+                      acknowledgeChatUnread();
+                    }
+                  }}
                 >
                   <span
                     className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${link.accentDefault} opacity-0 transition-opacity group-hover:opacity-100`}
@@ -152,12 +162,20 @@ export default function HomePage() {
                   <div className="relative flex h-full flex-col gap-2">
                     <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                       {link.title}
-                      {showBadge ? (
+                      {showFriendsBadge ? (
                         <span
                           className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[0.65rem] font-semibold text-white shadow-sm"
-                          aria-label={`${badgeLabel} pending invites`}
+                          aria-label={`${friendsBadgeLabel} pending invites`}
                         >
-                          {badgeLabel}
+                          {friendsBadgeLabel}
+                        </span>
+                      ) : null}
+                      {showChatBadge ? (
+                        <span
+                          className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-sky-500 px-1.5 text-[0.65rem] font-semibold text-white shadow-sm"
+                          aria-label={`${chatBadgeLabel} unread chats`}
+                        >
+                          {chatBadgeLabel}
                         </span>
                       ) : null}
                     </span>
@@ -184,5 +202,4 @@ export default function HomePage() {
       </section>
     </main>
   );
-  return renderDefaultLayout();
 }

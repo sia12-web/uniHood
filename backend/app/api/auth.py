@@ -119,12 +119,14 @@ async def refresh(request: Request, response: Response, payload: schemas.Refresh
 	if not await rate_limit.allow("refresh:ip", ip, limit=30, window_seconds=60):
 		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
 	rf_fp = request.cookies.get("rf_fp") or ""
+	refresh_cookie = request.cookies.get("refresh_token") or ""
 	try:
 		pair = await service.refresh(
 			payload,
 			ip=ip,
 			user_agent=request.headers.get("User-Agent"),
 			fingerprint=rf_fp,
+			refresh_cookie=refresh_cookie,
 		)
 		# maintain fingerprint or rotate if missing
 		new_fp = rf_fp or secrets.token_urlsafe(24)

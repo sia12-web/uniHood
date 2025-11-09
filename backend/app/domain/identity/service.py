@@ -262,3 +262,43 @@ async def request_password_reset(payload: schemas.PasswordResetRequest) -> None:
 
 async def consume_password_reset(payload: schemas.PasswordResetConsume, *, ip: Optional[str]) -> None:
 	await recovery.consume_password_reset(payload.token, payload.new_password, ip=ip)
+
+
+async def refresh(
+	payload: schemas.RefreshRequest,
+	*,
+	ip: Optional[str],
+	user_agent: Optional[str],
+	fingerprint: str,
+	refresh_cookie: str,
+) -> schemas.LoginResponse:
+	"""Rotate refresh token for an existing session and issue new access.
+
+	The controller should pass the refresh cookie value explicitly. This function
+	validates the session and delegates rotation to sessions.refresh_session.
+	"""
+	if not refresh_cookie:
+		raise policy.IdentityPolicyError("refresh_invalid")
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		row = await conn.fetchrow(
+			"SELECT s.id, s.user_id, s.revoked, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = $1",
+			str(payload.session_id),
+		)
+		if not row:
+			raise policy.IdentityPolicyError("session_not_found")
+		if row.get("revoked"):
+			raise policy.IdentityPolicyError("session_revoked")
+		user = models.User.from_record(row)
+	return await sessions.refresh_session(
+		user,
+		session_id=payload.session_id,
+		refresh_token=refresh_cookie,
+		ip=ip,
+		user_agent=user_agent,
+	)
+
+
+async def logout(payload: schemas.LogoutRequest) -> None:
+	"""Revoke a session and clear its refresh token."""
+	await sessions.revoke_session(str(payload.user_id), payload.session_id)

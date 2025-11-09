@@ -59,6 +59,16 @@ class LoginResponse(TokenPair):
 	risk_score: Optional[int] = None
 
 
+class RefreshRequest(BaseModel):
+	session_id: UUID
+	device_label: Optional[Annotated[str, Field(max_length=100)]] = None
+
+
+class LogoutRequest(BaseModel):
+	user_id: UUID
+	session_id: UUID
+
+
 class VerifyRequest(BaseModel):
 	token: str
 

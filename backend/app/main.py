@@ -66,6 +66,7 @@ from app.infra import postgres
 from app.settings import settings
 from app.obs import init as obs_init
 from app.api.middleware_request_id import RequestIdMiddleware
+from app.api.errors import install_error_handlers
 from app.settings import settings
 
 
@@ -158,6 +159,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
+install_error_handlers(app)
 
 if settings.environment == "dev":
 	# In local dev, make avatar uploads work without external object storage

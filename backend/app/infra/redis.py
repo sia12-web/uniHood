@@ -28,6 +28,10 @@ class RedisProxy:
 	def set_client(self, client: redis.Redis) -> None:
 		self._client = client
 
+	async def exists_key(self, key: str) -> bool:
+		"""Return True if key exists (atomic exists wrapper)."""
+		return bool(await self._client.exists(key))
+
 	# --- Wrapped helpers for compatibility across tests/clients ---
 	async def geoadd(self, name, values, nx: bool = False, xx: bool = False, ch: bool = False):
 		"""Allow mapping input {member: (lon, lat)} by flattening to triplets."""

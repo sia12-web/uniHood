@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Iterable, Tuple
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     moderation_workers_enabled: bool = _env_field(False, "MODERATION_WORKERS_ENABLED")
     moderation_staff_ids: tuple[str, ...] = _env_field((), "MODERATION_STAFF_IDS")
 
+    # Security/cross-origin and auth cookie knobs
+    cors_allow_origins: tuple[str, ...] = _env_field(("*",), "CORS_ALLOW_ORIGINS")
+    access_ttl_minutes: int = _env_field(15, "ACCESS_TTL_MINUTES")
+    refresh_ttl_days: int = _env_field(30, "REFRESH_TTL_DAYS")
+    cookie_secure: bool = _env_field(False, "COOKIE_SECURE")
+    cookie_samesite: str = _env_field("strict", "COOKIE_SAMESITE")
+    cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
+
     if PYDANTIC_V2:
         model_config = SettingsConfigDict(
             env_prefix="",
@@ -81,6 +89,15 @@ class Settings(BaseSettings):
         )
         @field_validator("moderation_staff_ids", mode="before")
         def _split_staff_ids(cls, value):  # type: ignore[override]
+            if value in (None, ""):
+                return ()
+            if isinstance(value, str):
+                return tuple(part.strip() for part in value.split(",") if part.strip())
+            if isinstance(value, (list, tuple, set)):
+                return tuple(str(item).strip() for item in value if str(item).strip())
+            return ()
+        @field_validator("cors_allow_origins", mode="before")
+        def _split_cors(cls, value):  # type: ignore[override]
             if value in (None, ""):
                 return ()
             if isinstance(value, str):
@@ -104,6 +121,15 @@ class Settings(BaseSettings):
             if isinstance(value, (list, tuple, set)):
                 return tuple(str(item).strip() for item in value if str(item).strip())
             return ()
+        @validator("cors_allow_origins", pre=True)  # type: ignore[override]
+        def _split_cors_v1(cls, value):
+            if value in (None, ""):
+                return ()
+            if isinstance(value, str):
+                return tuple(part.strip() for part in value.split(",") if part.strip())
+            if isinstance(value, (list, tuple, set)):
+                return tuple(str(item).strip() for item in value if str(item).strip())
+            return ()
 
 
 def _normalise_level(level: str) -> str:
@@ -112,3 +138,39 @@ def _normalise_level(level: str) -> str:
 
 settings = Settings()
 settings.obs_log_level = _normalise_level(settings.obs_log_level)
+
+
+# Convenience helpers
+def is_true(value: str | bool | None) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_is(value: str, *aliases: Iterable[str]) -> bool:
+    v = value.lower().strip()
+    return v in ("dev", "development") if not aliases else v in set(aliases)
+
+
+def _settings_is(env: str) -> bool:
+    return settings.environment.lower() in (env,)
+
+
+def _is_any(*envs: str) -> bool:
+    return settings.environment.lower() in {e.lower() for e in envs}
+
+
+# Methods on settings for environment gating
+def _settings_is_prod(self) -> bool:  # type: ignore[override]
+    return self.environment.lower() in ("prod", "production", "live")
+
+
+def _settings_is_dev(self) -> bool:  # type: ignore[override]
+    return self.environment.lower() in ("dev", "development")
+
+
+# Attach helper methods dynamically to avoid breaking BaseSettings behaviour
+setattr(type(settings), "is_prod", _settings_is_prod)
+setattr(type(settings), "is_dev", _settings_is_dev)

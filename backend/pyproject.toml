@@ -23,6 +23,7 @@ pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^7.4.2"}
 apscheduler = "^3.10.4"
 pyyaml = "^6.0.3"
+PyJWT = "^2.9.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

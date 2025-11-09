@@ -102,7 +102,8 @@ async def test_issue_session_tokens_persists_refresh_and_logs(fake_redis, monkey
     assert any("INSERT INTO sessions" in command for command in commands)
 
     stored_refresh = await fake_redis.get(f"session:refresh:{result.session_id}")
-    assert stored_refresh == result.refresh_token
+    # Since refresh tokens are now stored as hashes, ensure it's not the raw token
+    assert stored_refresh is not None and stored_refresh != result.refresh_token
 
     events = await fake_redis.xrange("x:identity.events", count=1)
     assert events and events[0][1]["event"] == "session_created"
@@ -115,7 +116,10 @@ async def test_refresh_session_rotates_token(fake_redis, monkeypatch: pytest.Mon
 
     session_id = uuid4()
     old_refresh = "old-refresh-token"
-    await fake_redis.set(f"session:refresh:{session_id}", old_refresh, ex=60)
+    # Pre-store the hash to simulate existing session state
+    import hashlib, os
+    token_hash = hashlib.sha256((os.getenv("REFRESH_PEPPER", "dev-pepper") + old_refresh).encode()).hexdigest()
+    await fake_redis.set(f"session:refresh:{session_id}", token_hash, ex=60)
 
     result = await sessions.refresh_session(
         user,
@@ -127,7 +131,9 @@ async def test_refresh_session_rotates_token(fake_redis, monkeypatch: pytest.Mon
 
     assert result.session_id == session_id
     assert result.refresh_token != old_refresh
-    assert await fake_redis.get(f"session:refresh:{session_id}") == result.refresh_token
+    # New stored value should be a hash, not the raw token
+    new_stored = await fake_redis.get(f"session:refresh:{session_id}")
+    assert new_stored is not None and new_stored != result.refresh_token
 
 
 @pytest.mark.asyncio

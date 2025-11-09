@@ -342,60 +342,60 @@ class TrustedDevice:
 		)
 
 
-	@dataclass(slots=True)
-	class LinkedAccount:
-		"""Linked OAuth identity for a user."""
+@dataclass(slots=True)
+class LinkedAccount:
+	"""Linked OAuth identity for a user."""
 
-		id: UUID
-		user_id: UUID
-		provider: str
-		subject: str
-		email: Optional[str]
-		created_at: datetime
+	id: UUID
+	user_id: UUID
+	provider: str
+	subject: str
+	email: Optional[str]
+	created_at: datetime
 
-		@classmethod
-		def from_record(cls, record: RecordLike) -> "LinkedAccount":
-			return cls(
-				id=_as_uuid(record["id"]),
-				user_id=_as_uuid(record["user_id"]),
-				provider=str(record.get("provider", "")),
-				subject=str(record.get("subject", "")),
-				email=record.get("email"),
-				created_at=record["created_at"],
-			)
+	@classmethod
+	def from_record(cls, record: RecordLike) -> "LinkedAccount":
+		return cls(
+			id=_as_uuid(record["id"]),
+			user_id=_as_uuid(record["user_id"]),
+			provider=str(record.get("provider", "")),
+			subject=str(record.get("subject", "")),
+			email=record.get("email"),
+			created_at=record["created_at"],
+		)
 
 
-	@dataclass(slots=True)
-	class EmailChangeRequest:
-		"""Staged email change token awaiting confirmation."""
+@dataclass(slots=True)
+class EmailChangeRequest:
+	"""Staged email change token awaiting confirmation."""
 
-		id: UUID
-		user_id: UUID
-		new_email: str
-		token: str
-		expires_at: datetime
-		used_at: Optional[datetime]
-		created_at: datetime
+	id: UUID
+	user_id: UUID
+	new_email: str
+	token: str
+	expires_at: datetime
+	used_at: Optional[datetime]
+	created_at: datetime
 
-		@classmethod
-		def from_record(cls, record: RecordLike) -> "EmailChangeRequest":
-			return cls(
-				id=_as_uuid(record["id"]),
-				user_id=_as_uuid(record["user_id"]),
-				new_email=str(record.get("new_email", "")),
-				token=str(record.get("token", "")),
-				expires_at=record["expires_at"],
-				used_at=record.get("used_at"),
-				created_at=record["created_at"],
-			)
+	@classmethod
+	def from_record(cls, record: RecordLike) -> "EmailChangeRequest":
+		return cls(
+			id=_as_uuid(record["id"]),
+			user_id=_as_uuid(record["user_id"]),
+			new_email=str(record.get("new_email", "")),
+			token=str(record.get("token", "")),
+			expires_at=record["expires_at"],
+			used_at=record.get("used_at"),
+			created_at=record["created_at"],
+		)
 
-		@property
-		def is_expired(self) -> bool:
-			return self.expires_at <= datetime.now(self.expires_at.tzinfo or datetime.now().tzinfo)
+	@property
+	def is_expired(self) -> bool:
+		return self.expires_at <= datetime.now(self.expires_at.tzinfo or datetime.now().tzinfo)
 
-		@property
-		def is_used(self) -> bool:
-			return self.used_at is not None
+	@property
+	def is_used(self) -> bool:
+		return self.used_at is not None
 
 
 	@dataclass(slots=True)

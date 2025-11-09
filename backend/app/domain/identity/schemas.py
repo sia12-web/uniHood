@@ -57,6 +57,7 @@ class LoginResponse(TokenPair):
 	reauth_token: Optional[str] = None
 	step_up_required: bool = False
 	risk_score: Optional[int] = None
+	request_id: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):

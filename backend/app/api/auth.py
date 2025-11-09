@@ -81,7 +81,11 @@ async def login(payload: schemas.LoginRequest, request: Request, response: Respo
 		rf_fp = secrets.token_urlsafe(24)
 		set_refresh_cookies(response, refresh_token=pair.refresh_token, rf_fp=rf_fp)
 		pair.refresh_token = ""  # avoid echoing refresh token back in body
-		response.headers["X-Request-Id"] = get_request_id()
+		rid = get_request_id(request)
+		response.headers["X-Request-Id"] = rid
+		# Populate optional request_id in body for FE convenience
+		if hasattr(pair, "request_id"):
+			pair.request_id = rid
 		return pair
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
@@ -132,7 +136,10 @@ async def refresh(request: Request, response: Response, payload: schemas.Refresh
 		new_fp = rf_fp or secrets.token_urlsafe(24)
 		set_refresh_cookies(response, refresh_token=pair.refresh_token, rf_fp=new_fp)
 		pair.refresh_token = ""
-		response.headers["X-Request-Id"] = get_request_id()
+		rid = get_request_id(request)
+		response.headers["X-Request-Id"] = rid
+		if hasattr(pair, "request_id"):
+			pair.request_id = rid
 		return pair
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None

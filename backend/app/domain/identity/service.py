@@ -12,6 +12,7 @@ from argon2 import PasswordHasher, exceptions as argon_exc
 
 from app.domain.identity import models, policy, recovery, schemas, sessions, twofa
 from app.infra.postgres import get_pool
+from app.settings import settings
 from app.obs import metrics as obs_metrics
 
 VERIFICATION_TTL_SECONDS = 24 * 3600
@@ -290,13 +291,19 @@ async def refresh(
 		if row.get("revoked"):
 			raise policy.IdentityPolicyError("session_revoked")
 		user = models.User.from_record(row)
-	return await sessions.refresh_session(
+		result = await sessions.refresh_session(
 		user,
 		session_id=payload.session_id,
 		refresh_token=refresh_cookie,
 		ip=ip,
 		user_agent=user_agent,
 	)
+		# Ensure expires_in reflects current access TTL setting if available
+		try:
+			result.expires_in = settings.access_ttl_minutes * 60
+		except Exception:
+			pass
+		return result
 
 
 async def logout(payload: schemas.LogoutRequest) -> None:

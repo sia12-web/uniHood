@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import math
 from typing import Optional
 
 from app.infra.redis import redis_client
@@ -21,8 +22,9 @@ async def allow(
 	if limit <= 0:
 		return False
 	now = now or time.time()
-	bucket = time.strftime("%Y%m%d%H%M", time.gmtime(now))
-	key = f"rl:{kind}:{actor_id}:{bucket}"
+	window = max(1, int(window_seconds))
+	slot = int(math.floor(now / window))
+	key = f"rl:{kind}:{actor_id}:{slot}:{window}"
 	async with redis_client.pipeline(transaction=True) as pipe:
 		pipe.incr(key)
 		pipe.expire(key, window_seconds)

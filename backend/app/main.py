@@ -166,18 +166,11 @@ if settings.environment == "dev":
 	from app.domain.identity import s3 as _s3  # local import to avoid circulars
 	_s3.DEFAULT_BASE_URL = "http://localhost:8000/uploads"
 
+allow_origins = list(getattr(settings, "cors_allow_origins", []))
+if not allow_origins:
 	allow_origins = [
-		"http://localhost",
-		"http://127.0.0.1",
-		"http://localhost:80",
-		"http://127.0.0.1:80",
-		"http://localhost:3000",
-		"http://127.0.0.1:3000",
-	]
-else:
-	allow_origins = [
-		"https://app.divan.example",  # placeholder for production
-	]
+		"http://localhost:3000"
+	] if settings.environment == "dev" else ["https://app.divan.example"]
 
 app.add_middleware(
 	CORSMiddleware,

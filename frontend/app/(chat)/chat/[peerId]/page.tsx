@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 import ChatWindow from "@/components/ChatWindow";
@@ -250,8 +251,21 @@ export default function ChatPage({ params }: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-4">
-        <div className="text-lg font-semibold">Chat with {peerDisplayName}</div>
-        <TypingDots active={typing} />
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold">Chat with {peerDisplayName}</div>
+            <TypingDots active={typing} />
+          </div>
+          {validPeer ? (
+            <Link
+              href={`/activities/with/${validPeer}`}
+              className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-indigo-500"
+              prefetch={false}
+            >
+              Challenge · Typing Duel
+            </Link>
+          ) : null}
+        </div>
       </div>
       {/** Peer display name for header in ChatWindow */}
       {/** Prefer roster name; fallback to handle */}

@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  configJson  Json
+  createdAt   DateTime          @default(now())
+  sessions    ActivitySession[]
+}
+
+model ActivitySession {
+  id           String        @id @default(cuid())
+  activityId   String
+  status       String
+  startedAt    DateTime?
+  endedAt      DateTime?
+  metadataJson Json?
+  activity     Activity       @relation(fields: [activityId], references: [id])
+  participants Participant[]
+  rounds       Round[]
+  scoreEvents  ScoreEvent[]
+  antiCheatEvents AntiCheatEvent[]
+}
+
+model Participant {
+  id        String           @id @default(cuid())
+  sessionId String
+  userId    String
+  joinedAt  DateTime         @default(now())
+  leftAt    DateTime?
+  score     Int              @default(0)
+  session   ActivitySession  @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, userId])
+}
+
+model Round {
+  id          String          @id @default(cuid())
+  sessionId   String
+  index       Int
+  state       String
+  startedAt   DateTime?
+  endedAt     DateTime?
+  payloadJson Json
+  session     ActivitySession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, index])
+}
+
+model ScoreEvent {
+  id        String          @id @default(cuid())
+  sessionId String
+  userId    String
+  delta     Int
+  reason    String
+  at        DateTime        @default(now())
+  session   ActivitySession @relation(fields: [sessionId], references: [id])
+}
+
+model AntiCheatEvent {
+  id         String          @id @default(cuid())
+  sessionId  String
+  roundIndex Int
+  userId     String
+  type       String
+  metaJson   Json?
+  at         DateTime        @default(now())
+  session    ActivitySession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, roundIndex])
+  @@index([sessionId, userId])
+}
+
+model TriviaQuestion {
+  id           String   @id @default(cuid())
+  question     String
+  optionsJson  Json
+  correctIndex Int
+  difficulty   String
+  tagsJson     Json?
+  createdAt    DateTime @default(now())
+}

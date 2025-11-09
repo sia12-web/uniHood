@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 import pathlib
 
 import psycopg2
 
-DSN = "postgresql://postgres:postgres@localhost:5432/divan"
+DSN = os.environ.get("POSTGRES_URL", "postgresql://postgres:postgres@localhost:5432/divan")
 MIGRATIONS_DIR = pathlib.Path(__file__).resolve().parent.parent / "infra" / "migrations"
 
 

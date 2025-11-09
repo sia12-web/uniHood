@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -15,12 +16,14 @@ from app.domain.identity.service import ProfileNotFound
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
+from app.settings import settings
 
 
 logger = logging.getLogger(__name__)
 
 
 MAX_GALLERY_ITEMS = 6
+HANDLE_ALLOWED_RE = re.compile(r"[^a-z0-9_]+")
 
 
 def _now_iso() -> str:
@@ -62,17 +65,113 @@ def _to_profile(user: models.User) -> schemas.ProfileOut:
 	)
 
 
-async def _load_user(conn: asyncpg.Connection, user_id: str) -> models.User:
-	row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+def _normalise_handle_candidate(raw: str) -> str:
+	text = (raw or "").strip().lower()
+	text = text.replace(" ", "_")
+	text = HANDLE_ALLOWED_RE.sub("", text)
+	return text.strip("_")
+
+
+def _derive_handle(auth_user: AuthenticatedUser) -> str:
+	candidates = []
+	if auth_user.handle:
+		candidates.append(_normalise_handle_candidate(auth_user.handle))
+	if auth_user.display_name:
+		candidates.append(_normalise_handle_candidate(auth_user.display_name))
+	from_id = _normalise_handle_candidate(str(auth_user.id).replace("-", ""))
+	if from_id:
+		candidates.append(from_id)
+	candidates.append("demo")
+	for candidate in candidates:
+		if len(candidate) < 3:
+			continue
+		return candidate[:20]
+	return "demo_user"
+
+
+async def _bootstrap_user(
+	conn: asyncpg.Connection,
+	auth_user: AuthenticatedUser,
+) -> models.User:
+	"""Create a placeholder user in dev when synthetic auth references a missing record."""
+	if settings.environment != "dev":
+		raise ProfileNotFound()
+	if not auth_user.campus_id:
+		raise ProfileNotFound()
+	campus_exists = await conn.fetchval("SELECT 1 FROM campuses WHERE id = $1", str(auth_user.campus_id))
+	if not campus_exists:
+		raise ProfileNotFound()
+	base_handle = _derive_handle(auth_user)
+	display = (auth_user.display_name or base_handle).strip() or base_handle
+	if len(display) > 80:
+		display = display[:80]
+	handle = base_handle
+	suffix = 0
+	while True:
+		policy.guard_handle_format(handle)
+		try:
+			await conn.execute(
+				"""
+				INSERT INTO users (
+					id, email, email_verified, handle, display_name, bio, avatar_key,
+					avatar_url, campus_id, privacy, status, password_hash
+				)
+				VALUES (
+					$1, NULL, TRUE, $2, $3, '', NULL,
+					NULL, $4,
+					jsonb_build_object('visibility','everyone','ghost_mode',FALSE),
+					jsonb_build_object('text','', 'emoji','', 'updated_at', NOW()),
+					''
+				)
+				""",
+				str(auth_user.id),
+				handle,
+				display,
+				str(auth_user.campus_id),
+			)
+			break
+		except asyncpg.UniqueViolationError as exc:  # type: ignore[attr-defined]
+			detail = getattr(exc, "detail", "") or ""
+			if "users_handle_key" in detail:
+				suffix += 1
+				remaining = max(3, 20 - len(str(suffix)))
+				handle = f"{base_handle[:remaining]}{suffix}"
+				continue
+			raise
+
+	row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", auth_user.id)
 	if not row:
 		raise ProfileNotFound()
-	return models.User.from_record(row)
+	user = models.User.from_record(row)
+	logger.info(
+		"bootstrapped dev profile", extra={"user_id": auth_user.id, "handle": user.handle, "campus_id": str(auth_user.campus_id)}
+	)
+	try:
+		await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	except Exception:  # pragma: no cover - dev bootstrap should continue
+		logger.debug("Failed to rebuild public profile after bootstrap", exc_info=True)
+	return user
 
 
-async def get_profile(user_id: str) -> schemas.ProfileOut:
+async def _load_user(
+	conn: asyncpg.Connection,
+	user_id: str,
+	*,
+	auth_user: Optional[AuthenticatedUser] = None,
+) -> models.User:
+	row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+	if row:
+		return models.User.from_record(row)
+	if auth_user and auth_user.id == user_id:
+		return await _bootstrap_user(conn, auth_user)
+	raise ProfileNotFound()
+
+
+
+async def get_profile(user_id: str, *, auth_user: Optional[AuthenticatedUser] = None) -> schemas.ProfileOut:
 	pool = await get_pool()
 	async with pool.acquire() as conn:
-		user = await _load_user(conn, user_id)
+		user = await _load_user(conn, user_id, auth_user=auth_user)
 	return _to_profile(user)
 
 
@@ -118,7 +217,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
-			user = await _load_user(conn, auth_user.id)
+			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			if "handle" in updates and updates["handle"] != user.handle:
 				handle_owner = await conn.fetchrow("SELECT id FROM users WHERE handle = $1", updates["handle"])
 				if handle_owner and str(handle_owner["id"]) != str(user.id):
@@ -178,7 +277,7 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
-			user = await _load_user(conn, auth_user.id)
+			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			await conn.execute(
 				"""
 				UPDATE users
@@ -216,7 +315,7 @@ async def commit_gallery(auth_user: AuthenticatedUser, request: schemas.GalleryC
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
-			user = await _load_user(conn, auth_user.id)
+			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			gallery = [image for image in user.profile_gallery if image.key != key]
 			gallery.insert(0, entry)
 			trimmed = gallery[:MAX_GALLERY_ITEMS]
@@ -242,7 +341,7 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
-			user = await _load_user(conn, auth_user.id)
+			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			gallery = [image for image in user.profile_gallery if image.key != key]
 			if len(gallery) == len(user.profile_gallery):
 				return _to_profile(user)

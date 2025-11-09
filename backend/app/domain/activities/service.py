@@ -5,14 +5,17 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
+import math
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional
 
 import asyncpg
-import ulid
+import uuid
 
 from app.domain.activities import models, outbox, policy, prompts, schemas, scoring, sockets, timers, trivia_bank
 from app.domain.chat.models import ConversationKey
+from app.domain.leaderboards.service import LeaderboardService
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 
@@ -114,6 +117,9 @@ def _now() -> datetime:
 	return datetime.now(timezone.utc)
 
 
+logger = logging.getLogger(__name__)
+
+
 class ActivitiesRepository:
 	def __init__(self) -> None:
 		self._pool_checked = False
@@ -143,7 +149,7 @@ class ActivitiesRepository:
 	) -> models.Activity:
 		now = _now()
 		activity = models.Activity(
-			id=str(ulid.new()),
+			id=str(uuid.uuid4()),
 			kind=kind,
 			convo_id=convo_id,
 			user_a=user_a,
@@ -227,7 +233,7 @@ class ActivitiesRepository:
 		closed_at: Optional[datetime] = None,
 	) -> models.ActivityRound:
 		round_obj = models.ActivityRound(
-			id=str(ulid.new()),
+			id=str(uuid.uuid4()),
 			activity_id=activity_id,
 			idx=idx,
 			state=state,
@@ -449,6 +455,42 @@ class ActivitiesRepository:
 			for row in rows
 		]
 
+	async def fetch_participant_profiles(self, user_ids: Iterable[str]) -> Dict[str, Dict[str, Optional[str]]]:
+		ids = [str(user_id) for user_id in user_ids if user_id]
+		if not ids:
+			return {}
+		pool = await self._pool_or_none()
+		if pool is None:
+			return {user_id: {"handle": user_id, "display_name": user_id, "avatar_url": None} for user_id in ids}
+		uuid_ids: list[uuid.UUID] = []
+		for user_id in ids:
+			try:
+				uuid_ids.append(uuid.UUID(user_id))
+			except ValueError:
+				continue
+		if not uuid_ids:
+			return {user_id: {"handle": user_id, "display_name": user_id, "avatar_url": None} for user_id in ids}
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				SELECT id::text AS user_id, handle, COALESCE(display_name, handle) AS display_name, avatar_url
+				FROM users
+				WHERE id = ANY($1::uuid[])
+				""",
+				uuid_ids,
+			)
+		result: Dict[str, Dict[str, Optional[str]]] = {}
+		for row in rows:
+			user_id = row["user_id"]
+			result[user_id] = {
+				"handle": row.get("handle"),
+				"display_name": row.get("display_name"),
+				"avatar_url": row.get("avatar_url"),
+			}
+		for user_id in ids:
+			result.setdefault(user_id, {"handle": user_id, "display_name": user_id, "avatar_url": None})
+		return result
+
 
 def _row_to_activity(row: asyncpg.Record) -> models.Activity:
 	meta_value = row["meta"]
@@ -491,6 +533,16 @@ async def reset_memory_state() -> None:
 	await _MEMORY.reset()
 
 
+def _winner_from_scoreboard(scoreboard: models.ScoreBoard) -> Optional[str]:
+	if not scoreboard.totals:
+		return None
+	best = max(scoreboard.totals.values())
+	winners = [user_id for user_id, value in scoreboard.totals.items() if math.isclose(value, best, rel_tol=1e-9, abs_tol=1e-9)]
+	if len(winners) == 1:
+		return winners[0]
+	return None
+
+
 def _scoreboard_from_activity(activity: models.Activity) -> models.ScoreBoard:
 	raw = activity.meta.get("score") or {}
 	sb = models.ScoreBoard(activity.id)
@@ -504,6 +556,27 @@ def _scoreboard_from_activity(activity: models.Activity) -> models.ScoreBoard:
 			continue
 		scores = {k: float(v) for k, v in entry.items() if k != "idx"}
 		sb.per_round[idx] = scores
+	participants_raw = raw.get("participants") or {}
+	if isinstance(participants_raw, dict):
+		for user_id, info in participants_raw.items():
+			if isinstance(info, dict):
+				sb.upsert_participant(
+					str(user_id),
+					handle=str(info.get("handle")) if info.get("handle") else None,
+					display_name=str(info.get("display_name")) if info.get("display_name") else None,
+					avatar_url=str(info.get("avatar_url")) if info.get("avatar_url") else None,
+				)
+	elif isinstance(participants_raw, list):
+		for info in participants_raw:
+			user_id = info.get("user_id") if isinstance(info, dict) else None
+			if not user_id:
+				continue
+			sb.upsert_participant(
+				str(user_id),
+				handle=str(info.get("handle")) if info.get("handle") else None,
+				display_name=str(info.get("display_name")) if info.get("display_name") else None,
+				avatar_url=str(info.get("avatar_url")) if info.get("avatar_url") else None,
+			)
 	return sb
 
 
@@ -514,6 +587,14 @@ def _store_scoreboard(activity: models.Activity, scoreboard: models.ScoreBoard) 
 			{"idx": idx, **scores}
 			for idx, scores in sorted(scoreboard.per_round.items())
 		],
+		"participants": {
+			user_id: {
+				"handle": participant.handle,
+				"display_name": participant.display_name,
+				"avatar_url": participant.avatar_url,
+			}
+			for user_id, participant in scoreboard.participants.items()
+		},
 	}
 
 
@@ -546,6 +627,57 @@ def _round_schema(round_obj: models.ActivityRound) -> schemas.ActivityRound:
 class ActivitiesService:
 	def __init__(self, repository: ActivitiesRepository | None = None) -> None:
 		self._repo = repository or ActivitiesRepository()
+		self._leaderboards = LeaderboardService()
+
+	def _track_participant_campus(self, activity: models.Activity, user_id: str, campus_id: Optional[str]) -> None:
+		if not campus_id:
+			return
+		campus_map = activity.meta.setdefault("campus_map", {})
+		stored = campus_map.get(user_id)
+		if stored != campus_id:
+			campus_map[user_id] = campus_id
+
+	async def _populate_scoreboard_participants(
+		self,
+		activity: models.Activity,
+		scoreboard: models.ScoreBoard,
+	) -> models.ScoreBoard:
+		profiles = await self._repo.fetch_participant_profiles(activity.participants())
+		for user_id in activity.participants():
+			info = profiles.get(user_id)
+			if info:
+				self._track_participant_campus(activity, user_id, info.get("campus_id"))
+				scoreboard.upsert_participant(
+					user_id,
+					handle=info.get("handle"),
+					display_name=info.get("display_name"),
+					avatar_url=info.get("avatar_url"),
+				)
+			else:
+				scoreboard.upsert_participant(user_id)
+		return scoreboard
+
+	async def _record_leaderboard_outcome(
+		self,
+		activity: models.Activity,
+		scoreboard: Optional[models.ScoreBoard] = None,
+		winner_hint: Optional[str] = None,
+	) -> None:
+		user_ids = [uid for uid in activity.participants() if uid]
+		if not user_ids:
+			return
+		winner_id = winner_hint
+		if winner_id is None and scoreboard is not None:
+			winner_id = _winner_from_scoreboard(scoreboard)
+		campus_map = activity.meta.get("campus_map") or {}
+		try:
+			await self._leaderboards.record_activity_outcome(
+				user_ids=user_ids,
+				winner_id=winner_id,
+				campus_map=campus_map,
+			)
+		except Exception:
+			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})
 
 	def _normalize_meta(
 		self,
@@ -793,7 +925,9 @@ class ActivitiesService:
 			rounds = await self._start_rps(activity)
 		else:
 			raise policy.ActivityPolicyError("unsupported_kind")
-		_store_scoreboard(activity, _scoreboard_from_activity(activity))
+		initial_scoreboard = _scoreboard_from_activity(activity)
+		await self._populate_scoreboard_participants(activity, initial_scoreboard)
+		_store_scoreboard(activity, initial_scoreboard)
 		await self._persist(activity)
 		for round_obj in rounds:
 			await self._persist_round(round_obj)
@@ -857,6 +991,7 @@ class ActivitiesService:
 			for sub in submissions:
 				score, _, _ = scoring.typing_stats(prompt, sub.text, duration)
 				scoreboard.add_score(round_obj.idx, sub.user_id, score)
+			await self._populate_scoreboard_participants(activity, scoreboard)
 			_store_scoreboard(activity, scoreboard)
 			round_obj.state = "scored"
 			round_obj.closed_at = _now()
@@ -874,8 +1009,11 @@ class ActivitiesService:
 				kind=activity.kind,
 				user_id=auth_user.id,
 			)
+			await self._record_leaderboard_outcome(activity, scoreboard)
 			return scoreboard
-		return _scoreboard_from_activity(activity)
+		enriched = _scoreboard_from_activity(activity)
+		await self._populate_scoreboard_participants(activity, enriched)
+		return enriched
 
 	async def rps_commit(self, auth_user: AuthenticatedUser, payload: schemas.RpsCommitRequest) -> dict:
 		await policy.enforce_action_limit(auth_user.id)
@@ -970,6 +1108,7 @@ class ActivitiesService:
 				scoreboard.add_score(round_obj.idx, activity.user_a, 0)
 				scoreboard.add_score(round_obj.idx, activity.user_b, 0)
 				rps_meta.setdefault("results", []).append({"idx": round_obj.idx, "winner": "draw"})
+			await self._populate_scoreboard_participants(activity, scoreboard)
 			_store_scoreboard(activity, scoreboard)
 			round_obj.state = "scored"
 			round_obj.closed_at = _now()
@@ -994,6 +1133,7 @@ class ActivitiesService:
 					kind=activity.kind,
 					user_id=auth_user.id,
 				)
+				await self._record_leaderboard_outcome(activity, scoreboard)
 			else:
 				next_round_idx = round_obj.idx + 1
 				next_round = await self._repo.get_round(activity.id, next_round_idx)
@@ -1017,7 +1157,9 @@ class ActivitiesService:
 					)
 		activity.meta["rps"] = rps_meta
 		await self._persist(activity)
-		return _scoreboard_from_activity(activity)
+		enriched = _scoreboard_from_activity(activity)
+		await self._populate_scoreboard_participants(activity, enriched)
+		return enriched
 
 	async def cancel_activity(
 		self,
@@ -1078,6 +1220,7 @@ class ActivitiesService:
 		}
 		scoreboard = models.ScoreBoard(activity.id)
 		scoreboard.totals = {activity.user_a: 0.0, activity.user_b: 0.0}
+		await self._populate_scoreboard_participants(activity, scoreboard)
 		_store_scoreboard(activity, scoreboard)
 		await self._persist(activity)
 		await outbox.append_activity_event(
@@ -1202,6 +1345,7 @@ class ActivitiesService:
 				scoreboard.add_score(round_obj.idx, user_id, float(total))
 			for user_id, latency in outcome.latency_totals.items():
 				trivia_meta.setdefault("latency_totals", {})[user_id] = int(latency)
+			await self._populate_scoreboard_participants(activity, scoreboard)
 			_store_scoreboard(activity, scoreboard)
 			round_obj.state = "scored"
 			round_obj.closed_at = _now()
@@ -1239,9 +1383,12 @@ class ActivitiesService:
 					kind=activity.kind,
 					user_id=auth_user.id,
 				)
+				await self._record_leaderboard_outcome(activity, scoreboard)
 			activity.meta["trivia"] = trivia_meta
 			await self._persist(activity)
 			return scoreboard
 		activity.meta["trivia"] = trivia_meta
 		await self._persist(activity)
-		return _scoreboard_from_activity(activity)
+		enriched = _scoreboard_from_activity(activity)
+		await self._populate_scoreboard_participants(activity, enriched)
+		return enriched

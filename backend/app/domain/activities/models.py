@@ -140,17 +140,70 @@ class RpsMove:
 
 
 @dataclass(slots=True)
+class ScoreParticipant:
+	user_id: str
+	handle: str | None = None
+	display_name: str | None = None
+	avatar_url: str | None = None
+
+
+@dataclass(slots=True)
 class ScoreBoard:
 	activity_id: str
 	totals: Dict[str, float] = field(default_factory=dict)
 	per_round: Dict[int, Dict[str, float]] = field(default_factory=dict)
+	participants: Dict[str, ScoreParticipant] = field(default_factory=dict)
 
 	def add_score(self, round_idx: int, user_id: str, score: float) -> None:
 		self.totals[user_id] = self.totals.get(user_id, 0.0) + score
 		round_scores = self.per_round.setdefault(round_idx, {})
 		round_scores[user_id] = round_scores.get(user_id, 0.0) + score
 
+	def upsert_participant(
+		self,
+		user_id: str,
+		*,
+		handle: str | None = None,
+		display_name: str | None = None,
+		avatar_url: str | None = None,
+	) -> None:
+		existing = self.participants.get(user_id)
+		if existing is None:
+			self.participants[user_id] = ScoreParticipant(
+				user_id=user_id,
+				handle=handle,
+				display_name=display_name,
+				avatar_url=avatar_url,
+			)
+			return
+		if handle:
+			existing.handle = handle
+		if display_name:
+			existing.display_name = display_name
+		if avatar_url:
+			existing.avatar_url = avatar_url
+
 	def to_payload(self) -> dict[str, Any]:
+		participant_ids = set(self.totals.keys()) | set(self.participants.keys())
+		participants_payload: list[dict[str, Any]] = []
+		def _label_for(uid: str) -> str:
+			participant = self.participants.get(uid)
+			label = (participant.display_name if participant else None) or (participant.handle if participant else None) or uid
+			return label.lower()
+		for user_id in sorted(
+			participant_ids,
+			key=lambda uid: (-self.totals.get(uid, 0.0), _label_for(uid)),
+		):
+			participant = self.participants.get(user_id) or ScoreParticipant(user_id=user_id)
+			participants_payload.append(
+				{
+					"user_id": user_id,
+					"handle": participant.handle,
+					"display_name": participant.display_name,
+					"avatar_url": participant.avatar_url,
+					"score": float(self.totals.get(user_id, 0.0)),
+				},
+			)
 		return {
 			"activity_id": self.activity_id,
 			"totals": self.totals,
@@ -158,6 +211,7 @@ class ScoreBoard:
 				{"idx": idx, **{k: v for k, v in scores.items()}}
 				for idx, scores in sorted(self.per_round.items())
 			],
+			"participants": participants_payload,
 		}
 
 

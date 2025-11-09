@@ -100,10 +100,19 @@ class RpsRevealRequest(BaseModel):
 	nonce: str = Field(..., min_length=4, max_length=64)
 
 
+class ActivityScoreParticipant(BaseModel):
+	user_id: str
+	handle: Optional[str] = None
+	display_name: Optional[str] = None
+	avatar_url: Optional[str] = None
+	score: float
+
+
 class ActivityScorePayload(BaseModel):
 	activity_id: str
 	totals: Dict[str, float]
 	per_round: List[Dict[str, float]] = Field(default_factory=list)
+	participants: List[ActivityScoreParticipant] = Field(default_factory=list)
 
 
 class CancelActivityRequest(BaseModel):

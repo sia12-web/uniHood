@@ -112,7 +112,7 @@ function storageKey(activityId: string): string {
 export default function RPSMatchPage({ params }: Props) {
   const { matchId } = params;
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
-  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {} });
+  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {}, participants: [] });
   const [selection, setSelection] = useState<RpsChoice | null>(null);
   const [commitState, setCommitState] = useState<{ choice: RpsChoice; nonce: string; hash: string; round: number } | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);

@@ -1,0 +1,33 @@
+{
+  "name": "@divan/activities-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only --esm src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "seed:trivia": "ts-node --esm scripts/seed_trivia.ts",
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:ws": "vitest run tests/ws"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^10.0.1",
+    "@prisma/client": "^5.20.0",
+    "fastify": "^4.26.2",
+    "redis": "^4.7.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.1"
+  }
+}

@@ -39,15 +39,33 @@ export type ActivityDetail = ActivitySummary & {
 
 export type ActivityScoreRow = { idx: number } & Record<string, number>;
 
+export type ActivityScoreParticipantPayload = {
+	user_id: string;
+	handle?: string | null;
+	display_name?: string | null;
+	avatar_url?: string | null;
+	score?: number;
+};
+
+export type ScoreboardParticipant = {
+	userId: string;
+	handle?: string | null;
+	displayName?: string | null;
+	avatarUrl?: string | null;
+	score: number;
+};
+
 export type ActivityScorePayload = {
 	activity_id: string;
 	totals: Record<string, number>;
 	per_round: ActivityScoreRow[];
+	participants?: ActivityScoreParticipantPayload[] | null;
 };
 
 export type Scoreboard = {
 	totals: Record<string, number>;
 	perRound: Record<number, Record<string, number>>;
+	participants: ScoreboardParticipant[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -278,6 +296,21 @@ export async function reseedTrivia(activityId: string, questions: number): Promi
 export function normalizeScoreboard(payload?: ActivityScorePayload | null): Scoreboard {
 	const totals: Record<string, number> = {};
 	const perRound: Record<number, Record<string, number>> = {};
+	const participantsMap = new Map<string, ScoreboardParticipant>();
+
+	const mergeParticipant = (userId: string, partial?: Partial<ScoreboardParticipant>): void => {
+		if (!userId) {
+			return;
+		}
+		const existing = participantsMap.get(userId) ?? { userId, score: 0 };
+		participantsMap.set(userId, {
+			userId,
+			score: partial?.score ?? existing.score ?? 0,
+			handle: partial?.handle ?? existing.handle,
+			displayName: partial?.displayName ?? existing.displayName,
+			avatarUrl: partial?.avatarUrl ?? existing.avatarUrl,
+		});
+	};
 	if (payload) {
 		Object.entries(payload.totals ?? {}).forEach(([userId, value]) => {
 			totals[userId] = coerceNumber(value, 0);
@@ -289,21 +322,90 @@ export function normalizeScoreboard(payload?: ActivityScorePayload | null): Scor
 				perRound[idx][userId] = coerceNumber(value, 0);
 			});
 		}
+		if (Array.isArray(payload.participants)) {
+			payload.participants.forEach((entry) => {
+				if (!entry) {
+					return;
+				}
+				const userId = entry.user_id ?? (entry as unknown as { userId?: string }).userId;
+				if (!userId) {
+					return;
+				}
+				const maybeScore = typeof entry.score === "number" ? entry.score : coerceNumber(entry.score, NaN);
+				mergeParticipant(userId, {
+					handle: entry.handle ?? null,
+					displayName: entry.display_name ?? null,
+					avatarUrl: entry.avatar_url ?? null,
+					score: Number.isFinite(maybeScore) ? maybeScore : undefined,
+				});
+			});
+		}
 	}
-	return { totals, perRound };
+	Object.entries(totals).forEach(([userId, score]) => {
+		mergeParticipant(userId, { score });
+	});
+	const participants = Array.from(participantsMap.values()).map((participant) => ({
+		...participant,
+		score: totals[participant.userId] ?? participant.score ?? 0,
+	}));
+	participants.sort((a, b) => {
+		const diff = b.score - a.score;
+		if (Math.abs(diff) > 1e-6) {
+			return diff;
+		}
+		const labelA = (a.displayName ?? a.handle ?? a.userId).toLowerCase();
+		const labelB = (b.displayName ?? b.handle ?? b.userId).toLowerCase();
+		return labelA.localeCompare(labelB);
+	});
+	return { totals, perRound, participants };
 }
 
 export function summaryToScoreboard(summary: ActivitySummary): Scoreboard {
 	const summaryMeta = summary.meta ?? {};
 	const raw = isRecord(summaryMeta) ? summaryMeta.score : undefined;
 	if (!raw) {
-		return { totals: {}, perRound: {} };
+		return { totals: {}, perRound: {}, participants: [] };
 	}
 	const totalsSource = isRecord(raw) && isRecord(raw.totals) ? raw.totals : {};
 	const perRoundSource =
 		isRecord(raw) && Array.isArray(raw.per_round)
 			? raw.per_round
 			: [];
+	const participantsPayload: ActivityScoreParticipantPayload[] = [];
+	const participantsSource = isRecord(raw) ? raw.participants : undefined;
+	if (Array.isArray(participantsSource)) {
+		participantsSource.forEach((entry) => {
+			if (!isRecord(entry)) {
+				return;
+			}
+			const userId = typeof entry.user_id === "string" ? entry.user_id : typeof entry.userId === "string" ? (entry.userId as string) : undefined;
+			if (!userId) {
+				return;
+			}
+			const maybeScore = typeof entry.score === "number" ? entry.score : coerceNumber(entry.score, NaN);
+			participantsPayload.push({
+				user_id: userId,
+				handle: typeof entry.handle === "string" ? entry.handle : undefined,
+				display_name: typeof entry.display_name === "string" ? entry.display_name : undefined,
+				avatar_url: typeof entry.avatar_url === "string" ? entry.avatar_url : undefined,
+				score: Number.isFinite(maybeScore) ? maybeScore : undefined,
+			});
+		});
+	} else if (isRecord(participantsSource)) {
+		Object.entries(participantsSource).forEach(([userId, value]) => {
+			if (!isRecord(value)) {
+				return;
+			}
+			const maybeScore = typeof value.score === "number" ? value.score : coerceNumber(value.score, NaN);
+			participantsPayload.push({
+				user_id: userId,
+				handle: typeof value.handle === "string" ? value.handle : undefined,
+				display_name: typeof value.display_name === "string" ? value.display_name : undefined,
+				avatar_url: typeof value.avatar_url === "string" ? value.avatar_url : undefined,
+				score: Number.isFinite(maybeScore) ? maybeScore : undefined,
+			});
+		});
+	}
 	const payload: ActivityScorePayload = {
 		activity_id: summary.id,
 		totals: Object.fromEntries(
@@ -312,6 +414,7 @@ export function summaryToScoreboard(summary: ActivitySummary): Scoreboard {
 		per_round: perRoundSource
 			.map((entry) => parseScoreRow(entry))
 			.filter((row): row is ActivityScoreRow => row !== null),
+		participants: participantsPayload,
 	};
 	return normalizeScoreboard(payload);
 }

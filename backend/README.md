@@ -28,8 +28,22 @@ This service provides real-time presence, proximity lookup, and social discovery
 
 ### Database migrations
 
+### Database migrations & activities
+
 - Apply all SQL migrations locally (Postgres exposed on localhost:5432): `python scripts/apply_migrations.py`
+- The backend container now auto-runs migrations on startup (see `infra/docker/compose.yaml`). Failures in late optional moderation migrations are tolerated so core tables (friendships, activities, presence, identity) are always created.
 - If a later moderation migration fails (e.g., at `0240_mod_device.sql`) but you need the profile fields now used by proximity (major, graduation_year, passions), apply just those columns: `python scripts/apply_profile_details.py`
+- Demo seeding (optional) to exercise activities / friends flow:
+  1. Insert campus: `INSERT INTO campuses (id,name,lat,lon) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Demo Campus',0,0) ON CONFLICT DO NOTHING;`
+  2. Insert users:
+	  - `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` (demo_me)
+	  - `cccccccc-cccc-cccc-cccc-cccccccccccc` (demo_friend)
+  3. Insert bidirectional friendships with status `accepted`.
+  4. Use headers `X-User-Id` and `X-Campus-Id` (or a bearer token `uid:...;campus:...`) to call:
+	  - `POST /activities/with/{peer_id}` body `{ "kind": "typing_duel" }`
+	  - `POST /activities/{activity_id}/start`
+	  - `GET /activities/{activity_id}/typing/prompt`
+  This matches the frontend speed typing flow.
 
 ### Feature toggles
 

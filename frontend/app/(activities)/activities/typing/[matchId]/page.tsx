@@ -58,7 +58,7 @@ function computeCountdown(roundMeta: Record<string, unknown> | undefined): numbe
 export default function TypingMatchPage({ params }: Props) {
   const { matchId } = params;
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
-  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {} });
+  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {}, participants: [] });
   const [text, setText] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

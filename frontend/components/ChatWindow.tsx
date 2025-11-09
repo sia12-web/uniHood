@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ChatMessage } from "../lib/chat";
+import { ChooseActivityModal } from '../app/features/activities/components/ChooseActivityModal';
+import { LiveSessionShell } from '../app/features/activities/components/LiveSessionShell';
 
 type Props = {
   conversationId: string;
@@ -29,6 +31,8 @@ function isRenderableImageAttachment(attachment: ChatAttachment): attachment is 
 }
 
 export default function ChatWindow({ conversationId, onSend, messages, selfUserId, peerName, peerStatusText }: Props) {
+  const [playOpen, setPlayOpen] = useState(false);
+  const [activeSession, setActiveSession] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [expandedAttachmentIds, setExpandedAttachmentIds] = useState<Set<string>>(new Set());
@@ -123,6 +127,15 @@ export default function ChatWindow({ conversationId, onSend, messages, selfUserI
               <circle cx="12" cy="12" r="2" />
               <circle cx="19" cy="12" r="2" />
             </svg>
+          </button>
+          <button
+            type="button"
+            className="grid h-9 w-9 place-content-center rounded-full hover:bg-slate-100"
+            aria-label="Start activity"
+            title="Play"
+            onClick={() => setPlayOpen(true)}
+          >
+            🎮
           </button>
         </div>
       </header>
@@ -280,8 +293,23 @@ export default function ChatWindow({ conversationId, onSend, messages, selfUserI
           </button>
         </div>
 
-        <div className="mt-1 text-right text-[11px] leading-none text-slate-400">Shift+Enter for newline</div>
+        <div className="mt-1 flex justify-between text-[11px] leading-none text-slate-400">
+          <span>Shift+Enter for newline</span>
+          <button type="button" className="rounded-full px-2 py-1 text-[11px] font-semibold text-sky-600 hover:bg-sky-50" onClick={() => setPlayOpen(true)}>Play duel</button>
+        </div>
       </form>
+      {playOpen && !activeSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <ChooseActivityModal peerUserId={peerName || 'peer'} onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }} />
+        </div>
+      )}
+      {activeSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="rounded-3xl bg-white p-6 shadow-xl w-full max-w-4xl">
+            <LiveSessionShell sessionId={activeSession} opponentUserId={peerName || 'peer'} onEnded={() => setActiveSession(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

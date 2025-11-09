@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import React from "react";
 
 import type { FriendRow, PublicProfile } from "@/lib/types";
@@ -120,6 +121,13 @@ export function FriendList({
               >
                 Chat
               </button>
+              <Link
+                href={`/activities/with/${friend.friend_id}`}
+                className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700 transition hover:bg-indigo-200"
+                prefetch={false}
+              >
+                Challenge
+              </Link>
               <button
                 className="rounded-full bg-rose-100 px-3 py-1 text-rose-700 transition hover:bg-rose-200"
                 onClick={() => onBlock(friend.friend_id)}

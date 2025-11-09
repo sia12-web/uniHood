@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="q" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#q)"/>
+  <circle cx="180" cy="180" r="120" fill="#fff" fill-opacity="0.15" />
+  <circle cx="350" cy="160" r="90" fill="#fff" fill-opacity="0.10" />
+  <circle cx="520" cy="180" r="110" fill="#fff" fill-opacity="0.08" />
+  <text x="80" y="320" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#ffffff">Quick Trivia</text>
+  <text x="80" y="380" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="22" fill="#f0e9ff">Rapid-fire questions. Tie-break speed.</text>
+</svg>

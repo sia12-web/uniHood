@@ -54,9 +54,38 @@ PowerShell (Windows):
   - Search & discovery: http://localhost:3000/search
   - Leaderboards: http://localhost:3000/leaderboards
   - Communities hub: http://localhost:3000/communities
+  - Activities hub: http://localhost:3000/activities
+  - Speed typing duel: http://localhost:3000/activities/speed_typing
 - Tests
   - Contract: npm run test -- communities
   - E2E: npm run test:e2e -- communities
+
+### Activities: Typing Duel API mapping
+
+The frontend uses the backend Activities REST API for typing duels (kind: `typing_duel`).
+
+- Create activity with a peer
+  - POST `/activities/with/{peer_id}`
+  - Body: `{ "kind": "typing_duel" }`
+  - Returns: activity summary `{ id, kind, state, user_a, user_b, meta, ... }`
+- Start an activity
+  - POST `/activities/{activity_id}/start`
+  - Returns: updated summary
+- Fetch typing prompt for an activity
+  - GET `/activities/{activity_id}/typing/prompt`
+  - Returns: `{ prompt, duration_s, close_at_ms }`
+- Submit typing round result
+  - POST `/activities/typing/submissions`
+  - Body: `{ activity_id, round_idx, text }`
+  - Returns: `{ activity_id, totals: { [user_id]: score }, per_round: [...] }`
+
+Frontend entry:
+- API client: `frontend/app/features/activities/api/client.ts`
+- Page: `frontend/app/activities/speed_typing/page.tsx`
+- Modal launcher (chat): `frontend/app/features/activities/components/ChooseActivityModal.tsx`
+
+Notes:
+- Legacy, session-based WebSocket code was deprecated. The hook `useSpeedTypingSession` is now a no-op shim to avoid runtime errors. New implementations should use the REST endpoints above.
 
 ## Notes
 - The backend container installs Poetry and dependencies on startup and then serves FastAPI via Uvicorn.

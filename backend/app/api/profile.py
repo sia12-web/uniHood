@@ -23,7 +23,7 @@ def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
 
 @router.get("/profile/me", response_model=schemas.ProfileOut)
 async def get_me(auth_user: AuthenticatedUser = Depends(get_current_user)) -> schemas.ProfileOut:
-	return await profile_service.get_profile(auth_user.id)
+	return await profile_service.get_profile(auth_user.id, auth_user=auth_user)
 
 
 @router.patch("/profile/me", response_model=schemas.ProfileOut)

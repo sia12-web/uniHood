@@ -9,6 +9,7 @@ import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptan
 import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
 import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { ActivitiesQuickCard } from "@/app/features/activities/components/ActivitiesQuickCard";
 
 type SimpleLink = {
   href: string;
@@ -43,6 +44,12 @@ export default function HomePage() {
         title: "Chat",
         description: "Pick up conversations without leaving the radar view.",
         accentDefault: "from-rose-200 via-rose-100 to-transparent",
+      },
+      {
+        href: "/activities",
+        title: "Activities",
+        description: "Start a typing duel or quick trivia game with a friend.",
+        accentDefault: "from-emerald-200 via-emerald-100 to-transparent",
       },
     ],
     [friendsHref],
@@ -137,6 +144,7 @@ export default function HomePage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           <HomeProximityPreview />
           <div className="flex w-full flex-col gap-3.5 lg:w-72 xl:w-80">
+            <ActivitiesQuickCard variant="home" />
             {rightLinks.map((link) => {
               const isFriendsLink = link.title === "Friends" && Boolean(authUser);
               const showFriendsBadge = isFriendsLink && hasFriendsNotification;

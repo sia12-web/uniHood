@@ -4,6 +4,8 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+import { ActivitiesQuickCard } from "@/app/features/activities/components/ActivitiesQuickCard";
+
 import { FriendList, type FriendProfileState } from "@/components/FriendList";
 import { InviteInbox } from "@/components/InviteInbox";
 
@@ -464,12 +466,13 @@ function FriendsPageInner() {
 
   return (
     <div className="mx-auto max-w-2xl px-3 py-6">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-900">Friends</h1>
         <Link href="/chat" className="text-sm font-semibold text-coral hover:text-coral/80">
           Open chats →
         </Link>
       </header>
+      <ActivitiesQuickCard variant="friends" className="mb-6" />
       {statusMessage && filter !== "pending" ? (
         <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {statusMessage}

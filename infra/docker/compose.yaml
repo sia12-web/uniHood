@@ -23,11 +23,15 @@ services:
     working_dir: /app
     volumes:
       - ../../backend:/app
+      # Mount scripts and migrations for pre-start migration runner
+      - ../../scripts:/work/scripts:ro
+      - ../../infra/migrations:/work/infra/migrations:ro
       - backend_uploads:/app/app/uploads
     command: >
       bash -c "pip install poetry &&
                poetry config virtualenvs.create false &&
                poetry install --no-root &&
+               python /work/scripts/apply_migrations.py || true &&
                poetry run uvicorn app.main:socket_app --host 0.0.0.0 --port 8000"
     environment:
       REDIS_URL: redis://redis:6379/0

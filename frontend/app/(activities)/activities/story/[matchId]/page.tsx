@@ -70,7 +70,7 @@ function parseStoryLines(detail: ActivityDetail | null): StoryLine[] {
 export default function StoryMatchPage({ params }: Props) {
   const { matchId } = params;
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
-  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {} });
+  const [scoreboard, setScoreboard] = useState<Scoreboard>({ totals: {}, perRound: {}, participants: [] });
   const [storyInput, setStoryInput] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

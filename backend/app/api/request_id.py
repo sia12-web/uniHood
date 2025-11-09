@@ -1,29 +1,25 @@
-"""Request ID helper for endpoints.
+"""Request ID helper for endpoints (Phase A spec).
 
-Relies on observability middleware binding the request id into the logging
-context. Falls back to a simple header approach if contextvar missing.
+Stores a request id on `request.state` via the RequestIdMiddleware. Provides
+`get_request_id` that returns that id or generates a new UUID when called
+outside of a request context.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+import uuid
+from fastapi import Request
 
-try:
-    from app.obs import logging as obs_logging  # type: ignore
-except Exception:  # pragma: no cover - fallback if module layout changes
-    obs_logging = None  # type: ignore
+REQUEST_ID_ATTR = "request_id"
 
 
-def get_request_id(default: str = "unknown") -> str:
-    """Return the current request id if bound, else a default.
+def get_request_id(request: Request | None = None) -> str:
+    """Return the current request id, generating one if absent.
 
-    The observability middleware binds a request id into a ContextVar the
-    logging module exposes. We read it here to add headers on error paths.
+    If called with no request (e.g. during background task initialisation), a
+    new UUIDv4 is returned so callers can still attach correlation headers.
     """
-    if obs_logging is None:
-        return default
-    try:
-        rid: Optional[str] = obs_logging._REQUEST_ID.get()  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover - defensive
-        return default
-    return rid or default
+    if request is None:
+        return str(uuid.uuid4())
+    rid = getattr(request.state, REQUEST_ID_ATTR, None)
+    return rid or str(uuid.uuid4())

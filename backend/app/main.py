@@ -65,6 +65,7 @@ from app.domain.social.sockets import SocialNamespace, set_namespace
 from app.infra import postgres
 from app.settings import settings
 from app.obs import init as obs_init
+from app.api.middleware_request_id import RequestIdMiddleware
 from app.settings import settings
 
 
@@ -222,6 +223,9 @@ set_activities_namespace(activities_namespace)
 communities_socketio.register(sio)
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
 obs_init(app, sio)
+
+# Ensure every request carries an X-Request-Id and make it available on request.state
+app.add_middleware(RequestIdMiddleware)
 
 
 app.include_router(auth.router, tags=["identity"])

@@ -168,9 +168,17 @@ if settings.environment == "dev":
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
-	allow_origins = [
-		"http://localhost:3000"
-	] if settings.environment == "dev" else ["https://app.divan.example"]
+	allow_origins = ["http://localhost:3000"] if settings.environment == "dev" else ["https://app.divan.example"]
+
+# Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
+if "*" in allow_origins:
+	if settings.environment == "dev":
+		allow_origins = [
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		]
+	else:
+		allow_origins = ["https://app.divan.example"]
 
 app.add_middleware(
 	CORSMiddleware,

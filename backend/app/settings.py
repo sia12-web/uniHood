@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     cookie_samesite: str = _env_field("strict", "COOKIE_SAMESITE")
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
 
+    # Environment helpers
+    def is_prod(self) -> bool:
+        return self.environment.lower() in ("prod", "production", "live")
+
+    def is_dev(self) -> bool:
+        return self.environment.lower() in ("dev", "development")
+
     if PYDANTIC_V2:
         model_config = SettingsConfigDict(
             env_prefix="",
@@ -162,15 +169,4 @@ def _is_any(*envs: str) -> bool:
     return settings.environment.lower() in {e.lower() for e in envs}
 
 
-# Methods on settings for environment gating
-def _settings_is_prod(self) -> bool:  # type: ignore[override]
-    return self.environment.lower() in ("prod", "production", "live")
-
-
-def _settings_is_dev(self) -> bool:  # type: ignore[override]
-    return self.environment.lower() in ("dev", "development")
-
-
-# Attach helper methods dynamically to avoid breaking BaseSettings behaviour
-setattr(type(settings), "is_prod", _settings_is_prod)
-setattr(type(settings), "is_dev", _settings_is_dev)
+# (Deprecated) Back-compat helpers can be added here if needed

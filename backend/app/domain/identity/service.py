@@ -102,8 +102,8 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 			policy.guard_email_domain(email, campus)
 
 			async with conn.transaction():
-				existing_user = await conn.fetchrow("SELECT * FROM users WHERE email = $1", email)
-				handle_owner = await conn.fetchrow("SELECT id FROM users WHERE handle = $1", handle)
+				existing_user = await conn.fetchrow("SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL", email)
+				handle_owner = await conn.fetchrow("SELECT id FROM users WHERE handle = $1 AND deleted_at IS NULL", handle)
 
 				if handle_owner and (not existing_user or str(handle_owner["id"]) != str(existing_user["id"])):
 					raise policy.HandleConflict("handle_taken")

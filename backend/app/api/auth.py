@@ -1,8 +1,18 @@
-"""Authentication and onboarding API endpoints."""
+"""Authentication and onboarding API endpoints.
+
+Adds rate limits, cookie management for refresh flows, request id headers,
+and refresh/logout endpoints (Phase A hardening).
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+import secrets
+
+from app.infra import rate_limit
+from app.settings import settings  # noqa: F401 - may be used for future gating
+from app.infra.cookies import set_refresh_cookies, clear_refresh_cookies
+from app.api.request_id import get_request_id
 
 from app.domain.identity import policy, schemas, service
 from app.obs import metrics as obs_metrics
@@ -16,7 +26,8 @@ def _client_ip(request: Request) -> str:
 
 
 def _raise(detail: str, status_code: int) -> None:
-	raise HTTPException(status_code=status_code, detail=detail)
+	"""Raise an HTTP error with request id header attached."""
+	raise HTTPException(status_code=status_code, detail=detail, headers={"X-Request-Id": get_request_id()})
 
 
 def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
@@ -33,10 +44,17 @@ def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
 
 
 @router.post("/auth/register", response_model=schemas.RegisterResponse)
-async def register(payload: schemas.RegisterRequest, request: Request) -> schemas.RegisterResponse:
-	ip_address = _client_ip(request)
+async def register(payload: schemas.RegisterRequest, request: Request, response: Response) -> schemas.RegisterResponse:
+	ip = _client_ip(request)
+	email_key = payload.email.lower().strip() if getattr(payload, "email", None) else ip
+	if not await rate_limit.allow("register:ip", ip, limit=5, window_seconds=60):
+		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
+	if not await rate_limit.allow("register:email", email_key, limit=2, window_seconds=60):
+		_raise("rate_limited_email", status.HTTP_429_TOO_MANY_REQUESTS)
 	try:
-		return await service.register(payload, ip_address=ip_address)
+		res = await service.register(payload, ip_address=ip)
+		response.headers["X-Request-Id"] = get_request_id()
+		return res
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
@@ -45,15 +63,26 @@ async def register(payload: schemas.RegisterRequest, request: Request) -> schema
 
 
 @router.post("/auth/login", response_model=schemas.LoginResponse)
-async def login(payload: schemas.LoginRequest, request: Request) -> schemas.LoginResponse:
+async def login(payload: schemas.LoginRequest, request: Request, response: Response) -> schemas.LoginResponse:
+	ip = _client_ip(request)
+	ident = (payload.email or payload.handle or "").lower().strip() or ip
+	if not await rate_limit.allow("login:ip", ip, limit=10, window_seconds=60):
+		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
+	if not await rate_limit.allow("login:id", ident, limit=5, window_seconds=60):
+		_raise("rate_limited_id", status.HTTP_429_TOO_MANY_REQUESTS)
 	try:
 		device_label = payload.device_label or request.headers.get("X-Device-Label", "")
-		return await service.login(
+		pair = await service.login(
 			payload,
-			ip=_client_ip(request),
+			ip=ip,
 			user_agent=request.headers.get("User-Agent"),
 			device_label=device_label,
 		)
+		rf_fp = secrets.token_urlsafe(24)
+		set_refresh_cookies(response, refresh_token=pair.refresh_token, rf_fp=rf_fp)
+		pair.refresh_token = ""  # avoid echoing refresh token back in body
+		response.headers["X-Request-Id"] = get_request_id()
+		return pair
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.LoginFailed as exc:
@@ -62,24 +91,65 @@ async def login(payload: schemas.LoginRequest, request: Request) -> schemas.Logi
 
 
 @router.post("/auth/verify-email", response_model=schemas.VerificationStatus)
-async def verify_email(payload: schemas.VerifyRequest) -> schemas.VerificationStatus:
+async def verify_email(payload: schemas.VerifyRequest, response: Response) -> schemas.VerificationStatus:
 	try:
-		return await service.verify_email(payload)
+		res = await service.verify_email(payload)
+		response.headers["X-Request-Id"] = get_request_id()
+		return res
 	except service.VerificationError as exc:
 		obs_metrics.inc_identity_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 
 
 @router.post("/auth/resend")
-async def resend_verification(payload: schemas.ResendRequest) -> dict:
+async def resend_verification(payload: schemas.ResendRequest, response: Response) -> dict:
 	try:
 		await service.resend_verification(payload)
+		response.headers["X-Request-Id"] = get_request_id()
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
 		obs_metrics.inc_identity_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 	return {"status": "ok"}
+
+@router.post("/auth/refresh", response_model=schemas.LoginResponse)
+async def refresh(request: Request, response: Response, payload: schemas.RefreshRequest) -> schemas.LoginResponse:
+	ip = _client_ip(request)
+	if not await rate_limit.allow("refresh:ip", ip, limit=30, window_seconds=60):
+		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
+	rf_fp = request.cookies.get("rf_fp") or ""
+	try:
+		pair = await service.refresh(
+			payload,
+			ip=ip,
+			user_agent=request.headers.get("User-Agent"),
+			fingerprint=rf_fp,
+		)
+		# maintain fingerprint or rotate if missing
+		new_fp = rf_fp or secrets.token_urlsafe(24)
+		set_refresh_cookies(response, refresh_token=pair.refresh_token, rf_fp=new_fp)
+		pair.refresh_token = ""
+		response.headers["X-Request-Id"] = get_request_id()
+		return pair
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	except service.IdentityServiceError as exc:
+		obs_metrics.inc_identity_reject(exc.reason)
+		_raise(exc.reason, exc.status_code)
+
+@router.post("/auth/logout")
+async def logout(request: Request, response: Response, payload: schemas.LogoutRequest) -> dict:
+	try:
+		await service.logout(payload)
+		clear_refresh_cookies(response)
+		response.headers["X-Request-Id"] = get_request_id()
+		return {"status": "ok"}
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	except service.IdentityServiceError as exc:
+		obs_metrics.inc_identity_reject(exc.reason)
+		_raise(exc.reason, exc.status_code)
 
 
 @router.get("/auth/campuses", response_model=list[schemas.CampusOut])

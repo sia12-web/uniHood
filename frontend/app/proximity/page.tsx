@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { Socket } from "socket.io-client";
+
 import { NearbyList } from "./components/NearbyList";
 import { getOrCreateIdemKey } from "@/app/api/idempotency";
 import GoLiveStrip from "@/components/proximity/GoLiveStrip";
@@ -119,9 +121,16 @@ export default function ProximityPage() {
   const showReconnectBanner = presenceSocketStatus === "reconnecting" || presenceSocketStatus === "connecting";
   const showDisconnectedBanner = presenceSocketStatus === "disconnected";
 
-  const socket = useMemo(() => {
+  const socket = useMemo<Socket | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
     disconnectPresenceSocket();
-    return getPresenceSocket(currentUserId, currentCampusId);
+    try {
+      return getPresenceSocket(currentUserId, currentCampusId);
+    } catch {
+      return null;
+    }
   }, [currentUserId, currentCampusId]);
 
   useEffect(() => {

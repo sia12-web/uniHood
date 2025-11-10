@@ -129,7 +129,7 @@ async function sha256Hex(input: string): Promise<string> {
 		return bufferToHex(new Uint8Array(digest));
 	}
 	try {
-		const { createHash } = await import("node:crypto");
+		const { createHash } = await import("crypto");
 		return createHash("sha256").update(data).digest("hex");
 	} catch {
 		return fallbackHash(input);

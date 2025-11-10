@@ -1,3 +1,4 @@
+import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
 import type {
 	ContactMatchResult,
@@ -9,59 +10,22 @@ import type {
 	PhoneNumberOut,
 } from "./types";
 
-type HttpMethod = "GET" | "POST" | "DELETE";
+type RequestOptions = ApiFetchOptions;
 
 const BASE_URL = getBackendUrl();
 
-type RequestOptions = {
-	method?: HttpMethod;
-	body?: unknown;
-	headers?: Record<string, string>;
-};
-
-async function decodeError(response: Response): Promise<never> {
-	let message = `Request failed (${response.status})`;
-	try {
-		const data = await response.json();
-		if (typeof data === "string") {
-			message = data;
-		} else if (data?.detail) {
-			message = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-		}
-	} catch {
-		try {
-			const text = await response.text();
-			if (text) {
-				message = text;
-			}
-		} catch {
-			// ignore secondary failure when decoding error
-		}
-	}
-	throw new Error(message);
-}
-
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, headers = {} } = options;
-	const response = await fetch(`${BASE_URL}${path}`, {
-		method,
-		headers: {
-			...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-			...headers,
-		},
-		body: body !== undefined ? JSON.stringify(body) : undefined,
+	const url = path.startsWith("http")
+		? path
+		: `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+	return apiFetch<T>(url, {
 		cache: "no-store",
+		method: options.method ?? "GET",
+		...options,
+		headers: {
+			...(options.headers ?? {}),
+		},
 	});
-	if (!response.ok) {
-		await decodeError(response);
-	}
-	if (response.status === 204) {
-		return undefined as unknown as T;
-	}
-	if (response.headers.get("Content-Type")?.includes("application/json")) {
-		return (await response.json()) as T;
-	}
-	return (await response.text()) as unknown as T;
 }
 
 function authHeaders(userId: string, campusId: string | null): Record<string, string> {

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.domain.identity import policy, schemas, verification
-from app.infra.auth import AuthenticatedUser, get_admin_user
+from app.infra.auth import AuthenticatedUser
+from app.api.security_deps import require_roles
+from app.obs import audit as obs_audit
 from app.obs import metrics as obs_metrics
 
 router = APIRouter()
@@ -26,7 +28,7 @@ def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
 async def list_review_queue(
 	state: str = Query(default="pending"),
 	limit: int = Query(default=50, ge=1, le=200),
-	admin: AuthenticatedUser = Depends(get_admin_user),
+	admin: AuthenticatedUser = Depends(require_roles("admin")),
 ) -> list[schemas.VerificationEntry]:
 	# Access check performed via dependency; admin context unused otherwise.
 	_ = admin
@@ -40,9 +42,20 @@ async def list_review_queue(
 async def decide_review(
 	verification_id: str,
 	decision: schemas.AdminVerificationDecision,
-	admin: AuthenticatedUser = Depends(get_admin_user),
+	request: Request,
+	admin: AuthenticatedUser = Depends(require_roles("admin")),
 ) -> schemas.VerificationEntry:
 	try:
-		return await verification.decide_review(admin, verification_id, decision)
+		result = await verification.decide_review(admin, verification_id, decision)
+		await obs_audit.log_signed_intent_event(
+			request,
+			admin,
+			"admin_verify.decide",
+			extra={
+				"verification_id": verification_id,
+				"approve": decision.approve,
+			},
+		)
+		return result
 	except policy.IdentityPolicyError as exc:  # pragma: no cover - mapping ensures HTTP error
 		raise _map_policy_error(exc) from None

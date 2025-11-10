@@ -12,6 +12,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
 from app.domain.leaderboards import jobs as leaderboard_jobs
+from app.infra.postgres import get_pool
 from app.obs import health
 from app.obs import metrics as obs_metrics
 from app.settings import settings
@@ -71,6 +72,17 @@ async def health_ready() -> Response:
 async def health_startup() -> Response:
 	status_code, payload = await health.startup()
 	return JSONResponse(content=payload, status_code=status_code)
+
+
+@router.get("/health/idempotency")
+async def health_idempotency() -> Response:
+	try:
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			await conn.execute("SELECT 1")
+		return JSONResponse({"status": "ok"})
+	except Exception:
+		return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 @router.get("/metrics")

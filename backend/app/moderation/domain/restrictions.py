@@ -218,13 +218,13 @@ class RestrictionService:
         if keys:
             await self._redis.delete(*keys)
 
-        async def _set_flag(self, key: str, ttl_seconds: int | None, *, nx: bool = False) -> None:
-            kwargs: dict[str, object] = {}
-            if ttl_seconds and ttl_seconds > 0:
-                kwargs["ex"] = ttl_seconds
-            if nx:
-                kwargs["nx"] = True
-            await self._redis.set(key, "1", **kwargs)
+    async def _set_flag(self, key: str, ttl_seconds: int | None, *, nx: bool = False) -> None:
+        kwargs: dict[str, object] = {}
+        if ttl_seconds and ttl_seconds > 0:
+            kwargs["ex"] = ttl_seconds
+        if nx:
+            kwargs["nx"] = True
+        await self._redis.set(key, "1", **kwargs)
 
     def _cooldown_key(self, user_id: str, scope: str) -> str:
         return f"{self._cooldown_prefix}:{user_id}:{scope}"

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Dict, Optional
 
 from app.infra.redis import redis_client
+from app.obs import metrics as obs_metrics
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -184,10 +186,56 @@ async def _keepalive(session: LiveSession) -> None:
                 _sessions.pop(session.user_id, None)
 
 
+async def run_presence_sweeper(client=redis_client, interval_s: int = 30) -> None:
+    """Periodically trims campus GEO sets to remove stale presence members."""
+    interval = max(1, int(interval_s))
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            trimmed = await _sweep_once(client)
+            if trimmed:
+                logger.info("presence sweeper removed %s stale members", trimmed)
+                obs_metrics.PRESENCE_SWEEPER_TRIMS.inc(trimmed)
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # pragma: no cover - defensive logging
+        logger.exception("presence sweeper iteration failed")
+
+
+async def _sweep_once(client) -> int:
+    trimmed_total = 0
+    cursor = 0
+    pattern = re.compile(r"^presence:campus:(?P<campus>.+)$")
+    while True:
+        cursor, keys = await client.scan(cursor=cursor, match="presence:campus:*", count=100)
+        for key in keys:
+            match = pattern.match(key)
+            campus_id = match.group("campus") if match else "unknown"
+            members = await client.zrange(key, 0, 500)
+            if not members:
+                continue
+            missing: list[str] = []
+            for member in members:
+                presence_key = f"presence:{member}"
+                exists = await client.exists_key(presence_key) if hasattr(client, "exists_key") else await client.exists(presence_key)
+                if not exists:
+                    missing.append(member)
+            if missing:
+                await client.zrem(key, *missing)
+                trimmed_total += len(missing)
+                obs_metrics.PRESENCE_HEARTBEAT_MISS.labels(campus_id=str(campus_id)).inc(len(missing))
+            count = await client.zcard(key)
+            obs_metrics.PRESENCE_ONLINE.labels(campus_id=str(campus_id)).set(float(count))
+        if cursor == 0:
+            break
+    return trimmed_total
+
+
 __all__ = [
     "record_heartbeat",
     "attach_activity",
     "detach_activity",
     "end_session",
     "shutdown",
+    "run_presence_sweeper",
 ]

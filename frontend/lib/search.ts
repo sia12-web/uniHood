@@ -1,36 +1,26 @@
+import { apiFetch } from "@/app/lib/http/client";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "./env";
 import type { PagedResponse, RoomDiscoverResult, SearchUserResult } from "./types";
 
-type RequestOptions = {
-	userId?: string;
-	campusId?: string | null;
-	signal?: AbortSignal;
-};
-
 const BASE_URL = getBackendUrl();
 
-async function requestList<T>(path: string, options: RequestOptions = {}): Promise<PagedResponse<T>> {
-	const { userId, campusId, signal } = options;
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
-	if (userId) {
-		headers["X-User-Id"] = userId;
+async function requestList<T>(
+	path: string,
+	options: { userId?: string; campusId?: string | null; signal?: AbortSignal } = {},
+): Promise<PagedResponse<T>> {
+	const headers: Record<string, string> = {};
+	if (options.userId) {
+		headers["X-User-Id"] = options.userId;
 	}
-	if (campusId) {
-		headers["X-Campus-Id"] = campusId;
+	if (options.campusId) {
+		headers["X-Campus-Id"] = options.campusId;
 	}
-	const response = await fetch(`${BASE_URL}${path}`, {
+	const result = await apiFetch<PagedResponse<T> | undefined>(`${BASE_URL}${path}`, {
 		method: "GET",
+		signal: options.signal,
 		headers,
-		signal,
 	});
-	if (!response.ok) {
-		const detail = await response.text();
-		throw new Error(detail || `Request failed (${response.status})`);
-	}
-	if (response.status === 204) {
-		return { items: [], cursor: null } as PagedResponse<T>;
-	}
-	return (await response.json()) as PagedResponse<T>;
+	return result ?? ({ items: [], cursor: null } as PagedResponse<T>);
 }
 
 type SearchUsersParams = {

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.domain.identity import policy, schemas, service, sessions, twofa
 from app.domain.identity.models import User
 from app.infra.auth import AuthenticatedUser, get_current_user
+from app.infra.redis import redis_client
 from app.infra.postgres import get_pool
 
 router = APIRouter()
@@ -86,6 +90,23 @@ async def revoke_session(
 async def revoke_all_sessions(auth_user: AuthenticatedUser = Depends(get_current_user)) -> dict:
 	await sessions.revoke_all_sessions(auth_user.id)
 	return {"status": "ok"}
+
+
+@router.post("/realtime/ticket")
+async def issue_realtime_ticket(auth_user: AuthenticatedUser = Depends(get_current_user)) -> dict:
+	session_id = auth_user.session_id
+	if not session_id:
+		raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="missing_session")
+	token = secrets.token_urlsafe(24)
+	payload = {
+		"user_id": auth_user.id,
+		"campus_id": auth_user.campus_id,
+		"session_id": session_id,
+	}
+	if auth_user.handle:
+		payload["handle"] = auth_user.handle
+	await redis_client.setex(f"rticket:{token}", 60, json.dumps(payload, separators=(",", ":")))
+	return {"ticket": token}
 
 
 @router.get("/security/2fa/status", response_model=schemas.TwoFAStatus)

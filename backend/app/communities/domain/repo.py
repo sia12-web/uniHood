@@ -647,6 +647,7 @@ class CommunitiesRepository:
 		subject_id: UUID,
 		user_id: UUID,
 		emoji: str,
+		effective_weight: float = 1.0,
 	) -> models.Reaction:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
@@ -654,8 +655,8 @@ class CommunitiesRepository:
 				try:
 					record = await conn.fetchrow(
 						"""
-						INSERT INTO reaction (id, subject_type, subject_id, user_id, emoji)
-						VALUES ($1, $2, $3, $4, $5)
+						INSERT INTO reaction (id, subject_type, subject_id, user_id, emoji, effective_weight)
+						VALUES ($1, $2, $3, $4, $5, $6)
 						RETURNING *
 						""",
 						uuid4(),
@@ -663,6 +664,7 @@ class CommunitiesRepository:
 						str(subject_id),
 						str(user_id),
 						emoji,
+						effective_weight,
 					)
 				except asyncpg.UniqueViolationError as exc:  # type: ignore[attr-defined]
 					raise ConflictError("reaction_exists") from exc

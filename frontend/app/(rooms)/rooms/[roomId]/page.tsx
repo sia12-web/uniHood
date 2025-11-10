@@ -13,6 +13,9 @@ import {
   markRead,
   muteMember,
   roomsSocket,
+  disconnectRoomsSocket,
+  getRoomsSocketStatus,
+  onRoomsSocketStatus,
   RoomDetail,
   RoomMemberSummary,
   RoomMessageDTO,
@@ -21,6 +24,7 @@ import {
   RoomSummary,
   sendRoomMessage,
 } from '@/lib/rooms';
+import { useSocketStatus } from '@/app/lib/socket/useStatus';
 
 type Props = { params: { roomId: string } };
 
@@ -43,6 +47,9 @@ export default function RoomPage({ params }: Props) {
   const [messages, setMessages] = useState<RoomMessageDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const roomsSocketStatus = useSocketStatus(onRoomsSocketStatus, getRoomsSocketStatus);
+  const roomsReconnecting = roomsSocketStatus === 'reconnecting' || roomsSocketStatus === 'connecting';
+  const roomsDisconnected = roomsSocketStatus === 'disconnected';
 
   const canModerate = room?.role === 'owner' || room?.role === 'moderator';
 
@@ -79,7 +86,7 @@ export default function RoomPage({ params }: Props) {
   }, [roomId]);
 
   useEffect(() => {
-    const socket = roomsSocket();
+  const socket = roomsSocket();
     const handleMessageNew = (message: RoomMessageDTO) => {
       if (message.room_id !== roomId) {
         return;
@@ -154,6 +161,9 @@ export default function RoomPage({ params }: Props) {
       socket.off('room:member_left', handleMemberLeft);
       socket.off('room:member_updated', handleMemberUpdated);
       socket.off('room:updated', handleRoomUpdated);
+      if (!socket.connected) {
+        disconnectRoomsSocket();
+      }
     };
   }, [roomId]);
 
@@ -258,6 +268,16 @@ export default function RoomPage({ params }: Props) {
       {error ? (
         <div className="bg-red-50 text-red-600 px-4 py-2 text-sm">{error}</div>
       ) : null}
+      {roomsReconnecting ? (
+        <div className="bg-amber-50 px-4 py-2 text-xs text-amber-700" role="status" aria-live="polite">
+          Reconnecting…
+        </div>
+      ) : null}
+      {roomsDisconnected ? (
+        <div className="bg-rose-50 px-4 py-2 text-xs text-rose-700" role="alert" aria-live="assertive">
+          Connection lost. Messages will send when the connection returns.
+        </div>
+      ) : null}
       <RoomHeader
         name={room.name}
         capacity={room.capacity}
@@ -269,7 +289,7 @@ export default function RoomPage({ params }: Props) {
       />
       <div className="flex flex-1 overflow-hidden">
         <RoomRoster members={sortedMembers} canModerate={canModerate} onMute={handleMute} onKick={handleKick} />
-        <RoomChat messages={messages} onSend={handleSend} />
+        <RoomChat messages={messages} onSend={handleSend} connectionStatus={roomsSocketStatus} />
       </div>
     </div>
   );

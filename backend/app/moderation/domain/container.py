@@ -284,18 +284,20 @@ def configure_postgres(
     repo = PostgresModerationRepository(pool)
     trust_repo = PostgresTrustRepository(pool)
     detectors = DetectorSuite.from_redis(redis_conn)
-    if hooks is None:
-        hooks = CommunitiesEnforcementHooks()
     proxy = redis_conn if isinstance(redis_conn, RedisProxy) else RedisProxy(redis_conn)
     safety_repo = PostgresSafetyRepository(pool)
     thresholds = load_thresholds(safety_thresholds_path) if safety_thresholds_path else None
     reputation_repo = PostgresReputationRepository(pool)
     restriction_repo = PostgresRestrictionRepository(pool)
+    restriction_service = RestrictionService(repository=restriction_repo, redis=proxy)
     linkage_repo = PostgresLinkageRepository(pool)
     ip_repo = PostgresIpReputationRepository(pool)
     reputation_config = load_reputation_config(reputation_config_path) if reputation_config_path else None
     velocity_override = reputation_config.velocity_config if reputation_config is not None else None
     catalog_service = ActionsCatalogService(pool=pool, audit_repo=repo)
+    notifications_service = NotificationService()
+    if hooks is None:
+        hooks = CommunitiesEnforcementHooks(notifications=notifications_service, restrictions=restriction_service)
     configure(
         repository=repo,
         trust_repository=trust_repo,
@@ -304,10 +306,12 @@ def configure_postgres(
         policy=policy,
         redis_proxy=proxy,
         subject_resolver=CommunitiesSubjectResolver(),
+        notifications=notifications_service,
         safety_repository=safety_repo,
         thresholds=thresholds,
         reputation_repository=reputation_repo,
         restriction_repository=restriction_repo,
+        restriction_service=restriction_service,
         velocity_config=velocity_override,
         linkage_repository=linkage_repo,
         ip_repository=ip_repo,

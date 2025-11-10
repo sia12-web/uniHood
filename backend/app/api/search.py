@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.domain.search import policy, schemas
 from app.domain.search.service import SearchService
@@ -48,5 +48,21 @@ async def discover_rooms_endpoint(
 ) -> schemas.ListResponse[schemas.RoomResult]:
 	try:
 		return await _service.discover_rooms(auth_user, query)
+	except Exception as exc:  # pragma: no cover - FastAPI converts
+		raise _as_http_error(exc) from exc
+
+
+@router.get("/search", response_model=schemas.MultiSearchResponse)
+async def search_multi_endpoint(
+	q: str = Query(..., min_length=1, max_length=120),
+	type: str | None = Query(default=None, alias="type"),
+	campus: str | None = Query(default=None),
+	cursor: str | None = Query(default=None),
+	limit: int = Query(default=20, ge=10, le=50),
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.MultiSearchResponse:
+	query = schemas.MultiSearchQuery(q=q, type=type, campus_id=campus, cursor=cursor, limit=limit)
+	try:
+		return await _service.search_multi(auth_user, query)
 	except Exception as exc:  # pragma: no cover - FastAPI converts
 		raise _as_http_error(exc) from exc

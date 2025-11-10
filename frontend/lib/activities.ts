@@ -1,3 +1,4 @@
+import { apiFetch as httpFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { io, Socket } from "socket.io-client";
 
 export type ActivityKind = "typing_duel" | "story_alt" | "trivia" | "rps";
@@ -187,7 +188,6 @@ type RpsRevealPayload = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const SOCKET_BASE = process.env.NEXT_PUBLIC_SOCKET_URL ?? API_BASE ?? "";
-const DEFAULT_HEADERS: Record<string, string> = { "Content-Type": "application/json" };
 
 let socketInstance: ActivitiesSocket | null = null;
 
@@ -198,29 +198,15 @@ function resolveUrl(path: string): string {
 	return path.startsWith("/") ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(resolveUrl(path), {
-		credentials: "include",
-		...init,
-		headers: {
-			...DEFAULT_HEADERS,
-			...(init?.headers ?? {}),
-		},
-	});
-	if (!response.ok) {
-		const message = await response.text();
-		throw new Error(message || `Request failed: ${response.status}`);
-	}
-	if (response.status === 204) {
-		return undefined as T;
-	}
-	return (await response.json()) as T;
+async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+	return httpFetch<T>(resolveUrl(path), init);
 }
 
-async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+async function apiPost<T>(path: string, body?: unknown, init?: ApiFetchOptions): Promise<T> {
 	return apiFetch<T>(path, {
 		method: "POST",
-		body: body !== undefined ? JSON.stringify(body) : undefined,
+		body,
+		...init,
 	});
 }
 

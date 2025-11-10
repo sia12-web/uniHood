@@ -5,12 +5,14 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from typing import Any, Mapping, Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.communities.domain import repo as communities_repo
 from app.communities.domain.exceptions import NotFoundError
+from app.communities.domain.notifications_service import NotificationService
 from app.moderation.domain.enforcement import EnforcementHooks, ModerationCase
 from app.moderation.domain.membership_utils import ensure_membership_identifiers
+from app.moderation.domain.restrictions import RestrictionService
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +20,18 @@ logger = logging.getLogger(__name__)
 class CommunitiesEnforcementHooks(EnforcementHooks):
     """Apply moderation actions against communities entities."""
 
-    def __init__(self, repository: communities_repo.CommunitiesRepository | None = None) -> None:
+    _SYSTEM_ACTOR = UUID(int=0)
+
+    def __init__(
+        self,
+        *,
+        repository: communities_repo.CommunitiesRepository | None = None,
+        notifications: NotificationService | None = None,
+        restrictions: RestrictionService | None = None,
+    ) -> None:
         self._repo = repository or communities_repo.CommunitiesRepository()
+        self._notifications = notifications or NotificationService(repository=self._repo)
+        self._restrictions = restrictions
 
     async def tombstone(self, case: ModerationCase, payload: Mapping[str, Any]) -> None:
         await self._soft_delete(case, action="tombstone")
@@ -81,10 +93,44 @@ class CommunitiesEnforcementHooks(EnforcementHooks):
             )
 
     async def warn(self, case: ModerationCase, payload: Mapping[str, Any]) -> None:
-        logger.warning(
-            "Moderation warn enforcement not wired yet",
-            extra={"case_id": case.case_id, "subject_type": case.subject_type},
-        )
+        recipient = await self._resolve_warn_recipient(case, payload)
+        if recipient is None:
+            logger.warning(
+                "Moderation warn missing recipient",
+                extra={"case_id": case.case_id, "subject_type": case.subject_type},
+            )
+            return
+        if not self._notifications:
+            logger.warning(
+                "Moderation warn skipped: notifications not configured",
+                extra={"case_id": case.case_id, "recipient": str(recipient)},
+            )
+            return
+        notification_type = str(payload.get("notification_type", "moderation.warn"))
+        actor_uuid = self._parse_uuid(payload.get("actor_id"))
+        if actor_uuid is None:
+            actor_uuid = self._parse_uuid(case.assigned_to) or self._parse_uuid(case.created_by) or self._SYSTEM_ACTOR
+        ref_uuid = self._parse_uuid(payload.get("ref_id"))
+        if ref_uuid is None:
+            ref_uuid = self._parse_uuid(case.subject_id) or uuid4()
+        body = {"case_id": case.case_id, "severity": case.severity, "payload": dict(payload)}
+        try:
+            await self._notifications.persist_notification(
+                user_id=recipient,
+                type=notification_type,
+                ref_id=ref_uuid,
+                actor_id=actor_uuid,
+                payload=body,
+            )
+        except Exception:  # noqa: BLE001 - notifications are best effort
+            logger.exception(
+                "Failed to persist moderation warning",
+                extra={
+                    "case_id": case.case_id,
+                    "recipient": str(recipient),
+                    "subject_type": case.subject_type,
+                },
+            )
 
     async def restrict_create(
         self,
@@ -92,15 +138,45 @@ class CommunitiesEnforcementHooks(EnforcementHooks):
         payload: Mapping[str, Any],
         expires_at: datetime,
     ) -> None:
-        logger.warning(
-            "Moderation restrict-create enforcement not wired yet",
-            extra={
-                "case_id": case.case_id,
-                "subject_type": case.subject_type,
-                "subject_id": case.subject_id,
-                "expires_at": expires_at.isoformat(),
-            },
-        )
+        if not self._restrictions:
+            logger.warning(
+                "Moderation restrict-create skipped: restrictions service not configured",
+                extra={"case_id": case.case_id},
+            )
+            return
+        user_uuid = await self._resolve_restriction_user(case, payload)
+        if user_uuid is None:
+            logger.warning(
+                "Moderation restrict-create missing user",
+                extra={"case_id": case.case_id, "subject_type": case.subject_type},
+            )
+            return
+        raw_targets = payload.get("targets")
+        if isinstance(raw_targets, (list, tuple, set)):
+            targets = list(raw_targets) if raw_targets else [payload.get("scope") or "global"]
+        else:
+            single = raw_targets or payload.get("scope")
+            targets = [single or "global"]
+        ttl_minutes = _extract_ttl_minutes(payload, expires_at)
+        reason = str(payload.get("reason") or case.reason or "restrict_create")
+        try:
+            for target in targets:
+                scope = str(target)
+                await self._restrictions.apply_cooldown(
+                    user_id=str(user_uuid),
+                    scope=scope,
+                    minutes=max(1, ttl_minutes),
+                    reason=reason,
+                )
+        except Exception:  # noqa: BLE001 - enforcement must not crash worker
+            logger.exception(
+                "Failed to apply restrict-create",
+                extra={
+                    "case_id": case.case_id,
+                    "user_id": str(user_uuid),
+                    "targets": [str(t) for t in targets],
+                },
+            )
 
     async def _soft_delete(self, case: ModerationCase, *, action: str) -> None:
         subject_type = case.subject_type
@@ -208,3 +284,55 @@ class CommunitiesEnforcementHooks(EnforcementHooks):
             return parsed.astimezone(timezone.utc)
         logger.warning("Unsupported muted_until type", extra={"type": type(value).__name__})
         return None
+
+    async def _resolve_warn_recipient(self, case: ModerationCase, payload: Mapping[str, Any]) -> UUID | None:
+        override = payload.get("user_id") or payload.get("target_user_id")
+        candidate = self._parse_uuid(override)
+        if candidate:
+            return candidate
+        subject_uuid = self._parse_uuid(case.subject_id)
+        match case.subject_type:
+            case "user":
+                return subject_uuid
+            case "post":
+                if subject_uuid:
+                    post = await self._repo.get_post(subject_uuid)
+                    return post.author_id if post else None
+            case "comment":
+                if subject_uuid:
+                    comment = await self._repo.get_comment(subject_uuid)
+                    return comment.author_id if comment else None
+            case "group":
+                if subject_uuid:
+                    group = await self._repo.get_group(subject_uuid)
+                    return group.created_by if group else None
+        return None
+
+    async def _resolve_restriction_user(self, case: ModerationCase, payload: Mapping[str, Any]) -> UUID | None:
+        override = payload.get("user_id") or payload.get("target_user_id")
+        candidate = self._parse_uuid(override)
+        if candidate:
+            return candidate
+        subject_uuid = self._parse_uuid(case.subject_id)
+        if case.subject_type == "user":
+            return subject_uuid
+        if case.subject_type == "comment" and subject_uuid:
+            comment = await self._repo.get_comment(subject_uuid)
+            return comment.author_id if comment else None
+        if case.subject_type == "post" and subject_uuid:
+            post = await self._repo.get_post(subject_uuid)
+            return post.author_id if post else None
+        return None
+
+
+def _extract_ttl_minutes(payload: Mapping[str, Any], expires_at: datetime) -> int:
+    ttl = payload.get("ttl_minutes")
+    if ttl is not None:
+        try:
+            minutes = int(ttl)
+            if minutes > 0:
+                return minutes
+        except (TypeError, ValueError):
+            pass
+    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds() // 60)
+    return max(1, remaining)

@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     communities_workers_enabled: bool = _env_field(False, "COMMUNITIES_WORKERS_ENABLED")
     moderation_workers_enabled: bool = _env_field(False, "MODERATION_WORKERS_ENABLED")
     moderation_staff_ids: tuple[str, ...] = _env_field((), "MODERATION_STAFF_IDS")
+    idempotency_required: bool = _env_field(True, "IDEMPOTENCY_REQUIRED")
+    idempotency_ttl_seconds: int = _env_field(86400, "IDEMPOTENCY_TTL_SECONDS")
+
+    # Phase E: Signed intents and security
+    intent_signing_required: bool = _env_field(True, "INTENT_SIGNING_REQUIRED")
+    intent_allowed_skew_seconds: int = _env_field(60, "INTENT_ALLOWED_SKEW_SECONDS")
+    intent_nonce_ttl_seconds: int = _env_field(600, "INTENT_NONCE_TTL_SECONDS")
+    service_signing_key: str = _env_field("dev-change-me", "SERVICE_SIGNING_KEY")
 
     # Security/cross-origin and auth cookie knobs
     cors_allow_origins: tuple[str, ...] = _env_field(("*",), "CORS_ALLOW_ORIGINS")

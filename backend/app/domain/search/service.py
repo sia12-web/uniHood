@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 import math
 import time
+from datetime import datetime, timezone
+from uuid import UUID
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Iterable, Optional
+from typing import Dict, Iterable, List, Optional
 
 import asyncpg
+from app.domain.identity import flags as flag_service
 from app.domain.search import indexing, models, policy, ranking, schemas
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
@@ -23,6 +27,13 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class _CursorState:
 	score: float
+	entity_id: str
+
+
+@dataclass(slots=True)
+class _BucketCursor:
+	score: float
+	created_at: datetime
 	entity_id: str
 
 
@@ -66,6 +77,29 @@ def _decode_cursor(value: str) -> _CursorState:
 		raise policy.SearchPolicyError("bad_cursor", status_code=400) from exc
 
 
+def _encode_bucket_cursor(cursor: _BucketCursor) -> str:
+	payload = {
+		"score": cursor.score,
+		"created_at": cursor.created_at.isoformat(),
+		"id": cursor.entity_id,
+	}
+	blob = json.dumps(payload, separators=(",", ":"))
+	return base64.urlsafe_b64encode(blob.encode("utf-8")).decode("ascii")
+
+
+def _decode_bucket_cursor(value: str) -> _BucketCursor:
+	try:
+		decoded = base64.urlsafe_b64decode(value.encode("ascii")).decode("utf-8")
+		data = json.loads(decoded)
+		return _BucketCursor(
+			score=float(data["score"]),
+			created_at=datetime.fromisoformat(data["created_at"]),
+			entity_id=str(data["id"]),
+		)
+	except Exception as exc:  # pragma: no cover - defensive guard
+		raise policy.SearchPolicyError("bad_cursor", status_code=400) from exc
+
+
 def _after_cursor(score: float, entity_id: str, cursor: Optional[_CursorState]) -> bool:
 	"""Return True when the candidate should appear after the cursor boundary."""
 
@@ -75,6 +109,26 @@ def _after_cursor(score: float, entity_id: str, cursor: Optional[_CursorState]) 
 		return True
 	if math.isclose(score, cursor.score, abs_tol=1e-9):
 		return entity_id > cursor.entity_id
+	return False
+
+
+def _after_bucket_cursor(
+	score: float,
+	created_at: datetime,
+	entity_id: str,
+	cursor: Optional[_BucketCursor],
+) -> bool:
+	"""Keyset comparison for multi-field pagination boundaries."""
+
+	if cursor is None:
+		return True
+	if score < cursor.score - 1e-9:
+		return True
+	if math.isclose(score, cursor.score, abs_tol=1e-9):
+		if created_at < cursor.created_at:
+			return True
+		if created_at == cursor.created_at and entity_id < cursor.entity_id:
+			return True
 	return False
 
 
@@ -425,6 +479,38 @@ class SearchService:
 		self._pool_checked = False
 		self._pool: Optional[asyncpg.Pool] = None
 		self._adapter = indexing.resolve_adapter()
+		self._search_coeff_cache: dict[str, tuple[float, dict[str, float]]] = {}
+
+	async def _load_flag_payload(self, key: str) -> dict[str, float]:
+		flag = await flag_service.get_flag(key)
+		if not flag or not isinstance(flag.payload, dict):
+			return {}
+		return dict(flag.payload)
+
+	async def _search_coefficients(self, *, user_id: str, campus_id: str | None) -> dict[str, float]:
+		cache_key = f"{campus_id}:{user_id}"
+		cached = self._search_coeff_cache.get(cache_key)
+		now = time.time()
+		if cached and now - cached[0] < 30.0:
+			return cached[1]
+		default = {"ts": 0.7, "trgm": 0.3, "recency_tau": 24.0}
+		payload = await self._load_flag_payload("search.rank.coeff")
+		coeff = default.copy()
+		if payload:
+			if "ts" in payload:
+				coeff["ts"] = float(payload["ts"])
+			elif "ts_weight" in payload:
+				coeff["ts"] = float(payload["ts_weight"])
+			if "trgm" in payload:
+				coeff["trgm"] = float(payload["trgm"])
+			elif "trgm_weight" in payload:
+				coeff["trgm"] = float(payload["trgm_weight"])
+			if "recency_tau" in payload:
+				coeff["recency_tau"] = float(payload["recency_tau"])
+			elif "recency_tau_hours" in payload:
+				coeff["recency_tau"] = float(payload["recency_tau_hours"])
+		self._search_coeff_cache[cache_key] = (now, coeff)
+		return coeff
 
 	async def _pool_or_none(self) -> Optional[asyncpg.Pool]:
 		if self._pool_checked:
@@ -533,6 +619,313 @@ class SearchService:
 			return response
 		finally:
 			obs_metrics.observe_search_latency("discover_rooms", time.perf_counter() - start)
+
+	async def search_multi(
+		self,
+		auth_user: AuthenticatedUser,
+		query: schemas.MultiSearchQuery,
+	) -> schemas.MultiSearchResponse:
+		start = time.perf_counter()
+		try:
+			await policy.enforce_rate_limit(auth_user.id, kind="search:multi", limit=policy.SEARCH_PER_MINUTE)
+			normalized = query.q.strip()
+			types = self._parse_bucket_types(query.type)
+			campus_uuid = query.campus_id or auth_user.campus_id
+			campus_str = str(campus_uuid) if campus_uuid else None
+			limit_per_bucket = min(query.limit, 20)
+			if len(normalized) < policy.MIN_QUERY_LEN:
+				return schemas.MultiSearchResponse(
+					q=query.q,
+					buckets={bucket: schemas.SearchBucket(items=[], next=None) for bucket in types},
+				)
+			cursor_state: _BucketCursor | None = None
+			if query.cursor:
+				if len(types) != 1:
+					raise policy.SearchPolicyError("cursor_requires_single_type", status_code=400)
+				cursor_state = _decode_bucket_cursor(query.cursor)
+			coeff = await self._search_coefficients(user_id=str(auth_user.id), campus_id=campus_str)
+			buckets: dict[str, schemas.SearchBucket] = {}
+			for bucket in types:
+				bucket_cursor = cursor_state if cursor_state and len(types) == 1 else None
+				bucket_start = time.perf_counter()
+				if bucket == "people":
+					items, next_cursor = await self._search_people_bucket(
+						normalized,
+						campus_str,
+						limit_per_bucket,
+						bucket_cursor,
+						coeff,
+					)
+				elif bucket == "rooms":
+					items, next_cursor = await self._search_rooms_bucket(
+						normalized,
+						campus_str,
+						limit_per_bucket,
+						bucket_cursor,
+						coeff,
+					)
+				else:
+					items, next_cursor = await self._search_posts_bucket(
+						normalized,
+						campus_str,
+						limit_per_bucket,
+						bucket_cursor,
+						coeff,
+					)
+				duration_ms = (time.perf_counter() - bucket_start) * 1000.0
+				obs_metrics.SEARCH_QUERIES_V2.labels(type=bucket).inc()
+				obs_metrics.SEARCH_DURATION_V2.observe(duration_ms)
+				obs_metrics.SEARCH_RESULTS_AVG.labels(type=bucket).set(len(items))
+				buckets[bucket] = schemas.SearchBucket(items=items, next=next_cursor)
+			return schemas.MultiSearchResponse(q=query.q, buckets=buckets)
+		finally:
+			obs_metrics.observe_search_latency("multi", time.perf_counter() - start)
+
+	@staticmethod
+	def _parse_bucket_types(type_param: str | None) -> list[str]:
+		allowed = ("people", "rooms", "posts")
+		if not type_param:
+			return list(allowed)
+		seen: list[str] = []
+		for raw in type_param.split(","):
+			value = raw.strip().lower()
+			if value in allowed and value not in seen:
+				seen.append(value)
+		return seen or list(allowed)
+
+	async def _search_people_bucket(
+		self,
+		query: str,
+		campus_id: str | None,
+		limit: int,
+		cursor: _BucketCursor | None,
+		coeff: dict[str, float],
+	) -> tuple[list[dict[str, object]], Optional[str]]:
+		pool = await self._pool_or_none()
+		if pool is None:
+			return [], None
+		campus_uuid: UUID | None = None
+		if campus_id:
+			try:
+				campus_uuid = UUID(campus_id)
+			except ValueError:
+				campus_uuid = None
+		limit_prefetch = limit + 1
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				WITH ranked AS (
+					SELECT
+						u.id,
+						u.handle,
+						u.display_name,
+						u.bio,
+						u.campus_id,
+						u.created_at,
+						ts_rank_cd(
+							to_tsvector('english', coalesce(u.display_name,'') || ' ' || coalesce(u.bio,'')),
+							websearch_to_tsquery('english', $1)
+						) AS ts_score,
+						GREATEST(similarity(u.handle, $1), similarity(u.display_name, $1)) AS trgm_score
+					FROM users u
+					WHERE ($2::uuid IS NULL OR u.campus_id = $2::uuid)
+				)
+				SELECT *
+				FROM ranked
+				WHERE ts_score > 0 OR trgm_score > 0.2
+				ORDER BY ts_score DESC, trgm_score DESC, created_at DESC, id DESC
+				LIMIT $3
+				""",
+				query,
+				campus_uuid,
+				limit_prefetch,
+			)
+		return self._finalize_bucket(rows, limit, cursor, coeff, payload_builder="people")
+
+	async def _search_rooms_bucket(
+		self,
+		query: str,
+		campus_id: str | None,
+		limit: int,
+		cursor: _BucketCursor | None,
+		coeff: dict[str, float],
+	) -> tuple[list[dict[str, object]], Optional[str]]:
+		pool = await self._pool_or_none()
+		if pool is None:
+			return [], None
+		campus_uuid: UUID | None = None
+		if campus_id:
+			try:
+				campus_uuid = UUID(campus_id)
+			except ValueError:
+				campus_uuid = None
+		limit_prefetch = limit + 1
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				WITH ranked AS (
+					SELECT
+						r.id,
+						r.name,
+						r.preset,
+						r.campus_id,
+						r.created_at,
+						ts_rank_cd(
+							to_tsvector('english', coalesce(r.name,'')),
+							websearch_to_tsquery('english', $1)
+						) AS ts_score,
+						similarity(r.name, $1) AS trgm_score,
+						(SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS members_count,
+						(SELECT COUNT(*) FROM room_messages mm WHERE mm.room_id = r.id AND mm.created_at >= NOW() - INTERVAL '24 hours') AS msg_24h
+					FROM rooms r
+					WHERE ($2::uuid IS NULL OR r.campus_id = $2::uuid)
+				)
+				SELECT *
+				FROM ranked
+				WHERE ts_score > 0 OR trgm_score > 0.15
+				ORDER BY ts_score DESC, trgm_score DESC, created_at DESC, id DESC
+				LIMIT $3
+				""",
+				query,
+				campus_uuid,
+				limit_prefetch,
+			)
+		return self._finalize_bucket(rows, limit, cursor, coeff, payload_builder="rooms")
+
+	async def _search_posts_bucket(
+		self,
+		query: str,
+		campus_id: str | None,
+		limit: int,
+		cursor: _BucketCursor | None,
+		coeff: dict[str, float],
+	) -> tuple[list[dict[str, object]], Optional[str]]:
+		pool = await self._pool_or_none()
+		if pool is None:
+			return [], None
+		campus_uuid: UUID | None = None
+		if campus_id:
+			try:
+				campus_uuid = UUID(campus_id)
+			except ValueError:
+				campus_uuid = None
+		limit_prefetch = limit + 1
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				WITH ranked AS (
+					SELECT
+						p.id,
+						p.group_id,
+						p.author_id,
+						p.topic_tags,
+						p.created_at,
+						ts_rank_cd(
+							to_tsvector('english', coalesce(p.body,'')),
+							websearch_to_tsquery('english', $1)
+						) AS ts_score,
+						similarity(coalesce(p.body,''), $1) AS trgm_score
+					FROM post p
+					JOIN group_entity g ON g.id = p.group_id
+					WHERE p.deleted_at IS NULL
+						AND p.created_at >= NOW() - INTERVAL '7 days'
+						AND ($2::uuid IS NULL OR g.campus_id = $2::uuid)
+				)
+				SELECT *
+				FROM ranked
+				WHERE ts_score > 0 OR trgm_score > 0.1
+				ORDER BY ts_score DESC, trgm_score DESC, created_at DESC, id DESC
+				LIMIT $3
+				""",
+				query,
+				campus_uuid,
+				limit_prefetch,
+			)
+		return self._finalize_bucket(rows, limit, cursor, coeff, payload_builder="posts")
+
+	def _finalize_bucket(
+		self,
+		rows: Iterable[asyncpg.Record],
+		limit: int,
+		cursor: _BucketCursor | None,
+		coeff: dict[str, float],
+		*,
+		payload_builder: str,
+	) -> tuple[list[dict[str, object]], Optional[str]]:
+		recency_tau = max(0.1, float(coeff.get("recency_tau", 24.0)))
+		ts_weight = float(coeff.get("ts", 0.7))
+		trgm_weight = float(coeff.get("trgm", 0.3))
+		now = datetime.now(timezone.utc)
+		candidates: list[tuple[float, datetime, str, dict[str, object]]] = []
+		for row in rows:
+			record = dict(row)
+			created_at = record.get("created_at")
+			if not isinstance(created_at, datetime):
+				continue
+			ts_score = float(record.get("ts_score") or 0.0)
+			trgm_score = float(record.get("trgm_score") or 0.0)
+			age_hours = max(0.0, (now - created_at).total_seconds() / 3600.0)
+			recency = math.exp(-age_hours / recency_tau)
+			score = ts_weight * ts_score + trgm_weight * trgm_score + recency
+			entity_id = str(record.get("id"))
+			if not entity_id:
+				continue
+			if not _after_bucket_cursor(score, created_at, entity_id, cursor):
+				continue
+			payload = self._build_payload(record, payload_builder)
+			candidates.append((score, created_at, entity_id, payload))
+			if len(candidates) >= limit + 1:
+				break
+		candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+		items, next_cursor = self._render_bucket(candidates, limit)
+		return items, next_cursor
+
+	@staticmethod
+	def _build_payload(record: dict[str, object], kind: str) -> dict[str, object]:
+		if kind == "people":
+			return {
+				"id": str(record.get("id")),
+				"handle": record.get("handle"),
+				"display_name": record.get("display_name"),
+				"bio": record.get("bio"),
+				"campus_id": str(record.get("campus_id")) if record.get("campus_id") else None,
+			}
+		if kind == "rooms":
+			return {
+				"id": str(record.get("id")),
+				"name": record.get("name"),
+				"preset": record.get("preset"),
+				"members_count": int(record.get("members_count") or 0),
+				"msg_24h": int(record.get("msg_24h") or 0),
+				"campus_id": str(record.get("campus_id")) if record.get("campus_id") else None,
+			}
+		# posts fallback
+		topic_tags = list(record.get("topic_tags") or []) if isinstance(record.get("topic_tags"), list) else []
+		return {
+			"id": str(record.get("id")),
+			"group_id": str(record.get("group_id")) if record.get("group_id") else None,
+			"author_id": str(record.get("author_id")) if record.get("author_id") else None,
+			"topic_tags": topic_tags,
+		}
+
+	@staticmethod
+	def _render_bucket(
+		candidates: list[tuple[float, datetime, str, dict[str, object]]],
+		limit: int,
+	) -> tuple[list[dict[str, object]], Optional[str]]:
+		items: list[dict[str, object]] = []
+		for score, created_at, _entity_id, payload in candidates[:limit]:
+			entry = dict(payload)
+			entry["score"] = round(float(score), 6)
+			entry["created_at"] = created_at.isoformat()
+			items.append(entry)
+		next_cursor = None
+		if len(candidates) > limit:
+			score, created_at, entity_id, _ = candidates[limit]
+			next_cursor = _encode_bucket_cursor(
+				_BucketCursor(score=float(score), created_at=created_at, entity_id=entity_id)
+			)
+		return items, next_cursor
 
 	async def _load_block_ids(self, conn: asyncpg.Connection, user_id: str) -> set[str]:
 		rows = await conn.fetch(

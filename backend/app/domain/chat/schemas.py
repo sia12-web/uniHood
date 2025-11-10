@@ -64,7 +64,7 @@ class MessageResponse(BaseModel):
 
 class MessageListResponse(BaseModel):
 	items: List[MessageResponse]
-	next_cursor: Optional[str] = None
+	next: Optional[str] = None
 
 
 class DeliveryAckRequest(BaseModel):

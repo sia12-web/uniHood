@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { ReportUI } from "@/app/features/moderation/ReportButton";
 import type { CurrentUser } from "@/lib/auth-guard";
 import { useDeletePost, useEditPost } from "@/hooks/communities/use-create-post";
 import type { GroupPost } from "@/lib/communities";
@@ -134,7 +135,7 @@ export function PostCard({ post, groupId, currentUser }: PostCardProps) {
 						{updatedAt ? ` • Updated ${updatedAt}` : ""}
 					</p>
 				</div>
-				<div className="flex shrink-0 gap-2">
+				<div className="flex shrink-0 items-center gap-2">
 					{post.editable ? (
 						<button
 							type="button"
@@ -153,6 +154,7 @@ export function PostCard({ post, groupId, currentUser }: PostCardProps) {
 							Delete
 						</button>
 					) : null}
+					  <ReportUI kind="post" targetId={post.id} />
 				</div>
 			</header>
 
@@ -272,7 +274,7 @@ export function PostCard({ post, groupId, currentUser }: PostCardProps) {
 						type="button"
 						onClick={() => setShowDiscussion((prev) => !prev)}
 						className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-midnight hover:text-midnight"
-						aria-expanded={showDiscussion ? "true" : "false"}
+						aria-expanded={showDiscussion}
 					>
 						{showDiscussion ? "Hide comments" : `View comments (${post.comments_count ?? 0})`}
 					</button>

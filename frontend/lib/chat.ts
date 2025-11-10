@@ -1,5 +1,13 @@
-import { io, Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { ulid } from "ulidx";
+
+import {
+	connectChatSocket,
+	disconnectChatSocket as teardownChatSocket,
+	getChatSocketInstance,
+	getChatSocketStatus,
+	onChatSocketStatus,
+} from "@/app/lib/socket/chat";
 
 export type ChatMessage = {
 	messageId: string;
@@ -24,6 +32,18 @@ type Listener = (message: ChatMessage) => void;
 let socket: Socket | null = null;
 const messageListeners = new Set<Listener>();
 const deliveredListeners = new Set<(payload: { peerId: string; conversationId: string; deliveredSeq: number }) => void>();
+
+function handleServerMessage(payload: unknown): void {
+	messageListeners.forEach((listener) => listener(transformMessage(payload)));
+}
+
+function handleServerEcho(payload: unknown): void {
+	messageListeners.forEach((listener) => listener(transformMessage(payload)));
+}
+
+function handleDelivered(payload: { peerId: string; conversationId: string; deliveredSeq: number }): void {
+	deliveredListeners.forEach((listener) => listener(payload));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -68,26 +88,18 @@ function transformAttachment(entry: unknown): ChatMessage["attachments"][number]
 	};
 }
 
-export function initChatSocket(baseUrl: string, userId: string, campusId: string): Socket {
+export function initChatSocket(_baseUrl: string, userId: string, campusId: string): Socket {
 	if (socket) {
 		return socket;
 	}
-	socket = io(`${baseUrl}/chat`, {
-		transports: ["websocket"],
-		auth: {
-			userId,
-			campusId,
-		},
-	});
-	socket.on("chat:message", (payload) => {
-		messageListeners.forEach((listener) => listener(transformMessage(payload)));
-	});
-	socket.on("chat:echo", (payload) => {
-		messageListeners.forEach((listener) => listener(transformMessage(payload)));
-	});
-	socket.on("chat:delivered", (payload) => {
-		deliveredListeners.forEach((listener) => listener(payload));
-	});
+	const instance = (connectChatSocket({ userId, campusId }) ?? getChatSocketInstance()) as Socket | null;
+	if (!instance) {
+		throw new Error("Chat socket unavailable");
+	}
+	socket = instance;
+	socket.on("chat:message", handleServerMessage);
+	socket.on("chat:echo", handleServerEcho);
+	socket.on("chat:delivered", handleDelivered);
 	return socket;
 }
 
@@ -103,12 +115,17 @@ export function onDelivered(listener: (payload: { peerId: string; conversationId
 
 export function disconnectChatSocket(): void {
 	if (socket) {
-		socket.disconnect();
+		socket.off("chat:message", handleServerMessage);
+		socket.off("chat:echo", handleServerEcho);
+		socket.off("chat:delivered", handleDelivered);
 		socket = null;
 		messageListeners.clear();
 		deliveredListeners.clear();
 	}
+	teardownChatSocket();
 }
+
+export { onChatSocketStatus, getChatSocketStatus };
 
 function transformMessage(raw: unknown): ChatMessage {
 	if (!isRecord(raw)) {

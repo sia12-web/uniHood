@@ -8,7 +8,16 @@ import { applyDiff } from "@/lib/diff";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
-import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
+import {
+  disconnectPresenceSocket,
+  getPresenceSocket,
+  onPresenceSocketStatus,
+  getPresenceSocketStatus,
+  initialiseNearbyAccumulator,
+  applyNearbyEvent,
+  nearbyAccumulatorToArray,
+} from "@/lib/socket";
+import { getOrCreateIdemKey } from "@/app/api/idempotency";
 import { fetchFriends, sendInvite } from "@/lib/social";
 import { FRIENDSHIP_FORMED_EVENT, emitFriendshipFormed } from "@/lib/friends-events";
 import { fetchPublicProfile } from "@/lib/profiles";
@@ -20,6 +29,7 @@ import {
   sendOffline,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser, ProfileGalleryImage, PublicProfile } from "@/lib/types";
+import { useSocketStatus } from "@/app/lib/socket/useStatus";
 
 type HomeProximityPreviewProps = {
   rightRail?: ReactNode;
@@ -91,6 +101,8 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const router = useRouter();
 
+  const nearbyStateRef = useRef(initialiseNearbyAccumulator<NearbyUser>());
+  const usersRef = useRef<NearbyUser[]>([]);
   const positionRef = useRef<GeolocationPosition | null>(null);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [heartbeatSeconds, setHeartbeatSeconds] = useState<number>(HEARTBEAT_VISIBLE_MS / 1000);
@@ -125,7 +137,14 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
         mutated = true;
         return { ...entry, is_friend: true };
       });
-      return mutated ? next : prev;
+      if (mutated) {
+        usersRef.current = next;
+        nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+          items: next,
+        });
+        return next;
+      }
+      return prev;
     });
   }, [friendIds, users.length]);
 
@@ -149,6 +168,10 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
   const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
   const isDemoMode = authEvaluated && currentCampusId === DEMO_CAMPUS_ID;
   const goLiveAllowed = GO_LIVE_ENABLED || isDemoMode;
+  const presenceSocketStatus = useSocketStatus(onPresenceSocketStatus, getPresenceSocketStatus);
+  const showReconnectBanner =
+    isLiveMode && (presenceSocketStatus === "reconnecting" || presenceSocketStatus === "connecting");
+  const showDisconnectedBanner = isLiveMode && presenceSocketStatus === "disconnected";
 
   const loadFriends = useCallback(async () => {
     if (!authEvaluated) {
@@ -179,6 +202,8 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
       }
       setActiveUserId(null);
       setProfileStates({});
+      nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
+      usersRef.current = [];
       profileCacheRef.current.clear();
       controllersRef.current.forEach((controller) => controller.abort());
       controllersRef.current.clear();
@@ -187,6 +212,11 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
     useEffect(() => {
       void loadFriends();
     }, [loadFriends]);
+
+    useEffect(() => {
+      nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
+      usersRef.current = [];
+    }, [radius, currentCampusId]);
 
   // Socket lifecycle
   const socket = useMemo(() => {
@@ -202,18 +232,39 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
     if (!socket || !isLiveMode) {
       return;
     }
+    nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+      items: usersRef.current,
+    });
     const handleUpdate = (payload: NearbyDiff) => {
       setUsers((prev) => {
         const next = applyDiff(prev, payload, radius);
         const patched = withFriendStatus(next);
-        setActiveUserId((current) => (current && patched.some((entry) => entry.user_id === current) ? current : null));
+        nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+          items: patched,
+        });
+        usersRef.current = patched;
+        setActiveUserId((current) =>
+          current && patched.some((entry) => entry.user_id === current) ? current : null,
+        );
         return patched;
       });
     };
+    const handleNearby = (payload: { cursor?: string | null; items?: NearbyUser[] }) => {
+      nearbyStateRef.current = applyNearbyEvent(nearbyStateRef.current, payload);
+      const ordered = nearbyAccumulatorToArray(nearbyStateRef.current);
+      const patched = withFriendStatus(ordered);
+      usersRef.current = patched;
+      setUsers(patched);
+      setActiveUserId((current) =>
+        current && patched.some((entry) => entry.user_id === current) ? current : null,
+      );
+    };
     socket.on("nearby:update", handleUpdate);
+    socket.on("presence:nearby", handleNearby);
     socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: radius });
     return () => {
       socket.off("nearby:update", handleUpdate);
+      socket.off("presence:nearby", handleNearby);
       socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: radius });
     };
   }, [socket, radius, currentCampusId, isLiveMode, withFriendStatus]);
@@ -234,6 +285,8 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
     }
     if (!isLiveMode) {
       setUsers([]);
+      usersRef.current = [];
+      nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
       setLoading(false);
       setActiveUserId(null);
       setProfileStates({});
@@ -244,6 +297,10 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
       const items = await fetchNearby(currentUserId, currentCampusId, radius);
       const patched = withFriendStatus(items);
       setUsers(patched);
+      usersRef.current = patched;
+      nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+        items: patched,
+      });
       setActiveUserId((prev) => (prev && patched.some((entry) => entry.user_id === prev) ? prev : null));
       setError(null);
     } catch (err) {
@@ -259,6 +316,8 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
     if (!authEvaluated || !isLiveMode) {
       if (!isLiveMode) {
         setUsers([]);
+        usersRef.current = [];
+        nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
         setLoading(false);
         setActiveUserId(null);
         setProfileStates({});
@@ -352,6 +411,8 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
       positionRef.current = null;
       void sendOffline(currentUserId, currentCampusId);
       setUsers([]);
+      usersRef.current = [];
+      nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
       setLoading(false);
       return;
     }
@@ -448,7 +509,12 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
       setInviteError(null);
       setInvitePendingId(targetUserId);
       try {
-        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId);
+        const payload = {
+          to_user_id: targetUserId,
+          campus_id: currentCampusId,
+        } as const;
+        const idemKey = await getOrCreateIdemKey("/invites/send", payload);
+        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId, { idemKey });
         if (summary.status === "accepted") {
           setInviteMessage("Invite auto-accepted - you're now friends!");
           setUsers((prev) => prev.map((u) => (u.user_id === targetUserId ? { ...u, is_friend: true } : u)));
@@ -621,6 +687,16 @@ export default function HomeProximityPreview({ rightRail }: HomeProximityPreview
           Heartbeats refresh every {heartbeatSeconds}s while this tab stays active.
         </p>
       </header>
+      {showReconnectBanner ? (
+        <p className="rounded-2xl bg-slate-100 px-4 py-2 text-xs text-slate-700" role="status" aria-live="polite">
+          Reconnecting…
+        </p>
+      ) : null}
+      {showDisconnectedBanner ? (
+        <p className="rounded-2xl bg-rose-50 px-4 py-2 text-xs text-rose-700" role="alert" aria-live="assertive">
+          Connection lost. Trying to reconnect…
+        </p>
+      ) : null}
       {authEvaluated && currentCampusId === DEMO_CAMPUS_ID ? (
         <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
           You are in demo mode (demo campus). You will only see other demo users. Sign in on this device to join your

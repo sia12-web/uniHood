@@ -15,6 +15,8 @@ import {
   normalizeChatMessages,
   onDelivered,
   onMessage,
+  getChatSocketStatus,
+  onChatSocketStatus,
 } from "@/lib/chat";
 import {
   onAuthChange,
@@ -25,6 +27,7 @@ import {
 } from "@/lib/auth-storage";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { usePresenceForUser } from "@/hooks/presence/use-presence";
+import { useSocketStatus } from "@/app/lib/socket/useStatus";
 
 // 🧠 TODO: Refactor this chat page to look more like a modern messenger.
 // - Align messages left/right based on sender
@@ -70,6 +73,7 @@ export default function ChatPage({ params }: Props) {
 
   const selfId = useMemo(() => authUser?.userId ?? getDemoUserId(), [authUser]);
   const campusId = useMemo(() => authUser?.campusId ?? getDemoCampusId(), [authUser]);
+  const chatSocketStatus = useSocketStatus(onChatSocketStatus, getChatSocketStatus);
 
   useEffect(() => {
     if (!validPeer) {
@@ -281,6 +285,7 @@ export default function ChatPage({ params }: Props) {
         selfUserId={selfId}
         peerName={peerDisplayName}
         peerStatusText={peerStatusText}
+        connectionStatus={chatSocketStatus}
       />
     </div>
   );

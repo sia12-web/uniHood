@@ -22,6 +22,7 @@ async def _maybe_current_user(request: Request) -> Optional[AuthenticatedUser]:
 		credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 	try:
 		return await get_current_user(
+			request=request,
 			x_user_id=request.headers.get("X-User-Id"),
 			x_campus_id=request.headers.get("X-Campus-Id"),
 			x_user_roles=request.headers.get("X-User-Roles"),

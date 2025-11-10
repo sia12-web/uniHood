@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import clsx from "clsx";
 import { formatDistanceToNow } from "date-fns";
 
+import { ReportUI } from "@/app/features/moderation/ReportButton";
 import { useComments, useDeleteComment, useUpdateComment } from "@/hooks/communities/use-comments";
 import type { CurrentUser } from "@/lib/auth-guard";
 import type { PostComment } from "@/lib/communities";
@@ -182,6 +183,7 @@ export function CommentItem({ comment, postId, currentUser, level = 0, onTypingS
               <p className="whitespace-pre-wrap text-sm text-slate-800">{comment.body}</p>
             )}
           </div>
+          {!isDeleted ? <ReportUI kind="comment" targetId={comment.id} className="ml-auto" /> : null}
         </header>
 
         {!isDeleted ? (

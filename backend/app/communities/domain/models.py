@@ -92,6 +92,7 @@ class Reaction(BaseModel):
 	user_id: UUID
 	emoji: str
 	created_at: datetime
+	effective_weight: float = 1.0
 
 	model_config = ConfigDict(from_attributes=True)
 

@@ -53,7 +53,10 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 		if not settings.obs_enabled or not self._enabled:
 			return await call_next(request)
 
-		request_id = request.headers.get("X-Request-Id") or str(uuid4())
+		existing_request_id = getattr(request.state, "request_id", None)
+		request_id = existing_request_id or request.headers.get("X-Request-Id") or str(uuid4())
+		if not existing_request_id:
+			setattr(request.state, "request_id", request_id)
 		user_id = request.headers.get("X-User-Id")
 		route_template = _route_template(request)
 		client = request.client

@@ -14,8 +14,10 @@ from app.communities.domain.exceptions import ForbiddenError, NotFoundError, Val
 from app.communities.schemas import dto
 from app.communities.infra import idempotency, redis_streams, s3, redis as feed_cache
 from app.communities.services import feed_query as feed_query_service
+from app.domain.identity import flags as flag_service
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
+from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 from app.moderation.domain.container import get_write_gate
 from app.moderation.middleware.write_gate_v2 import WriteContext
@@ -57,6 +59,49 @@ class CommunitiesService:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
 			return await func(conn)
+
+	async def _anti_gaming_enabled(self, user_id: str, campus_id: Optional[str]) -> bool:
+		result = await flag_service.evaluate_flag(
+			"anti_gaming.enabled",
+			user_id=user_id,
+			campus_id=campus_id,
+		)
+		if result.enabled is None:
+			return True
+		return bool(result.enabled)
+
+	async def _engagement_weight(
+		self,
+		*,
+		action: str,
+		viewer_id: str,
+		author_id: str,
+		subject_id: UUID,
+		campus_id: Optional[str],
+	) -> tuple[float, list[str]]:
+		enabled = await self._anti_gaming_enabled(viewer_id, campus_id)
+		if not enabled:
+			return 1.0, []
+		if action == "like" and viewer_id == author_id:
+			return 0.0, ["self_like"]
+		now = datetime.now(timezone.utc)
+		hour_bucket = now.strftime("%Y%m%d%H")
+		minute_bucket = now.strftime("%Y%m%d%H%M")
+		user_key = f"ag:{action}:user:{viewer_id}:{hour_bucket}"
+		post_key = f"ag:{action}:post:{subject_id}:{minute_bucket}"
+		flags: list[str] = []
+		hour_count = await redis_client.incr(user_key)
+		await redis_client.expire(user_key, 3600)
+		weight = 1.0
+		if hour_count > 50:
+			weight *= 0.2
+			flags.append("velocity_user")
+		minute_count = await redis_client.incr(post_key)
+		await redis_client.expire(post_key, 120)
+		if minute_count > 10:
+			weight *= 0.1
+			flags.append("velocity_post")
+		return weight, flags
 
 	@staticmethod
 	def _group_to_response(group: models.Group, *, role: str | None) -> dto.GroupResponse:
@@ -585,15 +630,46 @@ class CommunitiesService:
 	# Reactions
 
 	async def add_reaction(self, user: AuthenticatedUser, payload: dto.ReactionRequest) -> dict[str, Any]:
+		author_id: str | None = None
+		campus_value = getattr(user, "campus_id", None)
+		campus_id = str(campus_value) if campus_value else None
+		if payload.subject_type == "post":
+			post = await self.repo.get_post(payload.subject_id)
+			if not post:
+				raise NotFoundError("post_not_found")
+			author_id = str(post.author_id)
+		elif payload.subject_type == "comment":
+			comment = await self.repo.get_comment(payload.subject_id)
+			if not comment:
+				raise NotFoundError("comment_not_found")
+			author_id = str(comment.author_id)
+		else:
+			raise ValidationError("invalid_subject")
+		action = "like" if payload.emoji.lower() in {"like", "👍"} else "other"
+		weight = 1.0
+		flags: list[str] = []
+		if action == "like" and author_id is not None:
+			weight, flags = await self._engagement_weight(
+				action="like",
+				viewer_id=user.id,
+				author_id=author_id,
+				subject_id=payload.subject_id,
+				campus_id=campus_id,
+			)
+			for reason in flags:
+				obs_metrics.ANTI_GAMING_FLAGS.labels(reason=reason).inc()
+		if weight == 0.0:
+			return {"ok": True, "ignored": True}
 		reaction = await self.repo.add_reaction(
 			subject_type=payload.subject_type,
 			subject_id=payload.subject_id,
 			user_id=UUID(user.id),
 			emoji=payload.emoji,
+			effective_weight=weight,
 		)
 		await self._enqueue_outbox("reaction", reaction.id, "created", events.reaction_payload(reaction))
 		obs_metrics.inc_community_reactions_created()
-		return {"ok": True}
+		return {"ok": True, "weight": weight}
 
 	async def remove_reaction(self, user: AuthenticatedUser, payload: dto.ReactionRequest) -> dict[str, Any]:
 		await self.repo.remove_reaction(

@@ -4,10 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { NearbyList } from "./components/NearbyList";
+import { getOrCreateIdemKey } from "@/app/api/idempotency";
 import GoLiveStrip from "@/components/proximity/GoLiveStrip";
 import { applyDiff } from "@/lib/diff";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
-import { disconnectPresenceSocket, getPresenceSocket } from "@/lib/socket";
+import {
+  disconnectPresenceSocket,
+  getPresenceSocket,
+  onPresenceSocketStatus,
+  getPresenceSocketStatus,
+  initialiseNearbyAccumulator,
+  applyNearbyEvent,
+  nearbyAccumulatorToArray,
+} from "@/lib/socket";
 import { sendInvite } from "@/lib/social";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import {
@@ -20,6 +29,7 @@ import {
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
 import { emitFriendshipFormed } from "@/lib/friends-events";
+import { useSocketStatus } from "@/app/lib/socket/useStatus";
 
 const BACKEND_URL = getBackendUrl();
 const RADIUS_OPTIONS = [10, 50, 100];
@@ -75,6 +85,8 @@ export default function ProximityPage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null);
   const sentInitialHeartbeat = useRef(false);
+  const nearbyStateRef = useRef(initialiseNearbyAccumulator<NearbyUser>());
+  const usersRef = useRef<NearbyUser[]>([]);
   const router = useRouter();
 
   const positionRef = useRef<GeolocationPosition | null>(null);
@@ -103,6 +115,9 @@ export default function ProximityPage() {
   const currentCampusId = authUser?.campusId ?? DEMO_CAMPUS_ID;
   const isDemoMode = currentCampusId === DEMO_CAMPUS_ID;
   const goLiveAllowed = GO_LIVE_ENABLED || isDemoMode;
+  const presenceSocketStatus = useSocketStatus(onPresenceSocketStatus, getPresenceSocketStatus);
+  const showReconnectBanner = presenceSocketStatus === "reconnecting" || presenceSocketStatus === "connecting";
+  const showDisconnectedBanner = presenceSocketStatus === "disconnected";
 
   const socket = useMemo(() => {
     disconnectPresenceSocket();
@@ -110,15 +125,41 @@ export default function ProximityPage() {
   }, [currentUserId, currentCampusId]);
 
   useEffect(() => {
+    nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
+    usersRef.current = [];
+  }, [radius, currentCampusId]);
+
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+    nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+      items: usersRef.current,
+    });
     const handleUpdate = (payload: NearbyDiff) => {
-      setUsers((prev) => applyDiff(prev, payload, radius));
+      setUsers((prev) => {
+        const next = applyDiff(prev, payload, radius);
+        nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+          items: next,
+        });
+        usersRef.current = next;
+        return next;
+      });
+    };
+    const handleNearby = (payload: { cursor?: string | null; items?: NearbyUser[] }) => {
+      nearbyStateRef.current = applyNearbyEvent(nearbyStateRef.current, payload);
+      const ordered = nearbyAccumulatorToArray(nearbyStateRef.current);
+      usersRef.current = ordered;
+      setUsers(ordered);
     };
 
     socket.on("nearby:update", handleUpdate);
+    socket.on("presence:nearby", handleNearby);
     socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: radius });
 
     return () => {
       socket.off("nearby:update", handleUpdate);
+      socket.off("presence:nearby", handleNearby);
       socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: radius });
     };
   }, [socket, radius, currentCampusId]);
@@ -131,6 +172,10 @@ export default function ProximityPage() {
     fetchNearby(currentUserId, currentCampusId, radius)
       .then((items) => {
         setUsers(items);
+        usersRef.current = items;
+        nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+          items,
+        });
         setError(null);
       })
       .catch((err) => setError(err.message))
@@ -320,13 +365,25 @@ export default function ProximityPage() {
       setInvitePendingId(targetUserId);
 
       try {
-        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId);
+        const payload = {
+          to_user_id: targetUserId,
+          campus_id: currentCampusId,
+        } as const;
+        const idemKey = await getOrCreateIdemKey("/invites/send", payload);
+        const summary = await sendInvite(currentUserId, currentCampusId, targetUserId, { idemKey });
 
         if (summary.status === "accepted") {
           setInviteMessage("Invite auto-accepted - you're now friends!");
-          setUsers((prev) =>
-            prev.map((user) => (user.user_id === targetUserId ? { ...user, is_friend: true } : user)),
-          );
+          setUsers((prev) => {
+            const next = prev.map((user) =>
+              user.user_id === targetUserId ? { ...user, is_friend: true } : user,
+            );
+            usersRef.current = next;
+            nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
+              items: next,
+            });
+            return next;
+          });
           emitFriendshipFormed(targetUserId);
         } else {
           setInviteMessage("Invite sent.");
@@ -354,6 +411,18 @@ export default function ProximityPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Nearby on Campus</h1>
         <p className="text-sm text-slate-600">Heartbeats fire every {heartbeatSeconds}s based on tab visibility.</p>
       </header>
+
+      {showReconnectBanner ? (
+        <p className="rounded bg-slate-100 px-3 py-2 text-sm text-slate-700" role="status" aria-live="polite">
+          Reconnecting…
+        </p>
+      ) : null}
+
+      {showDisconnectedBanner ? (
+        <p className="rounded bg-rose-100 px-3 py-2 text-sm text-rose-700" role="alert" aria-live="assertive">
+          Connection lost. Trying to reconnect…
+        </p>
+      ) : null}
 
       {currentCampusId === DEMO_CAMPUS_ID ? (
         <p className="rounded bg-blue-100 px-3 py-2 text-sm text-blue-800">

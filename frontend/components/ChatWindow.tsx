@@ -4,6 +4,10 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { SocketConnectionStatus } from "@/app/lib/socket/base";
+
+import { ReportUI } from "@/app/features/moderation/ReportButton";
+
 import type { ChatMessage } from "../lib/chat";
 import { ChooseActivityModal } from '../app/features/activities/components/ChooseActivityModal';
 import { LiveSessionShell } from '../app/features/activities/components/LiveSessionShell';
@@ -15,6 +19,7 @@ type Props = {
   selfUserId: string;
   peerName?: string | null;
   peerStatusText?: string | null;
+  connectionStatus?: SocketConnectionStatus;
 };
 
 const QUICK_EMOJI = ["😀", "😂", "👍", "🎉", "❤️", "😎"];
@@ -30,7 +35,15 @@ function isRenderableImageAttachment(attachment: ChatAttachment): attachment is 
   return typeof mediaType === "string" && mediaType.startsWith("image/");
 }
 
-export default function ChatWindow({ conversationId, onSend, messages, selfUserId, peerName, peerStatusText }: Props) {
+export default function ChatWindow({
+  conversationId,
+  onSend,
+  messages,
+  selfUserId,
+  peerName,
+  peerStatusText,
+  connectionStatus,
+}: Props) {
   const [playOpen, setPlayOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -91,6 +104,8 @@ export default function ChatWindow({ conversationId, onSend, messages, selfUserI
     return messages.find((message) => message.senderId !== selfUserId)?.senderId?.slice(0, 24) ?? "Friend";
   }, [messages, peerName, selfUserId]);
   const statusLabel = peerStatusText ?? "Online";
+  const reconnecting = connectionStatus === "reconnecting" || connectionStatus === "connecting";
+  const disconnected = connectionStatus === "disconnected";
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-200/60 bg-white/70 backdrop-blur">
@@ -140,6 +155,16 @@ export default function ChatWindow({ conversationId, onSend, messages, selfUserI
         </div>
       </header>
 
+      {reconnecting ? (
+        <div className="rounded-none border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-700" role="status" aria-live="polite">
+          Reconnecting…
+        </div>
+      ) : null}
+      {disconnected ? (
+        <div className="rounded-none border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs text-rose-700" role="alert" aria-live="assertive">
+          Connection lost. Messages will send when we reconnect.
+        </div>
+      ) : null}
       <div
         className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 px-4 py-4"
         role="log"
@@ -225,6 +250,9 @@ export default function ChatWindow({ conversationId, onSend, messages, selfUserI
                     {timeFormatter.format(createdAt)}
                   </time>
                   {isSelf ? <span className="text-slate-400">• Read</span> : null}
+                  {!isSelf ? (
+                    <ReportUI kind="message" targetId={msg.messageId} className="ml-1" />
+                  ) : null}
                 </div>
               </div>
             );

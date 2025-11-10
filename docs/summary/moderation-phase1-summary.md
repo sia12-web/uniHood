@@ -36,6 +36,7 @@ Deliver the first moderation slice that can ingest user reports and automated si
 
 ### Follow-Ups
 
-1. Apply migrations `0200`–`0205` to shared Postgres environments and backfill trust scores where required.
-2. Hook domain-specific enforcement actions (e.g., tombstone/remove integrations) by providing real `EnforcementHooks` implementations and extending end-to-end tests.
-3. Add integration coverage for Redis stream workers (ingress/actions) and DLQ handling once staging infrastructure is ready.
+Completed on 2025-11-10:
+- Migrations `0200`–`0205` are covered by the primary runbook (`scripts/apply_migrations.py`) and applied to shared Postgres; no further action required.
+- Communities enforcement hooks now wire warnings to notifications and restrict-create to the restriction ledger, matching Phase 1 policy expectations.
+- Redis stream workers (`mod:ingress`/`mod:decisions`) carry integration coverage via `backend/tests/redis_integration/test_moderation_workers.py` alongside existing unit suites.

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.domain.identity import flags, middleware_acl, policy, schemas
+from app.domain.identity import flags, policy, schemas
+from app.api.security_deps import require_perms
 from app.infra.auth import AuthenticatedUser, get_current_user
+from app.obs import audit as obs_audit
 
 router = APIRouter(prefix="/flags", tags=["flags"])
 
@@ -25,31 +27,46 @@ def _map_error(exc: policy.IdentityPolicyError) -> HTTPException:
 
 @router.get("", response_model=list[schemas.FeatureFlagOut])
 async def list_flags_endpoint(
-	_: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
+	_: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
 ) -> list[schemas.FeatureFlagOut]:
 	return await flags.list_flags()
 
 
 @router.post("", response_model=schemas.FeatureFlagOut, status_code=status.HTTP_201_CREATED)
 async def upsert_flag_endpoint(
+	request: Request,
 	payload: schemas.FeatureFlagUpsertRequest,
-	actor: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
+	actor: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
 ) -> schemas.FeatureFlagOut:
 	try:
-		return await flags.upsert_flag(actor.id, payload)
+		result = await flags.upsert_flag(actor.id, payload)
+		await obs_audit.log_signed_intent_event(
+			request,
+			actor,
+			"flags.upsert",
+			extra={"flag_key": result.key},
+		)
+		return result
 	except policy.IdentityPolicyError as exc:
 		raise _map_error(exc) from exc
 
 
 @router.delete("/{key}", status_code=status.HTTP_200_OK)
 async def delete_flag_endpoint(
+	request: Request,
 	key: str,
-	actor: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
-) -> None:
+	actor: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
+) -> dict[str, str]:
 	try:
 		await flags.delete_flag(actor.id, key)
 	except policy.IdentityPolicyError as exc:
 		raise _map_error(exc) from exc
+	await obs_audit.log_signed_intent_event(
+		request,
+		actor,
+		"flags.delete",
+		extra={"flag_key": key},
+	)
 	return {"status": "ok"}
 
 
@@ -58,31 +75,46 @@ async def list_overrides_endpoint(
 	key: str,
 	user_id: Optional[str] = Query(default=None),
 	campus_id: Optional[str] = Query(default=None),
-	_: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
+	_: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
 ) -> list[schemas.FlagOverrideOut]:
 	return await flags.list_overrides(key, user_id=user_id, campus_id=campus_id)
 
 
 @router.post("/overrides", response_model=schemas.FlagOverrideOut)
 async def upsert_override_endpoint(
+	request: Request,
 	payload: schemas.FlagOverrideRequest,
-	actor: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
+	actor: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
 ) -> schemas.FlagOverrideOut:
 	try:
-		return await flags.upsert_override(actor.id, payload)
+		result = await flags.upsert_override(actor.id, payload)
+		await obs_audit.log_signed_intent_event(
+			request,
+			actor,
+			"flags.override_upsert",
+			extra={"flag_key": payload.flag_key, "target_user_id": payload.user_id, "target_campus_id": payload.campus_id},
+		)
+		return result
 	except policy.IdentityPolicyError as exc:
 		raise _map_error(exc) from exc
 
 
 @router.delete("/overrides", status_code=status.HTTP_200_OK)
 async def delete_override_endpoint(
+	request: Request,
 	payload: schemas.FlagOverrideDeleteRequest,
-	actor: AuthenticatedUser = Depends(middleware_acl.require_permission(PERMISSION_FLAGS_MANAGE)),
-) -> None:
+	actor: AuthenticatedUser = Depends(require_perms(PERMISSION_FLAGS_MANAGE)),
+) -> dict[str, str]:
 	try:
 		await flags.delete_override(actor.id, payload)
 	except policy.IdentityPolicyError as exc:
 		raise _map_error(exc) from exc
+	await obs_audit.log_signed_intent_event(
+		request,
+		actor,
+		"flags.override_delete",
+		extra={"flag_key": payload.flag_key, "target_user_id": payload.user_id, "target_campus_id": payload.campus_id},
+	)
 	return {"status": "ok"}
 
 

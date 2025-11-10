@@ -1,4 +1,12 @@
-import { io, Socket } from 'socket.io-client';
+import { apiFetch as httpFetch, type ApiFetchOptions } from '@/app/lib/http/client';
+import type { Socket } from 'socket.io-client';
+import {
+	connectRoomsSocket,
+	disconnectRoomsSocket as teardownRoomsSocket,
+	getRoomsSocketInstance,
+	getRoomsSocketStatus,
+	onRoomsSocketStatus,
+} from '@/app/lib/socket/rooms';
 
 export type RoomRole = 'owner' | 'moderator' | 'member';
 
@@ -79,9 +87,6 @@ export type RoomsClientEvents = {
 export type RoomsSocket = Socket<RoomsServerEvents, RoomsClientEvents>;
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
-const SOCKET_BASE = process.env.NEXT_PUBLIC_SOCKET_URL ?? API_BASE ?? '';
-const DEFAULT_HEADERS: Record<string, string> = { 'Content-Type': 'application/json' };
-
 let socketInstance: RoomsSocket | null = null;
 
 function resolveUrl(path: string): string {
@@ -91,29 +96,15 @@ function resolveUrl(path: string): string {
 	return path.startsWith('/') ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(resolveUrl(path), {
-		credentials: 'include',
-		...init,
-		headers: {
-			...DEFAULT_HEADERS,
-			...(init?.headers ?? {}),
-		},
-	});
-	if (!response.ok) {
-		const message = await response.text();
-		throw new Error(message || `Request failed: ${response.status}`);
-	}
-	if (response.status === 204) {
-		return undefined as T;
-	}
-	return (await response.json()) as T;
+async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+	return httpFetch<T>(resolveUrl(path), init);
 }
 
-async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+async function apiPost<T>(path: string, body?: unknown, init?: ApiFetchOptions): Promise<T> {
 	return apiFetch<T>(path, {
 		method: 'POST',
-		body: body !== undefined ? JSON.stringify(body) : undefined,
+		body,
+		...init,
 	});
 }
 
@@ -182,16 +173,21 @@ export async function markRead(roomId: string, upToSeq: number): Promise<void> {
 	await apiPostOk(`/rooms/${roomId}/read`, { up_to_seq: upToSeq });
 }
 
-export function roomsSocket(options?: { token?: string; baseUrl?: string }): RoomsSocket {
+export function roomsSocket(): RoomsSocket {
 	if (socketInstance) {
 		return socketInstance;
 	}
-	const url = options?.baseUrl ?? SOCKET_BASE;
-	socketInstance = io(url, {
-		path: '/socket.io',
-		transports: ['websocket'],
-		withCredentials: true,
-		auth: options?.token ? { token: options.token } : undefined,
-	}) as RoomsSocket;
-	return socketInstance;
+	const instance = (connectRoomsSocket() ?? getRoomsSocketInstance()) as RoomsSocket | null;
+	if (!instance) {
+		throw new Error('Rooms socket unavailable');
+	}
+	socketInstance = instance;
+	return instance;
 }
+
+export function disconnectRoomsSocket(): void {
+	teardownRoomsSocket();
+	socketInstance = null;
+}
+
+export { onRoomsSocketStatus, getRoomsSocketStatus };

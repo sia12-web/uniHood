@@ -1,3 +1,4 @@
+import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
 import type {
 	AuditLogItem,
@@ -8,68 +9,13 @@ import type {
 	ProfilePrivacy,
 } from "./types";
 
-type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
-
 const BASE_URL = getBackendUrl();
 
-type RequestOptions = {
-	method?: HttpMethod;
-	body?: unknown;
-	headers?: Record<string, string>;
-};
-
-async function decodeError(response: Response): Promise<never> {
-	let message = `Request failed (${response.status})`;
-	try {
-		const data = await response.json();
-		if (typeof data === "string") {
-			message = data;
-		} else if (data?.detail) {
-			message = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-		}
-	} catch {
-		try {
-			const text = await response.text();
-			if (text) {
-				message = text;
-			}
-		} catch {
-			// swallow secondary failure
-		}
-	}
-	throw new Error(message);
-}
-
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, headers = {} } = options;
-	const url = `${BASE_URL}${path}`;
-	let response: Response;
-	try {
-		response = await fetch(url, {
-			method,
-			headers: {
-				...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-				...headers,
-			},
-			body: body !== undefined ? JSON.stringify(body) : undefined,
-			cache: "no-store",
-		});
-	} catch (err) {
-		if (err instanceof TypeError && err.message === "Failed to fetch") {
-			throw new Error(`Failed to reach backend at ${url}. Confirm the dev server is running and CORS allows this origin.`);
-		}
-		throw err instanceof Error ? err : new Error(String(err));
-	}
-	if (!response.ok) {
-		await decodeError(response);
-	}
-	if (response.status === 204) {
-		return undefined as unknown as T;
-	}
-	if (response.headers.get("Content-Type")?.includes("application/json")) {
-		return (await response.json()) as T;
-	}
-	return (await response.text()) as unknown as T;
+async function request<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+	return apiFetch<T>(`${BASE_URL}${path}`, {
+		cache: "no-store",
+		...options,
+	});
 }
 
 function authHeaders(userId: string, campusId: string | null): Record<string, string> {

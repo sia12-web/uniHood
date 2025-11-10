@@ -52,7 +52,9 @@ from app.communities.workers.stream_emitter import StreamEmitter
 from app.communities.workers.unread_sync import UnreadSyncWorker
 from app.communities.jobs.invite_gc import InviteGarbageCollector
 from app.communities.jobs.membership_integrity import MembershipIntegrityJob
+from app.communities.jobs.anti_gaming import AntiGamingAnomalyJob
 from app.infra.redis import redis_client
+from app.maintenance.retention import purge_soft_deleted
 from app.moderation import configure_postgres as configure_moderation
 from app.moderation import router as moderation_router
 from app.moderation import spawn_workers as spawn_moderation_workers
@@ -66,6 +68,9 @@ from app.infra import postgres
 from app.settings import settings
 from app.obs import init as obs_init
 from app.api.middleware_request_id import RequestIdMiddleware
+from app.api.middleware_idempotency import IdempotencyMiddleware
+from app.api.middleware_signed_intent import SignedIntentMiddleware
+from app.api.openapi import custom_openapi
 from app.api.errors import install_error_handlers
 from app.settings import settings
 
@@ -99,6 +104,7 @@ async def lifespan(app: FastAPI):
 		unread_worker = UnreadSyncWorker()
 		invite_gc_job = InviteGarbageCollector()
 		membership_job = MembershipIntegrityJob()
+		anti_gaming_job = AntiGamingAnomalyJob()
 		scheduler = FeedScheduler()
 		worker_instances.extend(
 			[
@@ -112,6 +118,7 @@ async def lifespan(app: FastAPI):
 				unread_worker,
 				invite_gc_job,
 				membership_job,
+				anti_gaming_job,
 			]
 		)
 		worker_tasks.append(
@@ -139,8 +146,13 @@ async def lifespan(app: FastAPI):
 		scheduler.schedule_hourly("communities-feed-rank", rank_worker.run_once, hours=1)
 		scheduler.schedule_hourly("communities-invite-gc", invite_gc_job.run_once, hours=1)
 		scheduler.schedule_hourly("communities-membership-integrity", membership_job.run_once, hours=1)
+		scheduler.schedule_hourly("communities-anti-gaming", anti_gaming_job.run_once, hours=1)
+		scheduler.schedule_hourly("retention-purge", purge_soft_deleted, hours=24)
 		app.state.communities_scheduler = scheduler
 		app.state.communities_workers = worker_instances
+	worker_tasks.append(
+		asyncio.create_task(live_sessions.run_presence_sweeper(redis_client), name="presence-sweeper")
+	)
 	try:
 		yield
 	finally:
@@ -159,6 +171,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
+custom_openapi(app)
 install_error_handlers(app)
 
 if settings.environment == "dev":
@@ -229,6 +242,15 @@ obs_init(app, sio)
 
 # Ensure every request carries an X-Request-Id and make it available on request.state
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(IdempotencyMiddleware)
+app.add_middleware(
+	SignedIntentMiddleware,
+	protected_paths=(
+		"/admin",
+		"/flags",
+		"/rooms",
+	),
+)
 
 
 app.include_router(auth.router, tags=["identity"])

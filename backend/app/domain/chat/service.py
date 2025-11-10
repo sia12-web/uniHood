@@ -8,7 +8,7 @@ import json
 import re
 from datetime import datetime, timezone
 from dataclasses import asdict
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple, TYPE_CHECKING
 
 import ulid
 
@@ -24,6 +24,10 @@ from .schemas import MessageListResponse, MessageResponse, OutboxResponse, SendM
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
+from app.api.pagination import encode_cursor
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+	from app.moderation.middleware.write_gate_v2 import WriteContext
 
 
 _EXTERNAL_LINK_RE = re.compile(r"https?://\S+", re.IGNORECASE)
@@ -33,7 +37,7 @@ def _strip_external_links(text: str) -> str:
 	return _EXTERNAL_LINK_RE.sub("[link removed]", text)
 
 
-def _build_moderation_meta(ctx: WriteContext) -> dict[str, bool] | None:
+def _build_moderation_meta(ctx: "WriteContext") -> dict[str, bool] | None:
 	flags: dict[str, bool] = {}
 	if ctx.shadow:
 		flags["shadowed"] = True
@@ -80,10 +84,39 @@ class _InMemoryStore:
 			messages.append(message)
 			return message
 
-	async def list_messages(self, conversation_id: str, *, after_seq: int, limit: int) -> List[ChatMessage]:
+	async def list_messages(
+		self,
+		conversation_id: str,
+		*,
+		cursor: Tuple[datetime, str] | None,
+		limit: int,
+	) -> List[ChatMessage]:
 		async with self._lock:
-			messages = self._messages.get(conversation_id, [])
-			return [m for m in messages if m.seq > after_seq][:limit]
+			messages = list(self._messages.get(conversation_id, []))
+			messages.sort(key=lambda m: (m.created_at, m.message_id), reverse=True)
+			if cursor:
+				cursor_dt, cursor_id = cursor
+				filtered = [
+					m
+					for m in messages
+					if m.created_at < cursor_dt
+					or (m.created_at == cursor_dt and m.message_id < cursor_id)
+				]
+			else:
+				filtered = messages
+			return filtered[:limit]
+
+	async def get_message(self, message_id: str) -> Optional[ChatMessage]:
+		async with self._lock:
+			for conversation_messages in self._messages.values():
+				for message in conversation_messages:
+					if message.message_id == message_id:
+						return message
+			return None
+
+	async def ensure_conversation(self, conversation: ConversationKey) -> None:
+		async with self._lock:
+			self._messages.setdefault(conversation.conversation_id, [])
 
 	async def fetch_outbox(self, conversation_id: str, user_id: str, after_seq: int, limit: int) -> List[ChatMessage]:
 		async with self._lock:
@@ -199,24 +232,68 @@ class ChatRepository:
 					created_at=created_at,
 				)
 
-	async def list_messages(self, conversation_id: str, *, after_seq: int, limit: int) -> List[ChatMessage]:
+	async def list_messages(
+		self,
+		conversation_id: str,
+		*,
+		cursor: Tuple[datetime, str] | None,
+		limit: int,
+	) -> List[ChatMessage]:
 		pool = await self._pool_or_none()
 		if pool is None:
-			return await _MEMORY_STORE.list_messages(conversation_id, after_seq=after_seq, limit=limit)
+			return await _MEMORY_STORE.list_messages(conversation_id, cursor=cursor, limit=limit)
 		async with pool.acquire() as conn:
-			rows = await conn.fetch(
+			params: List[object] = [conversation_id]
+			where_clause = ""
+			if cursor:
+				params.extend([cursor[0], cursor[1]])
+				where_clause = f" AND (created_at, message_id) < ($2, $3)"
+			params.append(limit)
+			query = (
 				"""
-				SELECT seq, message_id, client_msg_id, sender_id, recipient_id, body, attachments, created_at
+				SELECT conversation_id, seq, message_id, client_msg_id, sender_id, recipient_id, body, attachments, created_at
 				FROM chat_messages
-				WHERE conversation_id = $1 AND seq > $2
-				ORDER BY seq ASC
-				LIMIT $3
-				""",
-				conversation_id,
-				after_seq,
-				limit,
+				WHERE conversation_id = $1
+				"""
+				+ where_clause
+				+ f" ORDER BY created_at DESC, message_id DESC LIMIT ${len(params)}"
 			)
-			return [self._row_to_message(conversation_id, row) for row in rows]
+			rows = await conn.fetch(query, *params)
+			return [self._row_to_message(str(row["conversation_id"]), row) for row in rows]
+
+	async def get_message_by_id(self, message_id: str) -> Optional[ChatMessage]:
+		pool = await self._pool_or_none()
+		if pool is None:
+			return await _MEMORY_STORE.get_message(message_id)
+		async with pool.acquire() as conn:
+			row = await conn.fetchrow(
+				"""
+				SELECT conversation_id, seq, message_id, client_msg_id, sender_id, recipient_id, body, attachments, created_at
+				FROM chat_messages
+				WHERE message_id = $1
+				""",
+				message_id,
+			)
+			if not row:
+				return None
+			return self._row_to_message(str(row["conversation_id"]), row)
+
+	async def ensure_conversation(self, conversation: ConversationKey) -> None:
+		pool = await self._pool_or_none()
+		if pool is None:
+			return
+		user_a, user_b = conversation.participants()
+		async with pool.acquire() as conn:
+			await conn.execute(
+				"""
+				INSERT INTO chat_conversations (conversation_id, user_a, user_b)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (conversation_id) DO NOTHING
+				""",
+				conversation.conversation_id,
+				user_a,
+				user_b,
+			)
 
 	async def fetch_outbox(self, conversation_id: str, user_id: str, after_seq: int, limit: int) -> List[ChatMessage]:
 		pool = await self._pool_or_none()
@@ -367,26 +444,40 @@ class ChatService:
 		)
 		return response
 
+	async def get_message(self, auth_user: AuthenticatedUser, message_id: str) -> MessageResponse:
+		message = await self._repo.get_message_by_id(message_id)
+		if not message or not message.is_participant(str(auth_user.id)):
+			raise ValueError("message_not_found")
+		return MessageResponse.from_model(message)
+
+	async def ensure_dm_conversation(self, auth_user: AuthenticatedUser, peer_id: str) -> ConversationKey:
+		if str(auth_user.id) == str(peer_id):
+			raise ValueError("cannot_dm_self")
+		conversation = ConversationKey.from_participants(auth_user.id, peer_id)
+		await self._repo.ensure_conversation(conversation)
+		return conversation
+
 	async def list_messages(
 		self,
 		auth_user: AuthenticatedUser,
 		other_user_id: str,
 		*,
-		cursor: Optional[str],
+		cursor: Optional[Tuple[datetime, str]],
 		limit: int,
 	) -> MessageListResponse:
 		conversation = ConversationKey.from_participants(auth_user.id, other_user_id)
-		after_seq = 0
-		if cursor:
-			decoded = base64.b64decode(cursor.encode()).decode()
-			after_seq = ConversationCursor.decode(decoded).seq
-		messages = await self._repo.list_messages(conversation.conversation_id, after_seq=after_seq, limit=limit)
-		items = [MessageResponse.from_model(msg) for msg in messages]
+		rows = await self._repo.list_messages(
+			conversation.conversation_id,
+			cursor=cursor,
+			limit=limit + 1,
+		)
+		page = rows[:limit]
+		items = [MessageResponse.from_model(msg) for msg in page]
 		next_cursor = None
-		if len(messages) == limit:
-			last = messages[-1]
-			next_cursor = base64.b64encode(ConversationCursor(conversation.conversation_id, last.seq).encode().encode()).decode()
-		return MessageListResponse(items=items, next_cursor=next_cursor)
+		if len(rows) > limit and page:
+			last = page[-1]
+			next_cursor = encode_cursor(last.created_at, last.message_id)
+		return MessageListResponse(items=items, next=next_cursor)
 
 	async def acknowledge_delivery(
 		self,
@@ -458,10 +549,18 @@ async def list_messages(
 	auth_user: AuthenticatedUser,
 	other_user_id: str,
 	*,
-	cursor: Optional[str],
+	cursor: Optional[Tuple[datetime, str]],
 	limit: int,
 ) -> MessageListResponse:
 	return await _SERVICE.list_messages(auth_user, other_user_id, cursor=cursor, limit=limit)
+
+
+async def get_message(auth_user: AuthenticatedUser, message_id: str) -> MessageResponse:
+	return await _SERVICE.get_message(auth_user, message_id)
+
+
+async def ensure_dm_conversation(auth_user: AuthenticatedUser, peer_id: str) -> ConversationKey:
+	return await _SERVICE.ensure_dm_conversation(auth_user, peer_id)
 
 
 async def acknowledge_delivery(auth_user: AuthenticatedUser, other_user_id: str, delivered_seq: int) -> int:

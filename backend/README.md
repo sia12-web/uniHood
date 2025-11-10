@@ -10,6 +10,13 @@ This service provides real-time presence, proximity lookup, and social discovery
 - Apply `infra/migrations/0005_search.sql` to install trigram indexes for user/room lookups
 - See `docs/part1/socializing/phase1-proximity-core/spec.md`, `docs/part1/socializing/phase7-search-discovery/spec.md`, and `docs/part1/socializing/phase8-observability-ops/spec.md`
 
+## Idempotency controls
+
+- Critical write endpoints now reserve keys in Postgres (`idempotency_keys`) and return `201 Created` on first success, `200 OK` for safe replays.
+- Fail-loud behaviour is enabled by default outside dev/test (`IDEMPOTENCY_REQUIRED=true`). If storage is unreachable the API returns HTTP 503 instead of processing duplicate side effects.
+- Override TTL with `IDEMPOTENCY_TTL_SECONDS` (default 86400 seconds) and disable strict enforcement in sandbox environments via `IDEMPOTENCY_REQUIRED=false`.
+- Ops can probe storage reachability with `GET /health/idempotency`; wire this into deployment health checks.
+
 ## Local commands
 
 - Run API tests: `python -m pytest -q`

@@ -37,7 +37,7 @@ async def test_send_invite_success(monkeypatch, api_client):
         json={"to_user_id": str(uuid4())},
         headers={"X-User-Id": "aaaa", "X-Campus-Id": "campus"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     body = response.json()
     assert body["id"] == str(summary.id)
     assert body["status"] == summary.status

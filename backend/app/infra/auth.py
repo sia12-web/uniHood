@@ -9,13 +9,14 @@ Hardening changes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Iterable
+from typing import Optional, Tuple, Iterable, Dict
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.settings import settings
 from app.infra import jwt as jwt_helper
+from app.obs import metrics as obs_metrics
 
 
 @dataclass(slots=True)
@@ -25,6 +26,7 @@ class AuthenticatedUser:
 	handle: Optional[str] = None
 	display_name: Optional[str] = None
 	roles: Tuple[str, ...] = ()
+	session_id: Optional[str] = None
 
 	def has_role(self, role: str) -> bool:
 		return role in self.roles
@@ -63,35 +65,43 @@ def verify_access_jwt(token: str) -> AuthenticatedUser:
 	else:
 		roles = ()
 
+	session_id = payload.get("sid")
+
 	return AuthenticatedUser(
 		id=sub,
 		campus_id=campus_id,
 		handle=str(handle) if handle is not None else None,
 		display_name=str(display_name) if display_name is not None else None,
 		roles=roles,
+		session_id=str(session_id).strip() if session_id is not None else None,
 	)
 
 
 async def get_current_user(
+	request: Request,
 	x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 	x_campus_id: Optional[str] = Header(default=None, alias="X-Campus-Id"),
 	x_user_roles: Optional[str] = Header(default=None, alias="X-User-Roles"),
 	credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
 ) -> AuthenticatedUser:
 	"""Resolve the authenticated user.
-    
+
 	In development we allow simple headers. In all other environments, headers are
 	ignored and a valid Bearer JWT is required.
 	"""
 	# Prefer bearer JWT when present
 	if credentials and credentials.scheme.lower() == "bearer":
-		return verify_access_jwt(credentials.credentials)
+		user = verify_access_jwt(credentials.credentials)
+		_enforce_signed_intent_identity(request, user)
+		return user
 
 	# In dev only, allow X-User-* fallback for local tools
 	if settings.is_dev():
 		if x_user_id and x_campus_id:
 			roles = tuple(filter(None, (x_user_roles or "").split(","))) if x_user_roles else ()
-			return AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles)
+			user = AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles)
+			_enforce_signed_intent_identity(request, user)
+			return user
 
 	# Otherwise, no valid auth presented
 	raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token")
@@ -119,4 +129,61 @@ def require_roles(*required: Iterable[str]):
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")
 
 	return _dep
+
+
+def _enforce_signed_intent_identity(request: Request, user: AuthenticatedUser) -> None:
+	intent = getattr(request.state, "intent", None)
+	if not intent:
+		return
+	expected_user = str(intent.get("user_id") or "").strip()
+	if expected_user and expected_user != str(user.id):
+		obs_metrics.intent_bad()
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="intent_mismatch")
+	expected_session = str(intent.get("session_id") or "").strip()
+	if not expected_session:
+		return
+	user_session = user.session_id
+	if user_session:
+		if str(user_session) != expected_session:
+			obs_metrics.intent_bad()
+			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="intent_mismatch")
+		return
+	if not settings.is_dev():
+		obs_metrics.intent_bad()
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="intent_mismatch")
+
+
+def _parse_token(token: str) -> Dict[str, Optional[str]]:
+	"""Parse either a JWT or the legacy synthetic access token."""
+	token = (token or "").strip()
+	if not token:
+		raise ValueError("empty_token")
+	if token.count(".") == 2:
+		user = verify_access_jwt(token)
+		if not user.session_id:
+			raise ValueError("missing_session")
+		return {
+			"user_id": user.id,
+			"campus_id": user.campus_id,
+			"session_id": user.session_id,
+			"handle": user.handle,
+		}
+	parts: Dict[str, str] = {}
+	for chunk in token.split(";"):
+		chunk = chunk.strip()
+		if not chunk or ":" not in chunk:
+			continue
+		key, value = chunk.split(":", 1)
+		parts[key.strip().lower()] = value.strip()
+	uid = parts.get("uid") or parts.get("user_id")
+	campus = parts.get("campus") or parts.get("campus_id")
+	session = parts.get("sid") or parts.get("session") or parts.get("session_id")
+	if not uid or not campus or not session:
+		raise ValueError("invalid_token")
+	return {
+		"user_id": uid,
+		"campus_id": campus,
+		"session_id": session,
+		"handle": parts.get("handle"),
+	}
 

@@ -8,14 +8,27 @@ import {
 	verifyEmailToken,
 } from "@/lib/identity";
 
-const jsonHeaders = {
-	get(key: string) {
-		if (key.toLowerCase() === "content-type") {
-			return "application/json";
-		}
-		return null;
-	},
-};
+function normaliseHeaders(input: unknown): Record<string, string> {
+	if (!input) {
+		return {};
+	}
+	if (typeof input === "object" && input !== null && typeof (input as Headers).entries === "function") {
+		return Object.fromEntries(Array.from((input as Headers).entries()).map(([key, value]) => [key.toLowerCase(), value]));
+	}
+	if (typeof input === "object" && input !== null) {
+		return Object.fromEntries(Object.entries(input as Record<string, string>).map(([key, value]) => [key.toLowerCase(), value]));
+	}
+	return {};
+}
+
+	const jsonHeaders = {
+		get(key: string) {
+			if (key.toLowerCase() === "content-type") {
+				return "application/json";
+			}
+			return null;
+		},
+	};
 
 const emptyHeaders = {
 	get() {
@@ -64,7 +77,8 @@ describe("identity api helpers", () => {
 
 		const [, options] = fetchMock.mock.calls[0];
 		expect(options?.method).toBe("POST");
-		expect(options?.headers).toMatchObject({ "Content-Type": "application/json" });
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toMatchObject({ "content-type": "application/json" });
 		expect(options?.body).toContain("demo@example.edu");
 	});
 
@@ -89,7 +103,8 @@ describe("identity api helpers", () => {
 		await patchProfile("u-1", "c-1", { display_name: "Demo" });
 
 		const [, options] = fetchMock.mock.calls[0];
-		expect(options?.headers).toMatchObject({ "X-User-Id": "u-1", "X-Campus-Id": "c-1" });
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toMatchObject({ "x-user-id": "u-1", "x-campus-id": "c-1" });
 	});
 
 	it("raises error message from backend", async () => {
@@ -119,6 +134,7 @@ describe("identity api helpers", () => {
 		const [url, options] = fetchMock.mock.calls[0];
 		expect(url).toBe("http://localhost:8000/profile/avatar/commit");
 		expect(options?.method).toBe("POST");
-		expect(options?.headers).toMatchObject({ "X-User-Id": "u-1" });
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toMatchObject({ "x-user-id": "u-1" });
 	});
 });

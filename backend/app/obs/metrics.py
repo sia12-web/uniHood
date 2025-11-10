@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 from typing import Iterable
+import logging
 
 from prometheus_client import Counter, Gauge, Histogram, Summary
+
+log = logging.getLogger(__name__)
+
+_idem = {"hit": 0, "miss": 0, "conflict": 0, "unavail": 0}
+
 
 REQUEST_COUNTER = Counter(
 	"divan_http_requests_total",
@@ -37,6 +43,21 @@ SOCKET_EVENTS = Counter(
 	["namespace", "event"],
 )
 
+INTENTS_VERIFIED = Counter(
+	"intents_verified_total",
+	"Signed intents verified",
+)
+
+INTENTS_BAD_SIG = Counter(
+	"intents_failed_sig_total",
+	"Signed intents bad signature",
+)
+
+INTENTS_REPLAY = Counter(
+	"intents_replay_total",
+	"Signed intents replay",
+)
+
 PRESENCE_HEARTBEATS = Counter(
 	"divan_presence_heartbeats_total",
 	"Presence heartbeats accepted",
@@ -47,6 +68,11 @@ PRESENCE_REJECTS = Counter(
 	"divan_presence_rejects_total",
 	"Presence heartbeats rejected",
 	["reason"],
+)
+
+PRESENCE_SWEEPER_TRIMS = Counter(
+	"divan_presence_sweeper_trim_total",
+	"Presence GEO members removed by stale sweeper",
 )
 
 COMM_NOTIFICATION_INSERT = Counter(
@@ -77,6 +103,29 @@ PROXIMITY_QUERIES = Counter(
 	"divan_proximity_queries_total",
 	"Nearby proximity queries",
 	["radius"],
+)
+
+PROXIMITY_RESULTS = Summary(
+	"divan_proximity_results_avg",
+	"Nearby query result sizes",
+)
+
+PRESENCE_ONLINE = Gauge(
+	"divan_presence_online_gauge",
+	"Active presence users per campus",
+	["campus_id"],
+)
+
+PRESENCE_HEARTBEAT_MISS = Counter(
+	"divan_presence_heartbeat_miss_total",
+	"Presence heartbeats missed (stale entries removed)",
+	["campus_id"],
+)
+
+RATE_LIMITED_EVENTS = Counter(
+	"divan_rate_limited_total",
+	"Events dropped due to rate limiting",
+	["kind"],
 )
 
 INVITES_SENT = Counter(
@@ -281,6 +330,48 @@ SEARCH_LATENCY = Histogram(
 	"Search latency in seconds",
 	["kind"],
 	buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0),
+)
+
+# Phase F metrics ------------------------------------------------------------
+
+SEARCH_QUERIES_V2 = Counter(
+	"search_queries_total",
+	"Search queries",
+	["type"],
+)
+
+SEARCH_DURATION_V2 = Histogram(
+	"search_duration_ms",
+	"Search duration",
+	buckets=[10, 25, 50, 100, 250, 500, 1000],
+)
+
+SEARCH_RESULTS_AVG = Gauge(
+	"search_results_avg",
+	"Avg results per query",
+	["type"],
+)
+
+FEED_RANK_CANDIDATES = Counter(
+	"feed_rank_candidates_total",
+	"Candidates considered",
+)
+
+FEED_RANK_DURATION = Histogram(
+	"feed_rank_duration_ms",
+	"Feed rank duration",
+	buckets=[5, 10, 20, 40, 80, 160, 320],
+)
+
+FEED_RANK_SCORE_AVG = Gauge(
+	"feed_rank_score_avg",
+	"Average score of top-N",
+)
+
+ANTI_GAMING_FLAGS = Counter(
+	"anti_gaming_flags_total",
+	"Anti-gaming flags",
+	["reason"],
 )
 
 IDENTITY_REGISTER = Counter(
@@ -978,6 +1069,40 @@ def inc_verify_admin_decision(result: str) -> None:
 
 def inc_verify_trust_recompute() -> None:
 	VERIFY_TRUST_RECOMPUTE.inc()
+
+
+def inc_idem_hit() -> None:
+	"""Increment idempotency hit counter."""
+	_idem["hit"] += 1
+
+
+def inc_idem_miss() -> None:
+	"""Increment idempotency miss counter."""
+	_idem["miss"] += 1
+
+
+def inc_idem_conflict() -> None:
+	"""Increment idempotency conflict counter."""
+	_idem["conflict"] += 1
+
+
+def inc_idem_unavail() -> None:
+	"""Increment idempotency unavailable counter."""
+	_idem["unavail"] += 1
+
+
+def intent_ok() -> None:
+	INTENTS_VERIFIED.inc()
+
+
+def intent_bad() -> None:
+	INTENTS_BAD_SIG.inc()
+
+
+def intent_replay() -> None:
+	INTENTS_REPLAY.inc()
+
+
 def increment_bulk(counter: Counter, labels: Iterable[tuple[str, str]]) -> None:
 	"""Deprecated shim for compatibility with legacy Redis counters."""
 	for label_name, label_value in labels:

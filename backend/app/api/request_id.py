@@ -21,5 +21,13 @@ def get_request_id(request: Request | None = None) -> str:
     """
     if request is None:
         return str(uuid.uuid4())
+
     rid = getattr(request.state, REQUEST_ID_ATTR, None)
-    return rid or str(uuid.uuid4())
+    if rid:
+        return rid
+
+    header_rid = request.headers.get("X-Request-Id")
+    if header_rid:
+        return header_rid
+
+    return str(uuid.uuid4())

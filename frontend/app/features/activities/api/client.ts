@@ -10,7 +10,7 @@ import { readAuthSnapshot } from '@/lib/auth-storage';
 const api = axios.create({ baseURL: BACKEND || undefined });
 
 // Attach auth headers for every request if available
-api.interceptors.request.use((config) => {
+api.interceptors?.request?.use?.((config) => {
   const auth = typeof window !== 'undefined' ? readAuthSnapshot() : null;
   if (auth?.access_token) {
     config.headers = config.headers || {};

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import React, { useEffect, useRef, useState } from 'react';
 
 type Props = {
@@ -24,6 +25,7 @@ export const UncopyableSnippet: React.FC<Props> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,8 +54,8 @@ export const UncopyableSnippet: React.FC<Props> = ({
     if (line) lines.push(line);
 
     // Compute canvas size
-    const contentWidth = widthPx;
-    const contentHeight = padding * 2 + lines.length * lineHeight;
+  const contentWidth = widthPx;
+  const contentHeight = padding * 2 + lines.length * lineHeight;
 
     canvas.width = Math.ceil(contentWidth * dpr);
     canvas.height = Math.ceil(contentHeight * dpr);
@@ -97,6 +99,7 @@ export const UncopyableSnippet: React.FC<Props> = ({
     }
 
     // Convert to image while keeping the canvas hidden for future updates
+    setDimensions({ width: contentWidth, height: contentHeight });
     setImgUrl(canvas.toDataURL('image/png'));
   }, [text, widthPx, font, lineHeight, padding, antiOcrNoise]);
 
@@ -119,15 +122,17 @@ export const UncopyableSnippet: React.FC<Props> = ({
       title="Copying disabled"
     >
       <canvas ref={canvasRef} className="hidden" aria-hidden />
-      {imgUrl && (
-        <img
+      {imgUrl && dimensions ? (
+        <Image
           src={imgUrl}
           alt="Uncopyable prompt"
           className="block pointer-events-none select-none"
-          width={widthPx}
+          width={dimensions.width}
+          height={dimensions.height}
           draggable={false}
+          unoptimized
         />
-      )}
+      ) : null}
     </div>
   );
 };

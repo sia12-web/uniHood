@@ -114,5 +114,16 @@ class TypingEvent(BaseModel):
     on: bool
 
 
+class DMRoomCreateRequest(BaseModel):
+    peer_id: str
+    campus_id: Optional[str] = None
+
+
+class DMRoomResponse(BaseModel):
+    room_id: str
+    conversation_id: str
+    participants: List[str]
+
+
 RoomDetail.model_rebuild()
 

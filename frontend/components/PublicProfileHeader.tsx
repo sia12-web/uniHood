@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportUI } from "@/app/features/moderation/ReportButton";
 import type { PublicProfile } from "@/lib/types";
 
 type PublicProfileHeaderProps = {
@@ -29,6 +30,9 @@ export default function PublicProfileHeader({ profile }: PublicProfileHeaderProp
 						<p className="text-sm text-slate-500">Campus: {profile.campus_id}</p>
 					) : null}
 				</div>
+			</div>
+			<div className="flex items-start justify-end gap-2 md:ml-auto">
+				<ReportUI kind="profile" targetId={profile.user_id} />
 			</div>
 			{profile.bio ? <p className="text-sm text-slate-600 md:flex-1">{profile.bio}</p> : null}
 		</header>

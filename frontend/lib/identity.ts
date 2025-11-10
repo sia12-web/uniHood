@@ -1,62 +1,15 @@
+import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
 import type { CampusRow, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
 
-type HttpMethod = "GET" | "POST" | "PATCH";
-
 const BASE_URL = getBackendUrl();
 
-type RequestOptions = {
-	method?: HttpMethod;
-	body?: unknown;
-	headers?: Record<string, string>;
-};
-
-async function decodeError(response: Response): Promise<never> {
-	let message = `Request failed (${response.status})`;
-	try {
-		const data = await response.json();
-		if (typeof data === "string") {
-			message = data;
-		} else if (data?.detail) {
-			message = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-		}
-	} catch {
-		try {
-			const text = await response.text();
-			if (text) {
-				message = text;
-			}
-		} catch {
-			// swallow secondary failure
-		}
-	}
-	throw new Error(message);
-}
-
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, headers = {} } = options;
-	const response = await fetch(`${BASE_URL}${path}`, {
-		method,
-		headers: {
-			...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-			...headers,
-		},
-		body: body !== undefined ? JSON.stringify(body) : undefined,
+async function request<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+	return apiFetch<T>(`${BASE_URL}${path}`, {
 		cache: "no-store",
+		method: options.method ?? "GET",
+		...options,
 	});
-	if (!response.ok) {
-		await decodeError(response);
-	}
-	if (response.status === 204) {
-		return undefined as unknown as T;
-	}
-	if (response.headers.get("Content-Length") === "0") {
-		return undefined as unknown as T;
-	}
-	if (response.headers.get("Content-Type")?.includes("application/json")) {
-		return (await response.json()) as T;
-	}
-	return (await response.text()) as unknown as T;
 }
 
 export type RegisterPayload = {

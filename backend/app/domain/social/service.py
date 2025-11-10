@@ -19,6 +19,8 @@ from app.domain.social.models import INVITE_EXPIRES_DAYS, InvitationStatus
 from app.domain.social.schemas import FriendRow, FriendUpdatePayload, InviteSummary, InviteUpdatePayload
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
+from datetime import datetime
+from typing import Tuple, Optional
 
 
 def _record_to_summary(record: asyncpg.Record) -> InviteSummary:
@@ -70,6 +72,12 @@ async def _summarize_invite(conn: asyncpg.Connection, invite_id: UUID | str) -> 
 	if not record:
 		raise InviteNotFound()
 	return _record_to_summary(record)
+
+
+async def get_invite_summary(invite_id: UUID | str) -> InviteSummary:
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		return await _summarize_invite(conn, invite_id)
 
 
 async def _cancel_other_invites(
@@ -372,6 +380,86 @@ async def list_outbox(auth_user: AuthenticatedUser) -> List[InviteSummary]:
 			str(auth_user.id),
 		)
 	return [_record_to_summary(row) for row in rows]
+
+
+async def list_inbox_paginated(
+	auth_user: AuthenticatedUser,
+	*,
+	cursor: Optional[Tuple[datetime, str]] = None,
+	limit: int = 50,
+) -> tuple[List[InviteSummary], Optional[datetime], Optional[str]]:
+	"""Keyset paginate inbox (to_user_id, status='sent'), ordered by created_at DESC, id DESC."""
+	user_id = str(auth_user.id)
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		params: list[object] = [user_id]
+		where_cursor = ""
+		if cursor:
+			dt, last_id = cursor
+			params.extend([dt, str(last_id)])
+			where_cursor = " AND (created_at, id) < ($2, $3)"
+		query = (
+			"SELECT i.*, "
+			" sender.handle AS from_handle, COALESCE(sender.display_name, sender.handle) AS from_display_name,"
+			" recipient.handle AS to_handle, COALESCE(recipient.display_name, recipient.handle) AS to_display_name"
+			" FROM invitations i"
+			" JOIN users sender ON sender.id = i.from_user_id"
+			" JOIN users recipient ON recipient.id = i.to_user_id"
+			" WHERE i.to_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL"
+			f"{where_cursor}"
+			" ORDER BY i.created_at DESC, i.id DESC"
+			" LIMIT $" + str(len(params) + 1)
+		)
+		params.append(limit + 1)
+		rows = await conn.fetch(query, *params)
+	items = [_record_to_summary(row) for row in rows[:limit]]
+	next_dt: Optional[datetime] = None
+	next_id: Optional[str] = None
+	if len(rows) > limit:
+		tail = rows[limit]
+		next_dt = tail["created_at"]
+		next_id = str(tail["id"])
+	return items, next_dt, next_id
+
+
+async def list_outbox_paginated(
+	auth_user: AuthenticatedUser,
+	*,
+	cursor: Optional[Tuple[datetime, str]] = None,
+	limit: int = 50,
+) -> tuple[List[InviteSummary], Optional[datetime], Optional[str]]:
+	"""Keyset paginate outbox (from_user_id, status='sent'), ordered by created_at DESC, id DESC."""
+	user_id = str(auth_user.id)
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		params: list[object] = [user_id]
+		where_cursor = ""
+		if cursor:
+			dt, last_id = cursor
+			params.extend([dt, str(last_id)])
+			where_cursor = " AND (created_at, id) < ($2, $3)"
+		query = (
+			"SELECT i.*, "
+			" sender.handle AS from_handle, COALESCE(sender.display_name, sender.handle) AS from_display_name,"
+			" recipient.handle AS to_handle, COALESCE(recipient.display_name, recipient.handle) AS to_display_name"
+			" FROM invitations i"
+			" JOIN users sender ON sender.id = i.from_user_id"
+			" JOIN users recipient ON recipient.id = i.to_user_id"
+			" WHERE i.from_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL"
+			f"{where_cursor}"
+			" ORDER BY i.created_at DESC, i.id DESC"
+			" LIMIT $" + str(len(params) + 1)
+		)
+		params.append(limit + 1)
+		rows = await conn.fetch(query, *params)
+	items = [_record_to_summary(row) for row in rows[:limit]]
+	next_dt: Optional[datetime] = None
+	next_id: Optional[str] = None
+	if len(rows) > limit:
+		tail = rows[limit]
+		next_dt = tail["created_at"]
+		next_id = str(tail["id"])
+	return items, next_dt, next_id
 
 
 async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List[FriendRow]:

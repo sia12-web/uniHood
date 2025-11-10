@@ -183,6 +183,19 @@ class FeedListResponse(BaseModel):
 	next_cursor: Optional[str] = None
 
 
+class RankedFeedItem(BaseModel):
+	post_id: UUID
+	author_id: UUID
+	group_id: UUID
+	score: float
+	created_at: datetime
+
+
+class RankedFeedResponse(BaseModel):
+	items: List[RankedFeedItem]
+	next: Optional[str] = None
+
+
 class FeedRebuildRequest(BaseModel):
 	owner_id: UUID
 

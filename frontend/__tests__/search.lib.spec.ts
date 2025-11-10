@@ -4,6 +4,19 @@ import { discoverRooms, searchUsers } from "@/lib/search";
 
 const mockResponse = { items: [], cursor: null };
 
+function normaliseHeaders(input: unknown): Record<string, string> {
+	if (!input) {
+		return {};
+	}
+	if (typeof input === "object" && input !== null && typeof (input as Headers).entries === "function") {
+		return Object.fromEntries(Array.from((input as Headers).entries()).map(([key, value]) => [key.toLowerCase(), value]));
+	}
+	if (typeof input === "object" && input !== null) {
+		return Object.fromEntries(Object.entries(input as Record<string, string>).map(([key, value]) => [key.toLowerCase(), value]));
+	}
+	return {};
+}
+
 afterEach(() => {
 	vi.restoreAllMocks();
 });
@@ -22,7 +35,8 @@ describe("search api helpers", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const [url, options] = fetchMock.mock.calls[0];
 		expect(url).toBe("http://localhost:8000/search/users?q=alice&limit=10&cursor=abc&campus_id=c1");
-		expect(options?.headers).toMatchObject({ "X-User-Id": "u1", "X-Campus-Id": "c1" });
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toMatchObject({ "x-user-id": "u1", "x-campus-id": "c1" });
 	});
 
 	it("uses defaults for room discovery", async () => {
@@ -38,7 +52,8 @@ describe("search api helpers", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const [url, options] = fetchMock.mock.calls[0];
 		expect(url).toContain("/discover/rooms?");
-		expect(options?.headers).toHaveProperty("X-User-Id");
-		expect(options?.headers).toHaveProperty("X-Campus-Id");
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toHaveProperty("x-user-id");
+		expect(headers).toHaveProperty("x-campus-id");
 	});
 });

@@ -9,6 +9,19 @@ import {
   uploadContactHashes,
 } from "@/lib/account";
 
+function normaliseHeaders(input: unknown): Record<string, string> {
+  if (!input) {
+    return {};
+  }
+  if (typeof input === "object" && input !== null && typeof (input as Headers).entries === "function") {
+    return Object.fromEntries(Array.from((input as Headers).entries()).map(([key, value]) => [key.toLowerCase(), value]));
+  }
+  if (typeof input === "object" && input !== null) {
+    return Object.fromEntries(Object.entries(input as Record<string, string>).map(([key, value]) => [key.toLowerCase(), value]));
+  }
+  return {};
+}
+
 const jsonHeaders = {
   get(key: string) {
     if (key.toLowerCase() === "content-type") {
@@ -34,10 +47,11 @@ describe("account api helpers", () => {
 
     await listLinkProviders("user-1", "campus-1");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe("http://localhost:8000/account/link/providers");
-    expect(options?.headers).toMatchObject({ "X-User-Id": "user-1", "X-Campus-Id": "campus-1" });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const [url, options] = fetchMock.mock.calls[0];
+  expect(url).toBe("http://localhost:8000/account/link/providers");
+  const headers = normaliseHeaders(options?.headers);
+  expect(headers).toMatchObject({ "x-user-id": "user-1", "x-campus-id": "campus-1" });
   });
 
   it("fetches linked accounts", async () => {
@@ -58,8 +72,9 @@ describe("account api helpers", () => {
     const accounts = await listLinkedAccounts("user-1", null);
 
     expect(Array.isArray(accounts)).toBe(true);
-    const [, options] = fetchMock.mock.calls[0];
-    expect(options?.headers).toMatchObject({ "X-User-Id": "user-1" });
+  const [, options] = fetchMock.mock.calls[0];
+  const headers = normaliseHeaders(options?.headers);
+  expect(headers).toMatchObject({ "x-user-id": "user-1" });
   });
 
   it("starts account linking with provider query", async () => {

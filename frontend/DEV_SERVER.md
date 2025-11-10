@@ -1,12 +1,12 @@
 # Running the Next.js server
 
-These notes assume Windows PowerShell (the default shell in this workspace) and that dependencies are already installed via `npm ci`.
+These notes assume Windows PowerShell (the default shell in this workspace) and that dependencies are already installed via `pnpm install`.
 
 ## 1. Install once (per clone)
 
 ```powershell
 cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
-npm ci
+pnpm install
 ```
 
 ## 2. Start the development server
@@ -15,7 +15,7 @@ npm ci
 cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
 $env:NODE_OPTIONS=""
 $env:NEXT_TELEMETRY_DISABLED="1"
-npm run dev
+pnpm dev
 ```
 
 - Next.js listens on port `3000` by default. If that port is busy, the CLI will automatically fall back to the next free port (for example `3001`) and print the URL.
@@ -54,7 +54,7 @@ npm run dev
 
 ```powershell
 cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
-npm run test:e2e -- communities
+pnpm test:e2e -- communities
 ```
 
 - The command runs the `e2e/communities.spec.ts` check against a stubbed API.
@@ -68,7 +68,7 @@ npm run test:e2e -- communities
 
   ```powershell
   cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
-  npm run build
+  pnpm build
   ```
 
   This generates the optimized bundle used by `npx next start`.

@@ -24,14 +24,14 @@ PowerShell (Windows):
 - Redis: localhost:6379
 
 ## Frontend (Next.js)
-- Install deps
+- Install deps (the workspace uses pnpm)
   - cd .\frontend
-  - npm ci
+  - pnpm install
 - Dev server (default port 3000)
-  - npm run dev
+  - pnpm dev
 - Production build + start (choose a free port, e.g., 3010)
-  - npm run build
-  - npx next start -p 3010
+  - pnpm build
+  - pnpm start -- -p 3010
   - Open http://localhost:3010
 - Environment setup
   - Copy `.env.example` to `.env.local` in `frontend/`
@@ -57,8 +57,9 @@ PowerShell (Windows):
   - Activities hub: http://localhost:3000/activities
   - Speed typing duel: http://localhost:3000/activities/speed_typing
 - Tests
-  - Contract: npm run test -- communities
-  - E2E: npm run test:e2e -- communities
+  - Unit: pnpm test
+  - Contract: pnpm test -- communities
+  - E2E: pnpm test:e2e -- communities
 
 ### Activities: Typing Duel API mapping
 

@@ -1,7 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 vi.mock('@/app/features/activities/hooks/useSpeedTypingSession', () => {
   const markPasteDetected = vi.fn();
@@ -21,24 +20,23 @@ vi.mock('@/app/features/activities/hooks/useSpeedTypingSession', () => {
   };
 });
 
+const guardDetachMock = vi.hoisted(() => ({ detach: vi.fn() }));
+
+vi.mock('@/app/features/activities/guards/typingBoxGuards', () => ({
+  attachTypingBoxGuards: vi.fn(() => guardDetachMock.detach),
+}));
+
 import { SpeedTypingPanel } from '@/app/features/activities/components/SpeedTypingPanel';
 
 describe('SpeedTypingPanel paste prevention', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  it('prevents paste and shows toast', async () => {
+  it('prevents paste and shows toast', () => {
     render(<SpeedTypingPanel sessionId="s1" />);
     const textarea = screen.getByRole('textbox');
-    // Focus element
     textarea.focus();
-    // Dispatch native paste event (cancelable) which component prevents
-    const evt = new Event('paste', { bubbles: true, cancelable: true });
-    const allowed = textarea.dispatchEvent(evt);
-    expect(allowed).toBe(false);
-    // Flush microtasks so toast renders
-    await Promise.resolve();
+    act(() => {
+      const result = fireEvent.paste(textarea);
+      expect(result).toBe(false);
+    });
     expect(screen.getByText(/paste blocked/i)).toBeInTheDocument();
   });
 });

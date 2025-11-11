@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS mod_batch_job (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_type TEXT NOT NULL,
-    initiated_by UUID NOT NULL REFERENCES app_user(id),
+    initiated_by UUID NOT NULL REFERENCES users(id),
     params JSONB NOT NULL,
     dry_run BOOLEAN NOT NULL DEFAULT FALSE,
     sample_size INT NOT NULL DEFAULT 0,

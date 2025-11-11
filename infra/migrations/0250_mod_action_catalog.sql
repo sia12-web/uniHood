@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS mod_action_catalog (
     kind TEXT NOT NULL CHECK (kind IN ('atomic', 'macro')),
     spec JSONB NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_by UUID NOT NULL REFERENCES app_user(id),
+    created_by UUID NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (key, version)
 );

@@ -19,9 +19,9 @@ BEGIN
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'deleted_at'
+        WHERE table_schema = 'public' AND table_name = 'room_messages' AND column_name = 'deleted_at'
     ) THEN
-        ALTER TABLE messages ADD COLUMN deleted_at TIMESTAMPTZ;
+        ALTER TABLE room_messages ADD COLUMN deleted_at TIMESTAMPTZ;
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -38,7 +38,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE e
 
 -- users.handle was created as a table-level UNIQUE constraint in early migrations
 -- Drop default constraint-backed index (if present) and create partial unique index
-DROP INDEX IF EXISTS users_handle_key;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_handle_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle_unique ON users(handle) WHERE deleted_at IS NULL;
 
 -- invitations: ensure open invitation unique index ignores soft-deleted rows

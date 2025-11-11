@@ -1,7 +1,7 @@
 -- Phase 5: reputation events ledger
 CREATE TABLE IF NOT EXISTS mod_reputation_event (
     id BIGSERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     device_fp TEXT NULL,
     ip INET NULL,
     surface TEXT NOT NULL,

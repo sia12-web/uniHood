@@ -1,7 +1,6 @@
--- Phase 5: device fingerprint ledger
 CREATE TABLE IF NOT EXISTS mod_device (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     fp_hash TEXT NOT NULL,
     user_agent TEXT NULL,
     first_seen TIMESTAMPTZ NOT NULL DEFAULT now(),

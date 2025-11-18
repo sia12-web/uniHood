@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import type { FastifyBaseLogger } from "fastify";
 import type { RedisClientType } from "redis";
 import { getRedisClient } from "./lib/redis";
 import { createRateLimiter, SlidingWindowLimiter } from "./lib/rateLimiter";
@@ -19,12 +20,15 @@ export interface ServiceContainer {
   quickTrivia: QuickTriviaService;
 }
 
-export async function createServiceContainer(hub: SessionSocketHub): Promise<ServiceContainer> {
+export async function createServiceContainer(
+  hub: SessionSocketHub,
+  logger?: FastifyBaseLogger,
+): Promise<ServiceContainer> {
   const prisma = new PrismaClient();
   const redis = await getRedisClient();
   const limiter = await createRateLimiter(redis);
   const scheduler = createTimerScheduler();
-  const publisher = createSocketEventPublisher(hub);
+  const publisher = createSocketEventPublisher(hub, logger);
 
   const speedTyping = createSpeedTypingService({ prisma, redis, limiter, publisher, scheduler });
   const quickTrivia = createQuickTriviaService({ prisma, redis, limiter, publisher, scheduler });

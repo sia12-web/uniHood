@@ -48,9 +48,9 @@ type SpeedTypingMocks = {
   updateSkewEstimate: ReturnType<typeof vi.fn>;
 };
 
-async function createStream(overrides?: Partial<SpeedTypingMocks>) {
+async function createStream(overrides?: Partial<SpeedTypingMocks>, options?: { rawConnection?: boolean }) {
   const socket = new SocketMock();
-  const connection = { socket } as { socket: typeof socket };
+  const connection = options?.rawConnection ? socket : ({ socket } as { socket: typeof socket });
 
   const speedTypingMocks: SpeedTypingMocks = {
     createSession: vi.fn(),
@@ -65,7 +65,7 @@ async function createStream(overrides?: Partial<SpeedTypingMocks>) {
   Object.assign(speedTypingMocks, overrides);
 
   let routeHandler:
-    | ((connection: { socket: typeof socket }, request: FastifyRequest<{ Params: { id: string } }>) => void)
+    | ((connection: unknown, request: FastifyRequest<{ Params: { id: string } }>) => void)
     | undefined;
 
   const app = {
@@ -162,5 +162,13 @@ describe("session stream websocket", () => {
     });
 
     nowSpy.mockRestore();
+  });
+
+  it("wraps raw websocket connections without socket property", async () => {
+    const { socket } = await createStream(undefined, { rawConnection: true });
+
+    expect(socket.sent).not.toHaveLength(0);
+    const snapshot = JSON.parse(socket.sent[0]!);
+    expect(snapshot.type).toBe("session.snapshot");
   });
 });

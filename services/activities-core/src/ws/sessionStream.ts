@@ -13,30 +13,138 @@ interface StreamMessage {
   payload?: unknown;
 }
 
+type WebSocketLike = {
+  close: (code?: number, reason?: string) => void;
+  send: (payload: string, cb?: (error?: Error) => void) => void;
+  on: (event: string, listener: (...args: any[]) => void) => void;
+  ping?: () => void;
+  readyState?: number;
+  OPEN?: number;
+};
+
+type SocketStreamLike = {
+  socket: WebSocketLike;
+};
+
+function toSocketStream(connection: unknown): SocketStreamLike | null {
+  if (connection && typeof connection === "object") {
+    const candidate = connection as Record<string, unknown> & { socket?: WebSocketLike };
+    if (candidate.socket && typeof candidate.socket.send === "function") {
+      return candidate as SocketStreamLike;
+    }
+    if (typeof (candidate as WebSocketLike).send === "function" && typeof (candidate as WebSocketLike).on === "function") {
+      return { socket: candidate as unknown as WebSocketLike };
+    }
+  }
+  return null;
+}
+
 export async function registerSessionStream(app: FastifyInstance): Promise<void> {
   app.get(
     "/activities/session/:id/stream",
     { websocket: true },
-  (connection: any, request: FastifyRequest<{ Params: { id: string } }>) => {
-  const socket = connection.socket;
-  const sessionId = request.params.id;
-  const userId = request.auth?.userId;
-  let ready = false;
-  let activityKeyCache: string | undefined;
+    (rawConnection: unknown, request: FastifyRequest<{ Params: { id: string } }>) => {
+      const stream = toSocketStream(rawConnection);
+      if (!stream) {
+        if (rawConnection && typeof (rawConnection as { close?: (code?: number, reason?: string) => void }).close === "function") {
+          (rawConnection as { close: (code?: number, reason?: string) => void }).close(1011, "internal_error");
+        }
+        request.log.error({ connection: rawConnection }, "WebSocket connection missing socket reference");
+        return;
+      }
+
+      const socket = stream.socket;
+      const sessionId = request.params.id;
+      let userId = request.auth?.userId;
+      let ready = false;
+      let activityKeyCache: string | undefined;
+
+      try {
+        (request as any).log?.info?.({ path: request.url, rawUrl: (request as any).raw?.url, auth: request.auth }, "stream: auth state at handler entry");
+      } catch {}
+
+      // Dev-only last resort: infer userId from raw URL query (authToken/userId) if missing
+      if (!userId) {
+        const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+          (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+        if (allowInsecure) {
+          try {
+            const rawUrl: string | undefined = (request as any).raw?.url;
+            if (rawUrl && rawUrl.includes("?")) {
+              const qs = rawUrl.slice(rawUrl.indexOf("?") + 1);
+              const params = new URLSearchParams(qs);
+              const qUserId = params.get("userId") || "";
+              const authToken = params.get("authToken") || "";
+              const decodeBase64Url = (input: string) => {
+                try {
+                  let s = input.replace(/-/g, "+").replace(/_/g, "/");
+                  const pad = s.length % 4;
+                  if (pad === 2) s += "==";
+                  else if (pad === 3) s += "=";
+                  else if (pad !== 0) s += "==";
+                  return Buffer.from(s, "base64").toString("utf8");
+                } catch { return ""; }
+              };
+              if (authToken) {
+                const parts = authToken.split(".");
+                if (parts.length >= 2) {
+                  try {
+                    const payloadJson = decodeBase64Url(parts[1]);
+                    const payload = JSON.parse(payloadJson);
+                    const sub = typeof payload?.sub === "string" ? payload.sub.trim() : "";
+                    if (sub) {
+                      userId = sub;
+                      try { (request as any).log?.warn?.({ path: request.url }, "stream: inferred userId from rawurl.authToken.sub"); } catch {}
+                    }
+                  } catch {}
+                }
+              }
+              if (!userId && qUserId) {
+                userId = qUserId.trim();
+                try { (request as any).log?.warn?.({ path: request.url }, "stream: inferred userId from rawurl.userId"); } catch {}
+              }
+            }
+          } catch {}
+        }
+      }
 
       if (!userId) {
+        try {
+          socket.send(JSON.stringify({ type: "error", payload: { code: "unauthorized" } }));
+        } catch {}
         socket.close(4401, "unauthorized");
+        try { (request as any).log?.warn?.({ path: request.url }, "stream: unauthorized (no userId)"); } catch {}
         return;
       }
 
       void (async () => {
         const permitted = await consumeSessionPermit(app.deps.redis, sessionId, userId);
         if (!permitted) {
+          try {
+            socket.send(JSON.stringify({ type: "error", payload: { code: "not_joined" } }));
+          } catch {}
           socket.close(4403, "not_joined");
+          try { (request as any).log?.warn?.({ path: request.url, sessionId, userId }, "stream: no permit (not_joined)"); } catch {}
           return;
         }
+        try { (request as any).log?.info?.({ path: request.url, sessionId, userId }, "stream: permit consumed"); } catch {}
 
-        app.sessionHub.add(sessionId, connection);
+        app.sessionHub.add(sessionId, stream);
+
+        // Observe socket lifecycle for diagnostics
+        try {
+          socket.on("close", (code: number, reason: Buffer) => {
+            const text = (() => {
+              try { return (reason as any)?.toString?.("utf8") || ""; } catch { return ""; }
+            })();
+            try { (request as any).log?.warn?.({ path: request.url, sessionId, userId, code, reason: text }, "stream: socket closed"); } catch {}
+          });
+        } catch {}
+        try {
+          socket.on("error", (err: unknown) => {
+            try { (request as any).log?.error?.({ path: request.url, sessionId, userId, err }, "stream: socket error"); } catch {}
+          });
+        } catch {}
 
         try {
           let view: unknown;
@@ -49,16 +157,23 @@ export async function registerSessionStream(app: FastifyInstance): Promise<void>
           }
           ready = true;
           socket.send(JSON.stringify({ type: "session.snapshot", payload: view }));
+          try { (request as any).log?.info?.({ path: request.url, sessionId, userId }, "stream: snapshot sent"); } catch {}
         } catch (error) {
-          request.log.error({ err: error }, "failed to fetch session snapshot");
+          try { (request as any).log?.error?.({ err: error, path: request.url, sessionId, userId }, "failed to fetch session snapshot"); } catch {}
+          try {
+            socket.send(JSON.stringify({ type: "error", payload: { code: "internal_error" } }));
+          } catch {}
           socket.close(1011, "internal_error");
         }
       })().catch((error) => {
-        request.log.error({ err: error }, "session stream init failed");
+        try { (request as any).log?.error?.({ err: error, path: request.url, sessionId, userId }, "session stream init failed"); } catch {}
+        try {
+          socket.send(JSON.stringify({ type: "error", payload: { code: "internal_error" } }));
+        } catch {}
         socket.close(1011, "internal_error");
       });
 
-      socket.on("message", (raw: unknown) => {
+    socket.on("message", (raw: unknown) => {
         try {
           const message: StreamMessage = JSON.parse(String(raw));
           if (!ready) {

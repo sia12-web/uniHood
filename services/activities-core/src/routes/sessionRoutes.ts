@@ -14,45 +14,68 @@ type KnownErrorCode =
   | "invalid_participants"
   | "session_not_found"
   | "session_not_in_lobby"
+  | "session_full"
   | "round_not_started"
   | "round_not_found"
   | "forbidden"
   | "rate_limit_error"
   | "rate_limit_exceeded"
-  | "participant_not_in_session";
+  | "participant_not_in_session"
+  | "invalid_request"
+  | "session_state_missing"
+  | "unauthorized"
+  | "internal_error"
+  | "session_not_running";
 
 function respondWithError(reply: FastifyReply, error: unknown): FastifyReply {
   if (error instanceof RateLimitExceededError) {
     return reply.status(429).send({ error: "rate_limit_exceeded" satisfies KnownErrorCode });
   }
 
+  let message: string | null = null;
   if (error instanceof Error) {
-    const message = error.message as KnownErrorCode | string;
+    message = error.message;
+  } else if (typeof error === "string") {
+    message = error;
+  } else if (error && typeof (error as any).code === "string") {
+    message = (error as any).code;
+  } else if (error && typeof (error as any).message === "string") {
+    message = (error as any).message;
+  }
+
+  if (message) {
+    const code = message as KnownErrorCode | string;
     switch (true) {
-      case message.startsWith("session_state_missing"):
-        return reply.status(410).send({ error: "session_state_missing" });
-      case message === "unsupported_activity":
-      case message === "invalid_participants":
-      case message === "round_not_started":
-      case message === "round_not_found":
-        return reply.status(400).send({ error: message });
-      case message === "session_not_in_lobby":
-        return reply.status(409).send({ error: message });
-      case message === "forbidden":
-        return reply.status(403).send({ error: message });
-      case message === "participant_not_in_session":
-        return reply.status(403).send({ error: message });
-      case message === "session_not_found":
-        return reply.status(404).send({ error: message });
-      case message === "rate_limit_error":
-      case message === "rate_limit_exceeded":
-        return reply.status(429).send({ error: message });
+      case code.startsWith("session_state_missing"):
+        return reply.status(410).send({ error: "session_state_missing" satisfies KnownErrorCode });
+      case code === "unsupported_activity":
+      case code === "invalid_participants":
+      case code === "round_not_started":
+      case code === "round_not_found":
+      case code === "invalid_request":
+        return reply.status(400).send({ error: code as KnownErrorCode });
+      case code === "unauthorized":
+        return reply.status(401).send({ error: code as KnownErrorCode });
+      case code === "forbidden":
+      case code === "participant_not_in_session":
+        return reply.status(403).send({ error: code as KnownErrorCode });
+      case code === "session_not_found":
+        return reply.status(404).send({ error: code as KnownErrorCode });
+      case code === "session_not_in_lobby":
+      case code === "session_full":
+      case code === "session_not_running":
+        return reply.status(409).send({ error: code as KnownErrorCode });
+      case code === "rate_limit_error":
+      case code === "rate_limit_exceeded":
+        return reply.status(429).send({ error: code as KnownErrorCode });
       default:
-        return reply.status(500).send({ error: "internal_error", details: message });
+        reply.log.error({ err: error, message: code }, "unhandled error in session route");
+        return reply.status(500).send({ error: "internal_error" satisfies KnownErrorCode, details: code });
     }
   }
 
-  return reply.status(500).send({ error: "unknown_error" });
+  reply.log.error({ err: error }, "non-standard error value thrown");
+  return reply.status(500).send({ error: "internal_error" satisfies KnownErrorCode });
 }
 
 async function resolveSessionOwner(
@@ -86,7 +109,83 @@ async function resolveSessionOwner(
   return null;
 }
 
+type SessionListQuery = {
+  status?: "pending" | "running" | "ended" | "all";
+  userId?: string;
+};
+
 export async function registerSessionRoutes(app: FastifyInstance): Promise<void> {
+  app.get(
+    "/activities/sessions",
+    async (request: FastifyRequest<{ Querystring: SessionListQuery }>, reply: FastifyReply) => {
+      let userId = request.auth?.userId;
+      if (!userId) {
+        const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+          (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+        if (allowInsecure) {
+          const headerUserId = (() => {
+            const raw = request.headers["x-user-id"];
+            if (typeof raw === "string" && raw.trim()) {
+              return raw.trim();
+            }
+            if (Array.isArray(raw) && raw[0]) {
+              return String(raw[0]).trim();
+            }
+            return "";
+          })();
+
+          const bearerUserId = (() => {
+            const raw = request.headers.authorization;
+            if (typeof raw !== "string") {
+              return "";
+            }
+            const prefix = "bearer ";
+            if (!raw.toLowerCase().startsWith(prefix)) {
+              return "";
+            }
+            const token = raw.slice(prefix.length).trim();
+            if (!token) {
+              return "";
+            }
+            const parts = token.split(":");
+            return parts[parts.length - 1]?.trim() ?? "";
+          })();
+
+          const queryUserId = typeof request.query?.userId === "string" ? request.query.userId.trim() : "";
+
+          userId = headerUserId || bearerUserId || queryUserId || undefined;
+          if (userId) {
+            request.auth = { userId, isAdmin: false, isCreator: false } as any;
+          }
+        }
+      }
+
+      if (!userId) {
+        return reply.status(401).send({ error: "unauthorized" });
+      }
+
+      const statusFilter = request.query?.status ?? "pending";
+      const statuses = statusFilter === "all" ? undefined : [statusFilter];
+
+      try {
+        const [speedTypingSessions, quickTriviaSessions] = await Promise.all([
+          app.deps.speedTyping.listSessionsForUser({
+            userId,
+            statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
+          }),
+          app.deps.quickTrivia.listSessionsForUser({
+            userId,
+            statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
+          }),
+        ]);
+        const sessions = [...speedTypingSessions, ...quickTriviaSessions];
+        return reply.status(200).send({ sessions });
+      } catch (error) {
+        return respondWithError(reply, error);
+      }
+    },
+  );
+
   app.post(
     "/activities/session",
     {
@@ -96,7 +195,20 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.auth?.userId) {
-        return reply.status(401).send({ error: "unauthorized" });
+        const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+          (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+        if (allowInsecure && request.body && typeof request.body === "object") {
+          const body = request.body as Record<string, unknown>;
+          const bodyUser = typeof body.userId === "string" && body.userId.trim()
+            ? body.userId.trim()
+            : (typeof body.creatorUserId === "string" ? body.creatorUserId.trim() : "");
+          if (bodyUser) {
+            request.auth = { userId: bodyUser, isAdmin: false, isCreator: false } as any;
+          }
+        }
+        if (!request.auth?.userId) {
+          return reply.status(401).send({ error: "unauthorized" });
+        }
       }
 
       const activityKey = (request.body as any)?.activityKey;
@@ -135,7 +247,20 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       reply: FastifyReply,
     ) => {
       if (!request.auth?.userId) {
-        return reply.status(401).send({ error: "unauthorized" });
+        const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+          (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+        if (allowInsecure && request.body && typeof request.body === "object") {
+          const body = request.body as Record<string, unknown>;
+          const bodyUser = typeof body.userId === "string" && body.userId.trim()
+            ? body.userId.trim()
+            : (typeof body.creatorUserId === "string" ? body.creatorUserId.trim() : "");
+          if (bodyUser) {
+            request.auth = { userId: bodyUser, isAdmin: false, isCreator: false } as any;
+          }
+        }
+        if (!request.auth?.userId) {
+          return reply.status(401).send({ error: "unauthorized" });
+        }
       }
 
       try {
@@ -164,7 +289,18 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
 
   app.post("/activities/session/:id/join", async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     if (!request.auth?.userId) {
-      return reply.status(401).send({ error: "unauthorized" });
+      const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+        (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+      const bodyUserId = (request.body && typeof request.body === "object" && (request.body as any).userId)
+        ? String((request.body as any).userId).trim()
+        : "";
+      if (allowInsecure && bodyUserId) {
+        // Dev fallback: infer auth from body.userId to unblock local testing
+        request.auth = { userId: bodyUserId, isAdmin: false, isCreator: false } as any;
+        request.log.warn({ path: request.url }, "join: dev auth inferred from body.userId");
+      } else {
+        return reply.status(401).send({ error: "unauthorized" });
+      }
     }
 
     const parseResult = joinSessionDto.safeParse(request.body);
@@ -173,11 +309,12 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
     }
 
     const dto = parseResult.data;
-    if (!request.auth.isAdmin && request.auth.userId !== dto.userId) {
+    const auth = request.auth as { userId: string; isAdmin: boolean };
+    if (!auth.isAdmin && auth.userId !== dto.userId) {
       return reply.status(403).send({ error: "forbidden" });
     }
 
-    const participant = await app.deps.prisma.participant.findUnique({
+    let participant = await app.deps.prisma.participant.findUnique({
       where: {
         sessionId_userId: {
           sessionId: request.params.id,
@@ -187,7 +324,29 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
     });
 
     if (!participant) {
-      return reply.status(404).send({ error: "participant_not_found" });
+      try {
+        const owner = await resolveSessionOwner(app, request.params.id);
+        if (owner === "speed_typing") {
+          await app.deps.speedTyping.addParticipant({ sessionId: request.params.id, userId: dto.userId });
+        } else {
+          return reply.status(404).send({ error: "participant_not_found" });
+        }
+      } catch (error) {
+        return respondWithError(reply, error);
+      }
+
+      participant = await app.deps.prisma.participant.findUnique({
+        where: {
+          sessionId_userId: {
+            sessionId: request.params.id,
+            userId: dto.userId,
+          },
+        },
+      });
+
+      if (!participant) {
+        return reply.status(404).send({ error: "participant_not_found" });
+      }
     }
 
     try {
@@ -211,7 +370,20 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
 
   app.post("/activities/session/:id/leave", async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     if (!request.auth?.userId) {
-      return reply.status(401).send({ error: "unauthorized" });
+      const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+        (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+      if (allowInsecure && request.body && typeof request.body === "object") {
+        const body = request.body as Record<string, unknown>;
+        const bodyUser = typeof body.userId === "string" && body.userId.trim()
+          ? body.userId.trim()
+          : (typeof body.creatorUserId === "string" ? body.creatorUserId.trim() : "");
+        if (bodyUser) {
+          request.auth = { userId: bodyUser, isAdmin: false, isCreator: false } as any;
+        }
+      }
+      if (!request.auth?.userId) {
+        return reply.status(401).send({ error: "unauthorized" });
+      }
     }
 
     const parseResult = leaveSessionDto.safeParse(request.body);
@@ -243,7 +415,20 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
 
   app.post("/activities/session/:id/ready", async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     if (!request.auth?.userId) {
-      return reply.status(401).send({ error: "unauthorized" });
+      const allowInsecure = (process.env.ALLOW_INSECURE_BEARER ?? "").toLowerCase() === "1" ||
+        (process.env.NODE_ENV ?? "").toLowerCase() === "development";
+      if (allowInsecure && request.body && typeof request.body === "object") {
+        const body = request.body as Record<string, unknown>;
+        const bodyUser = typeof body.userId === "string" && body.userId.trim()
+          ? body.userId.trim()
+          : (typeof body.creatorUserId === "string" ? body.creatorUserId.trim() : "");
+        if (bodyUser) {
+          request.auth = { userId: bodyUser, isAdmin: false, isCreator: false } as any;
+        }
+      }
+      if (!request.auth?.userId) {
+        return reply.status(401).send({ error: "unauthorized" });
+      }
     }
 
     const parseResult = readyStateDto.safeParse(request.body);

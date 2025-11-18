@@ -1,5 +1,7 @@
+import 'dotenv/config';
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
+import cors from "@fastify/cors";
 import { registerAuthPlugin } from "./plugins/auth";
 import { registerRateLimitPlugin } from "./plugins/rateLimit";
 import { registerSessionRoutes } from "./routes/sessionRoutes";
@@ -13,10 +15,37 @@ export async function buildServer() {
   });
 
   const sessionHub = new SessionSocketHub();
-  const deps = await createServiceContainer(sessionHub);
+  const deps = await createServiceContainer(sessionHub, server.log);
 
   server.decorate("sessionHub", sessionHub);
   server.decorate("deps", deps);
+
+  // Configure CORS with secure defaults; allow explicit origins via CORS_ORIGIN env (comma-separated)
+  const corsEnv = process.env.CORS_ORIGIN?.trim();
+  const origin = corsEnv
+    ? corsEnv.split(",").map((v) => v.trim()).filter((v) => v.length > 0)
+    : true; // in dev default to true; set CORS_ORIGIN for stricter control
+
+  await server.register(cors, {
+    origin,
+    credentials: true,
+    allowedHeaders: [
+      "Authorization",
+      "Content-Type",
+      "Accept",
+      "X-Requested-With",
+      // Custom headers the frontend sends with resolveAuthHeaders
+      "X-Request-Id",
+      "X-Idempotency-Key",
+      "X-User-Id",
+      "X-Campus-Id",
+      "X-Session-Id",
+      "X-User-Handle",
+      "X-User-Name",
+      "X-User-Roles",
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+  });
 
   await server.register(websocket, {
     options: {

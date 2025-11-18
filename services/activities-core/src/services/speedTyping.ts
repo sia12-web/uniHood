@@ -12,13 +12,7 @@ import type {
   SessionView,
   RoundView,
 } from "../dto/sessionDtos";
-import {
-  computeScoreV2,
-  computeTypingMetricsV2,
-  TypingMetricsV2,
-  computeScoreV2Breakdown,
-  KeystrokeSample,
-} from "../lib/metrics";
+import { computeTypingMetricsV2, TypingMetricsV2, KeystrokeSample } from "../lib/metrics";
 import {
   IncidentRecord,
   IncidentType,
@@ -108,6 +102,15 @@ export interface SpeedTypingService {
   startSession(params: StartSessionParams): Promise<void>;
   submitRound(params: SubmitRoundParams): Promise<void>;
   getSessionView(sessionId: string): Promise<SessionView>;
+  listSessionsForUser(params: { userId: string; statuses?: Array<"pending" | "running" | "ended"> }): Promise<{
+    id: string;
+    activityKey: "speed_typing";
+    status: "pending" | "running" | "ended";
+    phase: "lobby" | "countdown" | "running" | "ended";
+    lobbyReady: boolean;
+    creatorUserId: string;
+    participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  }[]>;
   handleTimerElapsed(sessionId: string, roundIndex: number): Promise<void>;
   recordKeystroke(params: RecordKeystrokeParams): Promise<IncidentType[]>;
   updateSkewEstimate(params: UpdateSkewParams): Promise<number>;
@@ -119,7 +122,7 @@ export interface SpeedTypingService {
 export function createSpeedTypingService(deps: Dependencies): SpeedTypingService {
   const { prisma, redis, limiter, publisher, scheduler } = deps;
   const timerHandles = new Map<string, TimerHandle>();
-  const LOBBY_COUNTDOWN_MS = 5_000;
+  const LOBBY_COUNTDOWN_MS = 10_000;
 
   async function ensureActivity(): Promise<string> {
     const config = defaultSpeedTypingConfig();
@@ -136,6 +139,25 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     return activity.id;
   }
 
+  async function endExistingSessions(activityId: string): Promise<void> {
+    const sessions = await prisma.activitySession.findMany({
+      where: { activityId, status: { in: ["pending", "running"] } },
+      select: { id: true },
+    });
+    if (sessions.length === 0) return;
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.activitySession.updateMany({
+        where: { activityId, status: { in: ["pending", "running"] } },
+        data: { status: "ended", endedAt: new Date() },
+      });
+      await tx.round.updateMany({
+        where: { session: { activityId } },
+        data: { state: "done", endedAt: new Date() },
+      });
+    });
+    await Promise.all(sessions.map((s) => deleteState(s.id)));
+  }
+
   async function loadState(sessionId: string): Promise<SessionState | null> {
     const raw = await redis.get(SESSION_STATE_KEY(sessionId));
     return raw ? (JSON.parse(raw) as SessionState) : null;
@@ -147,6 +169,76 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
 
   async function deleteState(sessionId: string): Promise<void> {
     await redis.del(SESSION_STATE_KEY(sessionId));
+  }
+
+  async function listSessionsForUser(params: { userId: string; statuses?: Array<"pending" | "running" | "ended"> }): Promise<{
+    id: string;
+    activityKey: "speed_typing";
+    status: "pending" | "running" | "ended";
+    phase: "lobby" | "countdown" | "running" | "ended";
+    lobbyReady: boolean;
+    creatorUserId: string;
+    participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  }[]> {
+    const statuses = params.statuses && params.statuses.length > 0 ? params.statuses : undefined;
+    const sessions = await prisma.activitySession.findMany({
+      where: {
+        activity: { key: "speed_typing" },
+        participants: { some: { userId: params.userId } },
+        status: statuses ? { in: statuses } : undefined,
+      },
+      orderBy: { id: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        status: true,
+        metadataJson: true,
+        participants: { select: { userId: true }, orderBy: { joinedAt: "asc" } },
+      },
+    });
+
+    const results: Array<{
+      id: string;
+      activityKey: "speed_typing";
+      status: "pending" | "running" | "ended";
+      phase: "lobby" | "countdown" | "running" | "ended";
+      lobbyReady: boolean;
+      creatorUserId: string;
+      participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+    }> = [];
+
+    for (const session of sessions) {
+      const state = await loadState(session.id);
+      const fallbackPresence = Object.fromEntries(
+        session.participants.map((participant) => [participant.userId, { joined: false, ready: false, lastSeen: 0 } as LobbyPresence]),
+      );
+      const presence = state?.presence ?? fallbackPresence;
+      const creatorFromState = state?.creatorUserId;
+      const metadata = session.metadataJson as { creatorUserId?: string } | null;
+      const creatorUserId = creatorFromState ?? metadata?.creatorUserId ?? params.userId;
+
+      results.push({
+        id: session.id,
+        activityKey: "speed_typing",
+        status: session.status as "pending" | "running" | "ended",
+        phase:
+          state?.phase ??
+          (session.status === "pending"
+            ? "lobby"
+            : session.status === "running"
+            ? "running"
+            : "ended"),
+        lobbyReady: state?.lobbyReady ?? false,
+        creatorUserId,
+        participants: session.participants.map((participant) => ({
+          userId: participant.userId,
+          joined: presence[participant.userId]?.joined ?? false,
+          ready: presence[participant.userId]?.ready ?? false,
+        })),
+      });
+    }
+
+    return results;
   }
 
   function scheduleTimer(sessionId: string, roundIndex: number, delayMs: number): void {
@@ -388,7 +480,8 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     }
 
     const activityId = await ensureActivity();
-    const config = defaultSpeedTypingConfig();
+    await endExistingSessions(activityId); // enforce single active speed typing session
+    const config = { ...defaultSpeedTypingConfig(), rounds: 1 }; // single round duel
 
   const session = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const created = await tx.activitySession.create({
@@ -642,8 +735,10 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       state.roundDeadlines[roundIndex],
       payload.timeLimitMs,
     );
-    const scoreBreakdown = computeScoreV2Breakdown(metrics, incidentTypes);
-    const delta = scoreBreakdown.total;
+    const durationMs = (metrics as any).durationMs ?? payload.timeLimitMs;
+    const speedBonus = Math.max(0, Math.floor((payload.timeLimitMs - durationMs) / 1000));
+    const isPerfect = (metrics as any).accuracy === 1 || (metrics as any).accuracyPct === 100;
+    const delta = isPerfect ? 100 + speedBonus : -25;
 
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.scoreEvent.create({
@@ -682,21 +777,8 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       },
     });
 
-    const penaltyApplied = scoreBreakdown.base + scoreBreakdown.bonus - scoreBreakdown.total;
-    if (penaltyApplied > 0 || incidentTypes.length > 0) {
-      await publisher.publish({
-        name: "activity.penalty.applied",
-        payload: {
-          sessionId: params.sessionId,
-          userId: params.userId,
-          amount: penaltyApplied,
-          incidents: incidentTypes,
-        },
-      });
-    }
-
     const allSubmitted = state.participants.every((userId: string) => Boolean(state.submissions[roundIndex][userId]));
-    if (allSubmitted) {
+    if (isPerfect || allSubmitted) {
       await endRound(params.sessionId, roundIndex, state);
     }
   }
@@ -749,7 +831,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       });
       await publisher.publish({
         name: "activity.session.ended",
-        payload: { sessionId, finalScoreboard: scoreboard },
+        payload: { sessionId, finalScoreboard: scoreboard, winnerUserId: scoreboard.participants[0]?.userId },
       });
       await deleteState(sessionId);
     }
@@ -896,6 +978,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     startSession,
     submitRound,
     getSessionView,
+    listSessionsForUser,
     handleTimerElapsed,
     recordKeystroke,
     updateSkewEstimate: updateSkew,

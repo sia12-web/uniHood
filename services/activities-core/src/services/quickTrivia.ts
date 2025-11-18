@@ -4,25 +4,46 @@ import type { RedisClientType } from "redis";
 import { SlidingWindowLimiter, RateLimitExceededError } from "../lib/rateLimiter";
 import { EventPublisher } from "../lib/events";
 import { TimerScheduler, TimerHandle } from "../lib/timers";
-import { createQuickTriviaSessionDto, submitQuickTriviaRoundDto, QuickTriviaRoundView } from "../dto/sessionDtos";
+import { createQuickTriviaSessionDto, QuickTriviaRoundView } from "../dto/sessionDtos";
 
 interface QuickTriviaConfig {
   rounds: number;
   timeLimitMs: number;
   difficulties: ("E" | "M" | "H")[];
+  correctBase: number;
+  wrongPenalty: number;
+}
+
+interface LobbyPresence {
+  joined: boolean;
+  ready: boolean;
+  lastSeen: number;
+}
+
+interface CountdownState {
+  startedAt: number;
+  durationMs: number;
+  endsAt: number;
+  reason?: "lobby" | "intermission";
+  nextRoundIndex?: number;
 }
 
 interface AnswerRecord { choiceIndex: number; correct: boolean; responseTimeMs: number; }
 interface RoundStateBucket { [userId: string]: AnswerRecord; }
 
 interface SessionStateQT {
-  phase: "lobby" | "running";
+  phase: "lobby" | "countdown" | "running" | "ended";
   currentRound: number;
+  pendingRoundIndex: number | null;
   cfg: QuickTriviaConfig;
   answers: Record<number, RoundStateBucket>;
   participants: string[];
   creatorUserId: string;
   roundStartMs: Record<number, number>; // server start times
+  presence: Record<string, LobbyPresence>;
+  lobbyReady: boolean;
+  countdown?: CountdownState;
+  tally: Record<string, { correct: number; wrong: number }>;
 }
 
 const SESSION_STATE_KEY = (sessionId: string) => `qt:sess:${sessionId}:state`;
@@ -31,17 +52,29 @@ export interface CreateQuickTriviaSessionParams {
   activityKey: "quick_trivia";
   creatorUserId: string;
   participants: [string, string];
-  config?: Partial<{ rounds: number; timeLimitMs: number; difficulties: ("E" | "M" | "H")[] }>;
+  config?: Partial<{ rounds: number; timeLimitMs: number; difficulties: ("E" | "M" | "H")[]; correctBase: number; wrongPenalty: number }>;
 }
 
 export interface StartQuickTriviaSessionParams { sessionId: string; byUserId: string; isAdmin: boolean; }
 export interface SubmitQuickTriviaParams { sessionId: string; userId: string; choiceIndex: number; clientMs?: number; }
 
+export interface QuickTriviaLobbySummary {
+  id: string;
+  activityKey: "quick_trivia";
+  status: "pending" | "running" | "ended";
+  phase: "lobby" | "countdown" | "running" | "ended";
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  countdown?: CountdownState;
+}
+
 export interface QuickTriviaService {
   createSession(params: CreateQuickTriviaSessionParams): Promise<string>;
+  listSessionsForUser(params: { userId: string; statuses?: Array<"pending" | "running" | "ended"> }): Promise<QuickTriviaLobbySummary[]>;
   startSession(params: StartQuickTriviaSessionParams): Promise<void>;
   submitRound(params: SubmitQuickTriviaParams): Promise<void>;
-  getSessionView(sessionId: string): Promise<unknown>; // implement later
+  getSessionView(sessionId: string): Promise<unknown>;
   handleTimerElapsed(sessionId: string, roundIndex: number): Promise<void>;
   joinSession(params: { sessionId: string; userId: string }): Promise<void>;
   leaveSession(params: { sessionId: string; userId: string }): Promise<void>;
@@ -57,15 +90,17 @@ interface Dependencies {
 }
 
 function defaultConfig(): QuickTriviaConfig {
-  return { rounds: 5, timeLimitMs: 18_000, difficulties: ["E", "M", "H"] };
+  return { rounds: 10, timeLimitMs: 18_000, difficulties: ["E", "M", "H"], correctBase: 10, wrongPenalty: -5 };
 }
 
 function mergeConfig(input?: Partial<QuickTriviaConfig>): QuickTriviaConfig {
   const base = defaultConfig();
   return {
     rounds: input?.rounds && input.rounds > 0 ? input.rounds : base.rounds,
-    timeLimitMs: input?.timeLimitMs && input.timeLimitMs >= 12_000 && input.timeLimitMs <= 25_000 ? input.timeLimitMs : base.timeLimitMs,
+    timeLimitMs: input?.timeLimitMs && input.timeLimitMs >= 10_000 && input.timeLimitMs <= 25_000 ? input.timeLimitMs : base.timeLimitMs,
     difficulties: input?.difficulties && input.difficulties.length > 0 ? input.difficulties : base.difficulties,
+    correctBase: typeof input?.correctBase === "number" ? input.correctBase : base.correctBase,
+    wrongPenalty: typeof input?.wrongPenalty === "number" ? input.wrongPenalty : base.wrongPenalty,
   };
 }
 
@@ -81,8 +116,7 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
       create: {
         key: "quick_trivia",
         name: "Quick Trivia",
-        // Persist as plain JSON object
-        configJson: { rounds: cfg.rounds, timeLimitMs: cfg.timeLimitMs, difficulties: cfg.difficulties },
+        configJson: { rounds: cfg.rounds, timeLimitMs: cfg.timeLimitMs, difficulties: cfg.difficulties, correctBase: cfg.correctBase, wrongPenalty: cfg.wrongPenalty },
       },
     });
     return activity.id;
@@ -113,10 +147,74 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
     if (!state) throw new Error(`session_state_missing:${sessionId}`);
   }
 
+  function ensurePresenceBuckets(state: SessionStateQT): void {
+    const now = Date.now();
+    for (const userId of state.participants) {
+      if (!state.presence[userId]) {
+        state.presence[userId] = { joined: false, ready: false, lastSeen: now };
+      }
+      if (!state.tally[userId]) {
+        state.tally[userId] = { correct: 0, wrong: 0 };
+      }
+    }
+  }
+
+  function everyoneReady(state: SessionStateQT): boolean {
+    return state.participants.every((uid) => state.presence[uid]?.joined && state.presence[uid]?.ready);
+  }
+
+  function presenceList(state: SessionStateQT): Array<{ userId: string; joined: boolean; ready: boolean }> {
+    return state.participants.map((userId) => {
+      const presence = state.presence[userId] ?? { joined: false, ready: false };
+      return { userId, joined: !!presence.joined, ready: !!presence.ready };
+    });
+  }
+
+  async function broadcastPresence(sessionId: string, state: SessionStateQT): Promise<void> {
+    await publisher.publish({
+      name: "activity.session.presence",
+      payload: {
+        sessionId,
+        participants: presenceList(state),
+        lobbyReady: state.lobbyReady,
+      },
+    });
+  }
+
+  function beginCountdown(sessionId: string, state: SessionStateQT, reason: "lobby" | "intermission", nextRoundIndex?: number): void {
+    const durationMs = 10_000;
+    const startedAt = Date.now();
+    state.countdown = { startedAt, durationMs, endsAt: startedAt + durationMs, reason, nextRoundIndex };
+    state.phase = "countdown";
+    state.pendingRoundIndex = nextRoundIndex ?? 0;
+    scheduleTimer(sessionId, -1, durationMs);
+    void publisher.publish({
+      name: "activity.session.countdown",
+      payload: { sessionId, startedAt, durationMs, endsAt: startedAt + durationMs, reason, nextRoundIndex },
+    });
+  }
+
+  async function cancelCountdown(sessionId: string, state: SessionStateQT): Promise<void> {
+    if (!state.countdown) return;
+    cancelTimer(sessionId);
+    const cancelled = state.countdown;
+    state.countdown = undefined;
+    state.phase = "lobby";
+    state.pendingRoundIndex = null;
+    await saveState(sessionId, state);
+    await publisher.publish({ name: "activity.session.countdown.cancelled", payload: { sessionId, countdown: cancelled } });
+  }
+
   async function pickQuestions(cfg: QuickTriviaConfig): Promise<Array<{ id: string; question: string; options: string[]; correctIndex: number }>> {
-    // naive selection: random shuffle filtered by difficulties, take cfg.rounds
     const rows = await prisma.triviaQuestion.findMany({ where: { difficulty: { in: cfg.difficulties as string[] } } });
     const shuffled = rows.sort(() => Math.random() - 0.5);
+    if (shuffled.length < cfg.rounds && shuffled.length > 0) {
+      const filled: typeof shuffled = [];
+      while (filled.length < cfg.rounds) {
+        filled.push(shuffled[filled.length % shuffled.length]);
+      }
+      return filled.slice(0, cfg.rounds).map((q) => ({ id: q.id, question: q.question, options: q.optionsJson as string[], correctIndex: q.correctIndex }));
+    }
     return shuffled.slice(0, cfg.rounds).map((q) => ({
       id: q.id,
       question: q.question,
@@ -141,10 +239,59 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
       return created;
     });
 
-    const state: SessionStateQT = { phase: "lobby", currentRound: -1, cfg, answers: {}, participants: params.participants, creatorUserId: params.creatorUserId, roundStartMs: {} };
+    const now = Date.now();
+    const presence: Record<string, LobbyPresence> = {};
+    for (const userId of params.participants) {
+      presence[userId] = { joined: userId === params.creatorUserId, ready: false, lastSeen: now };
+    }
+    const state: SessionStateQT = {
+      phase: "lobby",
+      currentRound: -1,
+      pendingRoundIndex: null,
+      cfg,
+      answers: {},
+      participants: params.participants,
+      creatorUserId: params.creatorUserId,
+      roundStartMs: {},
+      presence,
+      lobbyReady: false,
+      tally: params.participants.reduce((acc, uid) => ({ ...acc, [uid]: { correct: 0, wrong: 0 } }), {}),
+    };
     await saveState(session.id, state);
     await publisher.publish({ name: "activity.session.created", payload: { sessionId: session.id } });
+    await broadcastPresence(session.id, state);
     return session.id;
+  }
+
+  async function listSessionsForUser(params: { userId: string; statuses?: Array<"pending" | "running" | "ended"> }): Promise<QuickTriviaLobbySummary[]> {
+    const statuses = params.statuses && params.statuses.length > 0 ? params.statuses : undefined;
+    const sessions = await prisma.activitySession.findMany({
+      where: {
+        activity: { key: "quick_trivia" },
+        status: statuses ? { in: statuses } : undefined,
+        participants: { some: { userId: params.userId } },
+      },
+      orderBy: { id: "desc" },
+      take: 20,
+      include: { participants: { select: { userId: true }, orderBy: { joinedAt: "asc" } } },
+    });
+
+    const results: QuickTriviaLobbySummary[] = [];
+    for (const session of sessions) {
+      const state = await loadState(session.id);
+      const presence = state?.presence ?? Object.fromEntries(session.participants.map((p) => [p.userId, { joined: false, ready: false, lastSeen: Date.now() }]));
+      results.push({
+        id: session.id,
+        activityKey: "quick_trivia",
+        status: session.status,
+        phase: state?.phase ?? (session.status === "pending" ? "lobby" : session.status === "running" ? "running" : "ended"),
+        lobbyReady: state?.lobbyReady ?? false,
+        countdown: state?.countdown,
+        creatorUserId: state?.creatorUserId ?? params.userId,
+        participants: session.participants.map((p) => ({ userId: p.userId, joined: presence[p.userId]?.joined ?? false, ready: presence[p.userId]?.ready ?? false })),
+      });
+    }
+    return results;
   }
 
   async function startSession(params: StartQuickTriviaSessionParams): Promise<void> {
@@ -152,12 +299,13 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
     if (!session) throw new Error("session_not_found");
 
     const state = await loadState(params.sessionId); assertState(state, params.sessionId);
+    ensurePresenceBuckets(state);
     const creatorFromState = state.creatorUserId;
     const creatorFromDb = (session.metadataJson as { creatorUserId?: string } | null)?.creatorUserId;
     const creatorUserId = creatorFromState ?? creatorFromDb;
     if (!params.isAdmin && creatorUserId && params.byUserId !== creatorUserId) throw new Error("forbidden");
 
-    if (state.phase !== "lobby") throw new Error("session_not_in_lobby");
+    if (state.phase !== "lobby" && state.phase !== "countdown") throw new Error("session_not_in_lobby");
 
     const questions = await pickQuestions(state.cfg);
 
@@ -172,7 +320,7 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
 
     await prisma.round.update({ where: { sessionId_index: { sessionId: params.sessionId, index: 0 } }, data: { state: "running", startedAt: new Date() } });
 
-    state.phase = "running"; state.currentRound = 0; state.answers = {}; state.roundStartMs[0] = Date.now();
+    state.phase = "running"; state.currentRound = 0; state.pendingRoundIndex = null; state.answers = {}; state.roundStartMs[0] = Date.now(); state.countdown = undefined;
     await saveState(params.sessionId, state);
     scheduleTimer(params.sessionId, 0, state.cfg.timeLimitMs);
 
@@ -183,6 +331,12 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
   async function getRoundPayload(sessionId: string, roundIndex: number): Promise<QuickTriviaRoundView["payload"] | null> {
     const round = await prisma.round.findUnique({ where: { sessionId_index: { sessionId, index: roundIndex } }, select: { payloadJson: true } });
     return (round?.payloadJson as QuickTriviaRoundView["payload"] | null) ?? null;
+  }
+
+  function computeDelta(state: SessionStateQT, correct: boolean, responseTimeMs: number): number {
+    if (!correct) return state.cfg.wrongPenalty;
+    const speedBonus = Math.max(0, Math.floor((state.cfg.timeLimitMs - responseTimeMs) / 1000));
+    return state.cfg.correctBase + speedBonus;
   }
 
   async function submitRound(params: SubmitQuickTriviaParams): Promise<void> {
@@ -204,7 +358,7 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
 
     const startMs = state.roundStartMs[roundIndex] ?? Date.now();
     const responseTimeMs = Math.min(Date.now() - startMs, state.cfg.timeLimitMs);
-    const delta = correct ? 1 : 0;
+    const delta = computeDelta(state, correct, responseTimeMs);
 
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.scoreEvent.create({ data: { sessionId: params.sessionId, userId: params.userId, delta, reason: "round" } });
@@ -212,13 +366,15 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
     });
 
     state.answers[roundIndex][params.userId] = { choiceIndex: params.choiceIndex, correct, responseTimeMs };
+    state.tally[params.userId] = state.tally[params.userId] || { correct: 0, wrong: 0 };
+    state.tally[params.userId][correct ? "correct" : "wrong"] += 1;
     await saveState(params.sessionId, state);
 
     const participant = await prisma.participant.findUnique({ where: { sessionId_userId: { sessionId: params.sessionId, userId: params.userId } }, select: { score: true } });
     await publisher.publish({ name: "activity.score.updated", payload: { sessionId: params.sessionId, userId: params.userId, delta, total: participant?.score ?? 0 } });
 
     const bothAnswered = state.participants.every((uid) => state.answers[roundIndex][uid]);
-    if (bothAnswered) await endRound(params.sessionId, roundIndex, state);
+    if (correct || bothAnswered) await endRound(params.sessionId, roundIndex, state);
   }
 
   async function endRound(sessionId: string, roundIndex: number, state?: SessionStateQT | null): Promise<void> {
@@ -245,7 +401,8 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
     } else {
       await prisma.activitySession.update({ where: { id: sessionId }, data: { status: "ended", endedAt: new Date() } });
       const tieBreak = await computeTieBreak(sessionId, current);
-      await publisher.publish({ name: "activity.session.ended", payload: { sessionId, finalScoreboard: scoreboard, tieBreak } });
+      const winnerUserId = scoreboard.participants[0]?.userId;
+      await publisher.publish({ name: "activity.session.ended", payload: { sessionId, finalScoreboard: scoreboard, tieBreak, tally: current.tally, winnerUserId } });
       await redis.del(SESSION_STATE_KEY(sessionId));
     }
   }
@@ -287,6 +444,7 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
     const session = await prisma.activitySession.findUnique({ where: { id: sessionId }, include: { activity: { select: { key: true } }, participants: { select: { userId: true, score: true }, orderBy: { joinedAt: "asc" } }, rounds: { select: { index: true, state: true }, orderBy: { index: "asc" } } } });
     if (!session) throw new Error("session_not_found");
     const state = await loadState(sessionId);
+    const presence = state?.presence ?? Object.fromEntries(session.participants.map((p) => [p.userId, { joined: false, ready: false }]));
     return {
       id: sessionId,
       status: session.status,
@@ -294,30 +452,72 @@ export function createQuickTriviaService(deps: Dependencies): QuickTriviaService
       participants: session.participants.map((p) => ({ userId: p.userId, score: p.score })),
       currentRoundIndex: state?.phase === "running" ? state.currentRound : undefined,
       rounds: session.rounds.map((r) => ({ index: r.index, state: r.state })),
-      lobbyPhase: state?.phase === "lobby",
+      lobbyPhase: state?.phase === "lobby" || state?.phase === "countdown",
+      lobbyReady: state?.lobbyReady ?? false,
+      presence: session.participants.map((p) => ({ userId: p.userId, joined: presence[p.userId]?.joined ?? false, ready: presence[p.userId]?.ready ?? false })),
+      countdown: state?.countdown,
+      tally: state?.tally,
     };
   }
 
   async function handleTimerElapsed(sessionId: string, roundIndex: number): Promise<void> {
     const state = await loadState(sessionId); if (!state) return;
+    if (roundIndex === -1) {
+      if (!state.lobbyReady) {
+        await cancelCountdown(sessionId, state);
+        return;
+      }
+      await startSession({ sessionId, byUserId: state.creatorUserId, isAdmin: true });
+      return;
+    }
     if (state.phase !== "running" || state.currentRound !== roundIndex) return;
     await endRound(sessionId, roundIndex, state);
   }
 
-  async function joinSession(): Promise<void> {
-    // Quick Trivia currently does not track lobby presence.
+  async function joinSession(params: { sessionId: string; userId: string }): Promise<void> {
+    const state = await loadState(params.sessionId); if (!state) throw new Error("session_state_missing");
+    ensurePresenceBuckets(state);
+    state.presence[params.userId] = { joined: true, ready: false, lastSeen: Date.now() };
+    state.lobbyReady = everyoneReady(state);
+    await saveState(params.sessionId, state);
+    await broadcastPresence(params.sessionId, state);
   }
 
-  async function leaveSession(): Promise<void> {
-    // Quick Trivia currently does not track lobby presence.
+  async function leaveSession(params: { sessionId: string; userId: string }): Promise<void> {
+    const state = await loadState(params.sessionId); if (!state) return;
+    ensurePresenceBuckets(state);
+    state.presence[params.userId] = { joined: false, ready: false, lastSeen: Date.now() };
+    state.lobbyReady = false;
+    await cancelCountdown(params.sessionId, state);
+    await saveState(params.sessionId, state);
+    await broadcastPresence(params.sessionId, state);
   }
 
-  async function setReady(): Promise<void> {
-    // Quick Trivia ignores ready toggles for now.
+  async function setReady(params: { sessionId: string; userId: string; ready: boolean }): Promise<void> {
+    const state = await loadState(params.sessionId); if (!state) throw new Error("session_state_missing");
+    ensurePresenceBuckets(state);
+    const presence = state.presence[params.userId];
+    if (!presence?.joined) {
+      state.presence[params.userId] = { joined: true, ready: params.ready, lastSeen: Date.now() };
+    } else {
+      presence.ready = params.ready;
+      presence.lastSeen = Date.now();
+    }
+    state.lobbyReady = everyoneReady(state);
+    await saveState(params.sessionId, state);
+    await broadcastPresence(params.sessionId, state);
+    if (state.phase === "lobby" && state.lobbyReady) {
+      beginCountdown(params.sessionId, state, "lobby", 0);
+      await saveState(params.sessionId, state);
+    }
+    if (!state.lobbyReady && state.countdown) {
+      await cancelCountdown(params.sessionId, state);
+    }
   }
 
   return {
     createSession,
+    listSessionsForUser,
     startSession,
     submitRound,
     getSessionView,

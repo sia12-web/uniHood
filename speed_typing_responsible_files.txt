@@ -1,0 +1,35 @@
+# Speed Typing Activity — Responsible Files and Failure Analysis
+
+## Files Responsible for Speed Typing Activity
+
+1. **Backend Auth Plugin**
+   - `services/activities-core/src/plugins/auth.ts`
+   - Purpose: Parses the Authorization header, validates bearer token, sets `request.auth` for all activity routes.
+
+2. **Backend Session Routes**
+   - `services/activities-core/src/routes/sessionRoutes.ts`
+   - Purpose: Handles POST/GET for `/activities/session`, checks `request.auth.userId`, enforces creator/participant logic.
+
+3. **Frontend API Client**
+   - `frontend/app/features/activities/api/client.ts`
+   - Purpose: Builds requests to activities-core, sets Authorization header using env var `NEXT_PUBLIC_ACTIVITIES_CORE_BEARER_PREFIX`.
+
+4. **Frontend Speed Typing Page**
+   - `frontend/app/activities/speed_typing/page.tsx`
+   - Purpose: UI for creating/joining sessions, calls API client, displays errors if fetch fails.
+
+## What You Want to See
+- You want to create a speed typing session with two people (yourself and a peer), see it appear in the lobby, and join/play the activity.
+
+## Why It Never Happens
+- The backend requires the Authorization header to be in the format: `Bearer dev-token:<userId>`.
+- The frontend (and manual requests) often send just `Bearer <userId>` or omit the `dev-token:` prefix.
+- If the prefix is missing, `auth.ts` rejects the request with 401 Unauthorized, so session creation fails.
+- The frontend never sees a valid session, only error messages ("Failed to fetch" or "unauthorized").
+- If the activities-core server is not running, you get connection errors instead.
+
+## How to Fix
+- Set `NEXT_PUBLIC_ACTIVITIES_CORE_BEARER_PREFIX=dev-token:` in your `frontend/.env.local`.
+- Restart both frontend and activities-core servers.
+- Ensure requests send `Bearer dev-token:<userId>` in the Authorization header.
+- Now, session creation and joining will work as expected.

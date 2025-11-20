@@ -440,6 +440,7 @@ class ChatService:
 				"peer_id": message.recipient_id,
 				"conversation_id": message.conversation_id,
 				"delivered_seq": delivered_seq,
+				"source": "send",
 			},
 		)
 		return response
@@ -497,6 +498,7 @@ class ChatService:
 				"peer_id": auth_user.id,
 				"conversation_id": conversation.conversation_id,
 				"delivered_seq": delivered,
+				"source": "ack",
 			},
 		)
 		return delivered
@@ -533,6 +535,7 @@ class ChatService:
 					"peer_id": auth_user.id,
 					"conversation_id": conversation.conversation_id,
 					"delivered_seq": delivered_seq,
+					"source": "ack",
 				},
 			)
 		return OutboxResponse(items=items, reset_cursor=reset_cursor)

@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest } from "fastify";
 import {
   submitRoundDto,
   submitQuickTriviaRoundDto,
+  submitRpsMoveDto,
   keystrokeSampleDto,
   pingDto,
 } from "../dto/sessionDtos";
@@ -25,6 +26,8 @@ type WebSocketLike = {
 type SocketStreamLike = {
   socket: WebSocketLike;
 };
+
+const permitKeyFor = (sessionId: string, userId: string): string => `sess:${sessionId}:permit:${userId}`;
 
 function toSocketStream(connection: unknown): SocketStreamLike | null {
   if (connection && typeof connection === "object") {
@@ -118,13 +121,17 @@ export async function registerSessionStream(app: FastifyInstance): Promise<void>
       }
 
       void (async () => {
+        const permitKey = permitKeyFor(sessionId, userId);
         const permitted = await consumeSessionPermit(app.deps.redis, sessionId, userId);
         if (!permitted) {
           try {
             socket.send(JSON.stringify({ type: "error", payload: { code: "not_joined" } }));
           } catch {}
           socket.close(4403, "not_joined");
-          try { (request as any).log?.warn?.({ path: request.url, sessionId, userId }, "stream: no permit (not_joined)"); } catch {}
+          try {
+            const ttl = await app.deps.redis.ttl(permitKey);
+            (request as any).log?.warn?.({ path: request.url, sessionId, userId, permitTtlSeconds: ttl }, "stream: no permit (not_joined)");
+          } catch {}
           return;
         }
         try { (request as any).log?.info?.({ path: request.url, sessionId, userId }, "stream: permit consumed"); } catch {}
@@ -147,14 +154,33 @@ export async function registerSessionStream(app: FastifyInstance): Promise<void>
         } catch {}
 
         try {
-          let view: unknown;
-          try {
-            view = await app.deps.speedTyping.getSessionView(sessionId);
-            activityKeyCache = "speed_typing";
-          } catch {
-            view = await app.deps.quickTrivia.getSessionView(sessionId);
-            activityKeyCache = "quick_trivia";
-          }
+          const attemptSessionView = async (): Promise<{ view: unknown; key: string }> => {
+            const swallow = (error: unknown): boolean => {
+              const message = error instanceof Error ? error.message : "";
+              return message.includes("session_not_found") || message.includes("session_state_missing");
+            };
+            try {
+              const view = await app.deps.speedTyping.getSessionView(sessionId);
+              return { view, key: "speed_typing" };
+            } catch (error) {
+              if (!swallow(error)) {
+                throw error;
+              }
+            }
+            try {
+              const view = await app.deps.quickTrivia.getSessionView(sessionId);
+              return { view, key: "quick_trivia" };
+            } catch (error) {
+              if (!swallow(error)) {
+                throw error;
+              }
+            }
+            const view = await app.deps.rockPaperScissors.getSessionView(sessionId);
+            return { view, key: "rock_paper_scissors" };
+          };
+
+          const { view, key } = await attemptSessionView();
+          activityKeyCache = key;
           ready = true;
           socket.send(JSON.stringify({ type: "session.snapshot", payload: view }));
           try { (request as any).log?.info?.({ path: request.url, sessionId, userId }, "stream: snapshot sent"); } catch {}
@@ -184,24 +210,35 @@ export async function registerSessionStream(app: FastifyInstance): Promise<void>
             void (async () => {
               // Determine session activity to choose correct DTO
               // We fetch session view cheaply via speedTyping (may throw) then quickTrivia; prefer existing state
-              let useQuickTrivia = activityKeyCache === "quick_trivia";
+              let activityKey = activityKeyCache;
               if (activityKeyCache === undefined) {
-                let activityKey: string | undefined;
+                let detected: string | undefined;
                 try {
                   const snapshot = (await app.deps.speedTyping.getSessionView(sessionId)) as { activityKey?: string };
-                  activityKey = snapshot.activityKey;
+                  detected = snapshot.activityKey;
                 } catch {
                   try {
                     const snapshotQT = (await app.deps.quickTrivia.getSessionView(sessionId)) as { activityKey?: string };
-                    activityKey = snapshotQT.activityKey;
+                    detected = snapshotQT.activityKey;
                   } catch {
-                    activityKey = undefined;
+                    try {
+                      const snapshotRps = (await app.deps.rockPaperScissors.getSessionView(sessionId)) as { activityKey?: string };
+                      detected = snapshotRps.activityKey;
+                    } catch {
+                      detected = undefined;
+                    }
                   }
                 }
-                activityKeyCache = activityKey;
-                useQuickTrivia = activityKey === "quick_trivia";
+                activityKeyCache = detected;
+                activityKey = detected;
               }
-              const parseResult = (useQuickTrivia ? submitQuickTriviaRoundDto : submitRoundDto).safeParse(message.payload);
+              const schema =
+                activityKey === "quick_trivia"
+                  ? submitQuickTriviaRoundDto
+                  : activityKey === "rock_paper_scissors"
+                  ? submitRpsMoveDto
+                  : submitRoundDto;
+              const parseResult = schema.safeParse(message.payload);
               if (!parseResult.success) {
                 socket.send(
                   JSON.stringify({
@@ -219,13 +256,31 @@ export async function registerSessionStream(app: FastifyInstance): Promise<void>
                 );
                 return;
               }
-              if (useQuickTrivia) {
+              if (activityKey === "quick_trivia") {
                 app.deps.quickTrivia
                   .submitRound({
                     sessionId,
                     userId,
                     choiceIndex: (submission as any).choiceIndex,
                     clientMs: (submission as any).clientMs,
+                  })
+                  .then(() => {
+                    socket.send(JSON.stringify({ type: "ack", payload: { submission: "accepted" } }));
+                  })
+                  .catch((error: unknown) => {
+                    if (error instanceof RateLimitExceededError) {
+                      socket.send(JSON.stringify({ type: "error", payload: { code: "rate_limit_exceeded" } }));
+                      return;
+                    }
+                    const messageText = error instanceof Error ? error.message : "submission_failed";
+                    socket.send(JSON.stringify({ type: "error", payload: { code: messageText } }));
+                  });
+              } else if (activityKey === "rock_paper_scissors") {
+                app.deps.rockPaperScissors
+                  .submitMove({
+                    sessionId,
+                    userId,
+                    move: (submission as any).move,
                   })
                   .then(() => {
                     socket.send(JSON.stringify({ type: "ack", payload: { submission: "accepted" } }));

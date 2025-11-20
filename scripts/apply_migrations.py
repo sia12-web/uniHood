@@ -16,10 +16,27 @@ def main() -> None:
     with psycopg2.connect(DSN) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version TEXT PRIMARY KEY,
+                    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
             for path in paths:
                 sql = path.read_text()
                 try:
                     cur.execute(sql)
+                    version = path.name.split("_", 1)[0]
+                    cur.execute(
+                        """
+                        INSERT INTO schema_migrations (version)
+                        VALUES (%s)
+                        ON CONFLICT (version) DO UPDATE SET applied_at = NOW()
+                        """,
+                        (version,),
+                    )
                     print(f"Applied {path.name}")
                 except Exception as exc:  # noqa: BLE001
                     print(f"Failed applying {path.name}: {exc}")

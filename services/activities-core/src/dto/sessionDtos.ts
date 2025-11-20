@@ -1,14 +1,16 @@
 import { z } from "zod";
 
+const uniqueParticipantsConstraint = z
+  .array(z.string().min(1))
+  .length(2)
+  .refine((values: string[]) => new Set(values).size === values.length, {
+    message: "participants must be unique",
+  });
+
 export const createSessionDto = z.object({
   activityKey: z.literal("speed_typing"),
   creatorUserId: z.string().min(1),
-  participants: z
-    .array(z.string().min(1))
-    .length(2)
-  .refine((values: string[]) => new Set(values).size === values.length, {
-      message: "participants must be unique",
-    }),
+  participants: uniqueParticipantsConstraint,
 });
 
 export type CreateSessionDto = z.infer<typeof createSessionDto>;
@@ -17,12 +19,7 @@ export type CreateSessionDto = z.infer<typeof createSessionDto>;
 export const createQuickTriviaSessionDto = z.object({
   activityKey: z.literal("quick_trivia"),
   creatorUserId: z.string().min(1),
-  participants: z
-    .array(z.string().min(1))
-    .length(2)
-    .refine((values: string[]) => new Set(values).size === values.length, {
-      message: "participants must be unique",
-    }),
+  participants: uniqueParticipantsConstraint,
   config: z
     .object({
       rounds: z.number().int().positive().max(30).optional(),
@@ -35,6 +32,20 @@ export const createQuickTriviaSessionDto = z.object({
     .optional(),
 });
 export type CreateQuickTriviaSessionDto = z.infer<typeof createQuickTriviaSessionDto>;
+
+export const createRpsSessionDto = z.object({
+  activityKey: z.literal("rock_paper_scissors"),
+  creatorUserId: z.string().min(1),
+  participants: uniqueParticipantsConstraint,
+  config: z
+    .object({
+      rounds: z.number().int().min(1).max(9).optional(),
+      roundTimeMs: z.number().int().min(3_000).max(20_000).optional(),
+      countdownMs: z.number().int().min(2_000).max(15_000).optional(),
+    })
+    .optional(),
+});
+export type CreateRpsSessionDto = z.infer<typeof createRpsSessionDto>;
 
 export const joinSessionDto = z.object({
   userId: z.string().min(1),
@@ -67,6 +78,12 @@ export const submitQuickTriviaRoundDto = z.object({
   clientMs: z.number().int().nonnegative().optional(),
 });
 export type SubmitQuickTriviaRoundDto = z.infer<typeof submitQuickTriviaRoundDto>;
+
+export const submitRpsMoveDto = z.object({
+  userId: z.string().min(1),
+  move: z.enum(["rock", "paper", "scissors"]),
+});
+export type SubmitRpsMoveDto = z.infer<typeof submitRpsMoveDto>;
 
 export const keystrokeSampleDto = z.object({
   userId: z.string().min(1),

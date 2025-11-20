@@ -183,11 +183,27 @@ export default function HomePage() {
       );
     });
 
+  const renderLayoutToggleButton = (mode: "light" | "dark" = "light") => (
+    <button
+      type="button"
+      onClick={() => setShowExperimental((prev) => !prev)}
+      className={
+        mode === "light"
+          ? "inline-flex items-center rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
+          : "inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+      }
+      aria-pressed={showExperimental}
+    >
+      {showExperimental ? "Use classic view" : "Try new design"}
+    </button>
+  );
+
   const classicView = (
     <main className="min-h-screen bg-lavender-haze overflow-y-scroll">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-14 pt-16 sm:pb-16 sm:pt-20">
         <header className="relative flex w-full flex-col items-center gap-3 text-slate-900">
           <nav aria-label="Primary" className="absolute right-0 top-0 flex items-center gap-2 text-sm font-semibold">
+            {renderLayoutToggleButton("light")}
             {authUser ? (
               <>
                 <Link
@@ -267,6 +283,41 @@ export default function HomePage() {
   const experimentalView = (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-28 pt-28">
+        <div className="flex items-center justify-end gap-2 text-xs font-semibold text-white">
+          {renderLayoutToggleButton("dark")}
+          {authUser ? (
+            <>
+              <Link
+                href="/settings/profile"
+                className="inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+              >
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/onboarding"
+                className="inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+              >
+                Join
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/30"
+              >
+                Sign in
+              </Link>
+            </>
+          )}
+        </div>
         <div className="flex flex-col-reverse gap-10 lg:flex-row">
           <div className="flex-1 space-y-6">
             <div className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.4em] text-slate-300">
@@ -374,20 +425,5 @@ export default function HomePage() {
     </main>
   );
 
-  return (
-    <div className="relative min-h-screen">
-      <div className="fixed left-4 top-4 z-50 flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold shadow-lg ring-1 ring-slate-200 backdrop-blur dark:bg-slate-900/70 dark:text-slate-100 dark:ring-white/20">
-        <span className="hidden text-slate-600 dark:text-slate-200 sm:inline">Layout preview</span>
-        <button
-          type="button"
-          onClick={() => setShowExperimental((prev) => !prev)}
-          className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-slate-800 dark:bg-white/20 dark:text-slate-900 dark:hover:bg-white/30"
-          aria-pressed={showExperimental}
-        >
-          {showExperimental ? "Use classic view" : "Try new design"}
-        </button>
-      </div>
-      {showExperimental ? experimentalView : classicView}
-    </div>
-  );
+  return showExperimental ? experimentalView : classicView;
 }

@@ -19,9 +19,15 @@ function harness(qs: any[]) {
   const scoreEvents: any[] = [];
   const prisma = {
     activity: { upsert: vi.fn(async()=>({id:"a"})) },
-    activitySession: { create: vi.fn(async({data}:any)=>({id:"s",...data,status:"pending"})), findUnique: vi.fn(async()=>({id:"s",status:"running",activity:{key:"quick_trivia"},participants:Array.from(participantScores.entries()).map(([userId,score])=>({userId,score,joinedAt:new Date()})),rounds:rounds.map((r,i)=>({index:i,state:r.state}))})), update: vi.fn(async()=>({})) },
+    activitySession: {
+      create: vi.fn(async({data}:any)=>({id:"s",...data,status:"pending"})),
+      findUnique: vi.fn(async()=>({id:"s",status:"running",activity:{key:"quick_trivia"},participants:Array.from(participantScores.entries()).map(([userId,score])=>({userId,score,joinedAt:new Date()})),rounds:rounds.map((r,i)=>({index:i,state:r.state}))})),
+      update: vi.fn(async()=>({})),
+      findMany: vi.fn(async () => []),
+      updateMany: vi.fn(async () => ({})),
+    },
     participant: { create: vi.fn(async({data}:any)=>participantScores.set(data.userId,0)), update: vi.fn(async({where,data}:any)=>{const uid=where.sessionId_userId.userId; participantScores.set(uid,(participantScores.get(uid)??0)+(data.score.increment??0));}), findUnique: vi.fn(async({where}:any)=>({score:participantScores.get(where.sessionId_userId.userId)??0})), findMany: vi.fn(async()=>Array.from(participantScores.entries()).map(([userId,score])=>({userId,score}))) },
-    round: { create: vi.fn(async({data}:any)=>{rounds[data.index]={state:data.state,payloadJson:data.payloadJson};}), findUnique: vi.fn(async({where}:any)=>{const idx=where.sessionId_index.index; return rounds[idx]?{...rounds[idx]}:null;}), update: vi.fn(async({where,data}:any)=>{const idx=where.sessionId_index.index; if(rounds[idx]) rounds[idx]={...rounds[idx],...data};}) },
+    round: { create: vi.fn(async({data}:any)=>{rounds[data.index]={state:data.state,payloadJson:data.payloadJson};}), findUnique: vi.fn(async({where}:any)=>{const idx=where.sessionId_index.index; return rounds[idx]?{...rounds[idx]}:null;}), update: vi.fn(async({where,data}:any)=>{const idx=where.sessionId_index.index; if(rounds[idx]) rounds[idx]={...rounds[idx],...data};}), updateMany: vi.fn(async () => ({})) },
     scoreEvent: { create: vi.fn(async({data}:any)=>{scoreEvents.push(data);}), findFirst: vi.fn(async()=>scoreEvents.at(-1)??null) },
     triviaQuestion: { findMany: vi.fn(async({where}:any)=>qs.filter(q=>where.difficulty.in.includes(q.difficulty))), findUnique: vi.fn(async({where}:any)=>qs.find(q=>q.id===where.id)??null) },
     $transaction: async (cb:any)=>cb(prisma),

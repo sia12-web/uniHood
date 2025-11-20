@@ -64,3 +64,13 @@ class PresenceStatusResponse(BaseModel):
 	online: bool
 	ts: Optional[int] = None
 
+
+class PresenceLookupItem(BaseModel):
+	user_id: str
+	online: bool
+	last_seen: Optional[str] = None
+
+
+class PresenceLookupResponse(BaseModel):
+	items: list[PresenceLookupItem]
+

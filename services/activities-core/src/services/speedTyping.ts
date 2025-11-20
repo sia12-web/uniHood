@@ -49,6 +49,7 @@ interface SessionState {
   presence: Record<string, LobbyPresence>;
   lobbyReady: boolean;
   countdown?: CountdownState;
+  lastActivityMs?: number;
 }
 
 interface SubmissionSnapshot {
@@ -122,7 +123,9 @@ export interface SpeedTypingService {
 export function createSpeedTypingService(deps: Dependencies): SpeedTypingService {
   const { prisma, redis, limiter, publisher, scheduler } = deps;
   const timerHandles = new Map<string, TimerHandle>();
+  const inactivityHandles = new Map<string, TimerHandle>();
   const LOBBY_COUNTDOWN_MS = 10_000;
+  const INACTIVITY_MS = 120_000; // 2 minutes
 
   async function ensureActivity(): Promise<string> {
     const config = defaultSpeedTypingConfig();
@@ -253,6 +256,18 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     scheduler.cancel(sessionId);
   }
 
+  function cancelInactivityTimer(sessionId: string): void {
+    inactivityHandles.get(sessionId)?.cancel();
+    inactivityHandles.delete(sessionId);
+    // share scheduler; cancel called above in cancelTimer; here we don't cancel scheduler to avoid breaking round timer
+  }
+
+  function scheduleInactivity(sessionId: string): void {
+    cancelInactivityTimer(sessionId);
+    const handle = scheduler.schedule(sessionId, -2, INACTIVITY_MS);
+    inactivityHandles.set(sessionId, handle);
+  }
+
   function ensurePresence(state: SessionState, userId: string): LobbyPresence {
     if (!state.presence[userId]) {
       state.presence[userId] = { joined: false, ready: false, lastSeen: 0 };
@@ -344,6 +359,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     state.submissions = {};
     ensureRoundBuckets(state, 0);
     state.roundDeadlines[0] = Date.now() + config.timeLimitMs;
+    state.lastActivityMs = Date.now();
 
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.activitySession.update({
@@ -364,6 +380,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
 
     await saveState(sessionId, state);
     scheduleTimer(sessionId, 0, config.timeLimitMs);
+    scheduleInactivity(sessionId);
 
     await publisher.publish({
       name: "activity.session.started",
@@ -765,7 +782,9 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       metrics,
       incidents: incidentTypes,
     };
+    state.lastActivityMs = Date.now();
     await saveState(params.sessionId, state);
+    scheduleInactivity(params.sessionId);
 
     await publisher.publish({
       name: "activity.score.updated",
@@ -824,6 +843,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
         payload: { sessionId, index: nextRound, payload },
       });
       scheduleTimer(sessionId, nextRound, currentState.cfg.timeLimitMs);
+      scheduleInactivity(sessionId);
     } else {
       await prisma.activitySession.update({
         where: { id: sessionId },
@@ -833,6 +853,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
         name: "activity.session.ended",
         payload: { sessionId, finalScoreboard: scoreboard, winnerUserId: scoreboard.participants[0]?.userId },
       });
+      cancelInactivityTimer(sessionId);
       await deleteState(sessionId);
     }
   }
@@ -847,6 +868,10 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       },
     });
     if (!session) {
+      throw new Error("session_not_found");
+    }
+    // Guard: if this session belongs to a different activity, treat as not found
+    if (session.activity.key !== "speed_typing") {
       throw new Error("session_not_found");
     }
 
@@ -884,6 +909,24 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
   async function handleTimerElapsed(sessionId: string, roundIndex: number): Promise<void> {
     const state = await loadState(sessionId);
     if (!state) {
+      return;
+    }
+    if (roundIndex === -2) {
+      if (state.phase === "running" && (!state.lastActivityMs || Date.now() - state.lastActivityMs >= INACTIVITY_MS)) {
+        // End session as draw due to inactivity
+        await prisma.activitySession.update({
+          where: { id: sessionId },
+          data: { status: "ended", endedAt: new Date() },
+        });
+        const scoreboard = await getScoreboard(sessionId);
+        await publisher.publish({
+          name: "activity.session.ended",
+          payload: { sessionId, finalScoreboard: scoreboard, winnerUserId: undefined, draw: true },
+        });
+        await deleteState(sessionId);
+        cancelTimer(sessionId);
+        cancelInactivityTimer(sessionId);
+      }
       return;
     }
     if (roundIndex === -1) {
@@ -940,8 +983,10 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
 
     state.keystrokes[roundIndex][params.userId] = updatedSamples;
     state.incidents[roundIndex][params.userId] = incidents;
+    state.lastActivityMs = Date.now();
 
     await saveState(params.sessionId, state);
+    scheduleInactivity(params.sessionId);
 
     if (newIncidents.length > 0) {
       await Promise.all(

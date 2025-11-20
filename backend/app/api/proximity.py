@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 
 from typing import List, Optional
 from uuid import UUID
@@ -15,6 +16,8 @@ from app.domain.proximity.schemas import (
     HeartbeatPayload,
     NearbyQuery,
     NearbyResponse,
+    PresenceLookupItem,
+    PresenceLookupResponse,
     PresenceStatusResponse,
 )
 from app.domain.proximity.service import get_nearby
@@ -25,6 +28,7 @@ from app.settings import settings
 from app.obs import metrics as obs_metrics
 
 router = APIRouter()
+
 
 @router.post("/presence/heartbeat")
 async def heartbeat(
@@ -121,6 +125,37 @@ async def presence_status(auth_user: AuthenticatedUser = Depends(get_current_use
     ttl = await redis_client.ttl(f"online:user:{auth_user.id}")
     ts = await redis_client.hget(f"presence:{auth_user.id}", "ts")
     return PresenceStatusResponse(online=ttl > 0, ts=int(ts) if ts else None)
+
+
+@router.get("/presence/lookup", response_model=PresenceLookupResponse)
+async def presence_lookup(
+    ids: str = Query(..., min_length=1),
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> PresenceLookupResponse:
+    raw_ids = [fragment.strip() for fragment in ids.split(",") if fragment and fragment.strip()]
+    if not raw_ids:
+        return PresenceLookupResponse(items=[])
+    if len(raw_ids) > 100:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "too_many_ids")
+    items: list[PresenceLookupItem] = []
+    for user_id in raw_ids:
+        ttl = await redis_client.ttl(f"online:user:{user_id}")
+        ts_raw = await redis_client.hget(f"presence:{user_id}", "ts")
+        last_seen: str | None = None
+        if ts_raw is not None:
+            try:
+                millis = int(ts_raw)
+                last_seen = datetime.fromtimestamp(millis / 1000, tz=timezone.utc).isoformat()
+            except (ValueError, OSError):
+                last_seen = None
+        items.append(
+            PresenceLookupItem(
+                user_id=user_id,
+                online=bool(ttl and ttl > 0),
+                last_seen=last_seen,
+            )
+        )
+    return PresenceLookupResponse(items=items)
 
 
 async def _build_nearby_query(

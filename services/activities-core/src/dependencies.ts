@@ -9,6 +9,7 @@ import { createSocketEventPublisher } from "./lib/publisher";
 import { EventPublisher } from "./lib/events";
 import { createSpeedTypingService, SpeedTypingService } from "./services/speedTyping";
 import { createQuickTriviaService, QuickTriviaService } from "./services/quickTrivia";
+import { createRockPaperScissorsService, RockPaperScissorsService } from "./services/rockPaperScissors";
 
 export interface ServiceContainer {
   prisma: PrismaClient;
@@ -18,6 +19,7 @@ export interface ServiceContainer {
   publisher: EventPublisher;
   speedTyping: SpeedTypingService;
   quickTrivia: QuickTriviaService;
+  rockPaperScissors: RockPaperScissorsService;
 }
 
 export async function createServiceContainer(
@@ -32,12 +34,14 @@ export async function createServiceContainer(
 
   const speedTyping = createSpeedTypingService({ prisma, redis, limiter, publisher, scheduler });
   const quickTrivia = createQuickTriviaService({ prisma, redis, limiter, publisher, scheduler });
+  const rockPaperScissors = createRockPaperScissorsService({ prisma, redis, limiter, publisher, scheduler });
 
   // multiplex scheduler callback to both services; each will no-op if not applicable
   scheduler.setCallback(async (sessionId, roundIndex) => {
     await Promise.allSettled([
       speedTyping.handleTimerElapsed(sessionId, roundIndex),
       quickTrivia.handleTimerElapsed(sessionId, roundIndex),
+      rockPaperScissors.handleTimerElapsed(sessionId, roundIndex),
     ]);
   });
 
@@ -49,5 +53,6 @@ export async function createServiceContainer(
     publisher,
     speedTyping,
     quickTrivia,
+    rockPaperScissors,
   };
 }

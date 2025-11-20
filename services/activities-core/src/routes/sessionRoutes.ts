@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   createSessionDto,
   createQuickTriviaSessionDto,
+  createRpsSessionDto,
   joinSessionDto,
   leaveSessionDto,
   readyStateDto,
@@ -47,7 +48,10 @@ function respondWithError(reply: FastifyReply, error: unknown): FastifyReply {
     const code = message as KnownErrorCode | string;
     switch (true) {
       case code.startsWith("session_state_missing"):
-        return reply.status(410).send({ error: "session_state_missing" satisfies KnownErrorCode });
+        // Include details to aid debugging (original message may include sessionId or context)
+        return reply
+          .status(410)
+          .send({ error: "session_state_missing" satisfies KnownErrorCode, details: code });
       case code === "unsupported_activity":
       case code === "invalid_participants":
       case code === "round_not_started":
@@ -78,10 +82,31 @@ function respondWithError(reply: FastifyReply, error: unknown): FastifyReply {
   return reply.status(500).send({ error: "internal_error" satisfies KnownErrorCode });
 }
 
+function isSessionGone(error: unknown): boolean {
+  let message: string | null = null;
+  if (error instanceof Error && typeof error.message === "string") {
+    message = error.message;
+  } else if (typeof error === "string") {
+    message = error;
+  } else if (error && typeof (error as { code?: unknown }).code === "string") {
+    message = String((error as { code: unknown }).code);
+  }
+  if (!message) {
+    return false;
+  }
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("session_state_missing") ||
+    normalized.includes("session_not_found") ||
+    normalized.includes("session_expired") ||
+    normalized.includes("session_gone")
+  );
+}
+
 async function resolveSessionOwner(
   app: FastifyInstance,
   sessionId: string,
-): Promise<"speed_typing" | "quick_trivia" | null> {
+): Promise<"speed_typing" | "quick_trivia" | "rock_paper_scissors" | null> {
   try {
     const view = (await app.deps.speedTyping.getSessionView(sessionId)) as { activityKey?: string };
     if (view?.activityKey === "speed_typing") {
@@ -98,6 +123,18 @@ async function resolveSessionOwner(
     const view = (await app.deps.quickTrivia.getSessionView(sessionId)) as { activityKey?: string };
     if (view?.activityKey === "quick_trivia") {
       return "quick_trivia";
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.startsWith("session_not_found") && !message.startsWith("session_state_missing")) {
+      throw error;
+    }
+  }
+
+  try {
+    const view = (await app.deps.rockPaperScissors.getSessionView(sessionId)) as { activityKey?: string };
+    if (view?.activityKey === "rock_paper_scissors") {
+      return "rock_paper_scissors";
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -168,7 +205,7 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       const statuses = statusFilter === "all" ? undefined : [statusFilter];
 
       try {
-        const [speedTypingSessions, quickTriviaSessions] = await Promise.all([
+        const [speedTypingSessions, quickTriviaSessions, rpsSessions] = await Promise.all([
           app.deps.speedTyping.listSessionsForUser({
             userId,
             statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
@@ -177,8 +214,12 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
             userId,
             statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
           }),
+          app.deps.rockPaperScissors.listSessionsForUser({
+            userId,
+            statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
+          }),
         ]);
-        const sessions = [...speedTypingSessions, ...quickTriviaSessions];
+        const sessions = [...speedTypingSessions, ...quickTriviaSessions, ...rpsSessions];
         return reply.status(200).send({ sessions });
       } catch (error) {
         return respondWithError(reply, error);
@@ -212,8 +253,14 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       }
 
       const activityKey = (request.body as any)?.activityKey;
+      request.log.info({ activityKey, rawBody: request.body }, 'create_session_debug_received_body');
       const useQuickTrivia = activityKey === "quick_trivia";
-      const parseResult = (useQuickTrivia ? createQuickTriviaSessionDto : createSessionDto).safeParse(request.body);
+      const useRps = activityKey === "rock_paper_scissors";
+      const parseResult = useQuickTrivia
+        ? createQuickTriviaSessionDto.safeParse(request.body)
+        : useRps
+        ? createRpsSessionDto.safeParse(request.body)
+        : createSessionDto.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({ error: "invalid_request", details: parseResult.error.flatten() });
       }
@@ -224,15 +271,23 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       }
 
       try {
-        const sessionId = useQuickTrivia
-          ? await app.deps.quickTrivia.createSession({
-              ...(dto as any),
-              creatorUserId: request.auth.userId,
-            })
-          : await app.deps.speedTyping.createSession({
-              ...(dto as any),
-              creatorUserId: request.auth.userId,
-            });
+        let sessionId: string;
+        if (useQuickTrivia) {
+          sessionId = await app.deps.quickTrivia.createSession({
+            ...(dto as any),
+            creatorUserId: request.auth.userId,
+          });
+        } else if (useRps) {
+          sessionId = await app.deps.rockPaperScissors.createSession({
+            ...(dto as any),
+            creatorUserId: request.auth.userId,
+          });
+        } else {
+          sessionId = await app.deps.speedTyping.createSession({
+            ...(dto as any),
+            creatorUserId: request.auth.userId,
+          });
+        }
         return reply.status(201).send({ sessionId });
       } catch (error) {
         return respondWithError(reply, error);
@@ -277,6 +332,12 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
             byUserId: request.auth.userId,
             isAdmin: request.auth.isAdmin,
           });
+        } else if (owner === "rock_paper_scissors") {
+          await app.deps.rockPaperScissors.startSession({
+            sessionId: request.params.id,
+            byUserId: request.auth.userId,
+            isAdmin: request.auth.isAdmin,
+          });
         } else {
           return reply.status(404).send({ error: "session_not_found" });
         }
@@ -314,48 +375,18 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       return reply.status(403).send({ error: "forbidden" });
     }
 
-    let participant = await app.deps.prisma.participant.findUnique({
-      where: {
-        sessionId_userId: {
-          sessionId: request.params.id,
-          userId: dto.userId,
-        },
-      },
-    });
 
-    if (!participant) {
-      try {
-        const owner = await resolveSessionOwner(app, request.params.id);
-        if (owner === "speed_typing") {
-          await app.deps.speedTyping.addParticipant({ sessionId: request.params.id, userId: dto.userId });
-        } else {
-          return reply.status(404).send({ error: "participant_not_found" });
-        }
-      } catch (error) {
-        return respondWithError(reply, error);
-      }
-
-      participant = await app.deps.prisma.participant.findUnique({
-        where: {
-          sessionId_userId: {
-            sessionId: request.params.id,
-            userId: dto.userId,
-          },
-        },
-      });
-
-      if (!participant) {
-        return reply.status(404).send({ error: "participant_not_found" });
-      }
-    }
-
+    // Ensure participant exists exactly once
     try {
       const owner = await resolveSessionOwner(app, request.params.id);
       if (!owner) {
         return reply.status(404).send({ error: "session_not_found" });
       }
+      request.log.info({ path: request.url, sessionId: request.params.id, userId: dto.userId, owner }, "join: dispatching to activity");
       if (owner === "quick_trivia") {
         await app.deps.quickTrivia.joinSession({ sessionId: request.params.id, userId: dto.userId });
+      } else if (owner === "rock_paper_scissors") {
+        await app.deps.rockPaperScissors.joinSession({ sessionId: request.params.id, userId: dto.userId });
       } else {
         await app.deps.speedTyping.joinSession({ sessionId: request.params.id, userId: dto.userId });
       }
@@ -364,6 +395,7 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
     }
 
     await grantSessionPermit(app.deps.redis, request.params.id, dto.userId);
+    request.log.info({ path: request.url, sessionId: request.params.id, userId: dto.userId }, "join: permit granted");
 
     return reply.status(202).send({ ok: true, permitTtlSeconds: permitTtlSeconds() });
   });
@@ -399,18 +431,28 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
     try {
       const owner = await resolveSessionOwner(app, request.params.id);
       if (!owner) {
-        return reply.status(404).send({ error: "session_not_found" });
+        reply.log.debug({ sessionId: request.params.id }, "leave ignored; session already missing");
+        return reply.status(204).send();
       }
       if (owner === "quick_trivia") {
         await app.deps.quickTrivia.leaveSession({ sessionId: request.params.id, userId: dto.userId });
+      } else if (owner === "rock_paper_scissors") {
+        await app.deps.rockPaperScissors.leaveSession({ sessionId: request.params.id, userId: dto.userId });
       } else {
         await app.deps.speedTyping.leaveSession({ sessionId: request.params.id, userId: dto.userId });
       }
     } catch (error) {
+      if (isSessionGone(error)) {
+        reply.log.debug(
+          { sessionId: request.params.id, userId: dto.userId },
+          "leave treated as noop; session already ended",
+        );
+        return reply.status(204).send();
+      }
       return respondWithError(reply, error);
     }
 
-    return reply.status(202).send({ ok: true });
+    return reply.status(200).send({ ok: true });
   });
 
   app.post("/activities/session/:id/ready", async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
@@ -448,6 +490,8 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       }
       if (owner === "quick_trivia") {
         await app.deps.quickTrivia.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
+      } else if (owner === "rock_paper_scissors") {
+        await app.deps.rockPaperScissors.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
       } else {
         await app.deps.speedTyping.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
       }
@@ -466,8 +510,13 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
           const view = await app.deps.speedTyping.getSessionView(request.params.id);
           return reply.status(200).send(view);
         } catch {
-          const viewQT = await app.deps.quickTrivia.getSessionView(request.params.id);
-          return reply.status(200).send(viewQT);
+          try {
+            const viewQT = await app.deps.quickTrivia.getSessionView(request.params.id);
+            return reply.status(200).send(viewQT);
+          } catch {
+            const rpsView = await app.deps.rockPaperScissors.getSessionView(request.params.id);
+            return reply.status(200).send(rpsView);
+          }
         }
       } catch (error) {
         return respondWithError(reply, error);

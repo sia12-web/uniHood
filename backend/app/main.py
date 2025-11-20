@@ -177,6 +177,7 @@ install_error_handlers(app)
 if settings.environment == "dev":
 	# In local dev, make avatar uploads work without external object storage
 	from app.domain.identity import s3 as _s3  # local import to avoid circulars
+
 	_s3.DEFAULT_BASE_URL = "http://localhost:8000/uploads"
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
@@ -188,7 +189,13 @@ if "*" in allow_origins:
 	if settings.environment == "dev":
 		allow_origins = [
 			"http://localhost:3000",
+			"https://localhost:3000",
 			"http://127.0.0.1:3000",
+			"https://127.0.0.1:3000",
+			"http://localhost:5173",
+			"http://127.0.0.1:5173",
+			"http://localhost:4173",
+			"http://127.0.0.1:4173",
 		]
 	else:
 		allow_origins = ["https://app.divan.example"]

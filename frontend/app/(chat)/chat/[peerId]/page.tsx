@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -17,16 +17,19 @@ import {
   onMessage,
   getChatSocketStatus,
   onChatSocketStatus,
+  type ChatDeliveryEvent,
 } from "@/lib/chat";
 import {
   onAuthChange,
   readAuthSnapshot,
   readAuthUser,
+  resolveAuthHeaders,
   type AuthSnapshot,
   type AuthUser,
 } from "@/lib/auth-storage";
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { usePresenceForUser } from "@/hooks/presence/use-presence";
+import { useAutoLivePresence } from "@/hooks/presence/use-auto-live";
 import { useSocketStatus } from "@/app/lib/socket/useStatus";
 
 // 🧠 TODO: Refactor this chat page to look more like a modern messenger.
@@ -49,6 +52,11 @@ const SOCKET_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? getBackendUrl();
 const API_BASE_URL = getBackendUrl();
 // Self and campus come from auth (fallback to demo values for unauthenticated sessions)
 
+function buildConversationId(selfId: string, peerId: string): string {
+  const [a, b] = [selfId, peerId].sort((lhs, rhs) => lhs.localeCompare(rhs));
+  return `chat:${a}:${b}`;
+}
+
 export default function ChatPage({ params }: Props) {
   const peerId = useMemo(() => params.peerId ?? params.peerid ?? "", [params.peerId, params.peerid]);
   const validPeer = peerId.trim();
@@ -58,6 +66,8 @@ export default function ChatPage({ params }: Props) {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authSnapshot, setAuthSnapshot] = useState<AuthSnapshot | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [deliveredSeq, setDeliveredSeq] = useState(0);
+  const acknowledgedSeqRef = useRef(0);
 
   // Hydrate auth and subscribe to changes
   useEffect(() => {
@@ -74,6 +84,12 @@ export default function ChatPage({ params }: Props) {
   const selfId = useMemo(() => authUser?.userId ?? getDemoUserId(), [authUser]);
   const campusId = useMemo(() => authUser?.campusId ?? getDemoCampusId(), [authUser]);
   const chatSocketStatus = useSocketStatus(onChatSocketStatus, getChatSocketStatus);
+  const conversationId = useMemo(() => {
+    if (!selfId || !validPeer) {
+      return null;
+    }
+    return buildConversationId(selfId, validPeer);
+  }, [selfId, validPeer]);
 
   useEffect(() => {
     if (!validPeer) {
@@ -95,26 +111,27 @@ export default function ChatPage({ params }: Props) {
 
   const buildAuthHeaders = useCallback(
     (options: { json?: boolean } = {}) => {
-      const headers: Record<string, string> = {
+      const headerBag = new Headers({
         "X-User-Id": selfId,
         Accept: "application/json",
-      };
+      });
       if (campusId) {
-        headers["X-Campus-Id"] = campusId;
+        headerBag.set("X-Campus-Id", campusId);
       }
-      if (authSnapshot?.access_token) {
-        headers.Authorization = `Bearer ${authSnapshot.access_token}`;
+      const resolved = resolveAuthHeaders(authSnapshot);
+      for (const [key, value] of Object.entries(resolved)) {
+        headerBag.set(key, value);
       }
       if (options.json) {
-        headers["Content-Type"] = "application/json";
+        headerBag.set("Content-Type", "application/json");
       }
-      return headers;
+      return Object.fromEntries(headerBag.entries());
     },
-    [authSnapshot?.access_token, campusId, selfId],
+    [authSnapshot, campusId, selfId],
   );
 
   useEffect(() => {
-    if (!authReady || !selfId || !validPeer) {
+    if (!authReady || !selfId || !validPeer || !conversationId) {
       return;
     }
     initChatSocket(SOCKET_BASE_URL, selfId, campusId);
@@ -125,12 +142,23 @@ export default function ChatPage({ params }: Props) {
         updateConversationSnapshot(validPeer, message);
       }
     });
-    const unsubscribeDelivery = onDelivered(({ deliveredSeq }) => {
-      console.debug("Delivered up to", deliveredSeq);
+    const unsubscribeDelivery = onDelivered((payload: ChatDeliveryEvent) => {
+      if (!payload || payload.peerId !== validPeer) {
+        return;
+      }
+      if (payload.conversationId && payload.conversationId !== conversationId) {
+        return;
+      }
+      if (payload.source && payload.source !== "ack") {
+        return;
+      }
+      setDeliveredSeq((prev) => Math.max(prev, payload.deliveredSeq ?? 0));
     });
 
     const abortController = new AbortController();
     setMessages([]);
+    setDeliveredSeq(0);
+    acknowledgedSeqRef.current = 0;
     fetch(`${API_BASE_URL}/chat/conversations/${validPeer}/messages`, {
       headers: buildAuthHeaders(),
       signal: abortController.signal,
@@ -159,7 +187,29 @@ export default function ChatPage({ params }: Props) {
       unsubscribeDelivery();
       abortController.abort();
     };
-  }, [validPeer, addMessages, updateConversationSnapshot, selfId, campusId, buildAuthHeaders, authReady]);
+  }, [validPeer, addMessages, updateConversationSnapshot, selfId, campusId, buildAuthHeaders, authReady, conversationId]);
+
+  const acknowledgeDelivery = useCallback(
+    async (seq: number) => {
+      if (!authReady || !validPeer || seq <= 0) {
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE_URL}/chat/conversations/${validPeer}/deliveries`, {
+          method: "POST",
+          headers: buildAuthHeaders({ json: true }),
+          body: JSON.stringify({ delivered_seq: seq }),
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to acknowledge delivery (${response.status})`);
+        }
+      } catch (error) {
+        console.error("Failed to acknowledge delivery", error);
+        throw error;
+      }
+    },
+    [authReady, validPeer, buildAuthHeaders],
+  );
 
   const handleSend = useCallback(
     async (rawBody: string) => {
@@ -212,6 +262,8 @@ export default function ChatPage({ params }: Props) {
 
   const peerEntry = useMemo(() => entries.find((entry) => entry.peerId === validPeer) ?? null, [entries, validPeer]);
   const peerPresence = usePresenceForUser(validPeer);
+  // Ensure we appear online while viewing chat.
+  useAutoLivePresence();
 
   const peerDisplayName = useMemo(() => {
     const name = peerEntry?.displayName?.trim();
@@ -243,6 +295,35 @@ export default function ChatPage({ params }: Props) {
     }
     return "Offline";
   }, [peerPresence, typing]);
+
+  const latestIncomingSeq = useMemo(() => {
+    if (!messages.length) {
+      return 0;
+    }
+    return messages.reduce((max, message) => {
+      if (message.senderId === validPeer) {
+        return Math.max(max, message.seq ?? 0);
+      }
+      return max;
+    }, 0);
+  }, [messages, validPeer]);
+
+  useEffect(() => {
+    if (!authReady || !validPeer || latestIncomingSeq <= 0) {
+      return;
+    }
+    if (acknowledgedSeqRef.current >= latestIncomingSeq) {
+      return;
+    }
+    const targetSeq = latestIncomingSeq;
+    acknowledgedSeqRef.current = targetSeq;
+    void acknowledgeDelivery(targetSeq).catch(() => {
+      // Allow retry on next update if acknowledgement fails
+      if (acknowledgedSeqRef.current === targetSeq) {
+        acknowledgedSeqRef.current = targetSeq - 1;
+      }
+    });
+  }, [acknowledgeDelivery, authReady, latestIncomingSeq, validPeer]);
 
   if (!validPeer) {
     return (
@@ -279,13 +360,15 @@ export default function ChatPage({ params }: Props) {
       {/** useMemo to avoid recomputing every render */}
       
       <ChatWindow
-        conversationId={`chat:${selfId}:${validPeer}`}
+        conversationId={conversationId ?? buildConversationId(selfId, validPeer)}
         onSend={handleSend}
         messages={messages}
         selfUserId={selfId}
+        peerUserId={validPeer}
         peerName={peerDisplayName}
         peerStatusText={peerStatusText}
         connectionStatus={chatSocketStatus}
+        deliveredSeq={deliveredSeq}
       />
     </div>
   );

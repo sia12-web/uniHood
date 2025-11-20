@@ -7,19 +7,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SocketConnectionStatus } from "@/app/lib/socket/base";
 
 import { ReportUI } from "@/app/features/moderation/ReportButton";
+import { useTypingDuelInvite } from "@/hooks/activities/use-typing-duel-invite";
 
 import type { ChatMessage } from "../lib/chat";
-import { ChooseActivityModal } from '../app/features/activities/components/ChooseActivityModal';
-import { LiveSessionShell } from '../app/features/activities/components/LiveSessionShell';
+import { ChooseActivityModal } from "../app/features/activities/components/ChooseActivityModal";
+import { LiveSessionShell } from "../app/features/activities/components/LiveSessionShell";
 
 type Props = {
   conversationId: string;
   onSend: (body: string) => Promise<void>;
   messages: ChatMessage[];
   selfUserId: string;
+  peerUserId: string;
   peerName?: string | null;
   peerStatusText?: string | null;
   connectionStatus?: SocketConnectionStatus;
+  deliveredSeq?: number;
 };
 
 const QUICK_EMOJI = ["😀", "😂", "👍", "🎉", "❤️", "😎"];
@@ -40,9 +43,11 @@ export default function ChatWindow({
   onSend,
   messages,
   selfUserId,
+  peerUserId,
   peerName,
   peerStatusText,
   connectionStatus,
+  deliveredSeq,
 }: Props) {
   const [playOpen, setPlayOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<string | null>(null);
@@ -50,6 +55,7 @@ export default function ChatWindow({
   const [sending, setSending] = useState(false);
   const [expandedAttachmentIds, setExpandedAttachmentIds] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const { invite, acknowledge } = useTypingDuelInvite({ peerUserId });
 
   const timeFormatter = useMemo(
     () =>
@@ -59,6 +65,15 @@ export default function ChatWindow({
       }),
     [],
   );
+
+  useEffect(() => {
+    if (!invite) {
+      return;
+    }
+    setActiveSession(invite.sessionId);
+    setPlayOpen(false);
+    acknowledge(invite.sessionId);
+  }, [acknowledge, invite]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -189,6 +204,18 @@ export default function ChatWindow({
               "mt-1 flex items-center gap-2 text-xs text-slate-500",
               isSelf ? "justify-end" : "justify-start",
             );
+            const deliveryLabel = (() => {
+              if (!isSelf) {
+                return null;
+              }
+              if (msg.messageId === msg.clientMsgId) {
+                return "Sending…";
+              }
+              if (typeof deliveredSeq === "number" && deliveredSeq > 0 && deliveredSeq >= (msg.seq ?? 0)) {
+                return "Read";
+              }
+              return "Sent";
+            })();
             return (
               <div key={key} className={clsx("flex flex-col", isSelf ? "items-end" : "items-start")}>
                 <div className={bubbleClass}>
@@ -249,7 +276,7 @@ export default function ChatWindow({
                   <time dateTime={createdAt.toISOString()} suppressHydrationWarning>
                     {timeFormatter.format(createdAt)}
                   </time>
-                  {isSelf ? <span className="text-slate-400">• Read</span> : null}
+                  {isSelf && deliveryLabel ? <span className="text-slate-400">• {deliveryLabel}</span> : null}
                   {!isSelf ? (
                     <ReportUI kind="message" targetId={msg.messageId} className="ml-1" />
                   ) : null}
@@ -328,7 +355,7 @@ export default function ChatWindow({
       </form>
       {playOpen && !activeSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <ChooseActivityModal peerUserId={peerName || 'peer'} onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }} />
+          <ChooseActivityModal peerUserId={peerUserId} onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }} />
         </div>
       )}
       {activeSession && (

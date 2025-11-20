@@ -4,7 +4,6 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { ActivitiesQuickCard } from "@/app/features/activities/components/ActivitiesQuickCard";
 
 import { FriendList, type FriendProfileState } from "@/components/FriendList";
 import { InviteInbox } from "@/components/InviteInbox";
@@ -39,7 +38,7 @@ type InboxProfileStub = {
 function FriendsPageInner() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [filter, setFilter] = useState<FriendFilter>("accepted");
-  const { hasNotification, acknowledge } = useFriendAcceptanceIndicator();
+  const { hasNotification, acknowledge, latestFriendPeerId } = useFriendAcceptanceIndicator();
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -56,6 +55,7 @@ function FriendsPageInner() {
   const [friendProfiles, setFriendProfiles] = useState<Record<string, FriendProfileState>>({});
   const friendProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
   const friendProfilesStateRef = useRef<Record<string, FriendProfileState>>({});
+  const pendingFriendFocusRef = useRef<string | null>(null);
 
   const [inviteProfileData, setInviteProfileData] = useState<Record<string, InboxProfileStub>>({});
   const inviteProfileCacheRef = useRef<Map<string, PublicProfile>>(new Map());
@@ -79,6 +79,10 @@ function FriendsPageInner() {
     if (raw === "accepted" || raw === "blocked" || raw === "pending") {
       setFilter(raw);
     }
+    const focusParam = searchParams?.get("focus");
+    if (focusParam) {
+      pendingFriendFocusRef.current = focusParam;
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -93,9 +97,12 @@ function FriendsPageInner() {
     if (!hasNotification) {
       return;
     }
+    if (latestFriendPeerId) {
+      pendingFriendFocusRef.current = latestFriendPeerId;
+    }
     setFilter("accepted");
     acknowledge();
-  }, [acknowledge, hasNotification]);
+  }, [acknowledge, hasNotification, latestFriendPeerId]);
 
   const loadFriends = useCallback(
     async (scope: FriendFilter) => {
@@ -105,10 +112,18 @@ function FriendsPageInner() {
         const records = await fetchFriends(currentUserId, currentCampusId, scope);
         setFriends(records);
         if (scope === "accepted") {
-          const firstId = records[0]?.friend_id ?? null;
-          setSelectedFriendId((previous) =>
-            previous && records.some((item) => item.friend_id === previous) ? previous : firstId,
-          );
+          setSelectedFriendId((previous) => {
+            const focusCandidate = pendingFriendFocusRef.current;
+            if (focusCandidate && records.some((item) => item.friend_id === focusCandidate)) {
+              pendingFriendFocusRef.current = null;
+              return focusCandidate;
+            }
+            if (previous && records.some((item) => item.friend_id === previous)) {
+              return previous;
+            }
+            const firstId = records[0]?.friend_id ?? null;
+            return firstId;
+          });
         } else {
           setSelectedFriendId(null);
         }
@@ -472,7 +487,6 @@ function FriendsPageInner() {
           Open chats →
         </Link>
       </header>
-      <ActivitiesQuickCard variant="friends" className="mb-6" />
       {statusMessage && filter !== "pending" ? (
         <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {statusMessage}

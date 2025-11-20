@@ -32,7 +32,12 @@ export function getBackendUrl() {
 }
 
 export function getDemoUserId() {
-  return env.NEXT_PUBLIC_DEMO_USER_ID ?? "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  // Allow disabling the implicit demo user fallback so that components
+  // requiring an authenticated user do not silently default to the placeholder.
+  if ((env.DISABLE_DEMO_USER ?? '').trim() === '1') {
+    return '';
+  }
+  return env.NEXT_PUBLIC_DEMO_USER_ID ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 }
 
 export function getDemoCampusId() {

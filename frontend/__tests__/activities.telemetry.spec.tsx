@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 
 vi.mock('@/lib/auth-storage', () => ({
   readAuthSnapshot: () => ({ access_token: 'token;uid=test-user;campus:test-campus' }),
+  readAuthUser: () => ({ userId: 'test-user', displayName: 'Test User', handle: 'test-user' }),
 }));
 
 const { createSessionMock } = vi.hoisted(() => ({
@@ -19,9 +20,14 @@ vi.mock('@/app/features/activities/guards/typingBoxGuards', () => ({
 vi.mock('@/app/features/activities/api/client', () => ({
   createSession: createSessionMock,
   joinSession: vi.fn().mockResolvedValue(undefined),
-  leaveSession: vi.fn().mockResolvedValue(undefined),
+  leaveSession: vi.fn().mockResolvedValue('left'),
   setSessionReady: vi.fn().mockResolvedValue(undefined),
   startSession: vi.fn().mockResolvedValue(undefined),
+  fetchSessionSnapshot: vi.fn().mockResolvedValue({
+    id: 's1',
+    participants: [{ userId: 'test-user', score: 0 }],
+    presence: [{ userId: 'test-user', joined: true, ready: true }],
+  }),
   getSelf: () => 'test-user',
 }));
 

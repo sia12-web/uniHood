@@ -1,0 +1,23 @@
+<svg width="640" height="240" viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="rpsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9b8eff"/>
+      <stop offset="45%" stop-color="#7c8bff"/>
+      <stop offset="100%" stop-color="#53b7ff"/>
+    </linearGradient>
+    <filter id="rpsBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="25" />
+    </filter>
+  </defs>
+  <rect width="640" height="240" rx="24" fill="url(#rpsGradient)" />
+  <circle cx="160" cy="60" r="90" fill="#ffffff" opacity="0.08" filter="url(#rpsBlur)" />
+  <circle cx="520" cy="180" r="110" fill="#ffffff" opacity="0.08" filter="url(#rpsBlur)" />
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.6">
+    <path d="M120 110c40-60 100-60 140 0" />
+    <path d="M340 70c30 30 30 70 0 100" />
+    <path d="M460 120c40-20 80-10 120 30" />
+  </g>
+  <text x="40" y="200" fill="#ffffff" font-size="28" font-family="Inter, system-ui" font-weight="600" opacity="0.85">
+    Rock · Paper · Scissors
+  </text>
+</svg>

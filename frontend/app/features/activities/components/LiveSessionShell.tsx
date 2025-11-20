@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSpeedTypingSession, SessionPhase } from '../hooks/useSpeedTypingSession';
 import { SpeedTypingPanel } from './SpeedTypingPanel';
 import { ScoreboardMini } from './ScoreboardMini';
@@ -81,15 +81,40 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
 
   const phaseLabel = stageLabels[normalizedStage];
   const phaseBadge = stageBadgeStyles[normalizedStage];
-  const activeStageIndex = stageOrder.indexOf(normalizedStage);
+  const currentSessionKey = isSpeedTyping ? speedState.sessionId : triviaState.sessionId;
+  const [visitedStages, setVisitedStages] = useState<NormalizedStage[]>(() => (stageOrder.includes(normalizedStage) ? [normalizedStage] : []));
+  const lastSessionKeyRef = useRef<string | undefined>(currentSessionKey);
 
+  useEffect(() => {
+    const sessionChanged = currentSessionKey !== lastSessionKeyRef.current;
+    if (sessionChanged) {
+      lastSessionKeyRef.current = currentSessionKey;
+      setVisitedStages(stageOrder.includes(normalizedStage) ? [normalizedStage] : []);
+      return;
+    }
+    setVisitedStages((prev) => {
+      if (!stageOrder.includes(normalizedStage)) {
+        return prev;
+      }
+      if (prev.includes(normalizedStage)) {
+        return prev;
+      }
+      return [...prev, normalizedStage];
+    });
+  }, [currentSessionKey, normalizedStage]);
+
+  // Dynamic highlight: during running show current leader; when ended show winner.
   const highlightWinnerId = isSpeedTyping
-    ? speedState.winnerUserId
+    ? speedState.phase === 'ended'
+      ? (speedState.winnerUserId || speedState.scoreboard[0]?.userId)
+      : speedState.phase === 'running'
+        ? speedState.scoreboard[0]?.userId
+        : undefined
     : triviaState.tieBreakWinnerUserId || triviaState.winnerUserId;
 
   const winnerParticipant = highlightWinnerId
     ? activeScoreboard.find((entry) => entry.userId === highlightWinnerId) ?? activeScoreboard[0]
-    : undefined;
+    : activeScoreboard[0];
   const winnerName = resolveParticipantName(winnerParticipant);
   const scoreboardStatusLabel = normalizedStage === 'ended'
     ? 'Final'
@@ -101,16 +126,17 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
 
   const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
   useEffect(() => {
-    if (normalizedStage === 'ended' && highlightWinnerId) {
+    if (normalizedStage === 'ended' && winnerName) {
       setShowWinnerOverlay(true);
       const timeout = setTimeout(() => setShowWinnerOverlay(false), 4200);
       return () => clearTimeout(timeout);
     }
     setShowWinnerOverlay(false);
     return undefined;
-  }, [normalizedStage, highlightWinnerId]);
+  }, [normalizedStage, winnerName]);
 
-  const showCountdownOverlay = Boolean(isSpeedTyping && speedState.phase === 'countdown' && countdownInfo?.seconds != null);
+  const countdownSeconds = countdownInfo?.seconds;
+  const showCountdownOverlay = Boolean(isSpeedTyping && speedState.phase === 'countdown' && countdownSeconds != null);
 
   const stageMarkers = useMemo(() => stageOrder, []);
 
@@ -130,6 +156,10 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
 
   return (
     <div className="relative">
+      {/* Auto-close the session a few seconds after end and winner overlay */}
+      {normalizedStage === 'ended' && onEnded && showWinnerOverlay ? (
+        <AutoClose onEnded={onEnded} delayMs={5200} />
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-4">
         <div className="lg:col-span-3 space-y-4">
           <header className="rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 shadow-sm backdrop-blur">
@@ -168,14 +198,17 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
             </div>
             <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.4em] text-slate-400">
               {stageMarkers.map((stage, idx) => {
-                const status = idx < activeStageIndex ? 'complete' : idx === activeStageIndex ? 'active' : 'upcoming';
+                const visited = visitedStages.includes(stage);
+                const status = stage === normalizedStage ? 'active' : visited ? 'complete' : 'upcoming';
                 const circleClass =
                   status === 'complete'
                     ? 'bg-emerald-500 text-white'
                     : status === 'active'
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-200 text-slate-500';
-                const barClass = idx < activeStageIndex ? 'bg-slate-600' : 'bg-slate-200';
+                const nextStage = stageMarkers[idx + 1];
+                const barCompleted = visited && nextStage ? visitedStages.includes(nextStage) || nextStage === normalizedStage : false;
+                const barClass = barCompleted ? 'bg-slate-600' : 'bg-slate-200';
                 return (
                   <React.Fragment key={stage}>
                     <span className={`inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded-full px-2 text-[10px] transition ${circleClass}`}>
@@ -204,7 +237,12 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
       </div>
 
       {showCountdownOverlay && countdownInfo ? (
-        <CountdownOverlay seconds={Math.max(countdownInfo.seconds ?? 0, 0)} final={countdownInfo.finalCountdown} />
+        <CountdownOverlay
+          seconds={Math.max(countdownInfo.seconds ?? 0, 0)}
+          final={countdownInfo.finalCountdown}
+          reason={countdownInfo.reason}
+          nextRoundIndex={countdownInfo.nextRoundIndex}
+        />
       ) : null}
 
       {showWinnerOverlay && winnerName ? (
@@ -214,18 +252,35 @@ export const LiveSessionShell: React.FC<Props> = ({ sessionId, activityKey = 'sp
   );
 };
 
-const CountdownOverlay: React.FC<{ seconds: number; final?: boolean }> = ({ seconds, final }) => {
-  const display = seconds <= 0 ? 'Go!' : seconds.toString();
+const AutoClose: React.FC<{ onEnded: () => void; delayMs?: number }> = ({ onEnded, delayMs = 5200 }) => {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { onEnded(); } catch { /* noop */ }
+    }, delayMs);
+    return () => clearTimeout(t);
+  }, [onEnded, delayMs]);
+  return null;
+};
+
+const CountdownOverlay: React.FC<{ seconds: number; final?: boolean; reason?: 'lobby' | 'intermission'; nextRoundIndex?: number }> = ({ seconds, final, reason, nextRoundIndex }) => {
+  const safeSeconds = Number.isFinite(seconds) ? Math.ceil(Math.max(seconds, 0)) : 0;
+  const display = safeSeconds <= 0 ? 'Go!' : safeSeconds.toString();
+  const isIntermission = reason === 'intermission';
+  const heading = isIntermission ? 'Next Round' : 'Round begins';
+  const detail = isIntermission && typeof nextRoundIndex === 'number'
+    ? `Round ${nextRoundIndex + 1}`
+    : 'Get ready';
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-3 text-white">
-        <span className="text-xs font-semibold uppercase tracking-[0.6em] text-slate-200">Round begins</span>
+      <div className="flex flex-col items-center gap-2 text-white">
+        <span className="text-xs font-semibold uppercase tracking-[0.6em] text-slate-200">{heading}</span>
         <span
           key={display}
           className={`tabular-nums text-7xl font-bold drop-shadow-lg ${final ? 'animate-bounce' : 'animate-pulse'}`}
         >
           {display}
         </span>
+        <span className="text-[11px] font-medium uppercase tracking-[0.4em] text-slate-200">{detail}</span>
       </div>
     </div>
   );

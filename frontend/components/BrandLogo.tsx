@@ -24,7 +24,7 @@ export default function BrandLogo({
   return (
     <Link href="/" className={mergedClasses}>
       <Image
-        src="/brand/divan-logo.png"
+        src="/brand/realLogo-divan.jpg"
         alt="Divan logo"
         width={logoWidth}
         height={logoHeight}

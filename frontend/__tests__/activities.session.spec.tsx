@@ -9,6 +9,6 @@ import { useSpeedTypingSession } from '../app/features/activities/hooks/useSpeed
 describe('SpeedTypingPanel', () => {
   it('shows waiting message when not running', () => {
     render(<SpeedTypingPanel sessionId="session-x" />);
-    expect(screen.getByText(/waiting for round/i)).toBeTruthy();
+    expect(screen.getByText(/connecting to session/i)).toBeTruthy();
   });
 });

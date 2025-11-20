@@ -1,4 +1,5 @@
-import { readAuthSnapshot } from "@/lib/auth-storage";
+import { refreshAccessToken } from "@/lib/auth-refresh";
+import { readAuthSnapshot, resolveAuthHeaders } from "@/lib/auth-storage";
 import { AuthError, ForbiddenError, GoneError, HttpError, IdemConflictError, NetworkError, type ErrorDetail } from "./errors";
 import { DEFAULT_RETRY_POLICY, computeDelayMs, shouldRetryError, shouldRetryResponse, sleep, type RetryPolicy } from "./retry";
 
@@ -38,15 +39,12 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 		baseHeaders.set("Content-Type", contentType);
 	}
 
-	const snapshot = readAuthSnapshot();
-	const token = snapshot?.access_token;
-	if (token && !baseHeaders.has("Authorization")) {
-		baseHeaders.set("Authorization", `Bearer ${token}`);
-	}
+	    applyAuthHeaders(baseHeaders);
 
 	const resolved = resolveInput(input);
 
 	let attempt = 0;
+		let refreshAttempted = false;
 	// eslint-disable-next-line no-constant-condition -- loop managed via returns
 	while (true) {
 		const headers = new Headers(baseHeaders);
@@ -65,6 +63,15 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 			if (response.ok) {
 				return (await decodeSuccess<T>(response)) as T;
 			}
+
+				if (response.status === 401 && !refreshAttempted && typeof window !== "undefined") {
+					refreshAttempted = true;
+					const refreshed = await refreshAccessToken();
+					if (refreshed) {
+						applyAuthHeaders(baseHeaders, { force: true });
+						continue;
+					}
+				}
 
 			if (shouldRetryResponse(response) && attempt < policy.maxAttempts) {
 				attempt += 1;
@@ -92,6 +99,20 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 				cause: error instanceof Error ? error : undefined,
 				requestId,
 			});
+		}
+	}
+}
+
+function applyAuthHeaders(target: Headers, options: { force?: boolean } = {}): void {
+	const snapshot = readAuthSnapshot();
+	const authHeaders = resolveAuthHeaders(snapshot);
+	for (const [key, value] of Object.entries(authHeaders)) {
+		if (!value) {
+			continue;
+		}
+		const lower = key.toLowerCase();
+		if (options.force || lower === "authorization" || !target.has(key)) {
+			target.set(key, value);
 		}
 	}
 }

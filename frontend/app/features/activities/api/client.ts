@@ -3,27 +3,174 @@ import axios from 'axios';
 // Backend base URL (FastAPI service). Falls back to same origin if env not set.
 const BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
 
-const CORE_BASE = (process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || '/api').replace(/\/$/, '');
+// Resolve activities-core base URL. Add explicit dev-time debug so we can see when env var is missing.
+const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || '/api';
+const CORE_BASE = CORE_BASE_RAW.replace(/\/$/, '');
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line no-console
+  console.debug('[activities-core] resolved CORE_BASE =', CORE_BASE, '(raw:', CORE_BASE_RAW, ')');
+  if (CORE_BASE === '/api') {
+    // eslint-disable-next-line no-console
+    console.warn('[activities-core] Using fallback /api. Set NEXT_PUBLIC_ACTIVITIES_CORE_URL=http://localhost:4005 in frontend/.env.local and restart dev server.');
+  }
+}
 
-import { readAuthSnapshot } from '@/lib/auth-storage';
+import { readAuthSnapshot, resolveAuthHeaders, readAuthUser } from '@/lib/auth-storage';
+import { getDemoUserId } from '@/lib/env';
 
 const api = axios.create({ baseURL: BACKEND || undefined });
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  return Object.prototype.toString.call(value) === '[object Object]';
+}
+
+function headersToObject(input?: HeadersInit): Record<string, string> {
+  if (!input) {
+    return {};
+  }
+  if (input instanceof Headers) {
+    return Object.fromEntries(input.entries());
+  }
+  if (Array.isArray(input)) {
+    return Object.fromEntries(input);
+  }
+  return { ...(input as Record<string, string>) };
+}
+
+function normalizeInit(init?: RequestInit): RequestInit | undefined {
+  if (!init) {
+    return init;
+  }
+  if (!init.body) {
+    return init;
+  }
+  const candidate = init.body as unknown;
+  if (!isPlainObject(candidate)) {
+    return init;
+  }
+  const normalizedHeaders = headersToObject(init.headers);
+  if (!normalizedHeaders['Content-Type']) {
+    normalizedHeaders['Content-Type'] = 'application/json';
+  }
+  return {
+    ...init,
+    headers: normalizedHeaders,
+    body: JSON.stringify(candidate),
+  };
+}
+
+function decodeBase64Url(segment: string): string | null {
+  try {
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+    if (typeof atob === 'function') {
+      return atob(`${normalized}${padding}`);
+    }
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(`${normalized}${padding}`, 'base64').toString('utf8');
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function decodeJwtSub(token: string | undefined | null): string | null {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    return null;
+  }
+  try {
+    const payload = decodeBase64Url(parts[1]);
+    if (!payload) {
+      return null;
+    }
+    const parsed = JSON.parse(payload) as Record<string, unknown>;
+    return typeof parsed.sub === 'string' ? parsed.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveAuthTokenSub(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const snapshot = readAuthSnapshot();
+  return decodeJwtSub(snapshot?.access_token ?? null);
+}
+
+async function readResponseBody(response: Response): Promise<{ text: string; json: unknown | null }> {
+  const text = await response.text();
+  if (!text) {
+    return { text: '', json: null };
+  }
+  try {
+    return { text, json: JSON.parse(text) };
+  } catch {
+    return { text, json: null };
+  }
+}
+
+function resolveActivitiesAuthorization(): string | undefined {
+  const prefix = (process.env.NEXT_PUBLIC_ACTIVITIES_CORE_BEARER_PREFIX || '').trim();
+  let userId = '';
+  if (typeof window !== 'undefined') {
+    const authUser = readAuthUser();
+    userId = authUser?.userId?.trim() || '';
+  }
+  if (!userId) {
+    const demo = getDemoUserId();
+    if (typeof demo === 'string') {
+      userId = demo.trim();
+    }
+  }
+  if (!userId) {
+    return undefined;
+  }
+  const token = prefix ? `${prefix}${prefix.endsWith(':') ? '' : ':'}${userId}` : userId;
+  return `Bearer ${token}`;
+}
+
 // Attach auth headers for every request if available
 api.interceptors?.request?.use?.((config) => {
-  const auth = typeof window !== 'undefined' ? readAuthSnapshot() : null;
-  if (auth?.access_token) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `Bearer ${auth.access_token}`;
-    // Optionally add synthetic headers for dev
-    const parts = auth.access_token.split(';').reduce((acc, frag) => {
-      const [k, v] = frag.split(':', 2);
-      if (k && v) acc[k] = v;
-      return acc;
-    }, {} as Record<string, string>);
-    if (parts.uid) config.headers['X-User-Id'] = parts.uid;
-    if (parts.campus) config.headers['X-Campus-Id'] = parts.campus;
-    if (parts.handle) config.headers['X-User-Handle'] = parts.handle;
+  const snapshot = typeof window !== 'undefined' ? readAuthSnapshot() : null;
+  const resolved = resolveAuthHeaders(snapshot);
+  if (!resolved || Object.keys(resolved).length === 0) {
+    return config;
+  }
+
+  if (config.headers && typeof (config.headers as { set?: unknown }).set === 'function') {
+    const headerBag = config.headers as { set: (key: string, value: string, overwrite?: boolean) => void; has?: (key: string) => boolean };
+    const has = typeof headerBag.has === 'function' ? headerBag.has.bind(headerBag) : undefined;
+    for (const [key, value] of Object.entries(resolved)) {
+      if (!has || !has(key)) {
+        headerBag.set(key, value, false);
+      }
+    }
+    return config;
+  }
+
+  const bag = (config.headers ?? {}) as Record<string, string>;
+  const lowerKeys = new Set(Object.keys(bag).map((key) => key.toLowerCase()));
+  for (const [key, value] of Object.entries(resolved)) {
+    if (!lowerKeys.has(key.toLowerCase())) {
+      bag[key] = value;
+      lowerKeys.add(key.toLowerCase());
+    }
+  }
+  // Ensure headers object exists, then copy keys to avoid replacing AxiosHeaders instance.
+  if (!config.headers) {
+    (config as { headers?: Record<string, unknown> }).headers = {};
+  }
+  for (const [key, value] of Object.entries(bag)) {
+    (config.headers as unknown as Record<string, unknown>)[key] = value;
   }
   return config;
 });
@@ -35,45 +182,78 @@ function resolveCore(path: string): string {
   return path.startsWith('/') ? `${CORE_BASE}${path}` : `${CORE_BASE}/${path}`;
 }
 
-function buildAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (typeof window === 'undefined') {
-    return headers;
-  }
-  const auth = readAuthSnapshot();
-  if (!auth?.access_token) {
-    return headers;
-  }
-  headers['Authorization'] = `Bearer ${auth.access_token}`;
-  const parts = auth.access_token.split(';').reduce((acc, fragment) => {
-    const [k, v] = fragment.split(':', 2);
-    if (k && v) {
-      acc[k] = v;
+function buildRequestAuthHeaders(): Record<string, string> {
+  const headerBag = new Headers();
+  headerBag.set('Content-Type', 'application/json');
+  if (typeof window !== 'undefined') {
+    const snapshot = readAuthSnapshot();
+    const resolved = resolveAuthHeaders(snapshot);
+    for (const [key, value] of Object.entries(resolved)) {
+      headerBag.set(key, value);
     }
-    return acc;
-  }, {} as Record<string, string>);
-  if (parts.uid) headers['X-User-Id'] = parts.uid;
-  if (parts.campus) headers['X-Campus-Id'] = parts.campus;
-  if (parts.handle) headers['X-User-Handle'] = parts.handle;
-  return headers;
+  }
+  const activitiesAuth = resolveActivitiesAuthorization();
+  if (activitiesAuth) {
+    headerBag.set('Authorization', activitiesAuth);
+    // Also set lowercase variant in case some middleware normalizes keys differently
+    headerBag.set('authorization', activitiesAuth);
+  }
+  const selfUser = getSelf();
+  if (selfUser) {
+    headerBag.set('X-User-Id', selfUser);
+  }
+  return Object.fromEntries(headerBag.entries());
 }
 
-async function coreRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(resolveCore(path), {
-    method: init?.method ?? 'GET',
+async function coreRequestRaw(path: string, init?: RequestInit): Promise<Response> {
+  const normalizedInit = normalizeInit(init);
+  const headers = {
+    ...buildRequestAuthHeaders(),
+    ...headersToObject(normalizedInit?.headers),
+  } as Record<string, string>;
+  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && path.includes('/activities/session')) {
+    console.debug('[coreRequest]', 'to:', resolveCore(path), path, normalizedInit?.method ?? 'GET', {
+      authorization: headers.Authorization ?? headers.authorization ?? null,
+      xUserId: headers['X-User-Id'] ?? headers['x-user-id'] ?? null,
+    });
+  }
+  const url = resolveCore(path);
+  const response = await fetch(url, {
+    ...(normalizedInit ?? {}),
+    method: normalizedInit?.method ?? 'GET',
     credentials: 'include',
-    ...init,
-    headers: {
-      ...buildAuthHeaders(),
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed: ${response.status}`);
+    // Special-case 410 Gone for session lifecycle calls so callers
+    // can treat it as a "session already ended" signal instead of
+    // a generic network error.
+    if (response.status === 410 && path.includes('/activities/session/')) {
+      if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.info('[activities-core] session already gone', { path, url, status: response.status });
+      }
+      return response;
+    }
+    // Try to extract a helpful error message from JSON error payloads.
+    const text = await response.text();
+    try {
+      const parsed = text ? JSON.parse(text) : null;
+      if (parsed?.error) {
+        throw new Error(String(parsed.error));
+      }
+    } catch {
+      // fall through to generic error
+    }
+    throw new Error(text || `Request failed: ${response.status}`);
   }
 
+  return response;
+}
+
+async function coreRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await coreRequestRaw(path, init);
   if (response.status === 204) {
     return undefined as T;
   }
@@ -87,7 +267,29 @@ async function coreRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // Identity placeholder (replace with real auth integration later)
-export function getSelf(): string { return 'me'; }
+export function getSelf(): string {
+  if (typeof window === 'undefined') {
+    return getDemoUserId();
+  }
+  const authUser = readAuthUser();
+  const userId = authUser?.userId?.trim();
+  if (userId) {
+    return userId;
+  }
+  const demo = getDemoUserId();
+  return typeof demo === 'string' && demo.trim() ? demo.trim() : 'anonymous-user';
+}
+
+// Debug helpers — temporary utilities to confirm auth wiring during development.
+export function __debugActivitiesAuthHeader(): string | null {
+  const header = resolveActivitiesAuthorization();
+  return header ?? null;
+}
+
+export function __debugSelfUser(): string | null {
+  const self = getSelf();
+  return self ?? null;
+}
 
 // --- New activity-centric API (maps to FastAPI /activities routes) ---
 
@@ -146,23 +348,246 @@ export async function createSession(kind: string, participants: string[]): Promi
       activityKey: 'speed_typing',
       creatorUserId: self,
       participants: uniqueParticipants,
+      // Dev fallback: some environments strip Authorization or custom headers via CORS.
+      // Backend auth plugin will accept body.userId in dev/insecure mode to infer identity.
+      userId: self,
     }),
   });
 
   return payload;
 }
-export async function joinSession(sessionId: string, userId: string): Promise<void> {
-  await coreRequest(`/activities/session/${sessionId}/join`, {
+
+export async function createSpeedTypingSession(peerUserId: string): Promise<{ sessionId: string }> {
+  const self = getSelf();
+  const peer = (peerUserId || '').trim();
+  if (!peer) {
+    throw new Error('Peer id required');
+  }
+  if (peer === self) {
+    throw new Error('Invite a different user id');
+  }
+  const participants = Array.from(new Set([self, peer]));
+  if (participants.length !== 2) {
+    throw new Error('Two unique participants required');
+  }
+
+  return coreRequest<{ sessionId: string }>('/activities/session', {
     method: 'POST',
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({
+      activityKey: 'speed_typing',
+      creatorUserId: self,
+      participants,
+      userId: self,
+    }),
   });
 }
 
-export async function leaveSession(sessionId: string, userId: string): Promise<void> {
-  await coreRequest(`/activities/session/${sessionId}/leave`, {
+export async function createQuickTriviaSession(peerUserId: string): Promise<{ sessionId: string }> {
+  const self = getSelf();
+  const peer = (peerUserId || '').trim();
+  if (!peer) {
+    throw new Error('Peer id required');
+  }
+  if (peer === self) {
+    throw new Error('Invite a different user id');
+  }
+  const participants = Array.from(new Set([self, peer]));
+  if (participants.length !== 2) {
+    throw new Error('Two unique participants required');
+  }
+
+  return coreRequest<{ sessionId: string }>('/activities/session', {
+    method: 'POST',
+    body: JSON.stringify({
+      activityKey: 'quick_trivia',
+      creatorUserId: self,
+      participants,
+      userId: self,
+    }),
+  });
+}
+
+export async function createRockPaperScissorsSession(peerUserId: string): Promise<{ sessionId: string }> {
+  const self = getSelf();
+  const peer = (peerUserId || '').trim();
+  if (!peer) {
+    throw new Error('Peer id required');
+  }
+  if (peer === self) {
+    throw new Error('Invite a different user id');
+  }
+  const participants = Array.from(new Set([self, peer]));
+  if (participants.length !== 2) {
+    throw new Error('Two unique participants required');
+  }
+
+  return coreRequest<{ sessionId: string }>('/activities/session', {
+    method: 'POST',
+    body: JSON.stringify({
+      activityKey: 'rock_paper_scissors',
+      creatorUserId: self,
+      participants,
+      userId: self,
+    }),
+  });
+}
+
+export interface SpeedTypingSessionSnapshot {
+  id: string;
+  participants?: Array<{ userId: string; score: number }>;
+  presence?: Array<{ userId: string; joined: boolean; ready: boolean }>;
+}
+
+export async function fetchSessionSnapshot(sessionId: string): Promise<SpeedTypingSessionSnapshot> {
+  return coreRequest<SpeedTypingSessionSnapshot>(`/activities/session/${sessionId}`);
+}
+
+export interface SpeedTypingLobbySummary {
+  id: string;
+  activityKey: 'speed_typing';
+  status: 'pending' | 'running' | 'ended';
+  phase: 'lobby' | 'countdown' | 'running' | 'ended';
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+}
+
+export interface QuickTriviaCountdown {
+  startedAt: number;
+  durationMs: number;
+  endsAt: number;
+  reason?: 'lobby' | 'intermission';
+  nextRoundIndex?: number;
+}
+
+export interface QuickTriviaLobbySummary {
+  id: string;
+  activityKey: 'quick_trivia';
+  status: 'pending' | 'running' | 'ended';
+  phase: 'lobby' | 'countdown' | 'running' | 'ended';
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  countdown?: QuickTriviaCountdown;
+}
+
+export interface RockPaperScissorsCountdown {
+  startedAt: number;
+  durationMs: number;
+  endsAt: number;
+  reason?: 'lobby';
+}
+
+export interface RockPaperScissorsLobbySummary {
+  id: string;
+  activityKey: 'rock_paper_scissors';
+  status: 'pending' | 'running' | 'ended';
+  phase: 'lobby' | 'countdown' | 'running' | 'ended';
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  countdown?: RockPaperScissorsCountdown;
+  expiresAt?: number;
+}
+
+export async function listSpeedTypingSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<SpeedTypingLobbySummary[]> {
+  const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'speed_typing') as SpeedTypingLobbySummary[] : [];
+}
+
+export async function listQuickTriviaSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<QuickTriviaLobbySummary[]> {
+  const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'quick_trivia') as QuickTriviaLobbySummary[] : [];
+}
+
+export async function listRockPaperScissorsSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<RockPaperScissorsLobbySummary[]> {
+  const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  return Array.isArray(payload?.sessions)
+    ? payload.sessions.filter((s) => s.activityKey === 'rock_paper_scissors') as RockPaperScissorsLobbySummary[]
+    : [];
+}
+
+export async function joinSession(sessionId: string, userId: string): Promise<{ permitTtlSeconds?: number } | undefined> {
+  const trimmedSession = sessionId?.trim();
+  const trimmedUser = userId?.trim();
+  if (!trimmedSession || !trimmedUser) {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[activities-core] join aborted because sessionId/userId missing', { sessionId, userId });
+    }
+    throw new Error('session_missing');
+  }
+
+  const tokenSub = resolveAuthTokenSub();
+  if (tokenSub && tokenSub !== trimmedUser) {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[activities-core] refusing to join because JWT sub mismatch', {
+        sessionId: trimmedSession,
+        joinUserId: trimmedUser,
+        tokenSub,
+      });
+    }
+    throw new Error('auth_mismatch');
+  }
+
+  const response = await coreRequestRaw(`/activities/session/${trimmedSession}/join`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: trimmedUser }),
+  });
+
+  const body = await readResponseBody(response);
+
+  if (response.status === 202) {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.info('[activities-core] join accepted before websocket attach', {
+        sessionId: trimmedSession,
+        userId: trimmedUser,
+        response: body.json ?? body.text,
+      });
+    }
+    return (body.json as { permitTtlSeconds?: number } | null) ?? undefined;
+  }
+
+  if (response.status === 410) {
+    throw new Error('session_state_missing');
+  }
+
+  if (response.status === 404) {
+    throw new Error('session_not_found');
+  }
+
+  if (!response.ok) {
+    const details = (body.json as { error?: string } | null)?.error || body.text || `join_failed:${response.status}`;
+    throw new Error(details);
+  }
+
+  return (body.json as { permitTtlSeconds?: number } | null) ?? undefined;
+}
+
+export type LeaveSessionResult = 'left' | 'session_ended';
+
+export async function leaveSession(sessionId: string, userId: string): Promise<LeaveSessionResult> {
+  if (!sessionId || !userId) {
+    return 'session_ended';
+  }
+
+  const response = await coreRequestRaw(`/activities/session/${sessionId}/leave`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
   });
+
+  if (response.status === 204 || response.status === 410) {
+    // 204: backend explicitly treated leave as a no-op because the
+    // session was already gone. 410: legacy "session_state_missing".
+    return 'session_ended';
+  }
+
+  return 'left';
 }
 
 export async function setSessionReady(sessionId: string, userId: string, ready: boolean): Promise<void> {
@@ -173,7 +598,11 @@ export async function setSessionReady(sessionId: string, userId: string, ready: 
 }
 
 export async function startSession(sessionId: string): Promise<void> {
-  await coreRequest(`/activities/session/${sessionId}/start`, { method: 'POST' });
+  const self = getSelf();
+  await coreRequest(`/activities/session/${sessionId}/start`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: self, creatorUserId: self }),
+  });
 }
 export async function submitRound(): Promise<void> {
   throw new Error('submitRound is unsupported for live sessions. Use the WebSocket stream to submit rounds.');

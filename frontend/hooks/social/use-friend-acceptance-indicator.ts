@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { fetchInviteOutbox } from "@/lib/social";
@@ -14,16 +14,24 @@ function storageKeyFor(userId: string) {
 
 export type FriendAcceptanceIndicator = {
   hasNotification: boolean;
+  latestFriendPeerId: string | null;
   acknowledge: () => void;
   isLoading: boolean;
   authUser: AuthUser | null;
+};
+
+type StoredIndicator = {
+  peerId?: string | null;
+  at?: number;
 };
 
 export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hasNotification, setHasNotification] = useState(false);
   const [sentInviteIds, setSentInviteIds] = useState<Set<string>>(new Set());
+  const sentInvitePeersRef = useRef<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [latestFriendPeerId, setLatestFriendPeerId] = useState<string | null>(null);
 
   useEffect(() => {
     setAuthUser(readAuthUser());
@@ -41,10 +49,18 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
 
     const storageKey = storageKeyFor(authUser.userId);
     const persisted = window.sessionStorage.getItem(storageKey);
-    if (persisted === "1") {
-      setHasNotification(true);
+    if (persisted) {
+      try {
+        const parsed = JSON.parse(persisted) as StoredIndicator;
+        setHasNotification(true);
+        setLatestFriendPeerId(typeof parsed.peerId === "string" ? parsed.peerId : null);
+      } catch {
+        setHasNotification(true);
+        setLatestFriendPeerId(null);
+      }
     } else {
       setHasNotification(false);
+      setLatestFriendPeerId(null);
     }
 
     let active = true;
@@ -55,7 +71,14 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
           return;
         }
         const nextIds = new Set<string>();
-        outbox.forEach((invite) => nextIds.add(invite.id));
+        const peerMap = new Map<string, string>();
+        outbox.forEach((invite) => {
+          nextIds.add(invite.id);
+          if (invite.to_user_id) {
+            peerMap.set(invite.id, invite.to_user_id);
+          }
+        });
+        sentInvitePeersRef.current = peerMap;
         setSentInviteIds(nextIds);
       })
       .catch(() => {
@@ -63,6 +86,7 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
           return;
         }
         setSentInviteIds(new Set());
+        sentInvitePeersRef.current = new Map();
       })
       .finally(() => {
         if (active) {
@@ -71,6 +95,18 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
       });
 
     const socket = getSocialSocket(authUser.userId, authUser.campusId ?? null);
+    const persistNotification = (peerId: string | null) => {
+      if (!authUser?.userId || typeof window === "undefined") {
+        return;
+      }
+      const payload: StoredIndicator = {
+        peerId,
+        at: Date.now(),
+      };
+      window.sessionStorage.setItem(storageKeyFor(authUser.userId), JSON.stringify(payload));
+      setLatestFriendPeerId(peerId);
+      setHasNotification(true);
+    };
     const handleInviteUpdate = (payload: { id?: string; status?: string }) => {
       if (!payload?.id || payload.status !== "accepted") {
         return;
@@ -81,12 +117,11 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
         }
         const next = new Set(prev);
         next.delete(payload.id!);
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(storageKey, "1");
-        }
-        setHasNotification(true);
         return next;
       });
+      const peerId = sentInvitePeersRef.current.get(payload.id!) ?? null;
+      sentInvitePeersRef.current.delete(payload.id!);
+      persistNotification(peerId);
     };
 
     socket.on("invite:update", handleInviteUpdate);
@@ -104,15 +139,17 @@ export function useFriendAcceptanceIndicator(): FriendAcceptanceIndicator {
     }
     window.sessionStorage.removeItem(storageKeyFor(authUser.userId));
     setHasNotification(false);
+    setLatestFriendPeerId(null);
   }, [authUser]);
 
   return useMemo(
     () => ({
       hasNotification,
+      latestFriendPeerId,
       acknowledge,
       isLoading: loading,
       authUser,
     }),
-    [acknowledge, authUser, hasNotification, loading],
+    [acknowledge, authUser, hasNotification, latestFriendPeerId, loading],
   );
 }

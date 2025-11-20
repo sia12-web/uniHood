@@ -27,11 +27,18 @@ export type ChatMessage = {
 	createdAt: string;
 };
 
+export type ChatDeliveryEvent = {
+	peerId: string;
+	conversationId: string;
+	deliveredSeq: number;
+	source?: "send" | "ack" | "outbox" | string;
+};
+
 type Listener = (message: ChatMessage) => void;
 
 let socket: Socket | null = null;
 const messageListeners = new Set<Listener>();
-const deliveredListeners = new Set<(payload: { peerId: string; conversationId: string; deliveredSeq: number }) => void>();
+const deliveredListeners = new Set<(payload: ChatDeliveryEvent) => void>();
 
 function handleServerMessage(payload: unknown): void {
 	messageListeners.forEach((listener) => listener(transformMessage(payload)));
@@ -41,8 +48,25 @@ function handleServerEcho(payload: unknown): void {
 	messageListeners.forEach((listener) => listener(transformMessage(payload)));
 }
 
-function handleDelivered(payload: { peerId: string; conversationId: string; deliveredSeq: number }): void {
-	deliveredListeners.forEach((listener) => listener(payload));
+function transformDeliveryPayload(raw: unknown): ChatDeliveryEvent {
+	if (!isRecord(raw)) {
+		return { peerId: "", conversationId: "", deliveredSeq: 0 };
+	}
+	const peerId = readString(pick(raw, ["peer_id", "peerId"])) ?? "";
+	const conversationId = readString(pick(raw, ["conversation_id", "conversationId"])) ?? "";
+	const deliveredSeq = readNumber(pick(raw, ["delivered_seq", "deliveredSeq"])) ?? 0;
+	const source = readString(pick(raw, ["source"])) as ChatDeliveryEvent["source"] | undefined;
+	return {
+		peerId,
+		conversationId,
+		deliveredSeq,
+		source,
+	};
+}
+
+function handleDelivered(payload: unknown): void {
+	const transformed = transformDeliveryPayload(payload);
+	deliveredListeners.forEach((listener) => listener(transformed));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -108,7 +132,7 @@ export function onMessage(listener: Listener): () => void {
 	return () => messageListeners.delete(listener);
 }
 
-export function onDelivered(listener: (payload: { peerId: string; conversationId: string; deliveredSeq: number }) => void): () => void {
+export function onDelivered(listener: (payload: ChatDeliveryEvent) => void): () => void {
 	deliveredListeners.add(listener);
 	return () => deliveredListeners.delete(listener);
 }

@@ -1,216 +1,206 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
-import {
-	listCampuses,
-	registerIdentity,
-	resendVerification,
-	type RegisterPayload,
-} from "@/lib/identity";
-import type { CampusRow } from "@/lib/types";
+import { listCampuses, loginIdentity, registerIdentity, type RegisterPayload } from "@/lib/identity";
+import { storeAuthSnapshot } from "@/lib/auth-storage";
+import { getDemoUserEmail } from "@/lib/env";
 
-type FormState = {
-	email: string;
-	password: string;
-	username: string;
-	campusId: string;
+const INITIAL_FORM = {
+  email: "",
+  password: "",
+  username: "",
+  campusId: "",
 };
 
-const INITIAL_FORM: FormState = {
-	email: "",
-	password: "",
-	username: "",
-	campusId: "",
-};
+const DEFAULT_CAMPUS = { id: "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2", name: "McGill University" };
+
+type JoinForm = typeof INITIAL_FORM;
 
 export default function OnboardingPage() {
-	const [form, setForm] = useState<FormState>(INITIAL_FORM);
-	const [campuses, setCampuses] = useState<CampusRow[]>([]);
-	const [loadingCampuses, setLoadingCampuses] = useState<boolean>(true);
-	const [registering, setRegistering] = useState<boolean>(false);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [lastRegisteredEmail, setLastRegisteredEmail] = useState<string | null>(null);
-	const [resending, setResending] = useState<boolean>(false);
+  const [form, setForm] = useState<JoinForm>(INITIAL_FORM);
+  const [campuses, setCampuses] = useState<{ id: string; name: string }[]>([]);
+  const [loadingCampuses, setLoadingCampuses] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-	useEffect(() => {
-		let cancelled = false;
-		async function loadCampuses() {
-			setLoadingCampuses(true);
-			try {
-				const rows = await listCampuses();
-				if (!cancelled) {
-					setCampuses(rows);
-					if (rows.length > 0) {
-						setForm((prev) => ({ ...prev, campusId: prev.campusId || rows[0].id }));
-					}
-				}
-			} catch (error) {
-				if (!cancelled) {
-					setErrorMessage(error instanceof Error ? error.message : "Failed to load campuses");
-				}
-			} finally {
-				if (!cancelled) {
-					setLoadingCampuses(false);
-				}
-			}
-		}
-		void loadCampuses();
-		return () => {
-			cancelled = true;
-		};
-	}, []);
+  const disabled = useMemo(
+    () => submitting || !form.email.trim() || !form.password || !form.username.trim() || !form.campusId,
+    [form.campusId, form.email, form.username, form.password, submitting],
+  );
 
-	const passwordHint = useMemo(() => form.password.length < 8, [form.password.length]);
+  useEffect(() => {
+    const load = async () => {
+      setLoadingCampuses(true);
+      try {
+        const rows = await listCampuses();
+        const unique = new Map<string, { id: string; name: string }>();
+        [DEFAULT_CAMPUS, ...rows].forEach((row) => {
+          if (row?.id) {
+            unique.set(row.id, { id: row.id, name: row.name || "Campus" });
+          }
+        });
+        const list = Array.from(unique.values());
+        setCampuses(list);
+        if (!form.campusId && list.length) {
+          setForm((prev) => ({ ...prev, campusId: list[0].id }));
+        }
+      } catch (err) {
+        console.error("Failed to load campuses", err);
+        setCampuses([DEFAULT_CAMPUS]);
+        if (!form.campusId) {
+          setForm((prev) => ({ ...prev, campusId: DEFAULT_CAMPUS.id }));
+        }
+      } finally {
+        setLoadingCampuses(false);
+      }
+    };
+    void load();
+  }, [form.campusId]);
 
-	const handleChange = (field: keyof FormState) => (value: string) => {
-		setForm((prev) => ({ ...prev, [field]: value }));
-	};
+  const demoEmail = useMemo(() => getDemoUserEmail(), []);
 
-	const handleUsernameChange = (value: string) => {
-		const normalised = value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
-		setForm((prev) => ({ ...prev, username: normalised }));
-	};
+const handleChange = (field: keyof JoinForm) => (value: string) => {
+  setForm((prev) => ({ ...prev, [field]: value }));
+};
 
-	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		setErrorMessage(null);
-		setSuccessMessage(null);
-		setRegistering(true);
-		try {
-			const payload: RegisterPayload = {
-				email: form.email.trim().toLowerCase(),
-				password: form.password,
-				handle: form.username.trim().toLowerCase(),
-				display_name: form.username.trim().toLowerCase(),
-				campus_id: form.campusId,
-			};
-			const response = await registerIdentity(payload);
-			setSuccessMessage(`Account created for ${response.email}. Check your inbox for verification.`);
-			setLastRegisteredEmail(response.email);
-		} catch (error) {
-			setErrorMessage(error instanceof Error ? error.message : "Registration failed");
-		} finally {
-			setRegistering(false);
-		}
-	};
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload: RegisterPayload = {
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+          handle: form.username.trim(),
+          display_name: form.username.trim(),
+          campus_id: form.campusId,
+        };
+      await registerIdentity(payload);
+      // Auto-login after registration
+      const loginResponse = await loginIdentity({ email: payload.email, password: payload.password });
+      const snapshot = { ...loginResponse, stored_at: new Date().toISOString() };
+      storeAuthSnapshot(snapshot);
+      router.replace("/");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to create your account";
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-	const handleResend = async () => {
-		if (!lastRegisteredEmail) {
-			return;
-		}
-		setResending(true);
-		setErrorMessage(null);
-		try {
-			await resendVerification(lastRegisteredEmail);
-			setSuccessMessage(`Verification email re-sent to ${lastRegisteredEmail}.`);
-		} catch (error) {
-			setErrorMessage(error instanceof Error ? error.message : "Unable to resend email");
-		} finally {
-			setResending(false);
-		}
-	};
+  return (
+    <main className="min-h-screen w-full bg-white text-base">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
+        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start">
+          <div className="relative flex flex-col">
+            <BrandLogo
+              withWordmark
+              logoWidth={380}
+              logoHeight={380}
+              className="w-full max-w-5xl justify-center text-8xl font-semibold text-[#b7222d] lg:justify-start"
+              logoClassName="h-80 w-auto mix-blend-multiply drop-shadow-[0_15px_60px_rgba(183,34,45,0.25)]"
+            />
+          </div>
+        </section>
 
-	return (
-		<main className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-6 px-6 py-10">
-			<div className="flex items-center justify-between">
-				<BrandLogo
-					withWordmark
-					className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950"
-				/>
-			</div>
-			<header className="flex flex-col gap-2 text-slate-900">
-				<h1 className="text-3xl font-semibold">Join Divan</h1>
-				<p className="text-sm text-slate-600">
-					Create your account with a verified campus email, choose a username, and start building your profile.
-				</p>
-			</header>
-			{errorMessage ? (
-				<p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p>
-			) : null}
-			{successMessage ? (
-				<p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</p>
-			) : null}
-			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Campus Email</span>
-					<input
-						required
-						type="email"
-						value={form.email}
-						autoComplete="email"
-						placeholder="me@campus.edu"
-						onChange={(event) => handleChange("email")(event.target.value)}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-				</label>
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Password</span>
-					<input
-						required
-						type="password"
-						value={form.password}
-						autoComplete="new-password"
-						placeholder="At least 8 characters"
-						onChange={(event) => handleChange("password")(event.target.value)}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-					{passwordHint ? (
-						<p className="text-xs text-slate-500">Use at least 8 characters for a strong password.</p>
-					) : null}
-				</label>
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Username</span>
-					<input
-						required
-						type="text"
-						value={form.username}
-						placeholder="choose_a_username"
-						onChange={(event) => handleUsernameChange(event.target.value)}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-					<p className="text-xs text-slate-500">Lowercase letters, numbers, underscores, 3-20 characters.</p>
-				</label>
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Campus</span>
-					<select
-						required
-						value={form.campusId}
-						disabled={loadingCampuses}
-						onChange={(event) => handleChange("campusId")(event.target.value)}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					>
-						{campuses.length === 0 ? <option value="">No campuses available</option> : null}
-						{campuses.map((campus) => (
-							<option key={campus.id} value={campus.id}>
-								{campus.name}
-								{campus.domain ? ` (${campus.domain})` : ""}
-							</option>
-						))}
-					</select>
-				</label>
-				<button
-					type="submit"
-					disabled={registering}
-					className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-				>
-					{registering ? "Creating account…" : "Create account"}
-				</button>
-			</form>
-			{lastRegisteredEmail ? (
-				<div className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-					<span>Need a new email? Re-send the verification link.</span>
-					<button
-						onClick={() => void handleResend()}
-						disabled={resending}
-						className="rounded bg-white px-3 py-1 text-xs font-medium text-slate-900 shadow disabled:opacity-50"
-					>
-						{resending ? "Sending…" : "Re-send"}
-					</button>
-				</div>
-			) : null}
-		</main>
-	);
+        <section className="flex flex-1">
+          <div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">
+            <header className="flex flex-col gap-2">
+              <h2 className="text-3xl font-semibold text-slate-900">Join Divan</h2>
+              <p className="text-sm text-slate-600">Use your university email to claim a seat and meet classmates.</p>
+            </header>
+
+            {error ? (
+              <p className="mt-4 rounded-lg border border-[#f0b7bd] bg-[#fbeaec] px-3 py-2 text-sm text-[#7a1d23]">
+                {error}
+              </p>
+            ) : null}
+
+            <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+                <span>Email</span>
+                <input
+                  required
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder={demoEmail || "name@university.edu"}
+                  value={form.email}
+                  onChange={(event) => handleChange("email")(event.target.value)}
+                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+                <span>Password</span>
+                <input
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Create a password"
+                  value={form.password}
+                  onChange={(event) => handleChange("password")(event.target.value)}
+                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+                <span>Username</span>
+                <input
+                  required
+                  type="text"
+                  autoComplete="username"
+                  placeholder="username"
+                  value={form.username}
+                  onChange={(event) => handleChange("username")(event.target.value)}
+                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+                <span>Campus</span>
+                <select
+                  required
+                  value={form.campusId}
+                  onChange={(event) => handleChange("campusId")(event.target.value)}
+                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                >
+                  <option value="" disabled>
+                    {loadingCampuses ? "Loading campuses..." : "Select campus"}
+                  </option>
+                  {campuses.map((campus) => (
+                    <option key={campus.id} value={campus.id}>
+                      {campus.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">Choose your campus. If only one appears, start there.</p>
+              </label>
+
+              <button
+                type="submit"
+                disabled={disabled}
+                className="mt-2 rounded-xl bg-[#d64045] px-4 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? "Joining..." : "Join Divan"}
+              </button>
+            </form>
+
+            <p className="mt-4 text-sm text-slate-600">
+              Already have an account?{" "}
+              <Link href="/login" className="font-semibold text-[#d64045] hover:text-[#c7343a]">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }

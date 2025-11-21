@@ -80,8 +80,8 @@ Deliver invite and friendship workflows on top of the Phase 1 proximity core, co
 1. Ensure Postgres + Redis are running (e.g., `docker compose up` in `infra/docker`).
 2. Apply migrations (`poetry run alembic upgrade head` or project-specific migration tooling).
 3. Start the backend API (`poetry run uvicorn app.main:app --reload`).
-4. Start the frontend (`npm install`, then `npm run dev`) and navigate to `/social/invites`, `/social/friends`, and `/proximity`.
-5. Use the proximity list to send invites; observe inbox/outbox updates, friendship transitions, and block/unblock flows updating in real-time.
+4. Start the frontend (`npm install`, then `npm run dev`) and navigate to `/social/invites`, `/social/friends`, and the dashboard (`/`) for the live radar card.
+5. Use the dashboard proximity list to send invites; observe inbox/outbox updates, friendship transitions, and block/unblock flows updating in real-time.
 
 ---
 

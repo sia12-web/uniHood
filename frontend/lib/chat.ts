@@ -113,14 +113,17 @@ function transformAttachment(entry: unknown): ChatMessage["attachments"][number]
 }
 
 export function initChatSocket(_baseUrl: string, userId: string, campusId: string): Socket {
-	if (socket) {
-		return socket;
-	}
-	const instance = (connectChatSocket({ userId, campusId }) ?? getChatSocketInstance()) as Socket | null;
-	if (!instance) {
-		throw new Error("Chat socket unavailable");
-	}
-	socket = instance;
+  if (!userId) {
+    throw new Error("Chat socket unavailable: missing user id");
+  }
+  if (socket) {
+    return socket;
+  }
+  const instance = (connectChatSocket({ userId, campusId }) ?? getChatSocketInstance()) as Socket | null;
+  if (!instance) {
+    throw new Error("Chat socket unavailable");
+  }
+  socket = instance;
 	socket.on("chat:message", handleServerMessage);
 	socket.on("chat:echo", handleServerEcho);
 	socket.on("chat:delivered", handleDelivered);

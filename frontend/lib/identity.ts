@@ -1,6 +1,6 @@
 import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
-import type { CampusRow, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
+import type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
 
 const BASE_URL = getBackendUrl();
 
@@ -53,6 +53,8 @@ export type ProfilePatchPayload = {
 	graduation_year?: number | null;
 	passions?: string[];
 };
+
+export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;
 
 export type PresignPayload = {
 	mime: string;
@@ -170,6 +172,18 @@ export async function removeGalleryImage(
 	return request<ProfileRecord>("/profile/gallery/remove", {
 		method: "POST",
 		body: { key },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function saveProfileCourses(
+	userId: string,
+	campusId: string | null,
+	courses: ProfileCourseInput[],
+): Promise<ProfileCourse[]> {
+	return request<ProfileCourse[]>("/settings/courses", {
+		method: "PUT",
+		body: { courses },
 		headers: authHeaders(userId, campusId),
 	});
 }

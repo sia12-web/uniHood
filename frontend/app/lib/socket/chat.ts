@@ -48,6 +48,9 @@ const chatManager = createSocketManager<ChatIdentity>({
 });
 
 export function connectChatSocket(identity: ChatIdentity): Socket | null {
+  if (!identity?.userId) {
+    return null;
+  }
   return chatManager.connect(identity);
 }
 

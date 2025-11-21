@@ -2,6 +2,7 @@ import type { Socket } from "socket.io-client";
 
 import { createSocketManager, type SocketConnectionStatus } from "./base";
 import { getBackendUrl } from "@/lib/env";
+import { readAuthSnapshot } from "@/lib/auth-storage";
 
 // Mirror env.ts pattern for reading process.env without Node typings.
 declare const process: { env?: Record<string, string | undefined> } | undefined;
@@ -61,6 +62,10 @@ const presenceManager = createSocketManager<PresenceIdentity>({
 });
 
 export function connectPresenceSocket(identity: PresenceIdentity): Socket | null {
+  const snapshot = readAuthSnapshot();
+  if (!identity?.userId || !identity.campusId || !snapshot?.access_token) {
+    return null;
+  }
   return presenceManager.connect(identity);
 }
 

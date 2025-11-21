@@ -1,11 +1,11 @@
 "use client";
 
 import clsx from "clsx";
-import Link from "next/link";
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { ChatRosterProvider } from "@/components/chat-roster-context";
+import ChatConversationView from "@/components/ChatConversationView";
 import { useChatRoster, type ChatRosterEntry } from "@/hooks/chat/use-chat-roster";
 import { getDemoChatPeerId } from "@/lib/env";
 
@@ -65,10 +65,15 @@ function getSecondaryText(entry: ChatRosterEntry): string {
 }
 
 export default function ChatLayout({ children }: { children: ReactNode }) {
-  const { entries, loading, error, refresh, setActiveConversation, updateConversationSnapshot } = useChatRoster();
+  const { entries, loading, error, refresh, activePeerId, setActiveConversation, updateConversationSnapshot } = useChatRoster();
   const demoPeerId = getDemoChatPeerId();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     const match = /^\/chat\/(.+)$/.exec(pathname ?? "");
@@ -101,18 +106,60 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
     });
   }, [rosterEntries, query]);
 
-  const layoutHeightClass = "h-[calc(100vh-4rem)]";
+  const layoutHeightClass = "min-h-[calc(100vh-4rem)]";
+  const totalChats = rosterEntries.length;
+  const totalUnread = useMemo(
+    () => rosterEntries.reduce((sum, entry) => sum + (entry.unreadCount ?? 0), 0),
+    [rosterEntries],
+  );
+
+  if (!hydrated) {
+    return (
+      <div className={clsx("mx-auto flex w-full flex-1 flex-col gap-4 px-4 pb-4 pt-4", layoutHeightClass)}>
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-warm-sand bg-white shadow-xl">
+          <div className="flex-1 animate-pulse bg-cream/50" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ChatRosterProvider
-      value={{ entries: rosterEntries, loading, error, refresh, setActiveConversation, updateConversationSnapshot }}
+      value={{
+        entries: rosterEntries,
+        loading,
+        error,
+        refresh,
+        activePeerId,
+        setActiveConversation,
+        updateConversationSnapshot,
+      }}
     >
-      <div className={clsx("mx-auto flex w-full flex-1 flex-col gap-4 px-4 pb-4 pt-4", layoutHeightClass)}>
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-warm-sand bg-white shadow-xl md:flex-row">
-          <aside className="flex h-full w-full flex-none flex-col border-b border-warm-sand bg-white/95 md:w-80 md:border-b-0 md:border-r">
-            <div className="border-b border-warm-sand/80 px-5 py-4">
-              <h2 className="text-lg font-semibold text-midnight">Chats</h2>
-              <p className="mt-1 text-xs text-navy/60">Keep tabs on your latest conversations.</p>
+      <div className={clsx("flex w-full flex-1 flex-col gap-4 px-3 pb-4 pt-4 md:px-6 bg-gradient-to-br from-[#fff6f2] via-[#ffe9e4] to-white", layoutHeightClass)}>
+        <div className="flex w-full flex-col gap-3">
+          <div className="flex flex-col gap-3 rounded-3xl border border-[#f0d8d9] bg-white/90 px-5 py-4 shadow-lg md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs uppercase tracking-[0.35em] text-[#c12c36]">Chats</p>
+              <h1 className="text-2xl font-semibold text-slate-900">Stay close to your threads</h1>
+              <p className="text-sm text-slate-600">Jump back into recent DMs or clear unread items without leaving this view.</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 rounded-2xl border border-[#f0d8d9] bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                <span>{totalChats} chats</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-2xl border border-[#f0d8d9] bg-[#fff2f3] px-4 py-2 text-sm font-semibold text-[#b7222d] shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-[#d64045]" aria-hidden />
+                <span>{totalUnread} unread</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex h-full w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#f0d8d9] bg-white/95 shadow-2xl md:flex-row">
+          <aside className="flex h-full w-full flex-none flex-col border-b border-[#f0d8d9] bg-white/95 md:w-96 md:border-b-0 md:border-r">
+            <div className="border-b border-[#f0d8d9] px-5 py-4">
+              <h2 className="text-lg font-semibold text-[#b7222d]">Chats</h2>
+              <p className="mt-1 text-xs text-slate-600">Keep tabs on your latest conversations.</p>
               <div className="mt-3">
                 <label htmlFor="chat-search" className="sr-only">
                   Search chats
@@ -122,7 +169,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="w-full rounded-2xl border border-warm-sand bg-white px-4 py-2 text-sm text-navy/80 focus:border-midnight focus:outline-none"
+                  className="w-full rounded-2xl border border-[#f0d8d9] bg-white px-4 py-2 text-sm text-slate-800 focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
                   placeholder="Search by name or handle"
                 />
               </div>
@@ -149,8 +196,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
               ) : filteredEntries.length > 0 ? (
                 <ul className="space-y-2">
                   {filteredEntries.map((entry) => {
-                    const href = `/chat/${entry.peerId}`;
-                    const isActive = pathname === href;
+                    const isActive = activePeerId ? entry.peerId === activePeerId : pathname === `/chat/${entry.peerId}`;
                     const unreadCount = entry.unreadCount ?? 0;
                     const secondaryText = entry.lastMessageSnippet ?? getSecondaryText(entry);
                     const timestamp = entry.lastMessageAt ? formatRosterTimestamp(entry.lastMessageAt) : null;
@@ -158,10 +204,10 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                     const showUnreadHighlight = unreadCount > 0 && !isActive;
                     return (
                       <li key={entry.peerId}>
-                        <Link
-                          href={href}
+                        <button
+                          type="button"
                           className={clsx(
-                            "flex items-center gap-3 rounded-2xl px-4 py-3 transition",
+                            "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition",
                             isActive ? "bg-midnight text-white" : "hover:bg-warm-sand/50",
                           )}
                           onClick={() => setActiveConversation(entry.peerId)}
@@ -217,7 +263,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                               {unreadLabel}
                             </span>
                           ) : null}
-                        </Link>
+                        </button>
                       </li>
                     );
                   })}
@@ -233,8 +279,12 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
               )}
             </div>
           </aside>
-          <section className="flex min-h-full flex-1 flex-col bg-cream/30">
-            <div className="flex-1 overflow-hidden">{children}</div>
+          <section className="flex min-h-full w-full flex-1 flex-col bg-[#fff8f4]">
+            <div className="flex-1 overflow-hidden px-3 pb-5 pt-4 sm:px-4 md:px-6">
+              <div className="h-full w-full rounded-3xl border border-[#f0d8d9] bg-white/95 shadow-xl ring-1 ring-[#f0d8d9]/70">
+                {activePeerId ? <ChatConversationView peerId={activePeerId} /> : children}
+              </div>
+            </div>
           </section>
         </div>
       </div>

@@ -14,7 +14,7 @@ const PRIMARY_LINKS = [
 const SECONDARY_LINKS = [
   { href: "/match", label: "Smart matching" },
   { href: "/search", label: "Discovery search" },
-  { href: "/proximity", label: "Open full map" },
+  { href: "/", label: "Live radar dashboard" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -98,8 +98,8 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60">Social hub</p>
           <h1 className="text-2xl font-semibold text-navy">Stay close to your campus circle</h1>
           <p className="text-sm text-navy/70">
-            Switch between proximity, friends, and invites without leaving the hub. Each module keeps collaboration
-            stress-free.
+            Switch between the live radar, friends, and invites without leaving the hub. Each module keeps
+            collaboration stress-free.
           </p>
         </header>
         <nav className="flex flex-col gap-1">{desktopLinks}</nav>

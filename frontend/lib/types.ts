@@ -213,6 +213,7 @@ export type ProfileRecord = {
   major?: string | null;
   graduation_year?: number | null;
   passions: string[];
+  courses?: ProfileCourse[];
   gallery?: ProfileGalleryImage[];
 };
 
@@ -220,6 +221,15 @@ export type ProfileRecord = {
 export type ProfileGalleryImage = {
   key: string;
   url: string;
+};
+
+export type ProfileCourse = {
+  id?: string;
+  name: string;
+  code?: string | null;
+  term?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type BlockEntry = {

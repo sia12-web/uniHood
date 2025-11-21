@@ -222,13 +222,13 @@ export default function ProfileForm({
 		<section className="flex flex-col gap-6">
 			<section className="flex flex-col gap-2 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
 				<p>
-					<strong>Email:</strong> {current.email ?? "—"}
+					<strong>Email:</strong> {current.email || "Not set"}
 				</p>
 				<p>
 					<strong>Verified:</strong> {current.email_verified ? "Yes" : "Pending"}
 				</p>
 				<p>
-					<strong>Campus ID:</strong> {current.campus_id ?? "—"}
+					<strong>Campus ID:</strong> {current.campus_id || "Not set"}
 				</p>
 			</section>
 			<AvatarUploader
@@ -416,4 +416,3 @@ export default function ProfileForm({
 		</section>
 	);
 }
-

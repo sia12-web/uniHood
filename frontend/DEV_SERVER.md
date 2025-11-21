@@ -36,9 +36,9 @@ pnpm dev
   NEXT_PUBLIC_ENABLE_GO_LIVE=true
   ```
 
-- Visit http://localhost:3000/proximity and click "Go live now". In demo mode (logged out or demo campus), a fallback location is used; when you grant location permission, the browser’s position is used instead.
+- Open http://localhost:3000/ and use the People nearby card’s **Go live now** control. In demo mode (logged out or demo campus), a fallback location is used; when you grant location permission, the browser’s position is used instead.
 - Heartbeats run every few seconds; a successful heartbeat stores a timestamp in `localStorage`.
-- The homepage shows a subtle badge next to "Proximity":
+- The homepage shows a subtle badge next to "People nearby":
   - "Go Live available" when the flag is on
   - "Live now" if a recent heartbeat (≈90s window) exists; the badge updates roughly every 15s
 

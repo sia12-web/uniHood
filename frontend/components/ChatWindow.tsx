@@ -123,14 +123,14 @@ export default function ChatWindow({
   const disconnected = connectionStatus === "disconnected";
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-slate-200/60 bg-white/70 backdrop-blur">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-2xl border-b bg-white/70 px-4 py-3 backdrop-blur">
-        <div className="flex min-w-0 items-center gap-3">
+    <div className="relative flex h-full w-full flex-1 min-h-0 flex-col rounded-2xl border border-slate-200/60 bg-white/95 shadow-xl text-sm">
+      <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 md:px-6">
+        <div className="flex min-w-0 items-center gap-4">
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/60">
             <span className="absolute inset-0 grid place-content-center text-slate-500">👤</span>
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-900">{otherLabel}</div>
+            <div className="truncate text-base font-semibold text-slate-900">{otherLabel}</div>
             <div className="truncate text-xs text-slate-500">{statusLabel}</div>
           </div>
         </div>
@@ -171,23 +171,23 @@ export default function ChatWindow({
       </header>
 
       {reconnecting ? (
-        <div className="rounded-none border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-700" role="status" aria-live="polite">
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-semibold text-amber-700" role="status" aria-live="polite">
           Reconnecting…
         </div>
       ) : null}
       {disconnected ? (
-        <div className="rounded-none border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs text-rose-700" role="alert" aria-live="assertive">
+        <div className="border-b border-rose-200 bg-rose-50 px-6 py-2 text-center text-xs font-semibold text-rose-700" role="alert" aria-live="assertive">
           Connection lost. Messages will send when we reconnect.
         </div>
       ) : null}
       <div
-        className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 px-4 py-4"
+        className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 px-4 py-4 pb-4 text-sm leading-relaxed scroll-smooth md:px-6"
         role="log"
         aria-live="polite"
         aria-label="Chat history"
       >
         {messages.length === 0 ? (
-          <p className="py-24 text-center text-sm text-slate-500">Start the conversation with a friendly hello 👋</p>
+          <p className="py-16 text-center text-sm text-slate-500">Start the conversation with a friendly hello 👋</p>
         ) : (
           messages.map((msg) => {
             const isSelf = msg.senderId === selfUserId;
@@ -197,11 +197,11 @@ export default function ChatWindow({
             const hasBody = body.length > 0;
             const imageAttachments = msg.attachments.filter(isRenderableImageAttachment);
             const bubbleClass = clsx(
-              "group relative max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm transition",
-              isSelf ? "ml-auto bg-sky-500 text-white" : "mr-auto bg-white text-slate-900 ring-1 ring-slate-200",
+              "group relative max-w-[88%] rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-lg transition-all sm:max-w-[82%] lg:max-w-[76%] xl:max-w-[72%]",
+              isSelf ? "ml-auto bg-sky-600 text-white" : "mr-auto bg-white/95 text-slate-900 ring-1 ring-slate-200/80",
             );
             const metaRowClass = clsx(
-              "mt-1 flex items-center gap-2 text-xs text-slate-500",
+              "mt-1.5 flex items-center gap-2 text-[0.65rem] font-medium text-slate-500",
               isSelf ? "justify-end" : "justify-start",
             );
             const deliveryLabel = (() => {
@@ -217,7 +217,7 @@ export default function ChatWindow({
               return "Sent";
             })();
             return (
-              <div key={key} className={clsx("flex flex-col", isSelf ? "items-end" : "items-start")}>
+              <div key={key} className={clsx("flex flex-col gap-2", isSelf ? "items-end" : "items-start")}>
                 <div className={bubbleClass}>
                   {hasBody ? <span className="whitespace-pre-wrap break-words leading-relaxed">{body}</span> : null}
                   {imageAttachments.length ? (
@@ -288,8 +288,12 @@ export default function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t bg-white/80 px-3 pb-3 pt-2 backdrop-blur" aria-label="Message composer">
-        <div className="mb-2 flex items-center gap-1">
+      <form
+        onSubmit={handleSubmit}
+        className="sticky bottom-0 left-0 right-0 w-full border-t border-slate-200 bg-white/95 px-4 pb-4 pt-3 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] md:px-6"
+        aria-label="Message composer"
+      >
+        <div className="mb-2.5 flex items-center gap-2 text-xs text-slate-600 md:gap-2.5">
           <button
             type="button"
             className="grid h-9 w-9 place-content-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
@@ -298,12 +302,12 @@ export default function ChatWindow({
           >
             +
           </button>
-          <div className="flex flex-wrap items-center gap-1" aria-label="Quick emoji">
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2" aria-label="Quick emoji">
             {QUICK_EMOJI.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
-                className="h-9 rounded-full border border-slate-200 bg-slate-50 px-2 text-lg leading-none transition hover:bg-slate-100"
+                className="h-8 rounded-full border border-slate-200 bg-white px-2.5 text-base leading-none transition hover:bg-slate-100"
                 onClick={() => handleEmojiClick(emoji)}
                 disabled={sending}
                 aria-label={`Insert emoji ${emoji}`}
@@ -313,8 +317,7 @@ export default function ChatWindow({
             ))}
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2.5 md:flex-row md:items-end md:gap-3">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -325,32 +328,40 @@ export default function ChatWindow({
               }
             }}
             className={clsx(
-              "h-12 w-full resize-none rounded-full border border-slate-300 px-4 py-3 text-sm shadow-sm",
-              "focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200",
+              "min-h-[64px] w-full resize-none rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-900 shadow-inner",
+              "focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100",
             )}
             placeholder="Type a message"
             disabled={sending}
           />
-          <button
-            type="button"
-            className="grid h-11 w-11 place-content-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
-            aria-label="Voice note (coming soon)"
-            title="Voice"
-          >
-            🎙️
-          </button>
-          <button
-            type="submit"
-            className="h-11 rounded-full bg-sky-600 px-5 text-sm font-semibold text-white shadow hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-sky-300"
-            disabled={sending || !draft.trim()}
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
+          <div className="flex items-center gap-2 md:self-stretch md:justify-end md:gap-2.5">
+            <button
+              type="button"
+              className="grid h-10 w-10 place-content-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+              aria-label="Voice note (coming soon)"
+              title="Voice"
+            >
+              🎙️
+            </button>
+            <button
+              type="submit"
+              className="h-10 rounded-2xl bg-sky-600 px-7 text-sm font-semibold text-white shadow-lg transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-sky-300"
+              disabled={sending || !draft.trim()}
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
         </div>
 
-        <div className="mt-1 flex justify-between text-[11px] leading-none text-slate-400">
+        <div className="mt-2 flex flex-wrap items-center justify-between text-[0.6rem] uppercase tracking-wide text-slate-400">
           <span>Shift+Enter for newline</span>
-          <button type="button" className="rounded-full px-2 py-1 text-[11px] font-semibold text-sky-600 hover:bg-sky-50" onClick={() => setPlayOpen(true)}>Play duel</button>
+          <button
+            type="button"
+            className="rounded-full px-2.5 py-1 text-[0.6rem] font-semibold text-sky-600 hover:bg-sky-50"
+            onClick={() => setPlayOpen(true)}
+          >
+            Play duel
+          </button>
         </div>
       </form>
       {playOpen && !activeSession && (

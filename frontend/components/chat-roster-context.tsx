@@ -10,6 +10,7 @@ export type ChatRosterContextValue = {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  activePeerId: string | null;
   setActiveConversation: (peerId: string | null) => void;
   updateConversationSnapshot: (peerId: string, message: ChatMessage | null) => void;
 };

@@ -1,9 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
 
-import BrandLogo from "@/components/BrandLogo";
 import ProfileForm from "@/components/ProfileForm";
 import ProfileGalleryManager from "@/components/ProfileGalleryManager";
 import {
@@ -14,34 +13,20 @@ import {
 	presignAvatar,
 	presignGallery,
 	removeGalleryImage,
+	saveProfileCourses,
 	type PresignPayload,
 	type ProfilePatchPayload,
+	type ProfileCourseInput,
 } from "@/lib/identity";
 import { requestDeletion } from "@/lib/privacy";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import type { ProfileRecord } from "@/lib/types";
+import type { ProfileCourse, ProfileRecord } from "@/lib/types";
+import { ToastContext } from "@/components/providers/toast-provider";
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
 const DRAFT_STORAGE_KEY = "divan.profile.draft";
-const FEATURE_CALL_OUTS = [
-	{
-		title: "Surface in the Social Hub",
-		description:
-			"Finish your passions and bio to show up in the nearby map and recommendations feed.",
-	},
-	{
-		title: "Unlock smarter invites",
-		description:
-			"Graduation year and major help Divan route study room and project invites to you first.",
-	},
-	{
-		title: "Build trust streaks",
-		description:
-			"An avatar and status keep friends in the loop and boost your reputation milestones.",
-	},
-];
 const PROGRESS_SEGMENTS = 20;
 
 type StoredProfileDraft = {
@@ -58,6 +43,7 @@ type StoredProfileDraft = {
 	graduation_year?: number | null;
 	passions: string[];
 	gallery?: ProfileRecord["gallery"];
+	courses?: ProfileRecord["courses"];
 };
 
 async function uploadToPresignedUrl(url: string, file: File): Promise<void> {
@@ -74,7 +60,7 @@ async function uploadToPresignedUrl(url: string, file: File): Promise<void> {
 function createOfflineProfile(userId: string, campusId: string | null): ProfileRecord {
 	return {
 		id: userId || "draft-user",
-		email: "you@yourcampus.edu",
+		email: "",
 		email_verified: false,
 		handle: "",
 		display_name: "New to Divan",
@@ -97,6 +83,7 @@ function createOfflineProfile(userId: string, campusId: string | null): ProfileR
 		major: null,
 		graduation_year: null,
 		passions: [],
+		courses: [],
 		gallery: [],
 	};
 }
@@ -114,6 +101,11 @@ function normaliseDraft(candidate: Partial<StoredProfileDraft> | null, userId: s
 		passions: Array.isArray(candidate.passions)
 			? candidate.passions.filter((item) => typeof item === "string").map((item) => item.trim()).filter(Boolean)
 			: base.passions,
+		courses: Array.isArray(candidate.courses)
+			? candidate.courses.filter((item): item is ProfileCourse =>
+				Boolean(item) && typeof (item as ProfileCourse).name === "string" && (item as ProfileCourse).name.trim().length > 0,
+			  )
+			: base.courses,
 		gallery: Array.isArray(candidate.gallery)
 			? candidate.gallery.filter(
 				(item): item is { key: string; url: string } =>
@@ -156,6 +148,7 @@ function storeDraftProfile(profile: ProfileRecord): void {
 		major: profile.major ?? null,
 		graduation_year: profile.graduation_year ?? null,
 		passions: profile.passions ?? [],
+		courses: profile.courses ?? [],
 		gallery: profile.gallery ?? [],
 	};
 	try {
@@ -175,6 +168,7 @@ function applyProfilePatch(base: ProfileRecord, patch: ProfilePatchPayload): Pro
 		display_name: patch.display_name ?? base.display_name,
 		handle: patch.handle ?? base.handle,
 		passions: patch.passions ?? base.passions ?? [],
+		courses: base.courses ?? [],
 	};
 
 	if (patch.privacy) {
@@ -247,6 +241,72 @@ function buildMissingTasks(profile: ProfileRecord): string[] {
 	return tasks.slice(0, 4);
 }
 
+type CourseItem = {
+	_localId: string;
+	id?: string;
+	name: string;
+	code: string;
+	term: string;
+};
+
+type CourseFormState = {
+	name: string;
+	code: string;
+	term: string;
+};
+
+function emptyCourseForm(): CourseFormState {
+	return { name: "", code: "", term: "" };
+}
+
+function randomLocalId(seed?: string): string {
+	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+		return crypto.randomUUID();
+	}
+	const suffix = Math.random().toString(16).slice(2, 10);
+	return `course-${Date.now()}-${suffix}${seed ? `-${seed}` : ""}`;
+}
+
+function toCourseItems(source: ProfileCourse[] | undefined | null): CourseItem[] {
+	return (source ?? [])
+		.filter((candidate): candidate is ProfileCourse =>
+			Boolean(candidate) && typeof candidate.name === "string" && candidate.name.trim().length > 0,
+		)
+		.map((course, index) => ({
+			_localId: course.id ?? randomLocalId(`existing-${index}`),
+			id: course.id,
+			name: course.name.trim(),
+			code: course.code?.trim() ?? "",
+			term: course.term?.trim() ?? "",
+		}));
+}
+
+function toCoursePayload(items: CourseItem[]): ProfileCourseInput[] {
+	return items
+		.map(({ _localId: _ignore, id, name, code, term }) => ({
+			id,
+			name: name.trim(),
+			code: code.trim() ? code.trim() : null,
+			term: term.trim() ? term.trim() : null,
+		}))
+		.filter((course) => course.name.length > 0);
+}
+
+function ensureCourses(record: ProfileRecord): ProfileRecord {
+	return {
+		...record,
+		courses: Array.isArray(record.courses) ? record.courses : [],
+	};
+}
+
+function mergeCourses(prev: ProfileRecord | null, next: ProfileRecord): ProfileRecord {
+	const hasCoursesProperty = Object.prototype.hasOwnProperty.call(next, "courses");
+	if (!hasCoursesProperty && prev?.courses) {
+		return { ...ensureCourses(next), courses: prev.courses };
+	}
+	return ensureCourses(next);
+}
+
 async function readFileAsDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -263,6 +323,7 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export default function ProfileSettingsPage() {
+	const toast = useContext(ToastContext);
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -275,6 +336,20 @@ export default function ProfileSettingsPage() {
 	const [galleryUploading, setGalleryUploading] = useState<boolean>(false);
 	const [galleryRemovingKey, setGalleryRemovingKey] = useState<string | null>(null);
 	const [galleryError, setGalleryError] = useState<string | null>(null);
+	const [coursesDraft, setCoursesDraft] = useState<CourseItem[]>([]);
+	const [coursesDirty, setCoursesDirty] = useState<boolean>(false);
+	const [courseSaving, setCourseSaving] = useState<boolean>(false);
+	const [courseErrorMessage, setCourseErrorMessage] = useState<string | null>(null);
+	const [courseFeedback, setCourseFeedback] = useState<string | null>(null);
+	const [activeCourseForm, setActiveCourseForm] = useState<{ mode: "create" | "edit"; targetId?: string } | null>(null);
+	const [courseFormState, setCourseFormState] = useState<CourseFormState>(emptyCourseForm());
+	const courseNameId = useId();
+	const courseCodeId = useId();
+	const courseTermId = useId();
+	const normaliseCourses = useCallback(
+		(list: ProfileCourse[] | undefined | null) => toCourseItems(list),
+		[],
+	);
 
 	const isDraftMode = profile === null && draftProfile !== null;
 	const activeProfile = profile ?? draftProfile;
@@ -284,6 +359,17 @@ export default function ProfileSettingsPage() {
 		return Math.round((clamped / 100) * PROGRESS_SEGMENTS);
 	}, [completion]);
 	const missingTasks = useMemo(() => (activeProfile ? buildMissingTasks(activeProfile) : []), [activeProfile]);
+
+	useEffect(() => {
+		if (coursesDirty) {
+			return;
+		}
+		setCoursesDraft(normaliseCourses(activeProfile?.courses));
+		setActiveCourseForm(null);
+		setCourseFormState(emptyCourseForm());
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+	}, [activeProfile?.courses, coursesDirty, normaliseCourses]);
 
 	useEffect(() => {
 		setAuthUser(readAuthUser());
@@ -314,7 +400,7 @@ export default function ProfileSettingsPage() {
 		setLoading(true);
 		async function loadProfile() {
 			try {
-				const record = await fetchProfile(safeUserId, safeCampusId);
+				const record = ensureCourses(await fetchProfile(safeUserId, safeCampusId));
 				if (!cancelled) {
 					setProfile(record);
 					setDraftProfile(null);
@@ -328,8 +414,10 @@ export default function ProfileSettingsPage() {
 						: "Unable to load profile. Working from your last saved draft.";
 					setProfile(null);
 					setDraftProfile(
-						loadDraftFromStorage(safeUserId, safeCampusId) ??
-							createOfflineProfile(safeUserId, safeCampusId),
+						ensureCourses(
+							loadDraftFromStorage(safeUserId, safeCampusId) ??
+								createOfflineProfile(safeUserId, safeCampusId),
+						),
 					);
 					setError(displayMessage);
 				}
@@ -364,10 +452,11 @@ export default function ProfileSettingsPage() {
 			throw new Error("Sign in to update your profile.");
 		}
 		const updated = await patchProfile(authUser.userId, authUser.campusId ?? null, patch);
-		setProfile(updated);
+		const merged = mergeCourses(profile, updated);
+		setProfile(merged);
 		setDraftProfile(null);
-		return updated;
-	}, [authUser]);
+		return merged;
+	}, [authUser, profile]);
 
 	const handleAvatarUpload = useCallback(async (file: File) => {
 		if (!authUser) {
@@ -377,10 +466,11 @@ export default function ProfileSettingsPage() {
 		const presigned = await presignAvatar(authUser.userId, authUser.campusId ?? null, payload);
 		await uploadToPresignedUrl(presigned.url, file);
 		const updated = await commitAvatar(authUser.userId, authUser.campusId ?? null, presigned.key);
-		setProfile(updated);
+		const merged = mergeCourses(profile, updated);
+		setProfile(merged);
 		setDraftProfile(null);
-		return updated;
-	}, [authUser]);
+		return merged;
+	}, [authUser, profile]);
 
 	const handleDraftSubmit = useCallback(async (patch: ProfilePatchPayload) => {
 		let result: ProfileRecord | null = null;
@@ -435,9 +525,10 @@ export default function ProfileSettingsPage() {
 				const presigned = await presignGallery(authUser.userId, authUser.campusId ?? null, payload);
 				await uploadToPresignedUrl(presigned.url, file);
 				const updated = await commitGallery(authUser.userId, authUser.campusId ?? null, presigned.key);
-				setProfile(updated);
+				const merged = mergeCourses(profile, updated);
+				setProfile(merged);
 				setDraftProfile(null);
-				return updated;
+				return merged;
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Failed to upload photo";
 				setGalleryError(message);
@@ -446,7 +537,7 @@ export default function ProfileSettingsPage() {
 				setGalleryUploading(false);
 			}
 		},
-		[authUser, isDraftMode],
+		[authUser, isDraftMode, profile],
 	);
 
 	const handleGalleryRemove = useCallback(
@@ -462,9 +553,10 @@ export default function ProfileSettingsPage() {
 			setGalleryRemovingKey(key);
 			try {
 				const updated = await removeGalleryImage(authUser.userId, authUser.campusId ?? null, key);
-				setProfile(updated);
+				const merged = mergeCourses(profile, updated);
+				setProfile(merged);
 				setDraftProfile(null);
-				return updated;
+				return merged;
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Failed to remove photo";
 				setGalleryError(message);
@@ -473,8 +565,146 @@ export default function ProfileSettingsPage() {
 				setGalleryRemovingKey(null);
 			}
 		},
-		[authUser, isDraftMode],
+		[authUser, isDraftMode, profile],
 	);
+
+	const openCreateCourseForm = useCallback(() => {
+		setActiveCourseForm({ mode: "create" });
+		setCourseFormState(emptyCourseForm());
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+	}, []);
+
+	const openEditCourseForm = useCallback((course: CourseItem) => {
+		setActiveCourseForm({ mode: "edit", targetId: course._localId });
+		setCourseFormState({ name: course.name, code: course.code, term: course.term });
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+	}, []);
+
+	const cancelCourseForm = useCallback(() => {
+		setActiveCourseForm(null);
+		setCourseFormState(emptyCourseForm());
+		setCourseErrorMessage(null);
+	}, []);
+
+	const handleCourseInputChange = useCallback((field: keyof CourseFormState, value: string) => {
+		setCourseFormState((prev) => ({ ...prev, [field]: value }));
+		setCourseErrorMessage(null);
+	}, []);
+
+	const handleCourseFormSubmit = useCallback(() => {
+		const trimmedName = courseFormState.name.trim();
+		if (!trimmedName) {
+			setCourseErrorMessage("Course name is required.");
+			return;
+		}
+		const codeTrimmed = courseFormState.code.trim();
+		const termTrimmed = courseFormState.term.trim();
+		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
+			setCoursesDraft((prev) =>
+				prev.map((course) =>
+					course._localId === activeCourseForm.targetId
+						? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
+						: course,
+				),
+			);
+		} else {
+			const newCourse: CourseItem = {
+				_localId: randomLocalId("new"),
+				name: trimmedName,
+				code: codeTrimmed,
+				term: termTrimmed,
+			};
+			setCoursesDraft((prev) => [...prev, newCourse]);
+		}
+		setCoursesDirty(true);
+		setActiveCourseForm(null);
+		setCourseFormState(emptyCourseForm());
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+	}, [activeCourseForm, courseFormState]);
+
+	const handleCourseRemove = useCallback(
+		(targetId: string) => {
+			setCoursesDraft((prev) => prev.filter((course) => course._localId !== targetId));
+			setCoursesDirty(true);
+			setCourseFeedback(null);
+			setCourseErrorMessage(null);
+			if (activeCourseForm?.targetId === targetId) {
+				setActiveCourseForm(null);
+				setCourseFormState(emptyCourseForm());
+			}
+		},
+		[activeCourseForm],
+	);
+
+	const handleCoursesReset = useCallback(() => {
+		setCoursesDraft(normaliseCourses(activeProfile?.courses));
+		setCoursesDirty(false);
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+		setActiveCourseForm(null);
+		setCourseFormState(emptyCourseForm());
+	}, [activeProfile, normaliseCourses]);
+
+	const handleCoursesPersist = useCallback(async () => {
+		if (!coursesDirty) {
+			return;
+		}
+		const payload = toCoursePayload(coursesDraft);
+		setCourseSaving(true);
+		setCourseErrorMessage(null);
+		try {
+			if (isDraftMode) {
+				const persisted: ProfileCourse[] = payload.map((course) => ({
+					id: course.id,
+					name: course.name,
+					code: course.code ?? null,
+					term: course.term ?? null,
+				}));
+				setDraftProfile((prev) => (prev ? { ...prev, courses: persisted } : prev));
+				setCourseFeedback("Courses saved to your draft profile.");
+				setCoursesDirty(false);
+				if (toast) {
+					toast.push({
+						title: "Courses saved",
+						description: "Draft profile updated locally.",
+						variant: "success",
+					});
+				}
+				return;
+			}
+			if (!authUser) {
+				throw new Error("Sign in to update courses.");
+			}
+			const updatedCourses = await saveProfileCourses(authUser.userId, authUser.campusId ?? null, payload);
+			setProfile((prev) => (prev ? { ...prev, courses: updatedCourses } : prev));
+			setDraftProfile((prev) => (prev ? { ...prev, courses: updatedCourses } : prev));
+			setCourseFeedback("Courses updated.");
+			setCoursesDraft(normaliseCourses(updatedCourses));
+			setCoursesDirty(false);
+			if (toast) {
+				toast.push({
+					title: "Courses updated",
+					description: "We’ll recommend classmates and groups based on these.",
+					variant: "success",
+				});
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Unable to save courses.";
+			setCourseErrorMessage(message);
+			if (toast) {
+				toast.push({
+					title: "Course save failed",
+					description: message,
+					variant: "error",
+				});
+			}
+		} finally {
+			setCourseSaving(false);
+		}
+	}, [authUser, coursesDirty, coursesDraft, isDraftMode, normaliseCourses, toast]);
 
 	const retryFetch = useCallback(() => {
 		setReloadToken((prev) => prev + 1);
@@ -519,43 +749,13 @@ export default function ProfileSettingsPage() {
 		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-12">
-				<div className="flex items-center justify-between">
-					<BrandLogo
-						withWordmark
-						logoWidth={96}
-						logoHeight={96}
-						className="inline-flex items-center gap-4 rounded-3xl border border-slate-200 bg-white/95 px-6 py-3 text-lg font-semibold text-slate-900 shadow-lg ring-1 ring-slate-100 transition hover:bg-white hover:text-slate-950"
-						logoClassName="h-20 w-auto drop-shadow-[0_14px_35px_rgba(15,23,42,0.18)] saturate-[0.8] hue-rotate-[315deg] brightness-110"
-					/>
-				</div>
 				<header className="flex flex-col gap-2">
-					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-						{isDraftMode ? "Profile launchpad" : "Profile settings"}
-					</p>
-					<h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-						{isDraftMode ? "Craft your Divan identity" : "Shape your Divan identity"}
-					</h1>
+					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Profile settings</p>
+					<h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Shape your Divan identity</h1>
 					<p className="text-sm text-slate-600 sm:text-base">
-						{isDraftMode
-							? "You have not signed in yet, so we saved a local workspace. Fill in your story now and we will sync it once your account is live."
-							: "Manage how classmates discover you across Divan. Updates apply instantly to invites, rooms, and the Social Hub."}
+						Manage how classmates discover you across Divan. Updates apply instantly to invites, rooms, and the Social Hub.
 					</p>
 				</header>
-				{isDraftMode ? (
-					<div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
-						<p className="font-semibold">We could not reach your live profile yet.</p>
-						<p className="mt-1 text-amber-800">
-							You have not launched an account, so we spun up a local workspace for you. Fill this in now and copy it over when you join Divan.
-						</p>
-						{error ? <p className="mt-2 text-xs text-amber-700">Details: {error}</p> : null}
-						<button
-							onClick={retryFetch}
-							className="mt-3 w-fit rounded-full bg-white px-4 py-2 text-xs font-semibold text-amber-900 shadow hover:bg-amber-100"
-						>
-							Retry connection
-						</button>
-					</div>
-				) : null}
 				{!isDraftMode && error ? (
 					<div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 shadow-sm">
 						<p className="font-semibold">Something went wrong</p>
@@ -578,27 +778,242 @@ export default function ProfileSettingsPage() {
 				) : null}
 				{activeProfile ? (
 					<div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-						<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
-							<ProfileForm
-								profile={activeProfile}
-								onSubmit={formSubmit}
-								onAvatarUpload={avatarUpload}
-								onRequestDeletion={deletionHandler}
-								deleteLoading={deleteLoading}
-								gallerySlot={(
-									<ProfileGalleryManager
-										images={galleryImages}
-										onUpload={handleGalleryUpload}
-										onRemove={handleGalleryRemove}
-										uploading={galleryUploading}
-										removingKey={galleryRemovingKey}
-										error={galleryError}
-										disabled={galleryDisabled}
-										limit={6}
-									/>
+						<div className="flex flex-col gap-6">
+							<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+								<ProfileForm
+									profile={activeProfile}
+									onSubmit={formSubmit}
+									onAvatarUpload={avatarUpload}
+									onRequestDeletion={deletionHandler}
+									deleteLoading={deleteLoading}
+									gallerySlot={(
+										<ProfileGalleryManager
+											images={galleryImages}
+											onUpload={handleGalleryUpload}
+											onRemove={handleGalleryRemove}
+											uploading={galleryUploading}
+											removingKey={galleryRemovingKey}
+											error={galleryError}
+											disabled={galleryDisabled}
+											limit={6}
+										/>
+									)}
+								/>
+							</section>
+							<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+								<header className="flex flex-wrap items-center justify-between gap-3">
+									<div>
+										<h2 className="text-sm font-semibold text-slate-900">Courses</h2>
+										<p className="mt-1 text-xs text-slate-500">
+											List the classes you are taking so we can suggest study groups and match classmates.
+										</p>
+									</div>
+									<button
+										type="button"
+										onClick={openCreateCourseForm}
+										disabled={courseSaving || !!activeCourseForm}
+										className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										Add course
+									</button>
+								</header>
+								{courseErrorMessage ? (
+									<p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+										{courseErrorMessage}
+									</p>
+								) : null}
+								{activeCourseForm?.mode === "create" ? (
+									<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+										<p className="text-sm font-semibold text-slate-900">Add course</p>
+										<div className="mt-3 grid gap-3 md:grid-cols-3">
+											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
+												<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
+												<input
+													id={courseNameId}
+													type="text"
+													value={courseFormState.name}
+													onChange={(event) => handleCourseInputChange("name", event.target.value)}
+													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+													maxLength={80}
+													required
+												/>
+											</label>
+											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseCodeId}>
+												<span className="font-medium">Course code</span>
+												<input
+													id={courseCodeId}
+													type="text"
+													value={courseFormState.code}
+													onChange={(event) => handleCourseInputChange("code", event.target.value)}
+													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+													maxLength={24}
+													placeholder="e.g., CS-204"
+												/>
+											</label>
+											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseTermId}>
+												<span className="font-medium">Semester / Year</span>
+												<input
+													id={courseTermId}
+													type="text"
+													value={courseFormState.term}
+													onChange={(event) => handleCourseInputChange("term", event.target.value)}
+													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+													maxLength={40}
+													placeholder="e.g., Fall 2025"
+												/>
+											</label>
+										</div>
+										<div className="mt-4 flex flex-wrap justify-end gap-2">
+											<button
+												type="button"
+												onClick={cancelCourseForm}
+												className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+											>
+												Cancel
+											</button>
+											<button
+												type="button"
+												onClick={handleCourseFormSubmit}
+												disabled={courseSaving}
+												className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+											>
+												Save course
+											</button>
+										</div>
+									</div>
+								) : null}
+								{coursesDraft.length ? (
+									<ul className="mt-4 space-y-3">
+										{coursesDraft.map((course) => {
+											const isEditing = activeCourseForm?.mode === "edit" && activeCourseForm.targetId === course._localId;
+											return (
+												<li key={course._localId} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+													{isEditing ? (
+														<div>
+															<p className="text-sm font-semibold text-slate-900">Edit course</p>
+															<div className="mt-3 grid gap-3 md:grid-cols-3">
+																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseNameId}-edit`}>
+																	<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
+																	<input
+																		id={`${courseNameId}-edit`}
+																		type="text"
+																		value={courseFormState.name}
+																		onChange={(event) => handleCourseInputChange("name", event.target.value)}
+																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																		maxLength={80}
+																		required
+																	/>
+																</label>
+																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseCodeId}-edit`}>
+																	<span className="font-medium">Course code</span>
+																	<input
+																		id={`${courseCodeId}-edit`}
+																		type="text"
+																		value={courseFormState.code}
+																		onChange={(event) => handleCourseInputChange("code", event.target.value)}
+																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																		maxLength={24}
+																		placeholder="e.g., CS-204"
+																	/>
+																</label>
+																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseTermId}-edit`}>
+																	<span className="font-medium">Semester / Year</span>
+																	<input
+																		id={`${courseTermId}-edit`}
+																		type="text"
+																		value={courseFormState.term}
+																		onChange={(event) => handleCourseInputChange("term", event.target.value)}
+																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																		maxLength={40}
+																		placeholder="e.g., Fall 2025"
+																	/>
+																</label>
+															</div>
+															<div className="mt-4 flex flex-wrap justify-end gap-2">
+																<button
+																	type="button"
+																	onClick={cancelCourseForm}
+																	className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+																>
+																	Cancel
+																</button>
+																<button
+																	type="button"
+																	onClick={handleCourseFormSubmit}
+																	disabled={courseSaving}
+																	className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+																>
+																	Save changes
+																</button>
+															</div>
+														</div>
+													) : (
+														<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+															<div>
+																<p className="text-sm font-semibold text-slate-900">{course.name}</p>
+																<div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+																	{course.code ? (
+																		<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+																			{course.code}
+																		</span>
+																	) : null}
+																	{course.term ? (
+																		<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+																			{course.term}
+																		</span>
+																	) : null}
+																</div>
+															</div>
+															<div className="flex gap-2">
+																<button
+																	type="button"
+																	onClick={() => openEditCourseForm(course)}
+																	className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+																>
+																	Edit
+																</button>
+																<button
+																	type="button"
+																	onClick={() => handleCourseRemove(course._localId)}
+																	className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+																>
+																	Remove
+																</button>
+															</div>
+														</div>
+													)}
+												</li>
+											);
+										})}
+									</ul>
+								) : (
+									<p className="mt-4 text-sm text-slate-500">
+										No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
+									</p>
 								)}
-							/>
-						</section>
+								<div className="mt-5 flex flex-wrap justify-end gap-2">
+									<button
+										type="button"
+										onClick={handleCoursesReset}
+										disabled={!coursesDirty || courseSaving}
+										className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										Discard changes
+									</button>
+									<button
+										type="button"
+										onClick={handleCoursesPersist}
+										disabled={!coursesDirty || courseSaving}
+										className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+									>
+										{courseSaving ? "Saving…" : "Save courses"}
+									</button>
+								</div>
+								{courseFeedback && !courseErrorMessage ? (
+									<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>
+								) : null}
+							</section>
+						</div>
 						<aside className="flex flex-col gap-5">
 							<section className="rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white shadow-lg">
 								<header className="flex items-center justify-between">
@@ -678,26 +1093,6 @@ export default function ProfileSettingsPage() {
 								) : (
 									<p className="mt-4 text-sm font-medium text-emerald-600">
 										Great work—your profile is ready for the next wave of features.
-									</p>
-								)}
-							</section>
-							<section className="rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
-								<h2 className="text-sm font-semibold text-slate-900">What you unlock next</h2>
-								<ul className="mt-4 space-y-3 text-sm text-slate-600">
-									{FEATURE_CALL_OUTS.map((feature) => (
-										<li key={feature.title} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-											<p className="font-semibold text-slate-900">{feature.title}</p>
-											<p className="mt-1 text-xs text-slate-600">{feature.description}</p>
-										</li>
-									))}
-								</ul>
-								{isDraftMode ? (
-									<p className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-										We save your draft locally. When you create an account, copy these details during onboarding to go live instantly.
-									</p>
-								) : (
-									<p className="mt-4 text-xs text-slate-500">
-										Invite friends once your profile hits 100% to unlock early-bird badges.
 									</p>
 								)}
 							</section>

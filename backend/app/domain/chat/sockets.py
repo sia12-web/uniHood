@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from typing import Dict, Optional
 
 import socketio
 
 from app.domain.proximity import live_sessions
-from app.infra.auth import AuthenticatedUser
+from app.infra.auth import AuthenticatedUser, _parse_token as parse_access_token
+from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 
 _namespace: "ChatNamespace" | None = None
@@ -30,16 +32,13 @@ class ChatNamespace(socketio.AsyncNamespace):
 
 	async def on_connect(self, sid: str, environ: dict, auth: Optional[dict] = None) -> None:
 		obs_metrics.socket_connected(self.namespace)
-		scope = environ.get("asgi.scope", environ)
-		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
-		user_id = auth_payload.get("userId") or _header(scope, "x-user-id")
-		campus_id = auth_payload.get("campusId") or _header(scope, "x-campus-id") or ""
-		if not user_id:
+		try:
+			user = await self._authorise(environ, auth)
+		except Exception:
 			obs_metrics.socket_disconnected(self.namespace)
-			raise ConnectionRefusedError("missing user id")
-		user = AuthenticatedUser(id=user_id, campus_id=campus_id)
+			raise ConnectionRefusedError("unauthorized") from None
 		self._sessions[sid] = user
-		await self.enter_room(sid, self.user_room(user_id))
+		await self.enter_room(sid, self.user_room(user.id))
 		await self.emit("chat:ack", {"ok": True}, room=sid)
 		await live_sessions.attach_activity(user.id)
 
@@ -63,6 +62,47 @@ class ChatNamespace(socketio.AsyncNamespace):
 			"chat:typing",
 			{"from_user_id": user.id, "peer_id": peer_id},
 			room=self.user_room(peer_id),
+		)
+
+	async def _authorise(self, environ: dict, auth: Optional[dict]) -> AuthenticatedUser:
+		scope = environ.get("asgi.scope", environ)
+		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
+		ticket = auth_payload.get("ticket")
+		ctx: Dict[str, Optional[str]]
+		if ticket:
+			key = f"rticket:{ticket}"
+			cached = await redis_client.get(key)
+			if not cached:
+				raise ValueError("invalid_ticket")
+			await redis_client.delete(key)
+			try:
+				parsed = json.loads(cached)
+			except json.JSONDecodeError as exc:
+				raise ValueError("invalid_ticket") from exc
+			ctx = {
+				"user_id": parsed.get("user_id"),
+				"campus_id": parsed.get("campus_id"),
+				"session_id": parsed.get("session_id"),
+				"handle": parsed.get("handle"),
+			}
+		else:
+			token = auth_payload.get("token")
+			if not token:
+				auth_header = _header(scope, "authorization")
+				if auth_header and auth_header.lower().startswith("bearer "):
+					token = auth_header.split(" ", 1)[1]
+			if not token:
+				raise ValueError("missing_token")
+			ctx = parse_access_token(token)
+
+		if not ctx.get("user_id") or ctx.get("campus_id") is None:
+			raise ValueError("missing_claims")
+
+		return AuthenticatedUser(
+			id=str(ctx["user_id"]),
+			campus_id=str(ctx["campus_id"]),
+			handle=str(ctx["handle"]) if ctx.get("handle") is not None else None,
+			session_id=str(ctx["session_id"]) if ctx.get("session_id") is not None else None,
 		)
 
 	@staticmethod

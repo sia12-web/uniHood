@@ -41,7 +41,8 @@ export function getDemoUserId() {
 }
 
 export function getDemoCampusId() {
-  return env.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  // Only McGill is available in the demo environment for now.
+  return env.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2";
 }
 
 function parseCoordinate(value: string | undefined, fallback: number): number {
@@ -53,15 +54,15 @@ function parseCoordinate(value: string | undefined, fallback: number): number {
 }
 
 export function getDemoLatitude() {
-  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LAT, 37.7749);
+  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LAT, 45.5048);
 }
 
 export function getDemoLongitude() {
-  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LON, -122.4194);
+  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LON, -73.5772);
 }
 
 export function getDemoUserEmail() {
-  return env.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "user@example.com";
+  return env.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "student@mcgill.ca";
 }
 
 export function getDemoUserCampus(): string | null {

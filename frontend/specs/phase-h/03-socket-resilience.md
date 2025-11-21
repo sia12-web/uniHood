@@ -7,7 +7,7 @@
 
 ## Requirements
 - Handshake:
-  - Prefer `ticket` from `/ops/realtime-ticket`; fallback to `Authorization` Bearer token
+  - Prefer `ticket` from `/realtime/ticket`; fallback to `Authorization` Bearer token
 - Reconnect:
   - Exponential backoff with jitter; max interval 8s; reset after 60s stable
   - When reconnecting, show small banner "Reconnecting…" and queue optimistic UI events

@@ -65,11 +65,8 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       return null;
     }
     try {
-      const response = await apiFetch<{ ticket?: string; expires_at?: string; expires_in?: number }>("/ops/realtime-ticket", {
+      const response = await apiFetch<{ ticket?: string; expires_at?: string; expires_in?: number }>("/realtime/ticket", {
         method: "POST",
-        body: {
-          namespace: options.namespace,
-        },
       });
       const ticket = typeof response?.ticket === "string" ? response.ticket : undefined;
       if (!ticket) {

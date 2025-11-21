@@ -33,7 +33,7 @@ const FEATURE_SECTIONS = [
       { href: "/rooms", label: "Rooms hub" },
       { href: "/rooms/create", label: "Create a room" },
       { href: "/rooms/join", label: "Join existing rooms" },
-      { href: "/proximity", label: "Proximity feed" },
+      { href: "/", label: "Live radar dashboard" },
       { href: "/chat", label: "Chat overview" },
     ],
   },

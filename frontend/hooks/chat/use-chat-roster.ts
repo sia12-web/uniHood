@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { initChatSocket, onMessage, type ChatMessage } from "@/lib/chat";
+import { onAuthChange, readAuthSnapshot, readAuthUser, resolveAuthHeaders, type AuthUser } from "@/lib/auth-storage";
+import { initChatSocket, normalizeChatMessages, onMessage, type ChatMessage } from "@/lib/chat";
 import {
-  acknowledgeConversation,
-  bindChatUnreadSocket,
-  getUnreadCounts,
-  setActiveChatPeer,
-  subscribeUnreadCounts,
+	acknowledgeConversation,
+	bindChatUnreadSocket,
+	getUnreadCounts,
+	setActiveChatPeer,
+	subscribeUnreadCounts,
 } from "@/lib/chat/unread-manager";
-import { getDemoCampusId, getDemoUserId } from "@/lib/env";
+import { getBackendUrl } from "@/lib/env";
 import { fetchFriends } from "@/lib/social";
 import { markPresenceFromActivity } from "@/store/presence";
 
@@ -32,21 +32,26 @@ export type UseChatRosterResult = {
   error: string | null;
   refresh: () => void;
   authUser: AuthUser | null;
+  activePeerId: string | null;
   setActiveConversation: (peerId: string | null) => void;
   updateConversationSnapshot: (peerId: string, message: ChatMessage | null) => void;
 };
 
 const SOCKET_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:8000";
+const API_BASE_URL = getBackendUrl();
 
 function truncateSnippet(body: string | null | undefined): string | null {
   if (!body) {
     return null;
   }
-  const compact = body.replace(/\s+/g, " ").trim();
+  const compact = body.replace(/\s+/g, " " ).trim();
   if (!compact) {
     return null;
   }
-  return compact.length > 120 ? `${compact.slice(0, 117)}…` : compact;
+  if (compact.length > 120) {
+    return `${compact.slice(0, 117)}...`;
+  }
+  return compact;
 }
 
 function sortRoster(entries: ChatRosterEntry[]): ChatRosterEntry[] {
@@ -96,6 +101,7 @@ export function useChatRoster(): UseChatRosterResult {
   const [entries, setEntries] = useState<ChatRosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePeerId, setActivePeerId] = useState<string | null>(null);
   const activeConversationRef = useRef<string | null>(null);
   const unreadCountsRef = useRef<Record<string, number>>(getUnreadCounts());
 
@@ -107,11 +113,11 @@ export function useChatRoster(): UseChatRosterResult {
     return unsubscribe;
   }, []);
 
-  const userId = authUser?.userId ?? getDemoUserId();
-  const campusId = authUser?.campusId ?? getDemoCampusId();
+  const userId = authUser?.userId ?? null;
+  const campusId = authUser?.campusId ?? null;
 
   const refresh = useCallback(async () => {
-    if (!userId) {
+    if (!userId || !campusId) {
       setEntries([]);
       setLoading(false);
       return;
@@ -121,20 +127,24 @@ export function useChatRoster(): UseChatRosterResult {
     try {
       const friends = await fetchFriends(userId, campusId ?? null, "accepted");
       const unreadSnapshot = unreadCountsRef.current;
+      const peerRows = friends.filter((row) => row.friend_id && row.status === "accepted");
+      const latestByPeer = await fetchLatestMessages(peerRows.map((row) => row.friend_id), userId, campusId);
       setEntries((prev) => {
         const prevMap = new Map(prev.map((entry) => [entry.peerId, entry]));
-        const mapped = friends
-          .filter((row) => row.friend_id && row.status === "accepted")
-          .map<ChatRosterEntry>((row) => ({
+        const mapped = peerRows.map<ChatRosterEntry>((row) => {
+          const latest = latestByPeer[row.friend_id] ?? null;
+          const previous = prevMap.get(row.friend_id);
+          return {
             peerId: row.friend_id,
             displayName: row.friend_display_name?.trim() || "Friend",
             handle: row.friend_handle ?? null,
             avatarUrl: null,
             isDemo: false,
-            lastMessageSnippet: prevMap.get(row.friend_id)?.lastMessageSnippet ?? null,
-            lastMessageAt: prevMap.get(row.friend_id)?.lastMessageAt ?? null,
+            lastMessageSnippet: latest?.snippet ?? previous?.lastMessageSnippet ?? null,
+            lastMessageAt: latest?.createdAt ?? previous?.lastMessageAt ?? null,
             unreadCount: unreadSnapshot[row.friend_id] ?? 0,
-          }));
+          };
+        });
         return sortRoster(mapped);
       });
     } catch (err) {
@@ -217,6 +227,7 @@ export function useChatRoster(): UseChatRosterResult {
 
   const setActiveConversation = useCallback((peerId: string | null) => {
     activeConversationRef.current = peerId;
+    setActivePeerId(peerId);
     setActiveChatPeer(peerId);
     if (!peerId) {
       return;
@@ -262,9 +273,53 @@ export function useChatRoster(): UseChatRosterResult {
       error,
       refresh,
       authUser,
+      activePeerId,
       setActiveConversation,
       updateConversationSnapshot,
     }),
-    [entries, loading, error, refresh, authUser, setActiveConversation, updateConversationSnapshot],
+    [entries, loading, error, refresh, authUser, activePeerId, setActiveConversation, updateConversationSnapshot],
   );
+}
+
+async function fetchLatestMessages(
+	peerIds: string[],
+	userId: string,
+	campusId: string,
+): Promise<Record<string, { snippet: string | null; createdAt: string | null }>> {
+	if (!peerIds.length) {
+		return {};
+	}
+	const snapshot = readAuthSnapshot();
+	const baseHeaders = resolveAuthHeaders(snapshot);
+	if (!baseHeaders["X-User-Id"]) {
+		baseHeaders["X-User-Id"] = userId;
+	}
+	if (campusId && !baseHeaders["X-Campus-Id"]) {
+		baseHeaders["X-Campus-Id"] = campusId;
+	}
+	const headers = baseHeaders as Record<string, string>;
+	const results: Record<string, { snippet: string | null; createdAt: string | null }> = {};
+	await Promise.all(
+		peerIds.map(async (peerId) => {
+			try {
+				const url = `${API_BASE_URL.replace(/\/$/, "")}/chat/conversations/${peerId}/messages?limit=1`;
+				const response = await fetch(url, { cache: "no-store", headers });
+				if (!response.ok) {
+					return;
+				}
+				const payload = await response.json();
+				const messages = normalizeChatMessages(payload);
+				const first = messages[0];
+				if (first) {
+					results[peerId] = {
+						snippet: buildMessageSnippet(first),
+						createdAt: first.createdAt ?? null,
+					};
+				}
+			} catch {
+				// Ignore failures; roster will fall back to existing snippets if any.
+			}
+		}),
+	);
+	return results;
 }

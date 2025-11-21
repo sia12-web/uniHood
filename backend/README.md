@@ -41,8 +41,8 @@ This service provides real-time presence, proximity lookup, and social discovery
 - The backend container now auto-runs migrations on startup (see `infra/docker/compose.yaml`). Failures in late optional moderation migrations are tolerated so core tables (friendships, activities, presence, identity) are always created.
 - If a later moderation migration fails (e.g., at `0240_mod_device.sql`) but you need the profile fields now used by proximity (major, graduation_year, passions), apply just those columns: `python scripts/apply_profile_details.py`
 - Demo seeding (optional) to exercise activities / friends flow:
-  1. Insert campus: `INSERT INTO campuses (id,name,lat,lon) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Demo Campus',0,0) ON CONFLICT DO NOTHING;`
-  2. Insert users:
+  1. Insert campus: `INSERT INTO campuses (id,name,lat,lon) VALUES ('c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2','McGill University',45.5048,-73.5772) ON CONFLICT DO NOTHING;`
+  2. Insert users (tie them to McGill campus id above):
 	  - `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` (demo_me)
 	  - `cccccccc-cccc-cccc-cccc-cccccccccccc` (demo_friend)
   3. Insert bidirectional friendships with status `accepted`.

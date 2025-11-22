@@ -298,6 +298,17 @@ export interface ActivitySummary {
   user_a: string; user_b: string; meta: Record<string, unknown>; started_at?: string; ended_at?: string;
 }
 
+export interface ActivityDetail extends ActivitySummary {
+  rounds: Array<{
+    id: string;
+    idx: number;
+    state: string;
+    opened_at?: string;
+    closed_at?: string;
+    meta: Record<string, unknown>;
+  }>;
+}
+
 export async function createTypingDuel(peerId: string): Promise<ActivitySummary> {
   // POST /activities/with/{peerId} body { kind: 'typing_duel' }
   const res = await api.post(`/activities/with/${peerId}`, { kind: 'typing_duel' });
@@ -324,6 +335,12 @@ export async function submitTyping(activityId: string, roundIdx: number, text: s
 export async function fetchActivity(activityId: string): Promise<ActivitySummary> {
   const res = await api.get(`/activities/${activityId}`);
   return res.data as ActivitySummary;
+}
+
+export async function getActivity(activityId: string): Promise<ActivityDetail> {
+  const headers = resolveAuthHeaders(readAuthSnapshot());
+  const response = await api.get(`/activities/${activityId}`, { headers });
+  return response.data;
 }
 
 // Legacy session-based compatibility wrappers (for tests/older UIs). Prefer new activity APIs above.
@@ -606,4 +623,16 @@ export async function startSession(sessionId: string): Promise<void> {
 }
 export async function submitRound(): Promise<void> {
   throw new Error('submitRound is unsupported for live sessions. Use the WebSocket stream to submit rounds.');
+}
+
+export async function assignStoryRole(activityId: string, role: "boy" | "girl"): Promise<ActivitySummary> {
+  const headers = resolveAuthHeaders(readAuthSnapshot());
+  const response = await api.post(`/activities/${activityId}/story/roles`, { role }, { headers });
+  return response.data;
+}
+
+export async function submitStoryTurn(activityId: string, content: string): Promise<ActivitySummary> {
+  const headers = resolveAuthHeaders(readAuthSnapshot());
+  const response = await api.post(`/activities/${activityId}/story/turn`, { content }, { headers });
+  return response.data;
 }

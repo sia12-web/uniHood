@@ -129,4 +129,11 @@ class TypingPromptResponse(BaseModel):
 	close_at_ms: int
 
 
+class AssignRoleRequest(BaseModel):
+	role: Literal["boy", "girl"]
+
+
+class SubmitStoryTurnRequest(BaseModel):
+	content: str = Field(..., min_length=1, max_length=1000)
+
 ActivityDetail.model_rebuild()

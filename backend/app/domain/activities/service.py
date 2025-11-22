@@ -782,6 +782,12 @@ class ActivitiesService:
 		story_meta = activity.meta.get("story", {})
 		turns = int(story_meta.get("turns", 6))
 		turn_seconds = int(story_meta.get("turn_seconds", 60))
+		
+		# Pick a romance scenario
+		scenario = prompts.pick_romance_scenario()
+		activity.meta.setdefault("story", {})["scenario"] = scenario
+		activity.meta["story"]["roles"] = {}  # user_id -> "boy" | "girl"
+
 		now = _now()
 		rounds: List[models.ActivityRound] = []
 		for idx in range(1, turns + 1):
@@ -796,6 +802,11 @@ class ActivitiesService:
 				opened_at=opened_at,
 			)
 			rounds.append(round_obj)
+		
+		# We don't start the timer immediately for the first round because we need role selection first?
+		# Or we treat role selection as a pre-round phase.
+		# For simplicity, let's just start the round but allow role selection during it.
+		
 		if rounds:
 			await timers.set_round_timer(activity.id, 1, turn_seconds)
 			await sockets.emit_round_open(
@@ -804,8 +815,9 @@ class ActivitiesService:
 					"activity_id": activity.id,
 					"round_idx": 1,
 					"turn_idx": 1,
-					"who": "A",
+					"who": "A", # This logic needs to be dynamic based on roles
 					"close_at_ms": int((now.timestamp() + turn_seconds) * 1000),
+					"scenario": scenario,
 				},
 			)
 		return rounds
@@ -1271,9 +1283,6 @@ class ActivitiesService:
 		if next_turn >= turns:
 			activity.state = "completed"
 			activity.ended_at = _now()
-			story_meta["next_turn"] = turns + 1
-			story_meta["next_user"] = None
-			activity.meta["story"] = story_meta
 			await self._persist(activity)
 			await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
 			await outbox.append_activity_event(
@@ -1312,83 +1321,99 @@ class ActivitiesService:
 			"next_user": next_user,
 		}
 
-	async def submit_trivia(self, auth_user: AuthenticatedUser, payload: schemas.TriviaAnswerRequest) -> models.ScoreBoard:
-		await policy.enforce_action_limit(auth_user.id)
-		activity = await self._require_activity(payload.activity_id)
+	async def assign_story_role(self, auth_user: AuthenticatedUser, activity_id: str, role: str) -> schemas.ActivityDetail:
+		activity = await self._require_activity(activity_id)
+		self._ensure_participant(activity, auth_user.id)
+		
+		if role not in ("boy", "girl"):
+			raise policy.ActivityPolicyError("invalid_role")
+			
+		roles = activity.meta.setdefault("story", {}).setdefault("roles", {})
+		
+		# Check if role is taken by the OTHER user
+		for uid, r in roles.items():
+			if r == role and uid != auth_user.id:
+				raise policy.ActivityPolicyError("role_taken")
+		
+		roles[auth_user.id] = role
+		await self._persist(activity)
+		
+		# Emit update so clients see the role assignment
+		summary = _activity_summary(activity)
+		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
+		
+		return await self.get_activity(auth_user, activity_id)
+
+	async def submit_story_turn(self, auth_user: AuthenticatedUser, activity_id: str, content: str) -> schemas.ActivityDetail:
+		activity = await self._require_activity(activity_id)
 		self._ensure_participant(activity, auth_user.id)
 		policy.ensure_state(activity, "active")
-		trivia_meta = activity.meta.get("trivia") or {}
-		round_obj = await self._repo.get_round(activity.id, payload.round_idx)
-		if round_obj is None:
-			raise policy.ActivityPolicyError("round_not_found", status_code=404)
-		policy.ensure_round_state(round_obj, "open")
-		opened_at = round_obj.opened_at or _now()
-		latency_ms = int(max((_now() - opened_at).total_seconds(), 0) * 1000)
-		answer = models.TriviaAnswer(
-			round_id=round_obj.id,
+		
+		roles = activity.meta.get("story", {}).get("roles", {})
+		user_role = roles.get(auth_user.id)
+		if not user_role:
+			raise policy.ActivityPolicyError("role_not_assigned")
+			
+		# Determine current round
+		rounds = await self._repo.list_rounds(activity.id)
+		current_round = next((r for r in rounds if r.state == "open"), None)
+		if not current_round:
+			raise policy.ActivityPolicyError("no_open_round")
+			
+		# Check turn order
+		# Odd rounds = Boy, Even rounds = Girl? Or just alternate?
+		# Let's say Round 1 = Boy, Round 2 = Girl, etc.
+		# Or we can let the first person to submit claim the round if it's the first one?
+		# The prompt says "guy writes for the boy... girl writes for the girl".
+		# Let's enforce: Round 1 (Boy), Round 2 (Girl), etc.
+		
+		expected_role = "boy" if current_round.idx % 2 != 0 else "girl"
+		if user_role != expected_role:
+			raise policy.ActivityPolicyError("not_your_turn")
+			
+		# Save the line
+		line = models.StoryLine(
+			activity_id=activity.id,
+			idx=current_round.idx,
 			user_id=auth_user.id,
-			choice_idx=payload.choice_idx,
-			latency_ms=latency_ms,
+			content=content,
 			created_at=_now(),
 		)
-		await self._repo.upsert_trivia_answer(answer)
-		answers = await self._repo.list_trivia_answers(round_obj.id)
-		participants = set(activity.participants())
-		if {ans.user_id for ans in answers} == participants:
-			correct_idx = int(round_obj.meta.get("correct_idx", -1))
-			outcome = scoring.trivia_scores(
-				[(ans.user_id, ans.choice_idx, ans.latency_ms) for ans in answers],
-				correct_idx=correct_idx,
+		await self._repo.append_story_line(line)
+		
+		# Close current round
+		current_round.state = "closed"
+		current_round.closed_at = _now()
+		await self._persist_round(current_round)
+		
+		# Open next round if available
+		next_round = next((r for r in rounds if r.idx == current_round.idx + 1), None)
+		if next_round:
+			next_round.state = "open"
+			next_round.opened_at = _now()
+			await self._persist_round(next_round)
+			
+			# Reset timer for next round
+			turn_seconds = int(activity.meta.get("story", {}).get("turn_seconds", 60))
+			await timers.set_round_timer(activity.id, next_round.idx, turn_seconds)
+			
+			await sockets.emit_round_open(
+				activity.id,
+				{
+					"activity_id": activity.id,
+					"round_idx": next_round.idx,
+					"turn_idx": next_round.idx,
+					"who": "A" if next_round.idx % 2 != 0 else "B", # Simplified
+					"close_at_ms": int((_now().timestamp() + turn_seconds) * 1000),
+				},
 			)
-			scoreboard = _scoreboard_from_activity(activity)
-			for user_id, total in outcome.correct_totals.items():
-				scoreboard.add_score(round_obj.idx, user_id, float(total))
-			for user_id, latency in outcome.latency_totals.items():
-				trivia_meta.setdefault("latency_totals", {})[user_id] = int(latency)
-			await self._populate_scoreboard_participants(activity, scoreboard)
-			_store_scoreboard(activity, scoreboard)
-			round_obj.state = "scored"
-			round_obj.closed_at = _now()
-			await self._persist_round(round_obj)
-			next_idx = round_obj.idx + 1
-			rounds = await self._repo.list_rounds(activity.id)
-			next_round = next((r for r in rounds if r.idx == next_idx), None)
-			payload_score = scoreboard.to_payload()
-			await sockets.emit_score_update(activity.id, payload_score)
-			if next_round:
-				next_round.state = "open"
-				next_round.opened_at = _now()
-				await self._persist_round(next_round)
-				await timers.set_round_timer(activity.id, next_idx, int(trivia_meta.get("per_question_s", 10)))
-				await sockets.emit_round_open(
-					activity.id,
-					{
-						"activity_id": activity.id,
-						"round_idx": next_round.idx,
-						"prompt": next_round.meta.get("prompt"),
-						"options": next_round.meta.get("options"),
-						"close_at_ms": int((_now().timestamp() + int(trivia_meta.get("per_question_s", 10))) * 1000),
-					},
-				)
-			else:
-				activity.state = "completed"
-				activity.ended_at = _now()
-				await self._persist(activity)
-				raw_totals = trivia_meta.get("latency_totals", {})
-				await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
-				await outbox.append_score_event(activity_id=activity.id, kind=activity.kind, result=payload_score)
-				await outbox.append_activity_event(
-					"activity_completed",
-					activity_id=activity.id,
-					kind=activity.kind,
-					user_id=auth_user.id,
-				)
-				await self._record_leaderboard_outcome(activity, scoreboard)
-			activity.meta["trivia"] = trivia_meta
+		else:
+			# Game over
+			activity.state = "completed"
+			activity.ended_at = _now()
 			await self._persist(activity)
-			return scoreboard
-		activity.meta["trivia"] = trivia_meta
-		await self._persist(activity)
-		enriched = _scoreboard_from_activity(activity)
-		await self._populate_scoreboard_participants(activity, enriched)
-		return enriched
+			
+		summary = _activity_summary(activity)
+		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
+		
+		return await self.get_activity(auth_user, activity_id)

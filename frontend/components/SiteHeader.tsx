@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import BrandLogo from "@/components/BrandLogo";
-import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") {
@@ -37,15 +37,8 @@ export default function SiteHeader() {
   }, [shouldRenderHeader]);
 
   const navLinks = useMemo(() => {
-    if (authUser) {
-      const label = authUser.displayName?.trim()
-        ? authUser.displayName
-        : authUser.handle
-        ? `@${authUser.handle}`
-        : "Profile";
-      return [{ href: "/me", label }];
-    }
-    return [{ href: "/login", label: "Sign in" }];
+    // Hide user name and profile link from the top bar; only show sign-in when logged out.
+    return authUser ? [] : [{ href: "/login", label: "Sign in" }];
   }, [authUser]);
 
   const visibleLinks = hydrated ? navLinks : [];
@@ -63,12 +56,6 @@ export default function SiteHeader() {
     }
     setMenuOpen(false);
   }, [pathname, shouldRenderHeader]);
-
-  const handleSignOut = useCallback(() => {
-    clearAuthSnapshot();
-    setAuthUser(null);
-    setMenuOpen(false);
-  }, []);
 
   if (!shouldRenderHeader) {
     return null;
@@ -93,15 +80,7 @@ export default function SiteHeader() {
             </Link>
           ))}
         </nav>
-        {hydrated && authUser ? (
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="hidden rounded-full border border-warm-sand px-3 py-2 text-sm font-medium text-navy transition hover:bg-warm-sand/80 hover:text-midnight md:inline-flex"
-          >
-            Sign out
-          </button>
-        ) : null}
+        {/* Hide sign-out from the top bar as requested */}
         <button
           type="button"
           aria-label="Toggle navigation"
@@ -138,15 +117,7 @@ export default function SiteHeader() {
               </Link>
             ))}
           </nav>
-          {hydrated && authUser ? (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="mx-4 mt-3 rounded px-3 py-2 text-sm font-medium text-navy transition hover:bg-warm-sand hover:text-midnight"
-            >
-              Sign out
-            </button>
-          ) : null}
+          {/* Hide sign-out in mobile menu as well */}
         </div>
       ) : null}
     </header>

@@ -20,7 +20,7 @@ import {
 } from "@/lib/identity";
 import { requestDeletion } from "@/lib/privacy";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
-import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { onAuthChange, readAuthUser, readAuthSnapshot, storeAuthSnapshot, type AuthUser } from "@/lib/auth-storage";
 import type { ProfileCourse, ProfileRecord } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
 
@@ -283,7 +283,7 @@ function toCourseItems(source: ProfileCourse[] | undefined | null): CourseItem[]
 
 function toCoursePayload(items: CourseItem[]): ProfileCourseInput[] {
 	return items
-		.map(({ _localId: _ignore, id, name, code, term }) => ({
+		.map(({ id, name, code, term }) => ({
 			id,
 			name: name.trim(),
 			code: code.trim() ? code.trim() : null,
@@ -455,6 +455,16 @@ export default function ProfileSettingsPage() {
 		const merged = mergeCourses(profile, updated);
 		setProfile(merged);
 		setDraftProfile(null);
+
+		const snapshot = readAuthSnapshot();
+		if (snapshot) {
+			storeAuthSnapshot({
+				...snapshot,
+				handle: updated.handle,
+				display_name: updated.display_name,
+			});
+		}
+
 		return merged;
 	}, [authUser, profile]);
 
@@ -594,12 +604,12 @@ export default function ProfileSettingsPage() {
 	}, []);
 
 	const handleCourseFormSubmit = useCallback(() => {
-		const trimmedName = courseFormState.name.trim();
-		if (!trimmedName) {
-			setCourseErrorMessage("Course name is required.");
+		const codeTrimmed = courseFormState.code.trim();
+		if (!codeTrimmed) {
+			setCourseErrorMessage("Course code is required.");
 			return;
 		}
-		const codeTrimmed = courseFormState.code.trim();
+		const trimmedName = courseFormState.name.trim();
 		const termTrimmed = courseFormState.term.trim();
 		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
 			setCoursesDraft((prev) =>
@@ -826,20 +836,8 @@ export default function ProfileSettingsPage() {
 									<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
 										<p className="text-sm font-semibold text-slate-900">Add course</p>
 										<div className="mt-3 grid gap-3 md:grid-cols-3">
-											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
-												<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
-												<input
-													id={courseNameId}
-													type="text"
-													value={courseFormState.name}
-													onChange={(event) => handleCourseInputChange("name", event.target.value)}
-													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-													maxLength={80}
-													required
-												/>
-											</label>
 											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseCodeId}>
-												<span className="font-medium">Course code</span>
+												<span className="font-medium">Course code<span className="text-rose-500">*</span></span>
 												<input
 													id={courseCodeId}
 													type="text"
@@ -848,6 +846,18 @@ export default function ProfileSettingsPage() {
 													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
 													maxLength={24}
 													placeholder="e.g., CS-204"
+													required
+												/>
+											</label>
+											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
+												<span className="font-medium">Course name</span>
+												<input
+													id={courseNameId}
+													type="text"
+													value={courseFormState.name}
+													onChange={(event) => handleCourseInputChange("name", event.target.value)}
+													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+													maxLength={80}
 												/>
 											</label>
 											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseTermId}>

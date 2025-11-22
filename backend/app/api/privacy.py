@@ -148,6 +148,15 @@ async def post_delete_confirm(
 		raise _map_policy_error(exc) from None
 
 
+@router.post("/account/delete/force", response_model=schemas.DeletionStatus)
+async def post_delete_force(auth_user: AuthenticatedUser = Depends(get_current_user)) -> schemas.DeletionStatus:
+	"""Immediate, tokenless deletion for the authenticated user (development convenience)."""
+	try:
+		return await deletion.force_delete(auth_user)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+
+
 @router.get("/account/delete/status", response_model=schemas.DeletionStatus)
 async def get_delete_status(
 	auth_user: AuthenticatedUser = Depends(get_current_user),

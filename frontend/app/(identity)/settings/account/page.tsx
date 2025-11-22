@@ -3,22 +3,19 @@
 import EmailChangeFlow from "@/components/EmailChangeFlow";
 import PhoneNumberForm from "@/components/PhoneNumberForm";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
-	confirmDeletion,
 	fetchAuditLog,
 	fetchDeletionStatus,
 	fetchExportDownload,
 	fetchExportStatus,
-	requestDeletion,
+	forceDeleteAccount,
 	requestExportJob,
 	type AuditLogPage,
 } from "@/lib/privacy";
-import { getDemoUserCampus, getDemoUserId } from "@/lib/env";
+import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import type { DeletionStatus, ExportStatus } from "@/lib/types";
-
-const DEMO_USER_ID = getDemoUserId();
-const DEMO_CAMPUS_ID = getDemoUserCampus();
 
 function formatDeletionError(message: string): string {
 	if (message === "delete_request_rate") {
@@ -31,20 +28,36 @@ function formatDeletionError(message: string): string {
 }
 
 export default function AccountSettingsPage() {
+	const router = useRouter();
+	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
 	const [exportError, setExportError] = useState<string | null>(null);
 	const [exportLoading, setExportLoading] = useState(false);
 
 	const [deletionStatus, setDeletionStatus] = useState<DeletionStatus | null>(null);
 	const [deletionError, setDeletionError] = useState<string | null>(null);
-	const [deletionToken, setDeletionToken] = useState("");
 	const [deletionLoading, setDeletionLoading] = useState(false);
+	const [deletionSuccess, setDeletionSuccess] = useState<string | null>(null);
 
 	const [auditPage, setAuditPage] = useState<AuditLogPage | null>(null);
 	const [auditLoading, setAuditLoading] = useState(false);
 	const [auditError, setAuditError] = useState<string | null>(null);
 
 	useEffect(() => {
+		const hydrate = () => setAuthUser(readAuthUser());
+		hydrate();
+		return onAuthChange(hydrate);
+	}, []);
+
+	const userId = authUser?.userId ?? null;
+	const campusId = authUser?.campusId ?? null;
+
+	useEffect(() => {
+		if (!userId) {
+			return;
+		}
+		const uid = userId;
+		const cid = campusId ?? null;
 		let cancelled = false;
 		async function load() {
 			setExportLoading(true);
@@ -54,9 +67,9 @@ export default function AccountSettingsPage() {
 			setDeletionError(null);
 			setAuditError(null);
 			const [exportResult, deletionResult, auditResult] = await Promise.allSettled([
-				fetchExportStatus(DEMO_USER_ID, DEMO_CAMPUS_ID),
-				fetchDeletionStatus(DEMO_USER_ID, DEMO_CAMPUS_ID),
-				fetchAuditLog(DEMO_USER_ID, DEMO_CAMPUS_ID, { limit: 20 }),
+				fetchExportStatus(uid, cid),
+				fetchDeletionStatus(uid, cid),
+				fetchAuditLog(uid, cid, { limit: 20 }),
 			]);
 			if (cancelled) {
 				return;
@@ -95,37 +108,46 @@ export default function AccountSettingsPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [userId, campusId]);
 
 	const handleExportRequest = useCallback(async () => {
+		if (!userId) return;
+		const uid = userId;
+		const cid = campusId ?? null;
 		setExportLoading(true);
 		setExportError(null);
 		try {
-			const status = await requestExportJob(DEMO_USER_ID, DEMO_CAMPUS_ID);
+			const status = await requestExportJob(uid, cid);
 			setExportStatus(status);
 		} catch (err) {
 			setExportError(err instanceof Error ? err.message : "Export request failed");
 		} finally {
 			setExportLoading(false);
 		}
-	}, []);
+	}, [userId, campusId]);
 
 	const handleExportRefresh = useCallback(async () => {
+		if (!userId) return;
+		const uid = userId;
+		const cid = campusId ?? null;
 		setExportLoading(true);
 		setExportError(null);
 		try {
-			const status = await fetchExportStatus(DEMO_USER_ID, DEMO_CAMPUS_ID);
+			const status = await fetchExportStatus(uid, cid);
 			setExportStatus(status);
 		} catch (err) {
 			setExportError(err instanceof Error ? err.message : "Failed to fetch status");
 		} finally {
 			setExportLoading(false);
 		}
-	}, []);
+	}, [userId, campusId]);
 
 	const handleExportDownload = useCallback(async () => {
+		if (!userId) return;
+		const uid = userId;
+		const cid = campusId ?? null;
 		try {
-			const status = await fetchExportDownload(DEMO_USER_ID, DEMO_CAMPUS_ID);
+			const status = await fetchExportDownload(uid, cid);
 			setExportStatus(status);
 			if (status.download_url) {
 				window.open(status.download_url, "_blank");
@@ -133,45 +155,37 @@ export default function AccountSettingsPage() {
 		} catch (err) {
 			setExportError(err instanceof Error ? err.message : "Download not ready");
 		}
-	}, []);
+	}, [userId, campusId]);
 
-	const handleDeletionRequest = useCallback(async () => {
+	const handleForceDelete = useCallback(async () => {
+		if (!userId) return;
 		setDeletionLoading(true);
 		setDeletionError(null);
+		setDeletionSuccess(null);
 		try {
-			const status = await requestDeletion(DEMO_USER_ID, DEMO_CAMPUS_ID);
+			const status = await forceDeleteAccount(userId, campusId ?? null);
 			setDeletionStatus(status);
+			setDeletionSuccess("Your account has been deleted and sessions were revoked.");
+			clearAuthSnapshot();
+			router.push("/login");
 		} catch (err) {
-			const raw = err instanceof Error ? err.message : "Deletion request failed";
+			const raw = err instanceof Error ? err.message : "Deletion failed";
 			setDeletionError(formatDeletionError(raw));
 		} finally {
 			setDeletionLoading(false);
 		}
-	}, []);
-
-	const handleDeletionConfirm = useCallback(async () => {
-		setDeletionLoading(true);
-		setDeletionError(null);
-		try {
-			const status = await confirmDeletion(DEMO_USER_ID, DEMO_CAMPUS_ID, deletionToken);
-			setDeletionStatus(status);
-			setDeletionToken("");
-		} catch (err) {
-			const raw = err instanceof Error ? err.message : "Deletion confirmation failed";
-			setDeletionError(formatDeletionError(raw));
-		} finally {
-			setDeletionLoading(false);
-		}
-	}, [deletionToken]);
+	}, [userId, campusId, router]);
 
 	const handleAuditLoadMore = useCallback(async () => {
-		if (!auditPage?.cursor) {
+		if (!auditPage?.cursor || !userId) {
 			return;
 		}
+		const uid = userId;
+		const cid = campusId ?? null;
 		setAuditLoading(true);
 		setAuditError(null);
 		try {
-			const nextPage = await fetchAuditLog(DEMO_USER_ID, DEMO_CAMPUS_ID, {
+			const nextPage = await fetchAuditLog(uid, cid, {
 				limit: 20,
 				cursor: auditPage.cursor,
 			});
@@ -188,7 +202,7 @@ export default function AccountSettingsPage() {
 		} finally {
 			setAuditLoading(false);
 		}
-	}, [auditPage]);
+	}, [auditPage, userId, campusId]);
 
 	return (
 		<main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-8 px-6 py-10">
@@ -198,10 +212,16 @@ export default function AccountSettingsPage() {
 					Export your data, start deletion workflows, and review the audit history tied to your identity actions.
 				</p>
 			</header>
-			<div className="grid gap-6 lg:grid-cols-2">
-				<EmailChangeFlow userId={DEMO_USER_ID} campusId={DEMO_CAMPUS_ID} />
-				<PhoneNumberForm userId={DEMO_USER_ID} campusId={DEMO_CAMPUS_ID} />
-			</div>
+			{userId ? (
+				<div className="grid gap-6 lg:grid-cols-2">
+					<EmailChangeFlow userId={userId} campusId={campusId} />
+					<PhoneNumberForm userId={userId} campusId={campusId} />
+				</div>
+			) : (
+				<div className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+					Sign in again to manage your email and phone number settings.
+				</div>
+			)}
 
 			<section className="flex flex-col gap-3 rounded border border-slate-200 bg-white p-6 shadow-sm">
 				<header className="flex flex-col gap-1">
@@ -259,34 +279,23 @@ export default function AccountSettingsPage() {
 				<header className="flex flex-col gap-1">
 					<h2 className="text-xl font-semibold text-slate-900">Account deletion</h2>
 					<p className="text-sm text-slate-600">
-						Request an email token to start the deletion grace period. Confirming will anonymize your account and revoke sessions.
+						Deleting...will anonymize your account, revoke sessions, and remove your sign-in credentials immediately.
 					</p>
 				</header>
 				{deletionError ? <p className="text-sm text-rose-600">{deletionError}</p> : null}
+				{deletionSuccess ? <p className="text-sm text-emerald-600">{deletionSuccess}</p> : null}
 				<div className="flex flex-wrap items-center gap-3">
 					<button
 						type="button"
-						onClick={() => void handleDeletionRequest()}
+						onClick={() => void handleForceDelete()}
 						className="rounded bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow disabled:bg-rose-300"
 						disabled={deletionLoading}
 					>
-						{deletionLoading ? "Requesting…" : "Request deletion token"}
+						{deletionLoading ? "Deleting..." : "Delete account now"}
 					</button>
-					<input
-						type="text"
-						value={deletionToken}
-						onChange={(event) => setDeletionToken(event.target.value)}
-						placeholder="Paste deletion token"
-						className="w-full max-w-md rounded border border-slate-300 px-3 py-2 text-sm shadow-sm"
-					/>
-					<button
-						type="button"
-						onClick={() => void handleDeletionConfirm()}
-						className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow"
-						disabled={deletionLoading || deletionToken.trim().length === 0}
-					>
-						Confirm deletion
-					</button>
+				</div>
+				<div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+					This action is immediate and cannot be undone.
 				</div>
 				{deletionStatus ? (
 					<dl className="grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-3">
@@ -370,3 +379,13 @@ export default function AccountSettingsPage() {
 		</main>
 	);
 }
+
+
+
+
+
+
+
+
+
+

@@ -4,7 +4,7 @@ import { useSpeedTypingSession, type LobbyParticipant } from "../hooks/useSpeedT
 import { attachTypingBoxGuards } from "../guards/typingBoxGuards";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
 import { readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { ActivityLobbySummary } from "./ActivityLobbySummary";
+import { Trophy, Timer, Users, CheckCircle2, XCircle, Play, AlertCircle } from "lucide-react";
 
 export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const {
@@ -106,10 +106,10 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
     });
     return meta;
   }, [participants, resolveDisplayName, resolveSubtitle]);
+
   const hostUserId = participants[0]?.userId;
   const isHost = hostUserId != null && hostUserId === selfUserId;
   const readyCount = participants.filter((entry) => entry.ready).length;
-  const joinedCount = participants.filter((entry) => entry.joined).length;
   const totalParticipants = participants.length;
   const allReady = totalParticipants > 0 && readyCount === totalParticipants;
   const selfPresence = participants.find((entry) => entry.userId === selfUserId);
@@ -119,11 +119,6 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
   const countdownActive = state.phase === "countdown" && countdownSeconds !== null;
   const lobbyArmed = Boolean(state.lobby?.ready);
 
-  const leader = useMemo(() => {
-    if (!state.scoreboard || state.scoreboard.length === 0) return null;
-    const sorted = [...state.scoreboard].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    return sorted[0];
-  }, [state.scoreboard]);
   const participantCards = useMemo(() => {
     type Entry = { userId: string; score?: number; displayName?: string | null; handle?: string | null };
     const list: Entry[] =
@@ -135,18 +130,17 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
       label: participantMeta.get(entry.userId)?.label ?? resolveDisplayName(entry.userId, entry),
       subtitle: participantMeta.get(entry.userId)?.subtitle ?? resolveSubtitle(entry.userId, entry),
       score: entry.score ?? 0,
+      isReady: participants.find(p => p.userId === entry.userId)?.ready ?? false,
+      isSelf: entry.userId === selfUserId,
     }));
-  }, [participantMeta, participants, resolveDisplayName, resolveSubtitle, state.scoreboard]);
+  }, [participantMeta, participants, resolveDisplayName, resolveSubtitle, state.scoreboard, selfUserId]);
+
   const winnerEntry = useMemo(() => {
     if (state.winnerUserId) {
       return state.scoreboard?.find((entry) => entry.userId === state.winnerUserId) ?? null;
     }
     return null;
   }, [state.scoreboard, state.winnerUserId]);
-  const winnerLabel = useMemo(() => {
-    if (!state.winnerUserId) return null;
-    return resolveDisplayName(state.winnerUserId, winnerEntry ?? undefined);
-  }, [resolveDisplayName, state.winnerUserId, winnerEntry]);
 
   const handleReadyClick = () => {
     if (readyButtonDisabled) return;
@@ -164,56 +158,153 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
 
   const toast = sessionToast || localToast;
 
-  let mainContent: React.ReactNode;
+  // --- Render Helpers ---
 
-  if (countdownActive) {
-    mainContent = (
-      <div className="relative rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-center">
-        <div className="absolute inset-0 z-10 grid place-items-center bg-white/80 backdrop-blur-sm">
-          <div className="rounded-xl border border-amber-300 bg-white px-6 py-4 text-center shadow">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-700">Countdown</p>
-            <p className="text-6xl font-extrabold text-amber-800 leading-none">
-              {Math.max(countdownSeconds ?? 0, 0)}
-            </p>
-            <p className="text-sm text-amber-700 mt-2">Starting soon for everyone</p>
+  const renderLobby = () => (
+    <div className="space-y-8">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {participantCards.map((p) => (
+          <div 
+            key={p.userId} 
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${
+              p.isReady 
+                ? "border-emerald-200 bg-emerald-50/50 ring-1 ring-emerald-500/20" 
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
+                  p.isReady ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                }`}>
+                  {p.label.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">
+                    {p.label} {p.isSelf && <span className="text-xs font-normal text-slate-500">(You)</span>}
+                  </div>
+                  {p.subtitle && <div className="text-xs text-slate-500">{p.subtitle}</div>}
+                </div>
+              </div>
+              {p.isReady ? (
+                <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Ready
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                  <Timer className="h-3.5 w-3.5" />
+                  Waiting
+                </div>
+              )}
+            </div>
           </div>
+        ))}
+        {participantCards.length === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-400">
+            <Users className="mb-2 h-8 w-8 opacity-50" />
+            <p>Waiting for players to join...</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col items-center justify-center gap-4 border-t border-slate-100 pt-8">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleReadyClick}
+            disabled={readyButtonDisabled}
+            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${
+              selfPresence?.ready
+                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40"
+            }`}
+          >
+            {selfPresence?.ready ? (
+              <>
+                <XCircle className="h-5 w-5" />
+                Cancel Ready
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-5 w-5" />
+                I&apos;m Ready
+              </>
+            )}
+          </button>
+
+          {isHost && (
+            <button
+              onClick={handleStartClick}
+              disabled={!allReady || lobbyArmed}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-500 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+            >
+              <Play className="h-5 w-5 fill-current" />
+              {lobbyArmed ? "Starting..." : "Start Duel"}
+            </button>
+          )}
         </div>
-        <div className="opacity-40 select-none">
-          <UncopyableSnippet
-            text={textSample}
-            widthPx={560}
-            font="14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-            lineHeight={20}
-            padding={12}
-            antiOcrNoise={false}
-          />
+        
+        <div className="text-xs font-medium text-slate-400">
+          {lobbyArmed 
+            ? "Game starting in moments..." 
+            : allReady 
+              ? isHost ? "All players ready! You can start." : "Waiting for host to start..."
+              : `Waiting for ${totalParticipants - readyCount} player(s) to ready up`
+          }
         </div>
       </div>
-    );
-  } else if (state.phase === "running") {
-    mainContent = (
-      <div className="relative">
-        <div>
+    </div>
+  );
+
+  const renderCountdown = () => (
+    <div className="relative flex flex-col items-center justify-center py-12">
+      <div className="relative z-10 flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-indigo-50">
+        <span className="text-8xl font-black tracking-tighter text-indigo-600">
+          {Math.max(countdownSeconds ?? 0, 0)}
+        </span>
+      </div>
+      <div className="mt-8 text-center">
+        <h3 className="text-2xl font-bold text-slate-900">Get Ready!</h3>
+        <p className="text-slate-500">Keep your fingers on the home row.</p>
+      </div>
+      
+      {/* Blurred preview of text */}
+      <div className="mt-12 w-full max-w-2xl select-none opacity-30 blur-sm filter">
+        <UncopyableSnippet
+          text={textSample}
+          widthPx={560}
+          font="14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          lineHeight={20}
+          padding={12}
+          antiOcrNoise={false}
+        />
+      </div>
+    </div>
+  );
+
+  const renderRunning = () => (
+    <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
           <UncopyableSnippet
             text={textSample}
             widthPx={560}
-            font="14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-            lineHeight={20}
-            padding={12}
+            font="16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            lineHeight={28}
+            padding={24}
             antiOcrNoise={false}
           />
+        </div>
+
+        <div className="relative">
           <textarea
             ref={textAreaRef}
             value={typedText}
             id="typing-box"
-            placeholder="Start typing to duel"
-            className="mt-3 h-32 w-full select-none rounded border border-slate-300 p-2"
-            onCompositionStart={() => {
-              composingRef.current = true;
-            }}
-            onCompositionEnd={() => {
-              composingRef.current = false;
-            }}
+            placeholder="Type here..."
+            className="h-40 w-full resize-none rounded-2xl border-2 border-indigo-100 bg-indigo-50/30 p-6 font-mono text-lg leading-relaxed text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+            onCompositionStart={() => { composingRef.current = true; }}
+            onCompositionEnd={() => { composingRef.current = false; }}
             onChange={(e) => {
               if (blockNextChangeRef.current) {
                 blockNextChangeRef.current = false;
@@ -254,147 +345,152 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
             autoCapitalize="off"
             data-gramm="false"
             data-gramm_editor="false"
-            aria-label="Typing area"
           />
-          <div className="mt-3 flex items-center gap-4 text-sm text-slate-700">
-            <div>WPM: {metrics.wpm.toFixed(1)}</div>
-            <div>Accuracy: {(metrics.accuracy * 100).toFixed(0)}%</div>
-            <div>Progress: {(metrics.progress * 100).toFixed(0)}%</div>
-          </div>
-          <div className="mt-3">
+          
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex gap-6 text-sm font-medium text-slate-600">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400">WPM</span>
+                <span className="text-xl font-bold text-slate-900">{metrics.wpm.toFixed(1)}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400">Accuracy</span>
+                <span className="text-xl font-bold text-slate-900">{(metrics.accuracy * 100).toFixed(0)}%</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400">Progress</span>
+                <span className="text-xl font-bold text-slate-900">{(metrics.progress * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+
             <button
               onClick={submit}
               disabled={submitted}
-              className="rounded bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/30 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
             >
-              {submitted ? "Submitted" : "Submit"}
+              {submitted ? "Submitted" : "Submit Result"}
             </button>
-            <p className="mt-1 text-xs text-slate-500">Submitting early is allowed; fastest perfect entry wins.</p>
           </div>
         </div>
       </div>
-    );
-  } else if (state.phase === "ended") {
-    mainContent = (
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-slate-900">Session ended</p>
-        {state.winnerUserId ? (
-          <p className="text-sm text-emerald-700 font-semibold">Winner: {winnerLabel ?? state.winnerUserId}</p>
-        ) : (
-          <p className="text-sm text-slate-700">No winner (draw)</p>
-        )}
-      </div>
-    );
-  } else if (state.phase === "idle" || state.phase === "connecting") {
-    mainContent = <p className="text-sm text-slate-600">Connecting to session…</p>;
-  } else if (state.phase === "error") {
-    mainContent = (
-      <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-        Session error: {state.error ?? "unknown_error"}
-      </div>
-    );
-  } else {
-    mainContent = (
-      <div className="space-y-4">
-        <header className="space-y-1">
-          <h3 className="text-base font-semibold text-slate-800">Lobby ready check</h3>
-          <p className="text-xs text-slate-500">
-            Everyone joins and readies up. Once all players are ready the host can arm a 10 second countdown to begin the duel.
-          </p>
-        </header>
-        <ul className="space-y-2">
-          {participants.length === 0 ? (
-            <li className="text-xs text-slate-500">Waiting for players…</li>
-          ) : (
-            participants.map((p) => (
-              <li key={p.userId} className="flex items-center justify-between rounded border border-slate-200 bg-white px-3 py-2 text-sm">
-                <span>
-                  <span className="block font-semibold text-slate-800">{participantMeta.get(p.userId)?.label ?? resolveDisplayName(p.userId, p)}</span>
-                  {participantMeta.get(p.userId)?.subtitle ? (
-                    <span className="text-[11px] text-slate-500">{participantMeta.get(p.userId)?.subtitle}</span>
-                  ) : null}
-                </span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${p.ready ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                  {p.ready ? "Ready" : "Not ready"}
-                </span>
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
-    );
-  }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Phase</p>
-          <p className="text-sm font-semibold text-slate-900">
-            {state.phase === "countdown" ? "Countdown" : state.phase === "running" ? "Live" : state.phase === "ended" ? "Results" : "Lobby"}
-          </p>
-        </div>
-        {state.phase === "running" || state.phase === "ended" ? null : (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleReadyClick}
-              disabled={readyButtonDisabled}
-              className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {selfPresence?.ready ? "Cancel ready" : "Ready up"}
-            </button>
-            <button
-              onClick={handleStartClick}
-              disabled={!isHost || !allReady || lobbyArmed || state.phase !== "lobby"}
-              className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isHost ? (lobbyArmed ? "Countdown armed" : "Start 10s countdown") : "Ready up to play"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Score lead</p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          {participantCards.map((entry) => (
-            <div key={entry.userId} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-sm font-semibold text-slate-900">{entry.label}</p>
-              {entry.subtitle ? <p className="text-[11px] text-slate-500">{entry.subtitle}</p> : null}
-              <p className="mt-1 text-xs text-slate-700">
-                Score: <span className="font-semibold">{entry.score}</span>
-              </p>
+      {/* Live Leaderboard */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">Live Standings</h3>
+        <div className="space-y-2">
+          {participantCards
+            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+            .map((p, i) => (
+            <div key={p.userId} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-900/5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                  {i + 1}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900">{p.label}</div>
+                  <div className="text-xs text-slate-500">{p.score} pts</div>
+                </div>
+              </div>
+              {i === 0 && p.score > 0 && <Trophy className="h-4 w-4 text-amber-400" />}
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
 
-      <ActivityLobbySummary
-        countdownSeconds={countdownSeconds ?? null}
-        lobbyReady={lobbyArmed || allReady}
-        leaderLabel={leader ? resolveDisplayName(leader.userId, leader) : undefined}
-        leaderScore={leader?.score}
-        hostLabel={hostUserId ? resolveDisplayName(hostUserId, participants[0]) : undefined}
-        joinedCount={joinedCount}
-        readyCount={readyCount}
-        totalParticipants={totalParticipants}
-      />
-
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">{mainContent}</div>
-
-      {toast ? <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">{toast}</div> : null}
-      {state.phase === "ended" && winnerEntry ? (
-        <div className="relative overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-800">
-          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-emerald-100/40 via-white/30 to-emerald-100/40" />
-          <div className="relative flex items-center gap-2">
-            <span className="text-2xl animate-bounce">🏅</span>
-            <span>
-              Winner: {winnerLabel ?? resolveDisplayName(winnerEntry.userId, winnerEntry)} ({winnerEntry.score ?? 0} pts)
-            </span>
-            <span className="ml-auto text-xs text-emerald-700">+100 xp</span>
-          </div>
+  const renderResults = () => (
+    <div className="text-center">
+      <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
+        <Trophy className="h-10 w-10" />
+      </div>
+      
+      <h2 className="text-3xl font-bold text-slate-900">Duel Complete!</h2>
+      
+      {winnerEntry ? (
+        <div className="mt-2 text-lg text-slate-600">
+          <span className="font-bold text-emerald-600">{winnerLabel ?? resolveDisplayName(winnerEntry.userId, winnerEntry)}</span> won the match!
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-2 text-lg text-slate-600">It was a draw!</div>
+      )}
+
+      <div className="mx-auto mt-12 max-w-md space-y-3">
+        {participantCards
+          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+          .map((p, i) => (
+          <div 
+            key={p.userId} 
+            className={`flex items-center justify-between rounded-xl border p-4 ${
+              i === 0 ? "border-emerald-200 bg-emerald-50/50" : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <span className={`text-lg font-bold ${i === 0 ? "text-emerald-600" : "text-slate-400"}`}>#{i + 1}</span>
+              <div className="text-left">
+                <div className="font-bold text-slate-900">{p.label}</div>
+                <div className="text-xs text-slate-500">{p.subtitle}</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-mono text-lg font-bold text-slate-900">{p.score}</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">Points</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Phase Indicator */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+        <div className="flex items-center gap-2">
+          <div className={`flex h-2.5 w-2.5 rounded-full ${
+            state.phase === "running" ? "animate-pulse bg-rose-500" : 
+            state.phase === "countdown" ? "bg-amber-500" :
+            state.phase === "ended" ? "bg-emerald-500" : "bg-slate-300"
+          }`} />
+          <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
+            {state.phase === "countdown" ? "Starting..." : 
+             state.phase === "running" ? "Duel in Progress" : 
+             state.phase === "ended" ? "Final Results" : "Lobby"}
+          </span>
+        </div>
+        
+        {state.phase === "running" && (
+           <div className="flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600">
+             <div className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" />
+             LIVE
+           </div>
+        )}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="min-h-[400px]">
+        {state.phase === "error" ? (
+          <div className="flex flex-col items-center justify-center py-12 text-rose-600">
+            <AlertCircle className="mb-4 h-12 w-12 opacity-20" />
+            <p className="font-medium">Connection Error</p>
+            <p className="text-sm opacity-80">{state.error ?? "Unknown error occurred"}</p>
+          </div>
+        ) : countdownActive ? (
+          renderCountdown()
+        ) : state.phase === "running" ? (
+          renderRunning()
+        ) : state.phase === "ended" ? (
+          renderResults()
+        ) : (
+          renderLobby()
+        )}
+      </div>
+
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 transform rounded-full bg-slate-900/90 px-6 py-3 text-sm font-medium text-white shadow-xl backdrop-blur-sm transition-all animate-in fade-in slide-in-from-bottom-4">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -84,3 +84,11 @@ async def emit_friend_update(user_id: str, payload: dict) -> None:
 		return
 	obs_metrics.socket_event(_namespace.namespace, "friend:update")
 	await _namespace.emit("friend:update", payload, room=SocialNamespace.user_room(user_id))
+
+
+async def emit_discovery_match(user_id: str, payload: dict) -> None:
+	"""Notify a user that a discovery match was formed."""
+	if _namespace is None:
+		return
+	obs_metrics.socket_event(_namespace.namespace, "discovery:match")
+	await _namespace.emit("discovery:match", payload, room=SocialNamespace.user_room(user_id))

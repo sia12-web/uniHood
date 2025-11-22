@@ -79,6 +79,15 @@ async def confirm_deletion(auth_user: AuthenticatedUser, token: str) -> schemas.
 	stored = await redis_client.get(_token_key(auth_user.id))
 	if not stored or stored != token:
 		raise policy.IdentityPolicyError("delete_token_invalid")
+	return await _apply_deletion(auth_user, mark_requested=True)
+
+
+async def force_delete(auth_user: AuthenticatedUser) -> schemas.DeletionStatus:
+	"""Immediate deletion without email token (useful for internal/dev)."""
+	return await _apply_deletion(auth_user, mark_requested=True, force=True)
+
+
+async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, force: bool = False) -> schemas.DeletionStatus:
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
@@ -113,11 +122,12 @@ async def confirm_deletion(auth_user: AuthenticatedUser, token: str) -> schemas.
 				""",
 				auth_user.id,
 			)
-	await redis_client.delete(_token_key(auth_user.id))
+	if not force:
+		await redis_client.delete(_token_key(auth_user.id))
 	await sessions.revoke_all_sessions(auth_user.id)
 	obs_metrics.inc_identity_delete_confirm()
-	await audit.append_db_event(auth_user.id, "delete_confirmed", {})
-	await audit.log_event("delete_confirmed", user_id=auth_user.id, meta={})
+	await audit.append_db_event(auth_user.id, "delete_confirmed", {"force": force})
+	await audit.log_event("delete_confirmed", user_id=auth_user.id, meta={"force": force})
 	return await get_status(auth_user.id)
 
 

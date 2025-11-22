@@ -35,8 +35,6 @@ export default function ProfileForm({
 		profile.privacy.visibility,
 	);
 	const [ghostMode, setGhostMode] = useState<boolean>(profile.privacy.ghost_mode);
-	const [statusText, setStatusText] = useState<string>(profile.status?.text ?? "");
-	const [statusEmoji, setStatusEmoji] = useState<string>(profile.status?.emoji ?? "");
 	const [major, setMajor] = useState<string>(profile.major ?? "");
 	const [graduationYear, setGraduationYear] = useState<string>(
 		profile.graduation_year ? String(profile.graduation_year) : "",
@@ -53,8 +51,6 @@ export default function ProfileForm({
 		setBio(next.bio ?? "");
 		setVisibility(next.privacy.visibility);
 		setGhostMode(next.privacy.ghost_mode);
-		setStatusText(next.status?.text ?? "");
-		setStatusEmoji(next.status?.emoji ?? "");
 		setMajor(next.major ?? "");
 		setGraduationYear(next.graduation_year ? String(next.graduation_year) : "");
 		setPassions(next.passions ?? []);
@@ -69,7 +65,6 @@ export default function ProfileForm({
 	const gradYearMin = currentYear;
 	const gradYearMax = 2100;
 	const characterCount = useMemo(() => `${bio.length}/500`, [bio.length]);
-	const statusCount = useMemo(() => `${statusText.length}/120`, [statusText.length]);
 	const passionSlots = useMemo(() => PASSION_LIMIT - passions.length, [passions.length]);
 
 	const buildPatch = (): { patch: ProfilePatchPayload; changed: boolean; error?: string } => {
@@ -77,8 +72,6 @@ export default function ProfileForm({
 		let changed = false;
 		const trimmedBio = bio.trim();
 		const nextHandle = handle.trim().toLowerCase();
-		const trimmedStatus = statusText.trim();
-		const trimmedEmoji = statusEmoji.trim();
 		const trimmedMajor = major.trim();
 		const trimmedGraduationYear = graduationYear.trim();
 
@@ -88,13 +81,6 @@ export default function ProfileForm({
 		}
 		if (visibility !== current.privacy.visibility || ghostMode !== current.privacy.ghost_mode) {
 			patch.privacy = { visibility, ghost_mode: ghostMode };
-			changed = true;
-		}
-		if (
-			trimmedStatus !== (current.status?.text ?? "") ||
-			trimmedEmoji !== (current.status?.emoji ?? "")
-		) {
-			patch.status = { text: trimmedStatus, emoji: trimmedEmoji };
 			changed = true;
 		}
 		if (nextHandle && nextHandle !== current.handle) {
@@ -269,30 +255,6 @@ export default function ProfileForm({
 					/>
 					<span className="text-xs text-slate-500">{characterCount}</span>
 				</label>
-				<div className="grid gap-4 md:grid-cols-2">
-					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Status Text</span>
-						<input
-							type="text"
-							value={statusText}
-							onChange={(event) => setStatusText(event.target.value)}
-							maxLength={120}
-							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-						/>
-						<span className="text-xs text-slate-500">{statusCount}</span>
-					</label>
-					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Status Emoji</span>
-						<input
-							type="text"
-							value={statusEmoji}
-							onChange={(event) => setStatusEmoji(event.target.value.slice(0, 4))}
-							maxLength={4}
-							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-						/>
-						<span className="text-xs text-slate-500">Up to 4 characters.</span>
-					</label>
-				</div>
 				<div className="grid gap-4 md:grid-cols-2">
 					<label className="flex flex-col gap-1 text-sm text-slate-700">
 						<span className="font-medium">Major or Program</span>

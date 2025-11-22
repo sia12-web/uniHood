@@ -123,6 +123,13 @@ export async function confirmDeletion(
 	});
 }
 
+export async function forceDeleteAccount(userId: string, campusId: string | null): Promise<DeletionStatus> {
+	return request<DeletionStatus>("/account/delete/force", {
+		method: "POST",
+		headers: authHeaders(userId, campusId),
+	});
+}
+
 export async function fetchDeletionStatus(userId: string, campusId: string | null): Promise<DeletionStatus> {
 	return request<DeletionStatus>("/account/delete/status", {
 		headers: authHeaders(userId, campusId),

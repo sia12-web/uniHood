@@ -21,6 +21,7 @@ from app.api import (
 	admin_verify,
 	auth,
 	chat,
+	discovery,
 	consent as consent_api,
 	contact_discovery,
 	flags as flags_api,
@@ -74,6 +75,34 @@ from app.api.openapi import custom_openapi
 from app.api.errors import install_error_handlers
 from app.settings import settings
 
+MCGILL_CAMPUS_ID = "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2"
+MCGILL_CAMPUS_DOMAIN = None  # allow any email domain while keeping campus id real
+MCGILL_CAMPUS_NAME = "McGill University"
+MCGILL_LAT = 45.5048
+MCGILL_LON = -73.5772
+
+
+async def ensure_mcgill_campus(pool) -> None:
+	"""Ensure the real McGill campus is seeded in the database."""
+	if not pool:
+		return
+	async with pool.acquire() as conn:
+		await conn.execute(
+			"""
+			INSERT INTO campuses (id, name, domain, lat, lon)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (id) DO UPDATE SET
+				name = EXCLUDED.name,
+				domain = EXCLUDED.domain,
+				lat = COALESCE(campuses.lat, EXCLUDED.lat),
+				lon = COALESCE(campuses.lon, EXCLUDED.lon)
+			""",
+			MCGILL_CAMPUS_ID,
+			MCGILL_CAMPUS_NAME,
+			MCGILL_CAMPUS_DOMAIN,
+			MCGILL_LAT,
+			MCGILL_LON,
+		)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -149,10 +178,12 @@ async def lifespan(app: FastAPI):
 		scheduler.schedule_hourly("communities-anti-gaming", anti_gaming_job.run_once, hours=1)
 		scheduler.schedule_hourly("retention-purge", purge_soft_deleted, hours=24)
 		app.state.communities_scheduler = scheduler
-		app.state.communities_workers = worker_instances
+	app.state.communities_workers = worker_instances
 	worker_tasks.append(
 		asyncio.create_task(live_sessions.run_presence_sweeper(redis_client), name="presence-sweeper")
 	)
+	# Ensure McGill campus exists for onboarding flows
+	await ensure_mcgill_campus(pool)
 	try:
 		yield
 	finally:
@@ -265,6 +296,7 @@ app.include_router(interests.router, tags=["identity"])
 app.include_router(profile.router, tags=["profile"])
 app.include_router(public_profile.router, tags=["profile"])
 app.include_router(proximity.router, tags=["proximity"])
+app.include_router(discovery.router, tags=["discovery"])
 app.include_router(social.router, tags=["social"])
 app.include_router(chat.router, tags=["chat"])
 app.include_router(rooms.router, tags=["rooms"])

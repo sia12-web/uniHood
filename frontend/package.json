@@ -13,10 +13,11 @@
     "test:e2e": "node ./scripts/prep-e2e.js && npm run build && cross-env PLAYWRIGHT_USE_BUILD=1 playwright test"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
     "@tanstack/react-query": "^5.90.5",
     "axios": "^1.13.1",
+    "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "lucide-react": "^0.554.0",
     "next": "^14.2.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

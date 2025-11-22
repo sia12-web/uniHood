@@ -6,8 +6,8 @@ import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
 import { loginIdentity } from "@/lib/identity";
-import { getDemoUserEmail } from "@/lib/env";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
+import { HttpError } from "@/app/lib/http/errors";
 
 const INITIAL_FORM = {
   email: "",
@@ -16,6 +16,47 @@ const INITIAL_FORM = {
 
 type LoginForm = typeof INITIAL_FORM;
 
+const extractDetailCode = (detail: unknown): string | null => {
+  if (!detail) return null;
+  if (typeof detail === "string") return detail;
+  if (typeof detail === "object") {
+    const record = detail as Record<string, unknown>;
+    const code = record.detail ?? record.code ?? record.message;
+    return typeof code === "string" ? code : null;
+  }
+  return null;
+};
+
+const describeLoginError = (error: unknown): string => {
+  if (error instanceof HttpError) {
+    const code = extractDetailCode(error.detail);
+    switch (code) {
+      case "email_unverified":
+        return "Verify your email before signing in. Check your inbox for the link.";
+      case "invalid_credentials":
+        return "Incorrect email or password.";
+      case "account_locked":
+        return "Too many attempts. Please try again later.";
+      case "register_rate":
+      case "login_rate":
+        return "Too many login attempts. Wait a moment and try again.";
+      default:
+        break;
+    }
+    if (error.status === 401) {
+      return "Incorrect email or password.";
+    }
+    if (error.status === 429) {
+      return "Too many login attempts. Wait a moment and try again.";
+    }
+    return error.message || "Unable to sign in.";
+  }
+  if (error instanceof Error) {
+    return error.message || "Unable to sign in.";
+  }
+  return "Unable to sign in.";
+};
+
 export default function LoginPage() {
   const [form, setForm] = useState<LoginForm>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -23,7 +64,8 @@ export default function LoginPage() {
   const router = useRouter();
 
   const disabled = useMemo(() => submitting || form.email.trim() === "" || form.password === "", [form.email, form.password, submitting]);
-  const demoEmail = useMemo(() => getDemoUserEmail(), []);
+  // Keep placeholder consistent between SSR/CSR to avoid hydration mismatch warnings.
+  const demoEmail = useMemo(() => "name@university.edu", []);
 
   const handleChange = (field: keyof LoginForm) => (value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -50,8 +92,7 @@ export default function LoginPage() {
       }
       router.replace("/");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign in";
-      setError(message);
+      setError(describeLoginError(err));
     } finally {
       setSubmitting(false);
     }

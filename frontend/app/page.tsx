@@ -1,9 +1,11 @@
-
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
 
 import BrandLogo from "@/components/BrandLogo";
 import HomeProximityPreview from "@/components/HomeProximityPreview";
@@ -12,14 +14,17 @@ import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptan
 import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
 import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { useChatRoster } from "@/hooks/chat/use-chat-roster";
+import { usePresence } from "@/hooks/presence/use-presence";
+import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { getBackendUrl } from "@/lib/env";
 
 const iconClassName = "h-4 w-4 flex-none";
 
-const DashboardIcon = () => (
+const DiscoveryIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={iconClassName} aria-hidden>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 13h6v7H4zM14 4h6v16h-6zM4 4h6v7H4zM14 13h6" />
+    <circle cx="12" cy="12" r="9" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="m16 8-1.6 6.6L8 16l1.6-6.6Z" />
+    <circle cx="12" cy="12" r="1.2" />
   </svg>
 );
 
@@ -68,32 +73,41 @@ const ProfileSettingsInline = dynamic(
 
 const activityPreviews = [
   {
+    key: "speed_typing",
     title: "Speed Typing Duel",
     description: "Race head-to-head to finish the sample with accuracy.",
     href: "/activities/speed_typing",
-    badge: "Live duel",
-    gradient: "from-[#0f2336] via-[#0a3c5a] to-[#0b1a2c]",
-    accent: "bg-gradient-to-r from-[#21d4fd] to-[#b721ff]",
+    tag: "Live duel",
+    image: "/activities/speedtyping.svg",
   },
   {
+    key: "quick_trivia",
     title: "Quick Trivia",
     description: "Rapid questions. Earn points for correctness and speed.",
     href: "/activities/quick_trivia",
-    badge: "PvP",
-    gradient: "from-[#1a1435] via-[#251d5c] to-[#0f0e2a]",
-    accent: "bg-gradient-to-r from-[#6d8dff] via-[#a177ff] to-[#f48fb1]",
+    tag: "PvP",
+    image: "/activities/trivia.svg",
   },
   {
+    key: "rps",
     title: "Rock / Paper / Scissors",
     description: "Real-time duel game used in earlier calibration labs.",
     href: "/activities/rock_paper_scissors",
-    badge: "Classic",
-    gradient: "from-[#1c1f35] via-[#2d3456] to-[#161a2e]",
-    accent: "bg-gradient-to-r from-[#7cf5ff] via-[#7ba0ff] to-[#f7b2ff]",
+    tag: "Classic",
+    image: "/activities/rps.svg",
+  },
+  {
+    key: "story",
+    title: "Story Builder",
+    description: "Collaborative romance story. You write one part, they write the next.",
+    href: "/activities/story",
+    tag: "New",
+    image: "/activities/story.svg", 
   },
 ];
 
 type FriendPreview = {
+  userId: string;
   name: string;
   detail: string;
   status: string;
@@ -105,14 +119,6 @@ type FriendPreview = {
   distance?: number | null;
   gallery?: string[] | null;
 };
-
-const FRIEND_PREVIEW_DATA: FriendPreview[] = [
-	{ name: "Amina Kadri", detail: "Met in Econ 201 - Last chat 2h ago", status: "Online", major: "Economics", year: "freshman", campus: "North", avatarColor: "from-rose-300 via-amber-200 to-emerald-200" },
-	{ name: "Leo Martinez", detail: "Library study buddy - Last chat yesterday", status: "Away", major: "Computer Science", year: "senior", campus: "Central", avatarColor: "from-indigo-300 via-sky-200 to-emerald-200" },
-	{ name: "Priya N.", detail: "Studio partner - New connection", status: "Online", major: "Design", year: "sophomore", campus: "Arts", avatarColor: "from-amber-200 via-rose-200 to-blue-200" },
-	{ name: "Noah Greene", detail: "Capstone teammate - Pinged today", status: "Online", major: "Business", year: "senior", campus: "North", avatarColor: "from-emerald-200 via-teal-200 to-cyan-200" },
-	{ name: "Sara O.", detail: "Orientation buddy - New invite", status: "Away", major: "Biology", year: "freshman", campus: "Central", avatarColor: "from-purple-200 via-rose-200 to-amber-200" },
-];
 
 type ChatPreview = {
 	name: string;
@@ -145,7 +151,7 @@ function formatChatTime(iso: string | null | undefined): string {
 	return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type NavKey = "dashboard" | "friends" | "chats" | "activities" | "settings";
+type NavKey = "dashboard" | "friends" | "chats" | "activities" | "settings" | "discovery";
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
@@ -164,14 +170,27 @@ export default function HomePage() {
   const [selectedUniversityFilter, setSelectedUniversityFilter] = useState<string | "all">("all");
   const [selectedRangeFilter, setSelectedRangeFilter] = useState<"all" | "20" | "50" | "100" | "200">("all");
   const [cardIndex, setCardIndex] = useState(0);
-  const [discoverView, setDiscoverView] = useState<"list" | "swipe">("list");
   const [goLiveActive, setGoLiveActive] = useState(false);
-  const [imageIndexMap, setImageIndexMap] = useState<Record<string, number>>({});
+  const [isActivating, setIsActivating] = useState(false);
+
+  const handleToggleLive = () => {
+    if (goLiveActive) {
+      setGoLiveActive(false);
+      return;
+    }
+    
+    setIsActivating(true);
+    // Simulate activation delay for effect
+    setTimeout(() => {
+      setGoLiveActive(true);
+    setIsActivating(false);
+  }, 1500);
+  };
 
   const { inboundPending } = useInviteInboxCount();
   const { hasNotification: hasFriendAcceptanceNotification, latestFriendPeerId } = useFriendAcceptanceIndicator();
   const { totalUnread: chatUnreadCount, acknowledgeAll: acknowledgeChatUnread } = useChatUnreadIndicator();
-  const { entries: chatRosterEntries, loading: chatRosterLoading, error: chatRosterError, refresh: refreshChatRoster } = useChatRoster();
+  const { entries: chatRosterEntries, loading: chatRosterLoading, error: chatRosterError } = useChatRoster();
   const { hasPending: hasTypingInvite, openLatest: openTypingInvite } = useTypingDuelInviteState();
   const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
 
@@ -202,8 +221,10 @@ export default function HomePage() {
   const formatCount = (value: number): string => (value > 99 ? "99+" : String(value));
 
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
-  const [discoverLoading, setDiscoverLoading] = useState(false);
-  const [discoverError, setDiscoverError] = useState<string | null>(null);
+  const rosterPeerIds = useMemo(() => chatRosterEntries.map((entry) => entry.peerId), [chatRosterEntries]);
+  const discoverPeerIds = useMemo(() => discoverPeople.map((p) => p.userId), [discoverPeople]);
+  const { presence: rosterPresence } = usePresence(rosterPeerIds);
+  const { presence: discoverPresence } = usePresence(discoverPeerIds);
 
   useEffect(() => {
     let cancelled = false;
@@ -224,51 +245,36 @@ export default function HomePage() {
       return "all";
     };
     const load = async () => {
-      setDiscoverLoading(true);
-      setDiscoverError(null);
       try {
         const userId = authUser?.userId;
         const campusId = authUser?.campusId;
         if (!userId || !campusId) {
           if (!cancelled) {
             setDiscoverPeople([]);
-            setDiscoverError("Sign in to view nearby people.");
-            setDiscoverLoading(false);
           }
           return;
         }
-        const backend = getBackendUrl().replace(/\/$/, "");
-        const headers: Record<string, string> = {};
-        if (userId) headers["X-User-Id"] = userId;
-        if (campusId) headers["X-Campus-Id"] = campusId;
-        const radius = selectedRangeFilter === "all" ? 100 : Number(selectedRangeFilter);
-        const url = new URL(`${backend}/proximity/nearby`);
-        url.searchParams.set("campus_id", campusId);
-        url.searchParams.set("radius_m", String(radius));
-        const response = await fetch(url.toString(), { cache: "no-store", headers });
-        if (!response.ok) {
-          throw new Error(`Discover request failed (${response.status})`);
-        }
-        const payload = await response.json();
-        const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
-        const mapped: FriendPreview[] = items.map((item: any, idx: number) => {
-          const year = normalizeYear(item.year);
-          const gallery = Array.isArray(item.gallery)
-            ? (item.gallery.filter(Boolean) as string[])
-            : Array.isArray(item.images)
-              ? (item.images.filter(Boolean) as string[])
-              : null;
+        const payload = await fetchDiscoveryFeed(userId, campusId, { limit: 50 });
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const mapped: FriendPreview[] = items.map((raw, idx) => {
+          const graduationYear = (raw as { graduation_year?: number | string }).graduation_year;
+          const galleryUrls =
+            (raw as { gallery?: Array<{ url?: string }> }).gallery
+              ?.map((entry) => entry.url)
+              .filter((url): url is string => Boolean(url)) ?? [];
+          const year = normalizeYear(graduationYear ? String(graduationYear) : undefined);
           return {
-            name: item.display_name ?? item.name ?? item.handle ?? "Unknown",
-            detail: item.handle ? `@${item.handle}` : "Nearby classmate",
-            status: item.is_friend ? "Online" : "Away",
-            major: item.major ?? "Undeclared",
+            userId: raw.user_id,
+            name: raw.display_name || raw.handle || "Unknown",
+            detail: raw.handle ? `@${raw.handle}` : "Nearby classmate",
+            status: raw.is_friend ? "Online" : "Away",
+            major: raw.major ?? "Undeclared",
             year: year === "all" ? "freshman" : year,
-            campus: item.campus ?? "University",
+            campus: "University",
             avatarColor: palette[idx % palette.length],
-            imageUrl: item.avatar_url ?? item.imageUrl ?? item.avatar ?? null,
-            distance: typeof item.distance_m === "number" ? item.distance_m : null,
-            gallery,
+            imageUrl: raw.avatar_url ?? null,
+            distance: typeof raw.distance_m === "number" ? raw.distance_m : null,
+            gallery: galleryUrls,
           };
         });
         if (!cancelled) {
@@ -276,11 +282,8 @@ export default function HomePage() {
         }
       } catch (err) {
         if (!cancelled) {
-          const message = err instanceof Error ? err.message : "Unable to load nearby people";
-          setDiscoverError(message);
+          console.error("Unable to load nearby people", err);
         }
-      } finally {
-        if (!cancelled) setDiscoverLoading(false);
       }
     };
     void load();
@@ -325,11 +328,11 @@ export default function HomePage() {
       handle: entry.handle ? `@${entry.handle}` : entry.peerId.slice(0, 12),
       snippet: entry.lastMessageSnippet ?? "Tap to start the conversation.",
       time: formatChatTime(entry.lastMessageAt),
-      status: index % 2 === 0 ? "online" : "away",
+      status: rosterPresence[entry.peerId]?.online ? "online" : "away",
       unread: entry.unreadCount ?? 0,
       accent: CHAT_ACCENTS[index % CHAT_ACCENTS.length],
     }));
-  }, [chatRosterEntries]);
+  }, [chatRosterEntries, rosterPresence]);
 
   useEffect(() => {
     if (cardIndex >= visibleFriendPreviewList.length) {
@@ -347,13 +350,17 @@ export default function HomePage() {
     if (!authUser) {
       return null;
     }
-    return authUser.handle?.trim() ?? authUser.displayName?.trim() ?? authUser.email ?? "";
+    const handle = authUser.handle?.trim();
+    const name = authUser.displayName?.trim();
+    return handle || name || "";
   }, [authUser]);
 
+  const router = useRouter();
   const handleSignOut = useCallback(() => {
     clearAuthSnapshot();
     setAuthUser(null);
-  }, []);
+    router.push("/login");
+  }, [router]);
 
   const openFilterModal = useCallback(() => {
     setDraftMajorFilter(selectedMajorFilter);
@@ -362,38 +369,6 @@ export default function HomePage() {
     setDraftRangeFilter(selectedRangeFilter);
     setFilterModalOpen(true);
   }, [selectedUniversityFilter, selectedMajorFilter, selectedYearFilter, selectedRangeFilter]);
-
-  const getFriendImages = useCallback((friend: FriendPreview): string[] => {
-    if (Array.isArray(friend.gallery) && friend.gallery.length > 0) {
-      return friend.gallery.filter(Boolean) as string[];
-    }
-    if (friend.imageUrl) {
-      return [friend.imageUrl];
-    }
-    return [];
-  }, []);
-
-  const getCurrentImage = useCallback(
-    (friend: FriendPreview) => {
-      const images = getFriendImages(friend);
-      if (!images.length) return null;
-      const idx = imageIndexMap[friend.name] ?? 0;
-      return images[idx % images.length];
-    },
-    [getFriendImages, imageIndexMap],
-  );
-
-  const advanceImage = useCallback(
-    (friend: FriendPreview) => {
-      const images = getFriendImages(friend);
-      if (images.length < 2) return;
-      setImageIndexMap((prev) => {
-        const current = prev[friend.name] ?? 0;
-        return { ...prev, [friend.name]: (current + 1) % images.length };
-      });
-    },
-    [getFriendImages],
-  );
 
   const handleApplyFilters = useCallback(() => {
     setSelectedMajorFilter(draftMajorFilter);
@@ -412,8 +387,8 @@ export default function HomePage() {
   }, [selectedUniversityFilter, selectedMajorFilter, selectedYearFilter, selectedRangeFilter]);
 
 const navItems = useMemo(
-	() => [
-		{ key: "dashboard" as const, label: "Discovery", icon: <DashboardIcon />, badge: null },
+  () => [
+    { key: "dashboard" as const, label: "Discovery", icon: <DiscoveryIcon />, badge: null },
       {
         key: "friends" as const,
         label: "Friends",
@@ -468,9 +443,6 @@ const navItems = useMemo(
                 <Link href={friendsHref} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800">
                   Open friends
                 </Link>
-                <Link href="/social" className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-500">
-                  Explore socializing
-                </Link>
               </div>
             </header>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -495,13 +467,6 @@ const navItems = useMemo(
                     <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                       {inboundPending > 0 ? formatCount(inboundPending) : "0"}
                     </span>
-                  </Link>
-                  <Link
-                    href="/friends?filter=accepted"
-                    className="inline-flex items-center justify-between rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-slate-400"
-                  >
-                    See roster
-                    <span className="text-xs text-slate-500">Chat-ready</span>
                   </Link>
                   <Link
                     href="/chat"
@@ -539,10 +504,10 @@ const navItems = useMemo(
                     </div>
                     <span
                       className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                        friend.status === "Online" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                        discoverPresence[friend.userId]?.online ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {friend.status}
+                      {discoverPresence[friend.userId]?.online ? "Online" : "Away"}
                     </span>
                   </div>
                 ))}
@@ -676,7 +641,7 @@ const navItems = useMemo(
                       <p className="text-xs text-slate-500">{friend.detail}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-semibold text-rose-500">{friend.status}</span>
+                  <span className="text-[11px] font-semibold text-rose-500">{discoverPresence[friend.userId]?.online ? "Online" : "Away"}</span>
                 </div>
               ))}
               {!friendPreviewList.length ? (
@@ -704,9 +669,6 @@ const navItems = useMemo(
                   : "Challenge friends to typing duels, trivia, or rock-paper-scissors without leaving this view."}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
-                <Link href="/activities" className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800">
-                  Browse activities
-                </Link>
                 <button
                   type="button"
                   onClick={() => hasTypingInvite && openTypingInvite()}
@@ -721,7 +683,7 @@ const navItems = useMemo(
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.35em] text-rose-500">Your activity snapshot</p>
-                  <h3 className="mt-2 text-lg font-semibold text-rose-900">How you're doing this week</h3>
+                  <h3 className="mt-2 text-lg font-semibold text-rose-900">How you’re doing this week</h3>
                   <p className="mt-1 text-xs text-rose-700/90">
                     Track your streaks and wins across Divan games. These numbers update as you play duels, trivia, and more.
                   </p>
@@ -744,7 +706,7 @@ const navItems = useMemo(
                     <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px]">All modes</span>
                   </div>
                   <p className="mt-2 text-2xl font-semibold tracking-tight">{activityLeaderboard.totalGames}</p>
-                  <p className="mt-1 text-xs text-rose-500">Every duel, quiz, and match you've played on Divan.</p>
+                  <p className="mt-1 text-xs text-rose-500">Every duel, quiz, and match you’ve played on Divan.</p>
                 </div>
 
                 <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-emerald-900 shadow-sm">
@@ -753,7 +715,7 @@ const navItems = useMemo(
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px]">Best rounds</span>
                   </div>
                   <p className="mt-2 text-2xl font-semibold tracking-tight">{activityLeaderboard.wins}</p>
-                  <p className="mt-1 text-xs text-emerald-500">Times you've finished on top against friends and classmates.</p>
+                  <p className="mt-1 text-xs text-emerald-500">Times you’ve finished on top against friends and classmates.</p>
                 </div>
 
                 <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-amber-900 shadow-sm">
@@ -771,71 +733,71 @@ const navItems = useMemo(
                   Ready to climb higher? Open <span className="font-semibold">Typing Duel</span> or <span className="font-semibold">Quick Trivia</span> below and your
                   wins will land here.
                 </p>
-                <Link
-                  href="/activities"
-                  className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
-                >
-                  View full leaderboard
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    className="h-3.5 w-3.5"
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5h10M19 5v10M19 5 5 19" />
-                  </svg>
-                </Link>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {activityPreviews.map((game) => (
-                <Link
-                  key={game.title}
-                  href={game.href}
-                  className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-slate-900 via-slate-900/90 to-[#0d0f1d] shadow-[0_20px_60px_rgba(15,23,42,0.45)] transition hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(15,23,42,0.55)]"
-                >
-                  <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200">
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      Preview
-                    </span>
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-[0.65rem] text-white">{game.badge}</span>
-                  </div>
-                  <div className={`relative h-32 bg-gradient-to-r ${game.gradient}`}>
-                    <div className="absolute inset-0 opacity-30 blur-3xl" />
-                    <div className={`absolute left-4 top-6 h-2 w-24 rounded-full ${game.accent} opacity-80`} />
-                    <div className="absolute left-4 top-12 flex gap-2">
-                      <span className="h-2 w-12 rounded-full bg-white/20" />
-                      <span className="h-2 w-10 rounded-full bg-white/15" />
-                      <span className="h-2 w-16 rounded-full bg-white/10" />
-                    </div>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-3 px-5 py-4 bg-gradient-to-b from-[#111428] via-[#111424] to-[#0c0f1f]">
-                    <div>
-                      <h3 className="text-base font-semibold text-white">{game.title}</h3>
-                      <p className="mt-1 text-sm text-slate-300">{game.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-300">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-1">
-                        You
+              {activityPreviews.map((game) => {
+                const highlight = game.key === "speed_typing" && hasTypingInvite;
+                return (
+                  <Link
+                    key={game.key}
+                    href={game.href}
+                    className="group relative flex flex-col overflow-hidden rounded-3xl border border-[#191b2c] bg-gradient-to-br from-[#1f2336] via-[#14182b] to-[#070910] text-white shadow-[0_25px_60px_rgba(7,9,16,0.55)] transition hover:-translate-y-1 hover:shadow-[0_35px_80px_rgba(7,9,16,0.65)]"
+                  >
+                    <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                      <span className="flex gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-200">
-                        Friend
-                      </span>
-                      <span className="ml-auto rounded-full bg-white/5 px-2 py-1">2 players</span>
+                      <span>Preview</span>
+                      {game.tag ? (
+                        <span className="ml-auto rounded-full bg-white/10 px-3 py-0.5 text-[9px] tracking-[0.2em] text-white/80">
+                          {game.tag}
+                        </span>
+                      ) : null}
+                      {highlight ? (
+                        <span className="rounded-full bg-emerald-500/90 px-3 py-0.5 text-[9px] font-semibold tracking-[0.2em] text-white shadow">
+                          Session waiting
+                        </span>
+                      ) : null}
                     </div>
-                    <button
-                      type="button"
-                      className="mt-auto inline-flex items-center justify-center rounded-2xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(255,95,114,0.35)] transition hover:bg-[#ff4b61] group-hover:translate-y-[-1px]"
+                    <div
+                      className="relative h-48 overflow-hidden"
+                      style={
+                        game.image
+                          ? {
+                              backgroundImage: `linear-gradient(120deg, rgba(255,255,255,0.05), rgba(6,7,15,0.92)), url(${game.image})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }
+                          : undefined
+                      }
                     >
-                      Open activity window
-                    </button>
-                  </div>
-                </Link>
-              ))}
+                      {game.image ? <div className="absolute inset-0 bg-gradient-to-t from-[#04060f] via-transparent to-transparent" /> : null}
+                    </div>
+                    <div className="flex flex-1 flex-col gap-3 px-5 py-5">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{game.title}</h3>
+                        <p className="mt-1 text-sm text-white/70">{game.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-white/80">
+                        <span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 font-semibold text-white">You</span>
+                        <span className="text-white/50">+</span>
+                        <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-500/20 font-semibold text-emerald-100">Friend</span>
+                        <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/80 ring-1 ring-white/15">
+                          2 players
+                        </span>
+                      </div>
+                      <div className="pt-1">
+                        <span className="inline-flex w-full items-center justify-center rounded-xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#ff5f72]/30 transition group-hover:bg-[#ff4b61]">
+                          {highlight ? "Join pending session" : "Open activity window"}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         );
@@ -849,167 +811,52 @@ const navItems = useMemo(
       default:
         return (
           <div className="space-y-5">
+            <Link href="/discover" className="block group relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-purple-500 to-indigo-500 p-6 text-white shadow-lg transition hover:shadow-xl">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.2),_transparent_50%)]" />
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-rose-100">New Feature</p>
+                  <h2 className="mt-1 text-2xl font-bold">Student Connect</h2>
+                  <p className="mt-2 max-w-md text-sm text-rose-50">
+                    Swipe to match with students from other campuses. Find study partners or new friends.
+                  </p>
+                </div>
+                <div className="hidden sm:block">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition group-hover:bg-white/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
             <section className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-base uppercase tracking-[0.35em] text-rose-500">People nearby</p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">Who is within your discovery range</h2>
                 </div>
-                <div className="inline-flex items-center gap-1 rounded-2xl bg-slate-100 p-1 text-xs font-semibold text-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => setDiscoverView("list")}
-                    className={`rounded-xl px-3 py-2 transition ${discoverView === "list" ? "bg-white text-slate-900 shadow-sm" : "hover:bg-white/60"}`}
-                  >
-                    List View
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDiscoverView("swipe")}
-                    className={`rounded-xl px-3 py-2 transition ${discoverView === "swipe" ? "bg-white text-slate-900 shadow-sm" : "hover:bg-white/60"}`}
-                  >
-                    Swipe View
-                  </button>
-                </div>
               </div>
-
-              {discoverView === "list" ? (
-                <ul className="mt-4 space-y-3">
-                  {discoverLoading && visibleFriendPreviewList.length === 0 ? (
-                    <li className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-                      Loading nearby people...
-                    </li>
-                  ) : visibleFriendPreviewList.length === 0 ? (
-                    <li className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-                      {discoverError ?? "No nearby friends match your filters."}
-                    </li>
-                  ) : (
-                    visibleFriendPreviewList.map((friend) => (
-                      <li
-                        key={friend.name}
-                        className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-slate-100 via-white to-slate-50 p-[1px] text-sm font-semibold text-slate-900"
-                            onClick={() => advanceImage(friend)}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            {(() => {
-                              const currentImage = getCurrentImage(friend);
-                              if (currentImage) {
-                                return <img src={currentImage} alt={friend.name} className="h-full w-full rounded-full object-cover" />;
-                              }
-                              return (
-                                <span className={`bg-gradient-to-br ${friend.avatarColor} inline-flex h-full w-full items-center justify-center rounded-full text-sm font-semibold text-slate-900`}>
-                                  {friend.name.slice(0, 2).toUpperCase()}
-                                </span>
-                              );
-                            })()}
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{friend.name}</p>
-                            <p className="text-xs text-slate-500">{friend.detail}</p>
-                            <p className="text-xs font-semibold text-slate-700">
-                              {friend.major} · {friend.year} · {friend.campus}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 text-right">
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                            {friend.status}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <Link href="/friends" className="text-[11px] font-semibold text-rose-500 hover:text-rose-600">
-                              View profile
-                            </Link>
-                            <Link
-                              href="/friends?filter=pending"
-                              className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-white shadow hover:bg-emerald-400"
-                            >
-                              Send invite
-                            </Link>
-                          </div>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              ) : (
-                <div className="mt-4 flex flex-col items-center gap-5">
-                  <p className="text-xs uppercase tracking-[0.35em] text-rose-400">Swipe to discover</p>
-                  {discoverLoading && visibleFriendPreviewList.length === 0 ? (
-                    <div className="flex h-64 w-full max-w-xl items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                      Loading profiles...
-                    </div>
-                  ) : visibleFriendPreviewList.length === 0 ? (
-                    <div className="flex h-64 w-full max-w-xl items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                      {discoverError ?? "No profiles to show."}
-                    </div>
-                  ) : (
-                    <div className="flex w-full max-w-xl flex-col items-center gap-4">
-                      {(() => {
-                        const friend = visibleFriendPreviewList[cardIndex];
-                        const currentImage = getCurrentImage(friend);
-                        return (
-                          <div className="w-full rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-lg sm:p-7">
-                            <button
-                              type="button"
-                              onClick={() => advanceImage(friend)}
-                              className={`relative h-72 w-full overflow-hidden rounded-2xl ${currentImage ? "" : `bg-gradient-to-br ${friend.avatarColor}`} flex items-end p-4`}
-                            >
-                              {currentImage ? (
-                                <img src={currentImage} alt={friend.name} className="absolute inset-0 h-full w-full object-cover" />
-                              ) : null}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-                              <div className="relative flex flex-col gap-1 text-white">
-                                <p className="text-lg font-semibold">{friend.name}</p>
-                                <p className="text-sm text-white/80">
-                                  {friend.major} · {friend.year}
-                                </p>
-                                <p className="text-xs text-white/70">University: {friend.campus}</p>
-                              </div>
-                            </button>
-                          </div>
-                        );
-                      })()}
-                      <div className="flex w-full justify-end">
-                        <Link
-                          href="/friends?filter=pending"
-                          className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-400"
-                        >
-                          Send invite
-                        </Link>
-                      </div>
-                      <div className="flex w-full items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setCardIndex((prev) => (prev - 1 + visibleFriendPreviewList.length) % visibleFriendPreviewList.length)}
-                          className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow hover:border-slate-400"
-                        >
-                          Prev
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCardIndex((prev) => (prev + 1) % visibleFriendPreviewList.length)}
-                          className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow hover:bg-slate-800"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="mt-5 flex flex-col items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => setGoLiveActive((prev) => !prev)}
-                  className="w-full max-w-xl rounded-2xl bg-[#f05656] px-5 py-4 text-base font-semibold text-white shadow hover:bg-[#e14a4a]"
+                  onClick={handleToggleLive}
+                  disabled={isActivating}
+                  className={`
+                    relative w-full max-w-xl rounded-2xl px-5 py-4 text-base font-semibold text-white shadow transition-all duration-300
+                    ${goLiveActive 
+                      ? "bg-emerald-500 hover:bg-emerald-600 animate-pulse" 
+                      : "bg-[#f05656] hover:bg-[#e14a4a] hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(240,86,86,0.5)]"
+                    }
+                    ${isActivating ? "scale-95 opacity-90 cursor-wait" : ""}
+                  `}
                 >
-                  {goLiveActive ? "Turn off Live" : "Go Live"}
+                  <span className="flex items-center justify-center gap-2">
+                    {isActivating && <Loader2 className="h-5 w-5 animate-spin" />}
+                    {isActivating ? "Activating..." : goLiveActive ? "Live Active" : "Go Live"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1018,13 +865,13 @@ const navItems = useMemo(
                 >
                   Filter
                 </button>
-                <div className="flex w-full justify-center">
-                  <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-                    <HomeProximityPreview variant="mini" autoLive={goLiveActive} />
-                  </div>
+              <div className="flex w-full justify-center">
+                <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                  <HomeProximityPreview variant="mini" autoLive={goLiveActive} />
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
             {filterModalOpen ? (
               <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -1238,3 +1085,4 @@ const navItems = useMemo(
     </main>
   );
 }
+

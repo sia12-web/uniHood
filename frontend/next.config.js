@@ -18,6 +18,11 @@ const nextConfig = (() => {
 		console.warn("Invalid NEXT_PUBLIC_BACKEND_URL for image configuration", error);
 	}
 
+	remotePatterns.push({
+		protocol: "https",
+		hostname: "images.unsplash.com",
+	});
+
 	return {
 		images: {
 			remotePatterns,

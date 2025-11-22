@@ -1,5 +1,7 @@
 const AUTH_STORAGE_KEY = "divan.auth";
 const AUTH_EVENT = "divan:auth-changed";
+const AUTH_COOKIE = "divan.auth";
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export type AuthSnapshot = {
   access_token: string;
@@ -124,17 +126,17 @@ function snapshotToAuthUser(snapshot: AuthSnapshot | null): AuthUser | null {
       parts.campus ??
       null,
     handle:
+      (typeof extras.handle === "string" ? (extras.handle as string) : undefined) ??
       (typeof claims.handle === "string" ? (claims.handle as string) : undefined) ??
       (typeof claims.preferred_username === "string"
         ? (claims.preferred_username as string)
         : undefined) ??
-      parts.handle ??
-      (typeof extras.handle === "string" ? (extras.handle as string) : undefined),
+      parts.handle,
     displayName:
+      (typeof extras.display_name === "string" ? (extras.display_name as string) : undefined) ??
       (typeof claims.name === "string" ? (claims.name as string) : undefined) ??
       (typeof claims.display_name === "string" ? (claims.display_name as string) : undefined) ??
-      parts.name ??
-      (typeof extras.display_name === "string" ? (extras.display_name as string) : undefined),
+      parts.name,
   };
 }
 
@@ -154,6 +156,18 @@ export function readAuthUser(): AuthUser | null {
   return snapshotToAuthUser(readAuthSnapshot());
 }
 
+function writeAuthCookie(value: string | null): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  if (!value) {
+    document.cookie = `${AUTH_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+    return;
+  }
+  document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(value)}; Max-Age=${AUTH_COOKIE_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+}
+
 function emitAuthEvent(): void {
   if (typeof window === "undefined") {
     return;
@@ -166,6 +180,8 @@ export function storeAuthSnapshot(snapshot: AuthSnapshot): void {
     return;
   }
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(snapshot));
+  const cookieValue = typeof snapshot.user_id === "string" && snapshot.user_id.trim().length > 0 ? snapshot.user_id : snapshot.access_token || null;
+  writeAuthCookie(cookieValue ?? null);
   emitAuthEvent();
 }
 
@@ -174,6 +190,7 @@ export function clearAuthSnapshot(): void {
     return;
   }
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  writeAuthCookie(null);
   emitAuthEvent();
 }
 

@@ -99,6 +99,7 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
   const [peopleViewMode, setPeopleViewMode] = useState<"list" | "swipe">("list");
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [activatingLive, setActivatingLive] = useState(false);
   const sentInitialHeartbeat = useRef(false);
   const profileCacheRef = useRef<Map<string, ProfileWithGallery>>(new Map());
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -366,6 +367,7 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
 
   const primeHeartbeat = useCallback(() => {
     if (!authEvaluated || !goLiveAllowed || !isLiveMode) return;
+    if (!currentUserId || !currentCampusId) return;
     if (!positionRef.current || sentInitialHeartbeat.current) return;
     sentInitialHeartbeat.current = true;
     sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius).catch((err) => {
@@ -427,7 +429,9 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
       setLoading(false);
       return;
     }
+    setActivatingLive(true);
     await handleGoLive();
+    setActivatingLive(false);
   }, [authEvaluated, currentCampusId, currentUserId, handleGoLive, isLiveMode]);
 
   useEffect(() => {
@@ -524,6 +528,10 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
         setInviteError("Presence is still loading. Please try again in a moment.");
         return;
       }
+      if (!currentUserId || !currentCampusId) {
+        setInviteError("Sign in to send invites.");
+        return;
+      }
       setInviteMessage(null);
       setInviteError(null);
       setInvitePendingId(targetUserId);
@@ -598,8 +606,8 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
       const controller = new AbortController();
       controllersRef.current.set(entry.user_id, controller);
       fetchPublicProfile(entry.handle, {
-        userId: currentUserId,
-        campusId: currentCampusId,
+        userId: currentUserId ?? undefined,
+        campusId: currentCampusId ?? undefined,
         signal: controller.signal,
       })
         .then((profile) => {
@@ -823,16 +831,35 @@ export default function HomeProximityPreview({ rightRail, variant = "full", auto
           <button
             type="button"
             onClick={() => void handleToggleLiveMode()}
-            className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60 ${
               isLiveMode ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-900 hover:bg-slate-800"
-            }`}
+            } ${isLiveMode ? "animate-[bounce_0.6s_ease]" : "active:scale-95"} ${activatingLive ? "scale-95" : ""}`}
             disabled={!goLiveAllowed}
+            aria-busy={activatingLive ? "true" : "false"}
             {...liveToggleAriaProps}
           >
             <span
-              className={`h-2.5 w-2.5 rounded-full ${isLiveMode ? "bg-white" : "bg-emerald-200"}`}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                isLiveMode ? "bg-white shadow-[0_0_0_6px_rgba(16,185,129,0.35)]" : "bg-emerald-200"
+              } ${activatingLive ? "animate-pulse" : ""}`}
             />
-            {isLiveMode ? "Switch to passive mode" : "Go live now"}
+            {activatingLive ? (
+              <span className="flex items-center gap-1">
+                <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 0 1 8-8v4l3-3-3-3v4a12 12 0 0 0-12 12h4Z"
+                  />
+                </svg>
+                Activating…
+              </span>
+            ) : isLiveMode ? (
+              "Live"
+            ) : (
+              "Go live now"
+            )}
           </button>
           <span className="text-xs text-slate-500">
             Pulse updates refresh every {heartbeatSeconds}s while this tab is visible.

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 
 import ChatWindow from "@/components/ChatWindow";
 import { useChatRosterContext } from "@/components/chat-roster-context";
@@ -268,8 +267,6 @@ export default function ChatConversationView({ peerId }: Props) {
   const headerTitle = peerEntry?.displayName ?? validPeer;
   const handle = peerEntry?.handle ? `@${peerEntry.handle}` : null;
   const peersLabel = peerEntry?.isDemo ? "Seeded conversation" : presence?.online ? "Online now" : "Away";
-  const lastSeenValue = presence?.lastSeen ?? null;
-  const lastSeenLabel = lastSeenValue && !presence?.online ? `${formatDistanceToNow(new Date(lastSeenValue))} ago` : null;
 
   if (!validPeer) {
     return (
@@ -298,9 +295,9 @@ export default function ChatConversationView({ peerId }: Props) {
 
         <div className="flex-1 min-h-0 overflow-hidden px-1 pb-2 pt-3">
           <ChatWindow
-            conversationId={conversationId ?? buildConversationId(selfId, validPeer)}
+            conversationId={(conversationId ?? (selfId && validPeer ? buildConversationId(selfId, validPeer) : ""))}
             messages={messages}
-            selfUserId={selfId}
+            selfUserId={selfId ?? ""}
             peerUserId={validPeer}
             peerName={headerTitle}
             peerStatusText={handle ?? peersLabel}

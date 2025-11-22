@@ -157,3 +157,27 @@ async def reseed_trivia_endpoint(
 		return await _service.reseed_trivia(auth_user, activity_id, questions=payload.questions)
 	except Exception as exc:
 		raise _as_http_error(exc) from exc
+
+
+@router.post("/{activity_id}/story/roles", response_model=schemas.ActivityDetail)
+async def assign_story_role_endpoint(
+	activity_id: str,
+	payload: schemas.AssignRoleRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ActivityDetail:
+	try:
+		return await _service.assign_story_role(auth_user, activity_id, payload.role)
+	except Exception as exc:
+		raise _as_http_error(exc) from exc
+
+
+@router.post("/{activity_id}/story/turn", response_model=schemas.ActivityDetail)
+async def submit_story_turn_endpoint(
+	activity_id: str,
+	payload: schemas.SubmitStoryTurnRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ActivityDetail:
+	try:
+		return await _service.submit_story_turn(auth_user, activity_id, payload.content)
+	except Exception as exc:
+		raise _as_http_error(exc) from exc

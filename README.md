@@ -1,94 +1,90 @@
-# Divan — local Docker stack
+# Divan — Local Development Stack
 
-This repository includes a Docker Compose stack for running the backend API, PostgreSQL, and Redis locally.
+This repository contains the full stack for Divan, including a Next.js frontend, FastAPI backend, and microservices, orchestrated with Docker Compose.
 
 ## Prerequisites
-- Docker Desktop
 
-## Run the stack
+- **Docker Desktop**: Required for running the database (Postgres), Redis, and the Backend API.
+- **Node.js (v20+)**: Required for Frontend and Activities service.
+- **pnpm** (Recommended) or **npm**: Package manager.
+- **Python (3.12+)**: Required if running backend locally outside Docker.
 
-PowerShell (Windows):
+## Quick Start
 
-- Start services
-  - docker compose -f .\infra\docker\compose.yaml up -d
+1.  **Start Infrastructure & Backend**:
+    ```powershell
+    docker compose up -d
+    ```
+    This starts:
+    - **Postgres**: `localhost:5432`
+    - **Redis**: `localhost:6379`
+    - **Backend API**: `http://localhost:8000` (Swagger UI: `/docs`)
 
-- Check status
-  - docker compose -f .\infra\docker\compose.yaml ps
+    *Note: The backend container automatically applies database migrations on startup.*
 
-- View backend logs
-  - docker compose -f .\infra\docker\compose.yaml logs -f backend
+2.  **Start Frontend**:
+    ```bash
+    cd frontend
+    npm install
+    npm run dev
+    ```
+    - App: `http://localhost:3000`
 
-## Services
-- API: http://localhost:8000 (Open http://localhost:8000/docs for Swagger UI)
-- PostgreSQL: localhost:5432 (user: postgres, password: postgres, db: divan)
-- Redis: localhost:6379
+3.  **Start Activities Service** (Real-time features):
+    ```bash
+    cd services/activities-core
+    npm install
+    npm run dev
+    ```
+    - Service: `http://localhost:4005`
 
-## Frontend (Next.js)
-- Install deps (the workspace uses pnpm)
-  - cd .\frontend
-  - pnpm install
-- Dev server (default port 3000)
-  - pnpm dev
-- Production build + start (choose a free port, e.g., 3010)
-  - pnpm build
-  - pnpm start -- -p 3010
-  - Open http://localhost:3010
-- Environment setup
-  - Copy `.env.example` to `.env.local` in `frontend/`
-  - Fill any `NEXT_PUBLIC_DEMO_*` variables (handles, chat peer IDs, activity IDs) to unlock direct links on hub pages
-  - Restart `npm run dev` after edits so the values refresh
-  - Optional: enable the proximity "Go Live" feature for local testing
-    - Add `NEXT_PUBLIC_ENABLE_GO_LIVE=true` to `frontend/.env.local` (or run `setx NEXT_PUBLIC_ENABLE_GO_LIVE "true"` in PowerShell and restart your terminal)
-    - Open the dashboard (`/`) and use the People nearby card’s **Go live now** control; in demo mode (logged out or demo campus) a fallback location is used, otherwise grant location permission
-    - A successful heartbeat records a timestamp in `localStorage`; the homepage Proximity card shows "Live now" for ~90 seconds after a heartbeat (polls every ~15s)
-- Key routes
-  - Home: http://localhost:3000/
-  - Login: http://localhost:3000/login
-  - Onboarding: http://localhost:3000/onboarding
-  - Verification: http://localhost:3000/verify
-  - Friends hub: http://localhost:3000/friends
-  - Invites inbox: http://localhost:3000/invites
-  - Smart matching: http://localhost:3000/match
-  - Rooms hub: http://localhost:3000/rooms
-  - Communities search: http://localhost:3000/communities/search
-  - Search & discovery: http://localhost:3000/search
-  - Leaderboards: http://localhost:3000/leaderboards
-  - Communities hub: http://localhost:3000/communities
-  - Activities hub: http://localhost:3000/activities
-  - Speed typing duel: http://localhost:3000/activities/speed_typing
-- Tests
-  - Unit: pnpm test
-  - Contract: pnpm test -- communities
-  - E2E: pnpm test:e2e -- communities
+## Project Structure
 
-### Activities: Typing Duel API mapping
+- **`frontend/`**: Next.js 14 application (App Router).
+- **`backend/`**: FastAPI application (Python). Handles auth, users, and core data.
+- **`services/activities-core/`**: Node.js/Fastify microservice for real-time activities (e.g., Typing Duel).
+- **`infra/`**:
+    - **`migrations/`**: SQL migration files for Postgres.
+    - **`docker/`**: Additional Docker configurations.
+- **`scripts/`**: Utility scripts for data seeding, testing, and maintenance.
 
-The frontend uses the backend Activities REST API for typing duels (kind: `typing_duel`).
+## Common Tasks
 
-- Create activity with a peer
-  - POST `/activities/with/{peer_id}`
-  - Body: `{ "kind": "typing_duel" }`
-  - Returns: activity summary `{ id, kind, state, user_a, user_b, meta, ... }`
-- Start an activity
-  - POST `/activities/{activity_id}/start`
-  - Returns: updated summary
-- Fetch typing prompt for an activity
-  - GET `/activities/{activity_id}/typing/prompt`
-  - Returns: `{ prompt, duration_s, close_at_ms }`
-- Submit typing round result
-  - POST `/activities/typing/submissions`
-  - Body: `{ activity_id, round_idx, text }`
-  - Returns: `{ activity_id, totals: { [user_id]: score }, per_round: [...] }`
+### Database Migrations
+Migrations are applied automatically when the backend container starts. To apply them manually:
+```bash
+# From root
+python scripts/apply_migrations.py
+```
 
-Frontend entry:
-- API client: `frontend/app/features/activities/api/client.ts`
-- Page: `frontend/app/activities/speed_typing/page.tsx`
-- Modal launcher (chat): `frontend/app/features/activities/components/ChooseActivityModal.tsx`
+### Seeding Demo Data
+To populate the database with test users and content:
+```bash
+# From root (requires python dependencies installed locally)
+python scripts/seed_demo_data.py
+```
 
-Notes:
-- Legacy, session-based WebSocket code was deprecated. The hook `useSpeedTypingSession` is now a no-op shim to avoid runtime errors. New implementations should use the REST endpoints above.
+### Running Tests
+- **Frontend**: `cd frontend && npm test`
+- **Backend**: `cd backend && pytest`
+- **E2E**: `cd frontend && npm run test:e2e`
 
-## Notes
-- The backend container installs Poetry and dependencies on startup and then serves FastAPI via Uvicorn.
-- The Compose file maps backend port 8000 to your host.
-- If you change Python dependencies in `backend/pyproject.toml`, regenerate the lockfile on your host and rebuild the backend container.
+## Environment Setup
+
+### Frontend (`frontend/.env.local`)
+Copy `.env.example` to `.env.local`.
+- `NEXT_PUBLIC_API_URL`: `http://localhost:8000`
+- `NEXT_PUBLIC_ACTIVITIES_URL`: `http://localhost:4005`
+
+### Backend (`backend/.env`)
+Managed via `docker-compose.yml` environment variables.
+
+## Troubleshooting
+
+- **Database Connection Issues**: Ensure Docker is running and port 5432 is not occupied by another local Postgres instance.
+- **Hydration Errors**: Ensure you are running the latest code. We recently fixed hydration issues on the Profile and Meetups pages.
+- **Activities Service Error**: If you see "Table not found", run `npx prisma migrate dev` inside `services/activities-core`.
+
+## Contributing
+
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.

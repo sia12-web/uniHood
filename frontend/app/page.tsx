@@ -991,7 +991,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex w-full max-w-xs flex-col items-center gap-3 text-left">
                   <div className="w-full rounded-2xl bg-white/90 px-3 py-2 text-center shadow-md ring-1 ring-white/50">
-                    <BrandLogo withWordmark logoWidth={200} logoHeight={200} logoClassName="h-28 w-auto" className="mx-auto text-[#b7222d]" />
+                    <BrandLogo withWordmark logoWidth={200} logoHeight={200} logoClassName="h-40 w-auto" className="mx-auto text-[#b7222d]" />
                   </div>
                   <div className="grid w-full grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
                     <div className="rounded-xl bg-white/10 p-3">
@@ -1147,7 +1147,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-center rounded-2xl bg-white/85 px-4 py-3 shadow-md ring-1 ring-rose-100">
-                  <BrandLogo withWordmark logoWidth={220} logoHeight={220} logoClassName="h-28 w-auto" className="text-[#b7222d]" />
+                  <BrandLogo withWordmark logoWidth={220} logoHeight={220} logoClassName="h-40 w-auto" className="text-[#b7222d]" />
                 </div>
               </div>
             </header>
@@ -1614,7 +1614,7 @@ export default function HomePage() {
       <div className="flex min-h-screen w-full gap-8 px-0">
         <aside className="flex w-64 flex-col border-r border-rose-100 bg-white/90 px-4 py-8 text-slate-700 shadow-xl">
           <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100">
-            <BrandLogo className="flex" logoClassName="h-28 w-auto" logoWidth={140} logoHeight={140} withWordmark />
+            <BrandLogo className="flex" logoClassName="h-36 w-auto" logoWidth={160} logoHeight={160} withWordmark />
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">
             {navItems.map((item) => (

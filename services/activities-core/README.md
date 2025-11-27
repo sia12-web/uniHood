@@ -1,9 +1,9 @@
 # activities-core (SpeedTyping v2)
 
-Purpose
-- Provide low-latency micro-activity “Who Types Faster” between two connected users with real-time anti-cheat heuristics and v2 scoring.
+## Purpose
+Provide low-latency micro-activity “Who Types Faster” between two connected users with real-time anti-cheat heuristics and v2 scoring.
 
-Entities
+## Entities
 - Activity (SpeedTyping only)
 - ActivitySession
 - Participant
@@ -11,47 +11,51 @@ Entities
 - ScoreEvent
 - AntiCheatEvent
 
-Transports
-- HTTP for session lifecycle
-- WebSocket for live events and submissions
+## Transports
+- **HTTP**: Session lifecycle
+- **WebSocket**: Live events and submissions
 
-Persistence
-- Postgres (Prisma)
-- Redis: session runtime state, sliding-window rate limits, WebSocket permit TTLs
+## Persistence
+- **Postgres (Prisma)**: Permanent storage
+- **Redis**: Session runtime state, sliding-window rate limits, WebSocket permit TTLs
 
-Outbound Events (WS channel: `/activities/session/:id/stream`)
-- activity.session.created
-- activity.session.started
-- activity.round.started
-- activity.round.ended
-- activity.session.ended
-- activity.score.updated (per participant)
-- activity.anti_cheat.flag (real-time incident warnings)
-- activity.penalty.applied (delta + incident summary after scoring)
+## Local Development
 
-Security
-- Simple bearer auth middleware (stub). Creator or admin can start session.
-- Zod-validated DTOs.
+### Setup
 
-Performance
-- WS pings every 20s, backpressure with per-conn queue <= 50 messages.
-- Round timers executed server-side; clients are display-only timers.
-- Keystroke samples and ping deltas feed an EWMA-based skew and burst detector.
-
-## Local development
-
-```
-pnpm install
-pnpm --filter @divan/activities-core prisma:generate
-pnpm --filter @divan/activities-core dev
-pnpm --filter @divan/activities-core test:unit
-pnpm --filter @divan/activities-core test:integration
-pnpm --filter @divan/activities-core test:ws
+```bash
+cd services/activities-core
+npm install
 ```
 
-Set `DATABASE_URL`, `REDIS_URL`, and `API_BEARER_TOKEN` in `.env` or your shell before starting.
+### Database
 
-### Auth convention
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Apply Migrations
+npx prisma migrate dev
+```
+
+### Running the Service
+
+```bash
+npm run dev
+```
+
+### Running Tests
+
+```bash
+npm test              # Run all tests
+npm run test:unit     # Unit tests
+npm run test:integration # Integration tests
+npm run test:ws       # WebSocket tests
+```
+
+**Note**: Set `DATABASE_URL`, `REDIS_URL`, and `API_BEARER_TOKEN` in `.env` (or use `.env.example`) before starting.
+
+## Auth Convention
 
 Requests must include `Authorization: Bearer <token>`. When `API_BEARER_TOKEN` is set, the header value must follow:
 
@@ -61,14 +65,14 @@ Authorization: Bearer ${API_BEARER_TOKEN}:${userId}[:admin][:creator]
 
 Use the optional `admin` / `creator` flags to elevate permissions for testing.
 
-### WebSocket join flow
+## WebSocket Flow
 
-1. `POST /activities/session/:id/join` with `{ "userId": "abc" }`
-2. Server grants a 60-second permit stored in Redis and responds with `{ ok: true, permitTtlSeconds: 60 }`
-3. Client connects to `WS /activities/session/:id/stream` using the same bearer token; the permit is consumed on connect.
-4. First server message is `session.snapshot`; subsequent messages mirror `activity.*` events.
+1.  **Join**: `POST /activities/session/:id/join` with `{ "userId": "abc" }`
+    - Server grants a 60-second permit stored in Redis.
+2.  **Connect**: Client connects to `WS /activities/session/:id/stream` using the same bearer token.
+3.  **Snapshot**: First server message is `session.snapshot`.
 
-### WebSocket client messages
+## WebSocket Client Messages
 
-- `keystroke` — payload `{ t, len, isPaste? }`; samples must be monotonically increasing and reference the client clock.
-- `ping` — payload `{ t }`; server responds with `pong` applying skew adjustments and updating the EWMA estimator.
+- `keystroke`: `{ t, len, isPaste? }` - Samples must be monotonically increasing.
+- `ping`: `{ t }` - Server responds with `pong` for skew adjustments.

@@ -14,7 +14,7 @@ from app.settings import settings  # noqa: F401 - may be used for future gating
 from app.infra.cookies import set_refresh_cookies, clear_refresh_cookies
 from app.api.request_id import get_request_id
 
-from app.domain.identity import policy, schemas, service
+from app.domain.identity import policy, schemas, service, recovery
 from app.obs import metrics as obs_metrics
 
 router = APIRouter()
@@ -170,3 +170,30 @@ async def logout(request: Request, response: Response, payload: schemas.LogoutRe
 @router.get("/auth/campuses", response_model=list[schemas.CampusOut])
 async def list_campuses() -> list[schemas.CampusOut]:
 	return await service.list_campuses()
+
+@router.post("/auth/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(payload: schemas.ForgotPasswordRequest, request: Request):
+	try:
+		await recovery.request_password_reset(payload.email)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	return {"detail": "If an account exists, an email has been sent."}
+
+
+@router.post("/auth/forgot-username", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_username(payload: schemas.ForgotUsernameRequest, request: Request):
+	try:
+		await recovery.request_username_recovery(payload.email)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	return {"detail": "If an account exists, an email has been sent."}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(payload: schemas.PasswordResetConsume, request: Request):
+	ip = _client_ip(request)
+	try:
+		await recovery.consume_password_reset(payload.token, payload.new_password, ip=ip)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	return {"detail": "Password reset successfully."}

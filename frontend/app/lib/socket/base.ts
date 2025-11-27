@@ -55,6 +55,8 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
   let onlineListenerAttached = false;
   let onlineHandler: (() => void) | null = null;
   let lastStableAt = 0;
+  let cachedTicket: string | null = null;
+  let cachedTicketExpiresAt = 0;
 
   const statusListeners = new Set<(next: SocketConnectionStatus) => void>();
   const lowPriorityEvents = new Set(options.lowPriorityEvents ?? []);
@@ -64,6 +66,10 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
     if (typeof window === "undefined") {
       return null;
     }
+    const now = Date.now();
+    if (cachedTicket && cachedTicketExpiresAt > now) {
+      return cachedTicket;
+    }
     try {
       const response = await apiFetch<{ ticket?: string; expires_at?: string; expires_in?: number }>("/realtime/ticket", {
         method: "POST",
@@ -72,6 +78,9 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       if (!ticket) {
         return null;
       }
+      cachedTicket = ticket;
+      // Backend sets 60s expiry. We cache for 45s to be safe.
+      cachedTicketExpiresAt = now + 45_000;
       return ticket;
     } catch {
       return null;

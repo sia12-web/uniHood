@@ -104,13 +104,13 @@ function normaliseDraft(candidate: Partial<StoredProfileDraft> | null, userId: s
 		courses: Array.isArray(candidate.courses)
 			? candidate.courses.filter((item): item is ProfileCourse =>
 				Boolean(item) && typeof (item as ProfileCourse).name === "string" && (item as ProfileCourse).name.trim().length > 0,
-			  )
+			)
 			: base.courses,
 		gallery: Array.isArray(candidate.gallery)
 			? candidate.gallery.filter(
 				(item): item is { key: string; url: string } =>
 					Boolean(item) && typeof (item as { key?: unknown }).key === "string" && typeof (item as { url?: unknown }).url === "string",
-			  )
+			)
 			: base.gallery,
 	};
 }
@@ -339,7 +339,6 @@ export default function ProfileSettingsPage() {
 	const [galleryRemovingKey, setGalleryRemovingKey] = useState<string | null>(null);
 	const [galleryError, setGalleryError] = useState<string | null>(null);
 	const [coursesDraft, setCoursesDraft] = useState<CourseItem[]>([]);
-	const [coursesDirty, setCoursesDirty] = useState<boolean>(false);
 	const [courseSaving, setCourseSaving] = useState<boolean>(false);
 	const [courseErrorMessage, setCourseErrorMessage] = useState<string | null>(null);
 	const [courseFeedback, setCourseFeedback] = useState<string | null>(null);
@@ -363,15 +362,12 @@ export default function ProfileSettingsPage() {
 	const missingTasks = useMemo(() => (activeProfile ? buildMissingTasks(activeProfile) : []), [activeProfile]);
 
 	useEffect(() => {
-		if (coursesDirty) {
-			return;
-		}
 		setCoursesDraft(normaliseCourses(activeProfile?.courses));
 		setActiveCourseForm(null);
 		setCourseFormState(emptyCourseForm());
 		setCourseErrorMessage(null);
 		setCourseFeedback(null);
-	}, [activeProfile?.courses, coursesDirty, normaliseCourses]);
+	}, [activeProfile?.courses, normaliseCourses]);
 
 	useEffect(() => {
 		setAuthUser(readAuthUser());
@@ -418,7 +414,7 @@ export default function ProfileSettingsPage() {
 					setDraftProfile(
 						ensureCourses(
 							loadDraftFromStorage(safeUserId, safeCampusId) ??
-								createOfflineProfile(safeUserId, safeCampusId),
+							createOfflineProfile(safeUserId, safeCampusId),
 						),
 					);
 					setError(displayMessage);
@@ -454,7 +450,7 @@ export default function ProfileSettingsPage() {
 			throw new Error("Sign in to update your profile.");
 		}
 		const updated = await patchProfile(authUser.userId, authUser.campusId ?? null, patch);
-		
+
 		if (patch.courses) {
 			const newCourses = await saveProfileCourses(authUser.userId, authUser.campusId ?? null, patch.courses);
 			updated.courses = newCourses;
@@ -619,13 +615,13 @@ export default function ProfileSettingsPage() {
 		}
 		const trimmedName = courseFormState.name.trim();
 		const termTrimmed = courseFormState.term.trim();
+		
+		let nextCourses: CourseItem[];
 		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
-			setCoursesDraft((prev) =>
-				prev.map((course) =>
-					course._localId === activeCourseForm.targetId
-						? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
-						: course,
-				),
+			nextCourses = coursesDraft.map((course) =>
+				course._localId === activeCourseForm.targetId
+					? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
+					: course,
 			);
 		} else {
 			const newCourse: CourseItem = {
@@ -634,43 +630,41 @@ export default function ProfileSettingsPage() {
 				code: codeTrimmed,
 				term: termTrimmed,
 			};
-			setCoursesDraft((prev) => [...prev, newCourse]);
+			nextCourses = [...coursesDraft, newCourse];
 		}
-		setCoursesDirty(true);
+		setCoursesDraft(nextCourses);
 		setActiveCourseForm(null);
 		setCourseFormState(emptyCourseForm());
 		setCourseErrorMessage(null);
 		setCourseFeedback(null);
-	}, [activeCourseForm, courseFormState]);
+		void persistCourses(nextCourses);
+	}, [activeCourseForm, courseFormState, coursesDraft, persistCourses]);
 
 	const handleCourseRemove = useCallback(
 		(targetId: string) => {
-			setCoursesDraft((prev) => prev.filter((course) => course._localId !== targetId));
-			setCoursesDirty(true);
+			const nextCourses = coursesDraft.filter((course) => course._localId !== targetId);
+			setCoursesDraft(nextCourses);
 			setCourseFeedback(null);
 			setCourseErrorMessage(null);
 			if (activeCourseForm?.targetId === targetId) {
 				setActiveCourseForm(null);
 				setCourseFormState(emptyCourseForm());
 			}
+			void persistCourses(nextCourses);
 		},
-		[activeCourseForm],
+		[activeCourseForm, coursesDraft, persistCourses],
 	);
 
 	const handleCoursesReset = useCallback(() => {
 		setCoursesDraft(normaliseCourses(activeProfile?.courses));
-		setCoursesDirty(false);
 		setCourseErrorMessage(null);
 		setCourseFeedback(null);
 		setActiveCourseForm(null);
 		setCourseFormState(emptyCourseForm());
 	}, [activeProfile, normaliseCourses]);
 
-	const handleCoursesPersist = useCallback(async () => {
-		if (!coursesDirty) {
-			return;
-		}
-		const payload = toCoursePayload(coursesDraft);
+	const persistCourses = useCallback(async (newCourses: CourseItem[]) => {
+		const payload = toCoursePayload(newCourses);
 		setCourseSaving(true);
 		setCourseErrorMessage(null);
 		try {
@@ -683,7 +677,6 @@ export default function ProfileSettingsPage() {
 				}));
 				setDraftProfile((prev) => (prev ? { ...prev, courses: persisted } : prev));
 				setCourseFeedback("Courses saved to your draft profile.");
-				setCoursesDirty(false);
 				if (toast) {
 					toast.push({
 						title: "Courses saved",
@@ -701,7 +694,6 @@ export default function ProfileSettingsPage() {
 			setDraftProfile((prev) => (prev ? { ...prev, courses: updatedCourses } : prev));
 			setCourseFeedback("Courses updated.");
 			setCoursesDraft(normaliseCourses(updatedCourses));
-			setCoursesDirty(false);
 			if (toast) {
 				toast.push({
 					title: "Courses updated",
@@ -722,7 +714,7 @@ export default function ProfileSettingsPage() {
 		} finally {
 			setCourseSaving(false);
 		}
-	}, [authUser, coursesDirty, coursesDraft, isDraftMode, normaliseCourses, toast]);
+	}, [authUser, isDraftMode, normaliseCourses, toast]);
 
 	const retryFetch = useCallback(() => {
 		setReloadToken((prev) => prev + 1);
@@ -1009,24 +1001,7 @@ export default function ProfileSettingsPage() {
 										No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
 									</p>
 								)}
-								<div className="mt-5 flex flex-wrap justify-end gap-2">
-									<button
-										type="button"
-										onClick={handleCoursesReset}
-										disabled={!coursesDirty || courseSaving}
-										className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-									>
-										Discard changes
-									</button>
-									<button
-										type="button"
-										onClick={handleCoursesPersist}
-										disabled={!coursesDirty || courseSaving}
-										className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-									>
-										{courseSaving ? "Saving…" : "Save courses"}
-									</button>
-								</div>
+
 								{courseFeedback && !courseErrorMessage ? (
 									<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>
 								) : null}
@@ -1090,9 +1065,8 @@ export default function ProfileSettingsPage() {
 									{Array.from({ length: PROGRESS_SEGMENTS }).map((_, index) => (
 										<span
 											key={index}
-											className={`flex-1 transition-colors duration-300 ${
-												index < activeSegments ? "bg-emerald-500" : "bg-transparent"
-											}`}
+											className={`flex-1 transition-colors duration-300 ${index < activeSegments ? "bg-emerald-500" : "bg-transparent"
+												}`}
 										/>
 									))}
 								</div>

@@ -33,7 +33,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   const { id } = params;
   // const router = useRouter();
   const queryClient = useQueryClient();
-  
+
   const { data: meetup, isLoading, error } = useQuery({
     queryKey: ["meetup", id],
     queryFn: () => getMeetup(id),
@@ -41,46 +41,57 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   });
 
   const [messages, setMessages] = useState<RoomMessageDTO[]>([]);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
   const roomsSocketStatus = useSocketStatus(onRoomsSocketStatus, getRoomsSocketStatus);
 
   const joinMutation = useMutation({
     mutationFn: () => joinMeetup(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetup", id] }),
+    onError: (err) => console.error("Join failed", err),
   });
 
   const leaveMutation = useMutation({
     mutationFn: () => leaveMeetup(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetup", id] }),
+    onError: (err) => console.error("Leave failed", err),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (reason: string) => cancelMeetup(id, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetup", id] }),
+    onError: (err) => console.error("Cancel failed", err),
   });
 
   // Room logic
   useEffect(() => {
     if (!meetup?.room_id || !meetup.is_joined) return;
-    
+
     const roomId = meetup.room_id;
-    
+
     // Connect socket
     const socket = roomsSocket();
     socket.emit("room:join", { room_id: roomId });
-    
+
     // Fetch history
     fetchHistory(roomId).then((res) => setMessages(res.items)).catch(console.error);
-    
+
     const handleMessage = (msg: RoomMessageDTO) => {
       if (msg.room_id === roomId) {
         setMessages((prev) => upsertMessage(prev, msg));
       }
     };
-    
+
+    const handleConnect = () => {
+      console.log("Socket reconnected, re-joining room:", roomId);
+      socket.emit("room:join", { room_id: roomId });
+    };
+
     socket.on("room:msg:new", handleMessage);
-    
+    socket.on("connect", handleConnect);
+
     return () => {
       socket.off("room:msg:new", handleMessage);
+      socket.off("connect", handleConnect);
       socket.emit("room:leave", { room_id: roomId });
     };
   }, [meetup?.room_id, meetup?.is_joined]);
@@ -114,19 +125,18 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                 <h1 className="mt-3 text-3xl font-bold text-slate-900">{meetup.title}</h1>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
-                  meetup.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" :
-                  meetup.status === "CANCELLED" ? "bg-red-100 text-red-700" :
-                  meetup.status === "ENDED" ? "bg-slate-100 text-slate-700" :
-                  "bg-blue-100 text-blue-700"
-                }`}>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${meetup.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" :
+                    meetup.status === "CANCELLED" ? "bg-red-100 text-red-700" :
+                      meetup.status === "ENDED" ? "bg-slate-100 text-slate-700" :
+                        "bg-blue-100 text-blue-700"
+                  }`}>
                   {meetup.status}
                 </span>
               </div>
             </div>
-            
+
             <p className="mt-4 text-lg text-slate-700">{meetup.description || "No description provided."}</p>
-            
+
             <div className="mt-6 flex flex-wrap gap-6 text-sm font-medium text-slate-600">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-slate-400" />
@@ -152,7 +162,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                   {joinMutation.isPending ? "Joining..." : "Join Meetup"}
                 </button>
               )}
-              
+
               {meetup.is_joined && (
                 <button
                   onClick={() => leaveMutation.mutate()}
@@ -164,22 +174,64 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                 </button>
               )}
 
-              {isHost && meetup.status !== "CANCELLED" && (
-                <button
-                  onClick={() => {
-                    const reason = prompt("Reason for cancellation?");
-                    if (reason) cancelMutation.mutate(reason);
-                  }}
-                  className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Cancel Meetup
-                </button>
+              <button
+                onClick={() => setIsCancelOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
+              >
+                <XCircle className="h-4 w-4" />
+                Cancel Meetup
+              </button>
               )}
             </div>
           </div>
 
-          {meetup.is_joined && meetup.room_id && (
+          {isCancelOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+                <h3 className="text-xl font-bold text-slate-900">Cancel Meetup</h3>
+                <p className="mt-2 text-sm text-slate-600">Please provide a reason for cancelling this meetup. This will be visible to all participants.</p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const reason = formData.get("reason") as string;
+                    if (reason) {
+                      cancelMutation.mutate(reason);
+                      setIsCancelOpen(false);
+                    }
+                  }}
+                  className="mt-4"
+                >
+                  <textarea
+                    name="reason"
+                    required
+                    minLength={3}
+                    rows={3}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    placeholder="e.g., Something came up..."
+                  />
+                  <div className="mt-4 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsCancelOpen(false)}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Keep Meetup
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={cancelMutation.isPending}
+                      className="rounded-xl bg-red-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {cancelMutation.isPending ? "Cancelling..." : "Confirm Cancel"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {meetup.is_joined && meetup.room_id && !leaveMutation.isPending && (
             <div className="h-[600px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <RoomChat
                 messages={messages}

@@ -178,10 +178,10 @@ export default function OnboardingPage() {
 			<div className="relative flex flex-col">
 				<BrandLogo
 					withWordmark
-					logoWidth={520}
-					logoHeight={520}
+					logoWidth={1040}
+					logoHeight={1040}
 					className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
-					logoClassName="h-96 w-auto"
+					logoClassName="h-[48rem] w-auto"
 				/>
 			</div>
 		</section>

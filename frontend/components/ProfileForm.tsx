@@ -140,12 +140,12 @@ export default function ProfileForm({
 		const { patch, changed, error: validationError } = buildPatch();
 		if (validationError) {
 			setError(validationError);
-            toast?.push({ title: validationError, variant: "warning" });
+			toast?.push({ title: validationError, variant: "warning" });
 			return;
 		}
 		if (!changed) {
 			setFeedback("No changes to save.");
-            toast?.push({ title: "No changes to save", variant: "default" });
+			toast?.push({ title: "No changes to save", variant: "default" });
 			return;
 		}
 		setSaving(true);
@@ -153,11 +153,11 @@ export default function ProfileForm({
 			const updated = await onSubmit(patch);
 			syncProfile(updated);
 			setFeedback("Profile updated.");
-            toast?.push({ title: "Profile saved", description: "Your changes are live.", variant: "success" });
+			toast?.push({ title: "Profile saved", description: "Your changes are live.", variant: "success" });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to update profile";
 			setError(message);
-            toast?.push({ title: "Profile save failed", description: message, variant: "error" });
+			toast?.push({ title: "Profile save failed", description: message, variant: "error" });
 		} finally {
 			setSaving(false);
 		}
@@ -170,12 +170,12 @@ export default function ProfileForm({
 			const updated = await onAvatarUpload(file);
 			syncProfile(updated);
 			setFeedback("Avatar updated.");
-            toast?.push({ title: "Photo updated", description: "Your profile photo has been saved.", variant: "success" });
+			toast?.push({ title: "Photo updated", description: "Your profile photo has been saved.", variant: "success" });
 			return updated;
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to update avatar";
 			setError(message);
-            toast?.push({ title: "Photo update failed", description: message, variant: "error" });
+			toast?.push({ title: "Photo update failed", description: message, variant: "error" });
 			throw err;
 		}
 	};
@@ -386,7 +386,7 @@ export default function ProfileForm({
 					<div className="flex flex-col gap-1">
 						<span className="font-medium">Courses</span>
 						<p className="text-xs text-slate-500">
-							Add your current courses (e.g. CS101, MATH202) to find classmates.
+							List the classes you are taking so we can suggest study groups and match classmates.
 						</p>
 					</div>
 					{courses.length > 0 ? (
@@ -408,7 +408,11 @@ export default function ProfileForm({
 								</span>
 							))}
 						</div>
-					) : null}
+					) : (
+						<p className="text-xs italic text-slate-400">
+							No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
+						</p>
+					)}
 					<div className="flex flex-wrap gap-2">
 						<input
 							type="text"
@@ -429,53 +433,7 @@ export default function ProfileForm({
 						</button>
 					</div>
 				</section>
-				<section className="flex flex-col gap-2 text-sm text-slate-700">
-					<div className="flex flex-col gap-1">
-						<span className="font-medium">Courses</span>
-						<p className="text-xs text-slate-500">
-							Share up to 6 courses or topics. These will be visible to others.
-						</p>
-					</div>
-					{courses.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
-							{courses.map((item) => (
-								<span
-									key={item.toLowerCase()}
-									className="group inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
-								>
-									{item}
-									<button
-										type="button"
-										onClick={() => removeCourse(item)}
-										className="text-slate-500 transition hover:text-rose-500"
-										aria-label={`Remove ${item}`}
-									>
-										×
-									</button>
-								</span>
-							))}
-						</div>
-					) : null}
-					<div className="flex flex-wrap gap-2">
-						<input
-							type="text"
-							value={courseDraft}
-							onChange={(event) => setCourseDraft(event.target.value.slice(0, 40))}
-							onKeyDown={handleCourseKeyDown}
-							maxLength={40}
-							placeholder={courses.length === 0 ? "e.g., Data Structures" : "Add another course"}
-							className="grow rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-						/>
-						<button
-							type="button"
-							onClick={() => addCourse(courseDraft)}
-							disabled={courseDraft.trim().length === 0}
-							className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							Add
-						</button>
-					</div>
-				</section>
+
 				<div className="grid gap-4 md:grid-cols-2">
 					<label className="flex flex-col gap-1 text-sm text-slate-700">
 						<span className="font-medium">Profile Visibility</span>

@@ -12,7 +12,7 @@ import { readAuthUser } from "@/lib/auth-storage";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 10000;
 
 type ActivityAcceptanceContextValue = Record<string, never>;
 

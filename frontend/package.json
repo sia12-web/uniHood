@@ -21,6 +21,7 @@
     "next": "^14.2.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "sharp": "^0.34.5",
     "socket.io-client": "^4.7.5",
     "ulidx": "^2.4.1",
     "web-vitals": "^3.5.2",

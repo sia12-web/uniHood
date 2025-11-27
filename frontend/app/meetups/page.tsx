@@ -20,7 +20,7 @@ function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
   const category = CATEGORIES.find((c) => c.value === meetup.category) || CATEGORIES[4];
   const startDate = new Date(meetup.start_at);
   const isToday = startDate.toDateString() === new Date().toDateString();
-  
+
   return (
     <Link href={`/meetups/${meetup.id}`} className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between">
@@ -34,10 +34,10 @@ function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
           </span>
         )}
       </div>
-      
+
       <h3 className="mt-3 text-lg font-bold text-slate-900 group-hover:text-rose-600">{meetup.title}</h3>
       <p className="mt-1 line-clamp-2 text-sm text-slate-600">{meetup.description || "No description provided."}</p>
-      
+
       <div className="mt-4 flex flex-wrap gap-3 text-xs font-medium text-slate-500">
         <div className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5" />
@@ -52,7 +52,7 @@ function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
           <span>{meetup.participants_count} joined</span>
         </div>
       </div>
-      
+
       {meetup.is_joined && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500" />
       )}
@@ -89,17 +89,17 @@ export default function MeetupsPage() {
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     const dateStr = formData.get("date") as string;
     const timeStr = formData.get("time") as string;
-    
+
     if (!dateStr || !timeStr) {
       alert("Please select both date and time");
       return;
     }
 
     const startAt = new Date(`${dateStr}T${timeStr}`).toISOString();
-    
+
     createMutation.mutate({
       title: formData.get("title") as string,
       description: formData.get("description") as string,
@@ -119,6 +119,14 @@ export default function MeetupsPage() {
     if (i === 1) label = "Tomorrow";
     return { label, value };
   });
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   if (!authUser) {
     return (
@@ -153,9 +161,8 @@ export default function MeetupsPage() {
         <div className="mt-8 flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedCategory(undefined)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-              !selectedCategory ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
-            }`}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${!selectedCategory ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+              }`}
           >
             All
           </button>
@@ -163,9 +170,8 @@ export default function MeetupsPage() {
             <button
               key={cat.value}
               onClick={() => setSelectedCategory(cat.value)}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                selectedCategory === cat.value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${selectedCategory === cat.value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+                }`}
             >
               {cat.label}
             </button>
@@ -203,7 +209,7 @@ export default function MeetupsPage() {
                   placeholder="e.g., CS101 Study Group"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Description</label>
                 <textarea

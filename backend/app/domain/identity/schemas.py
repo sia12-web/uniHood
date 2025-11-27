@@ -556,6 +556,14 @@ class PasswordResetConsume(BaseModel):
 	new_password: Annotated[str, Field(min_length=8)]
 
 
+class ForgotPasswordRequest(BaseModel):
+	email: EmailStr
+
+
+class ForgotUsernameRequest(BaseModel):
+	email: EmailStr
+
+
 VerificationMethod = Literal["sso", "doc"]
 VerificationState = Literal["pending", "approved", "rejected", "expired"]
 

@@ -39,6 +39,8 @@ def _env_field(default, *env_names: str):
 class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     postgres_url: str = _env_field("postgresql://postgres:postgres@127.0.0.1:5432/divan", "POSTGRES_URL", "DATABASE_URL")
+    postgres_min_pool_size: int = _env_field(5, "POSTGRES_MIN_POOL_SIZE")
+    postgres_max_pool_size: int = _env_field(20, "POSTGRES_MAX_POOL_SIZE")
     postgres_ssl: bool = _env_field(False, "POSTGRES_SSL")
     secret_key: str = _env_field(..., "SECRET_KEY")
     campus_ttl_seconds: int = 3600

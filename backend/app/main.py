@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 import socketio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi import Request
 from starlette.staticfiles import StaticFiles
 import os
@@ -229,6 +230,10 @@ if "*" in allow_origins:
 			"http://127.0.0.1:5173",
 			"http://localhost:4173",
 			"http://127.0.0.1:4173",
+			"http://localhost:3001",
+			"https://localhost:3001",
+			"http://127.0.0.1:3001",
+			"https://127.0.0.1:3001",
 		]
 	else:
 		allow_origins = ["https://app.divan.example"]
@@ -240,6 +245,7 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Static serving for uploaded files in dev
 if settings.environment == "dev":

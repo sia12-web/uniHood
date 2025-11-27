@@ -34,7 +34,6 @@ const nextConfig = (() => {
 	return {
 		images: {
 			remotePatterns,
-			unoptimized: true,
 		},
 	};
 })();

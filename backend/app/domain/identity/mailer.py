@@ -141,3 +141,26 @@ async def send_email_verification(email: str, token: str, *, user_id: str | None
         user_id=user_id,
         meta={"email_hash": mask},
     )
+
+
+async def send_username_reminder(email: str, handle: str, *, user_id: str | None = None) -> None:
+    """Send a username reminder email."""
+    subject = "Your username reminder"
+    body = f"""
+    <html>
+        <body>
+            <p>Hello,</p>
+            <p>You requested a username reminder. Your username is:</p>
+            <p><strong>{handle}</strong></p>
+            <p>If you did not request this, please ignore this email.</p>
+        </body>
+    </html>
+    """
+    await _send_email(email, subject, body)
+    
+    mask = _hash_email(email)
+    await audit.log_event(
+        "username_reminder_email_sent",
+        user_id=user_id,
+        meta={"email_hash": mask},
+    )

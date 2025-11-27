@@ -53,7 +53,7 @@ class MeetupCreateRequest(BaseModel):
 class MeetupResponse(BaseModel):
     id: UUID
     creator_user_id: UUID
-    campus_id: str
+    campus_id: UUID
     title: str
     description: Optional[str]
     category: MeetupCategory

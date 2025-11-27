@@ -3,17 +3,32 @@ from __future__ import annotations
 import os
 import pathlib
 
+import time
 import psycopg2
 
 DSN = os.environ.get("POSTGRES_URL", "postgresql://postgres:postgres@localhost:5432/divan")
 MIGRATIONS_DIR = pathlib.Path(__file__).resolve().parent.parent / "infra" / "migrations"
 
 
+def wait_for_db(retries: int = 30, delay: int = 2) -> psycopg2.extensions.connection:
+    for i in range(retries):
+        try:
+            return psycopg2.connect(DSN)
+        except psycopg2.OperationalError as e:
+            if "starting up" in str(e) or "Connection refused" in str(e):
+                print(f"Database starting up... waiting {delay}s ({i+1}/{retries})")
+                time.sleep(delay)
+            else:
+                raise
+    raise SystemExit("Could not connect to database after multiple retries")
+
+
 def main() -> None:
     paths = sorted(MIGRATIONS_DIR.glob("*.sql"))
     if not paths:
         raise SystemExit("no migration files found")
-    with psycopg2.connect(DSN) as conn:
+    
+    with wait_for_db() as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(

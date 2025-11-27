@@ -9,6 +9,8 @@ from typing import Optional
 from uuid import UUID
 
 from app.domain.discovery.schemas import DiscoveryCard, DiscoveryFeedResponse, InteractionResponse
+from app.domain.identity.models import parse_profile_gallery
+import json
 from app.domain.proximity.schemas import NearbyQuery
 from app.domain.proximity.service import get_nearby
 from app.domain.social.sockets import emit_discovery_match
@@ -69,15 +71,35 @@ async def list_feed(
 		# Fall back to redis-only when DB is unavailable
 		pass
 
+	# Fetch priority candidates (Friend of Friend, Similar Courses)
+	priority_cards = await _fetch_priority_candidates(auth_user, limit=limit)
+
 	items: list[DiscoveryCard] = []
+	seen_ids = set()
+
+	# Add priority candidates first
+	for card in priority_cards:
+		uid_str = str(card.user_id)
+		if uid_str in liked or uid_str in passed or uid_str in seen_ids:
+			continue
+		items.append(card)
+		seen_ids.add(uid_str)
+
+	# Add nearby candidates
 	for user in nearby.items:
 		uid_str = str(user.user_id)
-		if uid_str in liked or uid_str in passed:
+		if uid_str in liked or uid_str in passed or uid_str in seen_ids:
 			continue
+		
+		# Explicitly skip friends
+		if getattr(user, "is_friend", False):
+			continue
+
 		raw_passions = getattr(user, "passions", None) or getattr(user, "interests", None) or []
 		passions: list[str] = [str(p).strip() for p in raw_passions if isinstance(p, str) and str(p).strip()]
 		gallery = getattr(user, "gallery", None) or []
 		courses = getattr(user, "courses", None) or []
+		
 		items.append(
 			DiscoveryCard(
 				user_id=user.user_id,
@@ -92,15 +114,120 @@ async def list_feed(
 				courses=courses,
 				distance_m=user.distance_m,
 				gallery=gallery,
-				is_friend=bool(getattr(user, "is_friend", False)),
+				is_friend=False, # We filtered out friends
 			)
 		)
+		seen_ids.add(uid_str)
+
+	# Sort by score if we want mixed results, but for now priority is prepended.
+	# We might want to re-sort the whole list if we had a unified scoring system.
+	# But priority_cards are already sorted by score. Nearby are sorted by distance.
+	# The user wants "suggestion is also according to...".
+	# Prepending priority candidates satisfies this.
 
 	return DiscoveryFeedResponse(
-		items=items,
+		items=items[:limit], # Respect limit
 		cursor=nearby.cursor,
 		exhausted=len(items) == 0,
 	)
+
+
+async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -> list[DiscoveryCard]:
+	"""Fetch candidates based on social graph (FoF) and shared courses."""
+	pool = await get_pool()
+	if not pool:
+		return []
+
+	# Campus ID is required for this logic
+	if not auth_user.campus_id:
+		return []
+	
+	campus_id = str(auth_user.campus_id)
+
+	try:
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				WITH my_courses AS (
+					SELECT course_code FROM user_courses WHERE user_id = $1
+				),
+				my_friends AS (
+					SELECT friend_id FROM friendships WHERE user_id = $1 AND status = 'accepted'
+				),
+				candidates AS (
+					SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.graduation_year, u.passions, u.profile_gallery,
+						   ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses,
+						   CASE 
+							   WHEN EXISTS (
+								   SELECT 1 FROM friendships f2 
+								   WHERE f2.user_id = u.id AND f2.friend_id IN (SELECT friend_id FROM my_friends)
+							   ) THEN true 
+							   ELSE false 
+						   END as is_fof,
+						   CASE 
+							   WHEN EXISTS (
+								   SELECT 1 FROM friendships f2 
+								   WHERE f2.user_id = u.id AND f2.friend_id IN (SELECT friend_id FROM my_friends)
+							   ) THEN 2 
+							   ELSE 0 
+						   END +
+						   CASE 
+							   WHEN EXISTS (
+								   SELECT 1 FROM user_courses uc 
+								   WHERE uc.user_id = u.id AND uc.course_code IN (SELECT course_code FROM my_courses)
+							   ) THEN 1 
+							   ELSE 0 
+						   END as score
+					FROM users u
+					WHERE u.campus_id = $2
+					  AND u.id != $1
+					  AND u.id NOT IN (SELECT friend_id FROM my_friends)
+					  AND u.deleted_at IS NULL
+				)
+				SELECT * FROM candidates WHERE score > 0 ORDER BY score DESC LIMIT $3
+				""",
+				auth_user.id,
+				campus_id,
+				limit,
+			)
+			
+			cards: list[DiscoveryCard] = []
+			for row in rows:
+				raw_passions = row["passions"]
+				passions: list[str] = []
+				if isinstance(raw_passions, str):
+					try:
+						passions = json.loads(raw_passions)
+					except Exception:
+						passions = []
+				elif isinstance(raw_passions, list):
+					passions = [str(p) for p in raw_passions]
+				
+				gallery_raw = row["profile_gallery"]
+				gallery_objs = parse_profile_gallery(gallery_raw)
+				gallery = [img.to_dict() for img in gallery_objs]
+
+				cards.append(
+					DiscoveryCard(
+						user_id=row["id"],
+						display_name=row["display_name"],
+						handle=row["handle"],
+						avatar_url=row["avatar_url"],
+						campus_id=UUID(campus_id),
+						major=row["major"],
+						graduation_year=row["graduation_year"],
+						interests=passions,
+						passions=passions,
+						courses=row["courses"] or [],
+						distance_m=None, # We don't have distance here easily without geo query
+						gallery=gallery,
+						is_friend=False,
+						is_friend_of_friend=row["is_fof"],
+					)
+				)
+			return cards
+	except Exception:
+		return []
 
 
 async def register_like(auth_user: AuthenticatedUser, target_id: UUID, *, cursor: Optional[str]) -> InteractionResponse:

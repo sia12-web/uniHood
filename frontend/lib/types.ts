@@ -14,6 +14,7 @@ export type NearbyUser = {
  graduation_year?: number | null;
  distance_m?: number | null;
  is_friend?: boolean;
+ is_friend_of_friend?: boolean;
   campus_id?: string | null;
   interests?: string[];
   gallery?: GalleryImage[];

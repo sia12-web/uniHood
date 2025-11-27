@@ -18,8 +18,8 @@ async def init_pool() -> asyncpg.pool.Pool:
 		dsn = settings.postgres_url.replace("localhost", "127.0.0.1")
 		_pool = await asyncpg.create_pool(
 			dsn=dsn,
-			min_size=0,
-			max_size=5,
+			min_size=settings.postgres_min_pool_size,
+			max_size=settings.postgres_max_pool_size,
 			ssl='disable',  # Use 'disable' string, not False boolean
 		)
 	return _pool

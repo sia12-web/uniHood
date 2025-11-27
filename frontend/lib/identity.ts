@@ -94,6 +94,27 @@ export async function resendVerification(email: string): Promise<void> {
 	});
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+	await request<void>("/auth/forgot-password", {
+		method: "POST",
+		body: { email },
+	});
+}
+
+export async function forgotUsername(email: string): Promise<void> {
+	await request<void>("/auth/forgot-username", {
+		method: "POST",
+		body: { email },
+	});
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+	await request<void>("/auth/reset-password", {
+		method: "POST",
+		body: { token, new_password: newPassword },
+	});
+}
+
 function authHeaders(userId: string, campusId: string | null): Record<string, string> {
 	return {
 		"X-User-Id": userId,

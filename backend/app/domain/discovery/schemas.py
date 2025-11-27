@@ -24,6 +24,7 @@ class DiscoveryCard(BaseModel):
 	distance_m: Optional[float] = None
 	gallery: list[GalleryImage] = Field(default_factory=list)
 	is_friend: bool = False
+	is_friend_of_friend: bool = False
 
 
 class DiscoveryFeedResponse(BaseModel):

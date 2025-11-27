@@ -105,10 +105,10 @@ export default function LoginPage() {
 			<div className="relative flex flex-col">
 				<BrandLogo
 					withWordmark
-					logoWidth={520}
-					logoHeight={520}
+					logoWidth={1040}
+					logoHeight={1040}
 					className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
-					logoClassName="h-96 w-auto"
+					logoClassName="h-[48rem] w-auto"
 				/>
 			</div>
 		</section>
@@ -153,6 +153,15 @@ export default function LoginPage() {
                 />
               </label>
 
+              <div className="flex justify-between text-sm">
+                <Link href="/forgot-password" className="font-medium text-[#b7222d] hover:underline">
+                  Forgot password?
+                </Link>
+                <Link href="/forgot-username" className="font-medium text-[#b7222d] hover:underline">
+                  Forgot username?
+                </Link>
+              </div>
+
               <button
                 type="submit"
                 disabled={disabled}
@@ -167,13 +176,6 @@ export default function LoginPage() {
                 Need an account?{" "}
                 <Link href="/onboarding" className="font-semibold text-[#b7222d] underline-offset-4 hover:underline">
                   Create one
-                </Link>
-                .
-              </span>
-              <span>
-                Verified your email already?{" "}
-                <Link href="/verify" className="font-semibold text-[#b7222d] underline-offset-4 hover:underline">
-                  Complete verification
                 </Link>
                 .
               </span>

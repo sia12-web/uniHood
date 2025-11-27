@@ -67,7 +67,7 @@ export default function LeaderboardsPage() {
 						</p>
 					</div>
 					<div className="flex items-center justify-center rounded-2xl bg-white/90 px-4 py-3 shadow-md ring-1 ring-rose-100">
-						<BrandLogo withWordmark logoWidth={210} logoHeight={210} logoClassName="h-20 w-auto" className="text-[#b7222d]" />
+						<BrandLogo withWordmark logoWidth={210} logoHeight={210} logoClassName="h-24 w-auto" className="text-[#b7222d]" />
 					</div>
 				</div>
 			</div>

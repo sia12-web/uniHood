@@ -68,8 +68,8 @@ class MeetupService:
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     RETURNING *
                     """,
-                    auth_user.id,
-                    payload.campus_id or auth_user.campus_id,
+                    UUID(auth_user.id),
+                    UUID(payload.campus_id or auth_user.campus_id),
                     payload.title,
                     payload.description,
                     payload.category,
@@ -86,7 +86,7 @@ class MeetupService:
                     VALUES ($1, $2, $3, $4)
                     """,
                     row["id"],
-                    auth_user.id,
+                    UUID(auth_user.id),
                     schemas.MeetupRole.HOST,
                     schemas.MeetupParticipantStatus.JOINED
                 )
@@ -116,7 +116,7 @@ class MeetupService:
             AND m.status != 'CANCELLED'
             AND (m.start_at + (m.duration_min || ' minutes')::interval) > $3
         """
-        params = [campus_id, auth_user.id, now]
+        params = [UUID(campus_id), UUID(auth_user.id), now]
         
         if category:
             query += " AND m.category = $4"
@@ -152,7 +152,7 @@ class MeetupService:
                 WHERE m.id = $1
                 """,
                 meetup_id,
-                auth_user.id
+                UUID(auth_user.id)
             )
             
             if not row:
@@ -202,7 +202,7 @@ class MeetupService:
             # Check if already joined
             existing = await conn.fetchrow(
                 "SELECT * FROM meetup_participants WHERE meetup_id = $1 AND user_id = $2",
-                meetup_id, auth_user.id
+                meetup_id, UUID(auth_user.id)
             )
             
             if existing and existing["status"] == schemas.MeetupParticipantStatus.JOINED:
@@ -216,7 +216,7 @@ class MeetupService:
                         SET status = 'JOINED', joined_at = NOW(), left_at = NULL
                         WHERE meetup_id = $1 AND user_id = $2
                         """,
-                        meetup_id, auth_user.id
+                        meetup_id, UUID(auth_user.id)
                     )
                 else:
                     await conn.execute(
@@ -224,7 +224,7 @@ class MeetupService:
                         INSERT INTO meetup_participants (meetup_id, user_id, role, status)
                         VALUES ($1, $2, $3, $4)
                         """,
-                        meetup_id, auth_user.id, schemas.MeetupRole.PARTICIPANT, schemas.MeetupParticipantStatus.JOINED
+                        meetup_id, UUID(auth_user.id), schemas.MeetupRole.PARTICIPANT, schemas.MeetupParticipantStatus.JOINED
                     )
         
         # Add to room
@@ -257,7 +257,7 @@ class MeetupService:
                     SET status = 'LEFT', left_at = NOW()
                     WHERE meetup_id = $1 AND user_id = $2 AND status = 'JOINED'
                     """,
-                    meetup_id, auth_user.id
+                    meetup_id, UUID(auth_user.id)
                 )
                 
         # Remove from room

@@ -176,6 +176,8 @@ class User:
 	graduation_year: Optional[int] = None
 	passions: list[str] = field(default_factory=list)
 	profile_gallery: list[ProfileImage] = field(default_factory=list)
+	lat: Optional[float] = None
+	lon: Optional[float] = None
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -199,6 +201,8 @@ class User:
 			graduation_year=int(record.get("graduation_year")) if record.get("graduation_year") is not None else None,
 			passions=_coerce_json_to_list(record.get("passions")),
 			profile_gallery=parse_profile_gallery(record.get("profile_gallery")),
+			lat=record.get("lat"),
+			lon=record.get("lon"),
 		)
 
 

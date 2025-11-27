@@ -1,0 +1,45 @@
+services:
+  redis:
+    image: redis:7.2
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    volumes:
+      - ./infra/docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: divan
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - ./scripts:/work/scripts:ro
+      - ./infra/migrations:/work/infra/migrations:ro
+      - backend_uploads:/app/app/uploads
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/divan
+      PYTHONPATH: /app
+      ENVIRONMENT: dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - postgres
+    command: >
+      bash -c " echo 'Waiting for postgres...' && timeout 30s bash -c 'until python -c \"import socket; s=socket.socket(); s.connect((\\\"postgres\\\", 5432))\" 2>/dev/null; do sleep 1; done' && echo 'Postgres is up, running migrations...' && python /work/scripts/apply_migrations.py && echo 'Migrations complete, starting app...' && uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:
+  backend_uploads:

@@ -1,21 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Copy, Check, Heart } from "lucide-react";
 
-import { createActivity, listActivities, type ActivitySummary } from "@/lib/activities";
+import { createActivity } from "@/lib/activities";
 import { fetchFriends } from "@/lib/social";
 import { readAuthUser } from "@/lib/auth-storage";
 import { getDemoUserId, getDemoCampusId } from "@/lib/env";
 import type { FriendRow } from "@/lib/types";
 import { StoryPanel } from "@/app/features/activities/components/StoryPanel";
+import { useStoryInvite } from "@/hooks/activities/use-story-invite";
 
-export default function StoryActivityPage() {
+function StoryActivityContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const searchString = searchParams?.toString() ?? "";
   const activityId = searchParams?.get("id");
+  const inviteCardRef = useRef<HTMLDivElement>(null);
+  const [inviteFocusPulse, setInviteFocusPulse] = useState(false);
+  const wantsInviteFocus = searchParams?.get("focus") === "invites";
 
   // Local state for the "New Game" flow
   const [friends, setFriends] = useState<FriendRow[]>([]);
@@ -24,8 +29,8 @@ export default function StoryActivityPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [friendId, setFriendId] = useState<string>("");
-  const [invites, setInvites] = useState<ActivitySummary[]>([]);
   const [copied, setCopied] = useState(false);
+  const { invite, acknowledge, dismiss } = useStoryInvite();
 
   // Load friends if no activity ID
   useEffect(() => {
@@ -47,12 +52,6 @@ export default function StoryActivityPage() {
           setFriendsError(err instanceof Error ? err.message : "Failed to load friends");
         })
         .finally(() => setLoadingFriends(false));
-      
-      // Load invites
-      listActivities().then((activities) => {
-        const storyInvites = activities.filter(a => a.kind === "story_alt" && a.state === "lobby" && a.user_b === userId);
-        setInvites(storyInvites);
-      }).catch(console.error);
     }
   }, [activityId]);
 
@@ -74,8 +73,15 @@ export default function StoryActivityPage() {
     }
   };
 
-  const handleJoin = (id: string) => {
-    router.push(`/activities/story?id=${id}`);
+  const handleAcceptInvite = () => {
+    if (!invite) return;
+    acknowledge(invite.id);
+    router.push(`/activities/story?id=${invite.id}`);
+  };
+
+  const handleDismissInvite = () => {
+    if (!invite) return;
+    dismiss(invite.id);
   };
 
   const copySessionId = () => {
@@ -84,6 +90,22 @@ export default function StoryActivityPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  useEffect(() => {
+    if (!wantsInviteFocus) {
+      return;
+    }
+    inviteCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setInviteFocusPulse(true);
+    const timer = window.setTimeout(() => setInviteFocusPulse(false), 2200);
+    const params = new URLSearchParams(searchString);
+    params.delete("focus");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `/activities/story?${nextQuery}` : "/activities/story", { scroll: false });
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [router, searchString, wantsInviteFocus]);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -133,15 +155,15 @@ export default function StoryActivityPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">2</div>
-                  <p className="text-sm text-slate-300">Choose your roles (Boy/Girl).</p>
+                  <p className="text-sm text-slate-300">Both players click Ready.</p>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">3</div>
-                  <p className="text-sm text-slate-300">Read the scenario and take turns writing.</p>
+                  <p className="text-sm text-slate-300">Choose your roles (Boy/Girl).</p>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">4</div>
-                  <p className="text-sm text-slate-300">Build a beautiful narrative together!</p>
+                  <p className="text-sm text-slate-300">Read the scenario and take turns writing.</p>
                 </li>
               </ul>
             </div>
@@ -282,7 +304,12 @@ export default function StoryActivityPage() {
             </div>
 
             {/* Invite Inbox Card */}
-            <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200 transition-all hover:shadow-xl">
+            <div
+              ref={inviteCardRef}
+              className={`overflow-hidden rounded-2xl bg-white shadow-lg transition-all hover:shadow-xl ${
+                inviteFocusPulse || invite ? "ring-2 ring-violet-300" : "ring-1 ring-slate-200"
+              }`}
+            >
               <div className="bg-slate-800 px-6 py-8 text-white">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
                   <Heart className="h-6 w-6 text-pink-400" />
@@ -292,28 +319,36 @@ export default function StoryActivityPage() {
               </div>
               
               <div className="p-6">
-                {invites.length > 0 ? (
-                  <div className="space-y-3">
-                    {invites.map((invite) => (
-                      <div key={invite.id} className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                        <div className="mb-3 flex items-start gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                            <BookOpen className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-emerald-900">Story Invite</p>
-                            <p className="text-xs text-emerald-700">A friend invited you to write.</p>
-                            <p className="mt-1 font-mono text-[10px] text-emerald-600/70">ID: {invite.id}</p>
-                          </div>
+                {invite ? (
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-6 text-white shadow-lg">
+                    <div className="relative z-10">
+                      <h3 className="text-lg font-bold">New Story Invite!</h3>
+                      <p className="mt-1 text-violet-100">A friend has invited you to write.</p>
+                      
+                      <div className="mt-6 flex items-center justify-between gap-4">
+                        <div className="font-mono text-xs text-violet-200/80">
+                          ID: {invite.id.slice(0, 8)}...
                         </div>
-                        <button
-                          onClick={() => handleJoin(invite.id)}
-                          className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
-                        >
-                          Join Story
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleDismissInvite}
+                            className="rounded-xl bg-white/20 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-white/30"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            onClick={handleAcceptInvite}
+                            className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-600 shadow-sm transition hover:bg-violet-50"
+                          >
+                            Accept & Join
+                          </button>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+                    
+                    {/* Decorative circles */}
+                    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+                    <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -330,5 +365,13 @@ export default function StoryActivityPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StoryActivityPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <StoryActivityContent />
+    </Suspense>
   );
 }

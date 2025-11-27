@@ -1,14 +1,25 @@
-export type NearbyUser = {
-  user_id: string;
-  display_name: string;
-  handle: string;
-  avatar_url?: string | null;
-  major?: string | null;
-  distance_m?: number | null;
-  is_friend?: boolean;
+export type GalleryImage = {
+  key: string;
+  url: string;
+  uploaded_at?: string | null;
 };
 
-export type NearbyDiff = {
+export type NearbyUser = {
+ user_id: string;
+ display_name: string;
+ handle: string;
+ avatar_url?: string | null;
+ major?: string | null;
+ bio?: string | null;
+ graduation_year?: number | null;
+ distance_m?: number | null;
+ is_friend?: boolean;
+  campus_id?: string | null;
+  interests?: string[];
+  gallery?: GalleryImage[];
+  passions?: string[];
+  courses?: string[];
+};export type NearbyDiff = {
   radius_m: number;
   added: NearbyUser[];
   removed: string[];

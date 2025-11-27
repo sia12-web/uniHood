@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
+import uuid
 
 import asyncpg
 import ulid
@@ -142,7 +143,7 @@ class RoomRepository:
 	) -> models.Room:
 		now = datetime.now(timezone.utc)
 		room = models.Room(
-			id=str(ulid.new()),
+			id=str(uuid.uuid4()),
 			campus_id=campus_id,
 			owner_id=owner_id,
 			name=name,

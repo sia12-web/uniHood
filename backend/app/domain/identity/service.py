@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 import asyncpg
 from argon2 import PasswordHasher, exceptions as argon_exc
 
-from app.domain.identity import models, policy, recovery, schemas, sessions, twofa
+from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer
 from app.infra.postgres import get_pool
 from app.settings import settings
 from app.obs import metrics as obs_metrics
@@ -95,6 +95,7 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 	password_hash = _hash_password(payload.password)
 
 	await policy.reserve_handle(handle, str(uuid4()))
+	token = ""
 	try:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
@@ -153,12 +154,19 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 						password_hash,
 					)
 
-				await _upsert_verification(conn, user_id)
+				if settings.is_dev():
+					await conn.execute("UPDATE users SET email_verified = TRUE WHERE id = $1", str(user_id))
+
+				token = await _upsert_verification(conn, user_id)
 	finally:
 		await policy.release_handle(handle)
 
 	obs_metrics.inc_identity_register()
-	# Email dispatch is out-of-band; token returned for tests/debug only
+	
+	# Send verification email
+	if not settings.is_dev():
+		await mailer.send_email_verification(email, token, user_id=str(user_id))
+		
 	return schemas.RegisterResponse(user_id=user_id, email=email)
 
 
@@ -199,8 +207,9 @@ async def resend_verification(payload: schemas.ResendRequest) -> None:
 			return None
 		if existing["email_verified"]:
 			return None
-		await _upsert_verification(conn, UUID(str(existing["id"])))
-
+		token = await _upsert_verification(conn, UUID(str(existing["id"])))
+		
+	await mailer.send_email_verification(email, token, user_id=str(existing["id"]))
 	obs_metrics.inc_identity_resend()
 	return None
 

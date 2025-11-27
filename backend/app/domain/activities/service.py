@@ -708,6 +708,10 @@ class ActivitiesService:
 				"next_turn": 1,
 				"next_user": user_a,
 				"seed": prompts.pick_story_seed(),
+				"ready": {
+					user_a: False,
+					user_b: False,
+				},
 			}
 		elif kind == "trivia":
 			questions = opts.trivia.questions if opts.trivia and opts.trivia.questions else 5
@@ -783,10 +787,17 @@ class ActivitiesService:
 		turns = int(story_meta.get("turns", 6))
 		turn_seconds = int(story_meta.get("turn_seconds", 60))
 		
-		# Pick a romance scenario
-		scenario = prompts.pick_romance_scenario()
-		activity.meta.setdefault("story", {})["scenario"] = scenario
-		activity.meta["story"]["roles"] = {}  # user_id -> "boy" | "girl"
+		# Preserve previously chosen roles and only generate a scenario if one is missing.
+		roles = story_meta.get("roles") or {}
+		ready_map = story_meta.get("ready") or {
+			activity.user_a: False,
+			activity.user_b: False,
+		}
+		scenario = story_meta.get("scenario") or prompts.pick_romance_scenario()
+		activity.meta.setdefault("story", {})
+		activity.meta["story"]["scenario"] = scenario
+		activity.meta["story"]["roles"] = roles  # user_id -> "boy" | "girl"
+		activity.meta["story"]["ready"] = ready_map
 
 		now = _now()
 		rounds: List[models.ActivityRound] = []
@@ -1321,14 +1332,47 @@ class ActivitiesService:
 			"next_user": next_user,
 		}
 
+	async def set_story_ready(self, auth_user: AuthenticatedUser, activity_id: str, ready: bool) -> schemas.ActivityDetail:
+		activity = await self._require_activity(activity_id)
+		self._ensure_participant(activity, auth_user.id)
+		story_meta = activity.meta.setdefault("story", {})
+		ready_map = story_meta.setdefault(
+			"ready",
+			{
+				activity.user_a: False,
+				activity.user_b: False,
+			},
+		)
+		roles = story_meta.setdefault("roles", {})
+		ready_map[auth_user.id] = ready
+		if not ready and roles.get(auth_user.id):
+			# Free the role if the player un-readies so the flow always goes Ready -> Role
+			roles.pop(auth_user.id, None)
+		await self._persist(activity)
+		summary = _activity_summary(activity)
+		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
+		return await self.get_activity(auth_user, activity_id)
+
 	async def assign_story_role(self, auth_user: AuthenticatedUser, activity_id: str, role: str) -> schemas.ActivityDetail:
 		activity = await self._require_activity(activity_id)
 		self._ensure_participant(activity, auth_user.id)
-		
 		if role not in ("boy", "girl"):
 			raise policy.ActivityPolicyError("invalid_role")
-			
-		roles = activity.meta.setdefault("story", {}).setdefault("roles", {})
+
+		story_meta = activity.meta.setdefault("story", {})
+		ready_map = story_meta.setdefault(
+			"ready",
+			{
+				activity.user_a: False,
+				activity.user_b: False,
+			},
+		)
+		if not ready_map.get(auth_user.id):
+			raise policy.ActivityPolicyError("not_ready")
+		if not all(ready_map.get(uid, False) for uid in (activity.user_a, activity.user_b)):
+			raise policy.ActivityPolicyError("waiting_for_partner")
+
+		roles = story_meta.setdefault("roles", {})
 		
 		# Check if role is taken by the OTHER user
 		for uid, r in roles.items():
@@ -1337,11 +1381,17 @@ class ActivitiesService:
 		
 		roles[auth_user.id] = role
 		await self._persist(activity)
-		
+
+		# If both roles are filled and the match hasn't started, auto-start the story.
+		all_roles = set(roles.values())
+		if activity.state == "lobby" and {"boy", "girl"}.issubset(all_roles):
+			await self.start_activity(auth_user, activity_id)
+			return await self.get_activity(auth_user, activity_id)
+
 		# Emit update so clients see the role assignment
 		summary = _activity_summary(activity)
 		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
-		
+
 		return await self.get_activity(auth_user, activity_id)
 
 	async def submit_story_turn(self, auth_user: AuthenticatedUser, activity_id: str, content: str) -> schemas.ActivityDetail:

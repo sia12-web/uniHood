@@ -166,6 +166,94 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     return raw ? (JSON.parse(raw) as SessionState) : null;
   }
 
+  async function rebuildLobbyState(sessionId: string): Promise<SessionState | null> {
+    const session = await prisma.activitySession.findUnique({
+      where: { id: sessionId },
+      include: {
+        activity: { select: { key: true, configJson: true } },
+        participants: { select: { userId: true }, orderBy: { joinedAt: "asc" } },
+      },
+    });
+    if (!session || session.activity.key !== "speed_typing" || session.status === "ended") {
+      return null;
+    }
+    const participants = session.participants.map((p) => p.userId);
+    if (participants.length === 0) {
+      return null;
+    }
+    const metadata = session.metadataJson as { creatorUserId?: string } | null;
+    const creatorUserId = metadata?.creatorUserId ?? participants[0];
+    const cfg = defaultSpeedTypingConfig();
+    const presence = Object.fromEntries(
+      participants.map((userId) => [userId, { joined: userId === creatorUserId, ready: false, lastSeen: Date.now() }]),
+    );
+    const state: SessionState = {
+      phase: "lobby",
+      currentRound: -1,
+      cfg,
+      submissions: {},
+      participants,
+      creatorUserId,
+      totalRounds: cfg.rounds,
+      skewMsEstimate: {},
+      keystrokes: {},
+      incidents: {},
+      roundDeadlines: {},
+      presence,
+      lobbyReady: false,
+      countdown: undefined,
+      lastActivityMs: Date.now(),
+    };
+    await saveState(sessionId, state);
+    return state;
+  }
+
+  async function resumeTimersIfNeeded(sessionId: string, state: SessionState): Promise<SessionState> {
+    if (state.phase === "countdown" && state.countdown) {
+      const remainingMs = state.countdown.endsAt - Date.now();
+      if (remainingMs <= 0) {
+        if (state.lobbyReady && everyoneReady(state)) {
+          await beginFirstRound(sessionId, state);
+          return (await loadState(sessionId)) ?? state;
+        }
+        await cancelCountdown(sessionId, state, "countdown_stale");
+        return (await loadState(sessionId)) ?? state;
+      }
+      if (!timerHandles.has(sessionId)) {
+        scheduleTimer(sessionId, -1, remainingMs);
+      }
+      return state;
+    }
+
+    if (state.phase === "running" && state.currentRound >= 0) {
+      const deadline = state.roundDeadlines[state.currentRound];
+      if (deadline) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) {
+          await endRound(sessionId, state.currentRound, state);
+          return (await loadState(sessionId)) ?? state;
+        }
+        if (!timerHandles.has(sessionId)) {
+          scheduleTimer(sessionId, state.currentRound, remainingMs);
+        }
+        scheduleInactivity(sessionId);
+      }
+    }
+    return state;
+  }
+
+  async function loadOrRebuildState(sessionId: string): Promise<SessionState | null> {
+    const state = await loadState(sessionId);
+    if (state) {
+      return resumeTimersIfNeeded(sessionId, state);
+    }
+    const rebuilt = await rebuildLobbyState(sessionId);
+    if (!rebuilt) {
+      return null;
+    }
+    return resumeTimersIfNeeded(sessionId, rebuilt);
+  }
+
   async function saveState(sessionId: string, state: SessionState): Promise<void> {
     await redis.set(SESSION_STATE_KEY(sessionId), JSON.stringify(state));
   }
@@ -211,7 +299,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
     }> = [];
 
     for (const session of sessions) {
-      const state = await loadState(session.id);
+      const state = await loadOrRebuildState(session.id);
       const fallbackPresence = Object.fromEntries(
         session.participants.map((participant) => [participant.userId, { joined: false, ready: false, lastSeen: 0 } as LobbyPresence]),
       );
@@ -551,7 +639,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
   }
 
   async function joinSession(params: { sessionId: string; userId: string }): Promise<void> {
-    const state = await loadState(params.sessionId);
+    const state = await loadOrRebuildState(params.sessionId);
     assertState(state, params.sessionId);
     if (!state.participants.includes(params.userId)) {
       throw new Error("participant_not_in_session");
@@ -569,7 +657,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
   }
 
   async function leaveSession(params: { sessionId: string; userId: string }): Promise<void> {
-    const state = await loadState(params.sessionId);
+    const state = await loadOrRebuildState(params.sessionId);
     assertState(state, params.sessionId);
     if (!state.participants.includes(params.userId)) {
       return;
@@ -587,7 +675,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
   }
 
   async function setReady(params: { sessionId: string; userId: string; ready: boolean }): Promise<void> {
-    const state = await loadState(params.sessionId);
+    const state = await loadOrRebuildState(params.sessionId);
     assertState(state, params.sessionId);
     if (!state.participants.includes(params.userId)) {
       throw new Error("participant_not_in_session");
@@ -630,7 +718,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       throw new Error("forbidden");
     }
 
-    const state = await loadState(params.sessionId);
+    const state = await loadOrRebuildState(params.sessionId);
     assertState(state, params.sessionId);
     if (state.phase !== "lobby" && state.phase !== "countdown") {
       throw new Error("session_not_in_lobby");
@@ -875,7 +963,7 @@ export function createSpeedTypingService(deps: Dependencies): SpeedTypingService
       throw new Error("session_not_found");
     }
 
-    const state = await loadState(sessionId);
+    const state = await loadOrRebuildState(sessionId);
 
     return {
       id: sessionId,

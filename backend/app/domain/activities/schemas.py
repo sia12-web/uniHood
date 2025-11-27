@@ -133,6 +133,10 @@ class AssignRoleRequest(BaseModel):
 	role: Literal["boy", "girl"]
 
 
+class StoryReadyRequest(BaseModel):
+	ready: bool
+
+
 class SubmitStoryTurnRequest(BaseModel):
 	content: str = Field(..., min_length=1, max_length=1000)
 

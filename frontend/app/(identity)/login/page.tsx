@@ -99,19 +99,19 @@ export default function LoginPage() {
   };
 
   return (
-		<main className="min-h-screen w-full bg-white">
-			<div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
-				<section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start">
-					<div className="relative flex flex-col">
-						<BrandLogo
-							withWordmark
-							logoWidth={380}
-							logoHeight={380}
-							className="w-full max-w-5xl justify-center text-8xl font-semibold text-[#b7222d] lg:justify-start"
-							logoClassName="h-80 w-auto mix-blend-multiply drop-shadow-[0_15px_60px_rgba(183,34,45,0.25)]"
-						/>
-					</div>
-				</section>
+    <main className="min-h-screen w-full bg-white">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
+        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start">
+			<div className="relative flex flex-col">
+				<BrandLogo
+					withWordmark
+					logoWidth={520}
+					logoHeight={520}
+					className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
+					logoClassName="h-96 w-auto"
+				/>
+			</div>
+		</section>
 
         <section className="flex flex-1">
           <div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">

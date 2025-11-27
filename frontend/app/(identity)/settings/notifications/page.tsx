@@ -56,7 +56,7 @@ export default function NotificationSettingsPage() {
 			<header className="flex flex-col gap-2">
 				<h1 className="text-3xl font-semibold text-slate-900">Notification Settings</h1>
 				<p className="text-sm text-slate-600">
-					Decide which alerts Divan should send for invites, friends, chat, rooms, and activities.
+					Decide which alerts Campus should send for invites, friends, chat, rooms, and activities.
 				</p>
 			</header>
 			{loading ? <p className="text-sm text-slate-500">Loading notification preferences…</p> : null}

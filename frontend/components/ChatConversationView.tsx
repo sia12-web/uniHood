@@ -228,10 +228,14 @@ export default function ChatConversationView({ peerId }: Props) {
       };
       addMessages([optimisticMessage]);
       try {
-        const response = await fetch(`${API_BASE_URL}/chat/conversations/${validPeer}/messages`, {
+        const response = await fetch(`${API_BASE_URL}/chat/messages`, {
           method: "POST",
           headers: buildAuthHeaders({ json: true }),
-          body: JSON.stringify({ body }),
+          body: JSON.stringify({
+            to_user_id: validPeer,
+            body,
+            client_msg_id: clientMsgId,
+          }),
         });
         if (!response.ok) {
           throw new Error(`Failed to send message (${response.status})`);

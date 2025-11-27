@@ -5,7 +5,7 @@ import Script from "next/script";
 import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
-  title: "Divan Proximity",
+  title: "DIvan",
   description: "Phase 1 proximity core UI",
 };
 
@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
         <Script id="boot-flags" strategy="beforeInteractive">
           {`
             (function() {

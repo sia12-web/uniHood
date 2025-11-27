@@ -252,13 +252,17 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       base = { ...(identity as Record<string, unknown>) };
     }
     const ticket = await fetchRealtimeTicket();
+    if (ticket && token) {
+      return { ...base, ticket, token };
+    }
     if (ticket) {
       return { ...base, ticket };
     }
     if (token) {
       return { ...base, token };
     }
-    return base;
+    // If we cannot authenticate, surface a failure so the caller can avoid looping unauthenticated connects.
+    throw new Error("socket_auth_missing");
   }
 
   function hasIdentityChanged(next: Identity): boolean {
@@ -357,8 +361,14 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       instance.auth = auth;
       updateStatus(isReconnect ? "reconnecting" : "connecting");
       instance.connect();
-    } catch {
+    } catch (err) {
       connecting = false;
+      // If we cannot build auth (no token/ticket), move to disconnected to avoid noisy unauthorized loops.
+      if ((err as Error | undefined)?.message === "socket_auth_missing") {
+        shouldReconnect = false;
+        updateStatus("disconnected");
+        return;
+      }
       scheduleReconnect();
     }
   }
@@ -394,6 +404,10 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
   }
 
   function connect(nextIdentity: Identity): Socket | null {
+    // Require a valid identity to avoid unauthorized connections.
+    if (!nextIdentity) {
+      return null;
+    }
     const instance = ensureSocket();
     if (!instance) {
       return null;

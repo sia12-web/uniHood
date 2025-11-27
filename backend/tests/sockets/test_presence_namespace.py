@@ -53,6 +53,30 @@ async def test_connect_emits_ok_and_snapshot(fake_redis):
 
 
 @pytest.mark.asyncio
+async def test_connect_falls_back_to_token_when_ticket_missing(fake_redis):
+	server = socketio.AsyncServer(async_mode="asgi")
+	namespace = PresenceNamespace()
+	server.register_namespace(namespace)
+
+	token = "uid:user-1;campus:campus-1;sid:session-1"
+	auth_payload = {"ticket": "missing", "token": token}
+
+	await namespace.trigger_event("connect", "sid-1", {"asgi.scope": {"headers": []}}, auth_payload)
+
+	assert namespace.users["sid-1"]["user_id"] == "user-1"
+
+
+@pytest.mark.asyncio
+async def test_connect_rejects_when_ticket_missing_and_no_token(fake_redis):
+	server = socketio.AsyncServer(async_mode="asgi")
+	namespace = PresenceNamespace()
+	server.register_namespace(namespace)
+
+	with pytest.raises(ConnectionRefusedError):
+		await namespace.trigger_event("connect", "sid-1", {"asgi.scope": {"headers": []}}, {"ticket": "missing"})
+
+
+@pytest.mark.asyncio
 async def test_presence_go_live_writes_presence(fake_redis):
 	server = socketio.AsyncServer(async_mode="asgi")
 	namespace = PresenceNamespace()

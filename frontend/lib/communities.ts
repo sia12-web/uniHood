@@ -526,7 +526,7 @@ export async function downloadEventIcs(eventId: string): Promise<Blob> {
     const content = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Divan//Communities//EN",
+      "PRODID:-//Campus//Communities//EN",
       "BEGIN:VEVENT",
       `UID:${eventId}@divan.stub`,
       `DTSTAMP:${NOW.replace(/[-:]/g, "").split(".")[0]}Z`,

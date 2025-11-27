@@ -15,6 +15,21 @@ export const createSessionDto = z.object({
 
 export type CreateSessionDto = z.infer<typeof createSessionDto>;
 
+export const createStorySessionDto = z.object({
+  activityKey: z.literal("story_builder"),
+  creatorUserId: z.string().min(1),
+  participants: uniqueParticipantsConstraint,
+  config: z
+    .object({
+      turns: z.number().int().min(2).max(12).optional(),
+      turnSeconds: z.number().int().min(10).max(120).optional(),
+      countdownMs: z.number().int().min(3000).max(30000).optional(),
+    })
+    .optional(),
+});
+
+export type CreateStorySessionDto = z.infer<typeof createStorySessionDto>;
+
 // QuickTrivia specific create session DTO
 export const createQuickTriviaSessionDto = z.object({
   activityKey: z.literal("quick_trivia"),
@@ -138,6 +153,51 @@ export const sessionView = z.object({
 });
 
 export type SessionView = z.infer<typeof sessionView>;
+
+export const storyParticipantView = z.object({
+  userId: z.string(),
+  ready: z.boolean(),
+  joined: z.boolean(),
+  role: z.enum(["boy", "girl"]).optional(),
+});
+
+export const storyCountdownView = z.object({
+  startedAt: z.number().int().nonnegative(),
+  durationMs: z.number().int().positive(),
+  endsAt: z.number().int().positive(),
+});
+
+export const storySessionView = z.object({
+  sessionId: z.string(),
+  status: z.enum(["pending", "running", "ended"]),
+  phase: z.enum(["lobby", "ready_check", "role_selection", "countdown", "running", "completed"]),
+  activityKey: z.literal("story_builder"),
+  participants: z.array(storyParticipantView),
+  creatorUserId: z.string(),
+  countdown: storyCountdownView.nullable().optional(),
+  meta: z.object({
+    roles: z.object({ boy: z.string().optional(), girl: z.string().optional() }),
+    scenario: z.string().nullable(),
+    lines: z.array(
+      z.object({
+        userId: z.string(),
+        content: z.string(),
+        roundIdx: z.number().int(),
+        score: z.number().int().optional(),
+      }),
+    ),
+    currentRound: z.number().int().nonnegative(),
+    turnDeadline: z.number().int().nullable(),
+    winner: z.enum(["boy", "girl", "tie"]).optional(),
+    config: z.object({
+      turns: z.number().int().min(1),
+      turnSeconds: z.number().int().positive(),
+    }),
+  }),
+});
+
+export type StorySessionView = z.infer<typeof storySessionView>;
+export type StoryParticipantView = z.infer<typeof storyParticipantView>;
 
 export const roundView = z.object({
   index: z.number().int().nonnegative(),

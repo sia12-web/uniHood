@@ -63,7 +63,7 @@ function createOfflineProfile(userId: string, campusId: string | null): ProfileR
 		email: "",
 		email_verified: false,
 		handle: "",
-		display_name: "New to Divan",
+		display_name: "New to Campus",
 		bio: "",
 		avatar_url: null,
 		avatar_key: null,
@@ -168,7 +168,9 @@ function applyProfilePatch(base: ProfileRecord, patch: ProfilePatchPayload): Pro
 		display_name: patch.display_name ?? base.display_name,
 		handle: patch.handle ?? base.handle,
 		passions: patch.passions ?? base.passions ?? [],
-		courses: base.courses ?? [],
+		courses: patch.courses
+			? patch.courses.map((code) => ({ name: code, code: code }))
+			: base.courses ?? [],
 	};
 
 	if (patch.privacy) {
@@ -218,7 +220,7 @@ function buildMissingTasks(profile: ProfileRecord): string[] {
 	const statusText = (profile.status?.text ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
 	if (!handle) {
-		tasks.push("Claim your Divan handle so classmates can @mention you.");
+		tasks.push("Claim your Campus handle so classmates can @mention you.");
 	}
 	if (!bio) {
 		tasks.push("Write a short bio that spotlights what you want to work on.");
@@ -452,6 +454,12 @@ export default function ProfileSettingsPage() {
 			throw new Error("Sign in to update your profile.");
 		}
 		const updated = await patchProfile(authUser.userId, authUser.campusId ?? null, patch);
+		
+		if (patch.courses) {
+			const newCourses = await saveProfileCourses(authUser.userId, authUser.campusId ?? null, patch.courses);
+			updated.courses = newCourses;
+		}
+
 		const merged = mergeCourses(profile, updated);
 		setProfile(merged);
 		setDraftProfile(null);
@@ -523,7 +531,7 @@ export default function ProfileSettingsPage() {
 		async (file: File) => {
 			if (!authUser || isDraftMode) {
 				const message = isDraftMode
-					? "Reconnect to Divan to sync your gallery."
+					? "Reconnect to Campus to sync your gallery."
 					: "Sign in to manage your gallery.";
 				setGalleryError(message);
 				throw new Error(message);
@@ -554,7 +562,7 @@ export default function ProfileSettingsPage() {
 		async (key: string) => {
 			if (!authUser || isDraftMode) {
 				const message = isDraftMode
-					? "Reconnect to Divan to sync your gallery."
+					? "Reconnect to Campus to sync your gallery."
 					: "Sign in to manage your gallery.";
 				setGalleryError(message);
 				throw new Error(message);
@@ -723,7 +731,7 @@ export default function ProfileSettingsPage() {
 	const handleRequestDeletion = useCallback(async () => {
 		if (!profile || isDraftMode || deleteLoading || !authUser) {
 			if (isDraftMode) {
-				setDeleteNotice("Account deletion is available after you create and verify your Divan account.");
+				setDeleteNotice("Account deletion is available after you create and verify your Campus account.");
 			}
 			if (!authUser) {
 				setDeleteNotice("Sign in to request account deletion.");
@@ -761,9 +769,9 @@ export default function ProfileSettingsPage() {
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-12">
 				<header className="flex flex-col gap-2">
 					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Profile settings</p>
-					<h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Shape your Divan identity</h1>
+					<h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Shape your Campus identity</h1>
 					<p className="text-sm text-slate-600 sm:text-base">
-						Manage how classmates discover you across Divan. Updates apply instantly to invites, rooms, and the Social Hub.
+						Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
 					</p>
 				</header>
 				{!isDraftMode && error ? (

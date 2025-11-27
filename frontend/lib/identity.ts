@@ -52,6 +52,7 @@ export type ProfilePatchPayload = {
 	major?: string | null;
 	graduation_year?: number | null;
 	passions?: string[];
+	courses?: string[];
 };
 
 export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;
@@ -179,11 +180,21 @@ export async function removeGalleryImage(
 export async function saveProfileCourses(
 	userId: string,
 	campusId: string | null,
-	courses: ProfileCourseInput[],
+	codes: string[],
+	visibility: "everyone" | "friends" | "none" = "everyone",
 ): Promise<ProfileCourse[]> {
-	return request<ProfileCourse[]>("/settings/courses", {
-		method: "PUT",
-		body: { courses },
+	return request<ProfileCourse[]>("/user/courses", {
+		method: "POST",
+		body: { codes, visibility },
 		headers: authHeaders(userId, campusId),
 	});
+}
+
+export type Course = {
+	code: string;
+	name?: string;
+};
+
+export async function fetchPopularCourses(campusId: string): Promise<Course[]> {
+	return request<Course[]>(`/universities/${campusId}/popular-courses`);
 }

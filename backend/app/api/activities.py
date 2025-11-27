@@ -171,6 +171,18 @@ async def assign_story_role_endpoint(
 		raise _as_http_error(exc) from exc
 
 
+@router.post("/{activity_id}/story/ready", response_model=schemas.ActivityDetail)
+async def set_story_ready_endpoint(
+	activity_id: str,
+	payload: schemas.StoryReadyRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ActivityDetail:
+	try:
+		return await _service.set_story_ready(auth_user, activity_id, payload.ready)
+	except Exception as exc:
+		raise _as_http_error(exc) from exc
+
+
 @router.post("/{activity_id}/story/turn", response_model=schemas.ActivityDetail)
 async def submit_story_turn_endpoint(
 	activity_id: str,

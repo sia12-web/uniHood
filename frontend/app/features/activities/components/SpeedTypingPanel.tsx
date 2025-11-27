@@ -118,6 +118,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
   const countdownSeconds = countdown?.seconds ?? null;
   const countdownActive = state.phase === "countdown" && countdownSeconds !== null;
   const lobbyArmed = Boolean(state.lobby?.ready);
+  const isConnecting = state.phase === "connecting" || state.phase === "idle";
 
   const participantCards = useMemo(() => {
     type Entry = { userId: string; score?: number; displayName?: string | null; handle?: string | null };
@@ -301,7 +302,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
             ref={textAreaRef}
             value={typedText}
             id="typing-box"
-            placeholder="Type here..."
+            placeholder="Start typing..."
             className="h-40 w-full resize-none rounded-2xl border-2 border-indigo-100 bg-indigo-50/30 p-6 font-mono text-lg leading-relaxed text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
             onCompositionStart={() => { composingRef.current = true; }}
             onCompositionEnd={() => { composingRef.current = false; }}
@@ -409,7 +410,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
       
       {winnerEntry ? (
         <div className="mt-2 text-lg text-slate-600">
-          <span className="font-bold text-emerald-600">{winnerLabel ?? resolveDisplayName(winnerEntry.userId, winnerEntry)}</span> won the match!
+          <span className="font-bold text-emerald-600">{resolveDisplayName(winnerEntry.userId, winnerEntry)}</span> won the match!
         </div>
       ) : (
         <div className="mt-2 text-lg text-slate-600">It was a draw!</div>
@@ -450,12 +451,19 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
           <div className={`flex h-2.5 w-2.5 rounded-full ${
             state.phase === "running" ? "animate-pulse bg-rose-500" : 
             state.phase === "countdown" ? "bg-amber-500" :
-            state.phase === "ended" ? "bg-emerald-500" : "bg-slate-300"
+            state.phase === "ended" ? "bg-emerald-500" :
+            isConnecting ? "animate-pulse bg-slate-400" : "bg-slate-300"
           }`} />
           <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
-            {state.phase === "countdown" ? "Starting..." : 
-             state.phase === "running" ? "Duel in Progress" : 
-             state.phase === "ended" ? "Final Results" : "Lobby"}
+            {isConnecting
+              ? "Connecting..."
+              : state.phase === "countdown"
+                ? "Starting..."
+                : state.phase === "running"
+                  ? "Duel in Progress"
+                  : state.phase === "ended"
+                    ? "Final Results"
+                    : "Lobby"}
           </span>
         </div>
         
@@ -474,6 +482,14 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
             <AlertCircle className="mb-4 h-12 w-12 opacity-20" />
             <p className="font-medium">Connection Error</p>
             <p className="text-sm opacity-80">{state.error ?? "Unknown error occurred"}</p>
+          </div>
+        ) : isConnecting ? (
+          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <Timer className="h-5 w-5" />
+            </div>
+            <p className="text-base font-semibold text-slate-700">Connecting to session...</p>
+            <p className="text-sm text-slate-500">Hang tight while we sync your duel lobby.</p>
           </div>
         ) : countdownActive ? (
           renderCountdown()

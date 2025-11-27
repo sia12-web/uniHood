@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Iterable, Tuple
+from typing import Any, Optional, Iterable, Tuple
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,11 +38,12 @@ def _env_field(default, *env_names: str):
 
 class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
-    postgres_url: str = "postgresql://postgres:postgres@localhost:5432/divan"
-    secret_key: str = "dev"
-    campus_ttl_seconds: int = 90
+    postgres_url: str = _env_field("postgresql://postgres:postgres@127.0.0.1:5432/divan", "POSTGRES_URL", "DATABASE_URL")
+    postgres_ssl: bool = _env_field(False, "POSTGRES_SSL")
+    secret_key: str = _env_field(..., "SECRET_KEY")
+    campus_ttl_seconds: int = 3600
     # Presence entries older than this are considered stale and ignored by Nearby
-    presence_stale_seconds: int = 20
+    presence_stale_seconds: int = 3600
     # Keepalive loop interval and idle timeout for "go live" sessions
     presence_keepalive_interval_seconds: float = 15.0
     presence_keepalive_idle_seconds: float = 240.0
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
     webauthn_rp_name: str = _env_field("Divan", "WEBAUTHN_RP_NAME")
     webauthn_origin: str = _env_field("http://localhost:3000", "WEBAUTHN_ORIGIN")
 
-    environment: str = _env_field("dev", "ENV", "APP_ENV", "ENVIRONMENT")
+    environment: str = _env_field("production", "ENV", "APP_ENV", "ENVIRONMENT")
     obs_enabled: bool = _env_field(True, "OBS_ENABLED")
     obs_metrics_public: bool = _env_field(False, "OBS_METRICS_PUBLIC")
     obs_tracing_enabled: bool = _env_field(False, "OBS_TRACING_ENABLED")
@@ -70,7 +71,7 @@ class Settings(BaseSettings):
     oauth_redirect_base: Optional[str] = _env_field(None, "OAUTH_REDIRECT_BASE")
     communities_workers_enabled: bool = _env_field(False, "COMMUNITIES_WORKERS_ENABLED")
     moderation_workers_enabled: bool = _env_field(False, "MODERATION_WORKERS_ENABLED")
-    moderation_staff_ids: tuple[str, ...] = _env_field((), "MODERATION_STAFF_IDS")
+    moderation_staff_ids: Any = _env_field((), "MODERATION_STAFF_IDS")
     idempotency_required: bool = _env_field(True, "IDEMPOTENCY_REQUIRED")
     idempotency_ttl_seconds: int = _env_field(86400, "IDEMPOTENCY_TTL_SECONDS")
 
@@ -78,15 +79,24 @@ class Settings(BaseSettings):
     intent_signing_required: bool = _env_field(True, "INTENT_SIGNING_REQUIRED")
     intent_allowed_skew_seconds: int = _env_field(60, "INTENT_ALLOWED_SKEW_SECONDS")
     intent_nonce_ttl_seconds: int = _env_field(600, "INTENT_NONCE_TTL_SECONDS")
-    service_signing_key: str = _env_field("dev-change-me", "SERVICE_SIGNING_KEY")
+    service_signing_key: str = _env_field(..., "SERVICE_SIGNING_KEY")
 
     # Security/cross-origin and auth cookie knobs
-    cors_allow_origins: tuple[str, ...] = _env_field(("*",), "CORS_ALLOW_ORIGINS")
+    cors_allow_origins: Any = _env_field((), "CORS_ALLOW_ORIGINS")
     access_ttl_minutes: int = _env_field(15, "ACCESS_TTL_MINUTES")
     refresh_ttl_days: int = _env_field(30, "REFRESH_TTL_DAYS")
+    refresh_pepper: str = _env_field(..., "REFRESH_PEPPER")
     cookie_secure: bool = _env_field(False, "COOKIE_SECURE")
     cookie_samesite: str = _env_field("strict", "COOKIE_SAMESITE")
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
+
+    # Email Settings
+    smtp_host: str = _env_field("localhost", "SMTP_HOST")
+    smtp_port: int = _env_field(1025, "SMTP_PORT")
+    smtp_user: Optional[str] = _env_field(None, "SMTP_USER")
+    smtp_password: Optional[str] = _env_field(None, "SMTP_PASSWORD")
+    smtp_from_email: str = _env_field("noreply@example.com", "SMTP_FROM_EMAIL")
+    smtp_tls: bool = _env_field(False, "SMTP_TLS")
 
     # Environment helpers
     def is_prod(self) -> bool:
@@ -104,12 +114,37 @@ class Settings(BaseSettings):
         )
         @field_validator("moderation_staff_ids", mode="before")
         def _split_staff_ids(cls, value):  # type: ignore[override]
+            """Normalise env/JSON formats for moderation_staff_ids.
+
+            Supports:
+            - empty / missing -> ()
+            - comma-separated string -> tuple of IDs
+            - JSON string (e.g. '["id1","id2"]') -> tuple of IDs
+            - list / tuple / set -> tuple of IDs
+            Any parsing error falls back to empty tuple instead of crashing.
+            """
             if value in (None, ""):
                 return ()
-            if isinstance(value, str):
-                return tuple(part.strip() for part in value.split(",") if part.strip())
+            # If pydantic-settings already decoded JSON into a Python list/tuple/set
             if isinstance(value, (list, tuple, set)):
                 return tuple(str(item).strip() for item in value if str(item).strip())
+            if isinstance(value, str):
+                text = value.strip()
+                if not text:
+                    return ()
+                # Try JSON first
+                if text.startswith("[") or text.startswith("{"):
+                    import json
+
+                    try:
+                        data = json.loads(text)
+                        if isinstance(data, (list, tuple, set)):
+                            return tuple(str(item).strip() for item in data if str(item).strip())
+                    except Exception:
+                        # Fall back to comma-separated parsing below
+                        pass
+                # Fallback: comma-separated string
+                return tuple(part.strip() for part in text.split(",") if part.strip())
             return ()
         @field_validator("cors_allow_origins", mode="before")
         def _split_cors(cls, value):  # type: ignore[override]

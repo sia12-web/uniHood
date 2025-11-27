@@ -507,23 +507,42 @@ export interface RockPaperScissorsLobbySummary {
   expiresAt?: number;
 }
 
+export interface StoryBuilderLobbySummary {
+  id: string;
+  activityKey: 'story_builder';
+  status: 'pending' | 'running' | 'ended';
+  phase: 'lobby' | 'ready_check' | 'role_selection' | 'countdown' | 'running' | 'completed';
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; ready: boolean; joined: boolean; role?: 'boy' | 'girl' }>;
+  countdown?: { startedAt: number; durationMs: number; endsAt: number } | null;
+}
+
 export async function listSpeedTypingSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<SpeedTypingLobbySummary[]> {
   const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
-  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary> }>(`/activities/sessions${query}`);
   return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'speed_typing') as SpeedTypingLobbySummary[] : [];
 }
 
 export async function listQuickTriviaSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<QuickTriviaLobbySummary[]> {
   const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
-  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary> }>(`/activities/sessions${query}`);
   return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'quick_trivia') as QuickTriviaLobbySummary[] : [];
 }
 
 export async function listRockPaperScissorsSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<RockPaperScissorsLobbySummary[]> {
   const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
-  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary> }>(`/activities/sessions${query}`);
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary> }>(`/activities/sessions${query}`);
   return Array.isArray(payload?.sessions)
     ? payload.sessions.filter((s) => s.activityKey === 'rock_paper_scissors') as RockPaperScissorsLobbySummary[]
+    : [];
+}
+
+export async function listStoryBuilderSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<StoryBuilderLobbySummary[]> {
+  const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary> }>(`/activities/sessions${query}`);
+  return Array.isArray(payload?.sessions)
+    ? payload.sessions.filter((s) => s.activityKey === 'story_builder') as StoryBuilderLobbySummary[]
     : [];
 }
 
@@ -625,6 +644,12 @@ export async function submitRound(): Promise<void> {
   throw new Error('submitRound is unsupported for live sessions. Use the WebSocket stream to submit rounds.');
 }
 
+export async function setStoryReady(activityId: string, ready: boolean): Promise<ActivitySummary> {
+  const headers = resolveAuthHeaders(readAuthSnapshot());
+  const response = await api.post(`/activities/${activityId}/story/ready`, { ready }, { headers });
+  return response.data as ActivitySummary;
+}
+
 export async function assignStoryRole(activityId: string, role: "boy" | "girl"): Promise<ActivitySummary> {
   const headers = resolveAuthHeaders(readAuthSnapshot());
   const response = await api.post(`/activities/${activityId}/story/roles`, { role }, { headers });
@@ -634,5 +659,11 @@ export async function assignStoryRole(activityId: string, role: "boy" | "girl"):
 export async function submitStoryTurn(activityId: string, content: string): Promise<ActivitySummary> {
   const headers = resolveAuthHeaders(readAuthSnapshot());
   const response = await api.post(`/activities/${activityId}/story/turn`, { content }, { headers });
+  return response.data;
+}
+
+export async function scoreStoryLine(activityId: string, roundIdx: number, score: number): Promise<ActivitySummary> {
+  const headers = resolveAuthHeaders(readAuthSnapshot());
+  const response = await api.post(`/activities/${activityId}/story/score`, { roundIdx, score }, { headers });
   return response.data;
 }

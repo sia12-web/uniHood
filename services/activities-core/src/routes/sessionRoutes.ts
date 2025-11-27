@@ -3,6 +3,7 @@ import {
   createSessionDto,
   createQuickTriviaSessionDto,
   createRpsSessionDto,
+  createStorySessionDto,
   joinSessionDto,
   leaveSessionDto,
   readyStateDto,
@@ -106,7 +107,7 @@ function isSessionGone(error: unknown): boolean {
 async function resolveSessionOwner(
   app: FastifyInstance,
   sessionId: string,
-): Promise<"speed_typing" | "quick_trivia" | "rock_paper_scissors" | null> {
+): Promise<"speed_typing" | "quick_trivia" | "rock_paper_scissors" | "story_builder" | null> {
   try {
     const view = (await app.deps.speedTyping.getSessionView(sessionId)) as { activityKey?: string };
     if (view?.activityKey === "speed_typing") {
@@ -135,6 +136,18 @@ async function resolveSessionOwner(
     const view = (await app.deps.rockPaperScissors.getSessionView(sessionId)) as { activityKey?: string };
     if (view?.activityKey === "rock_paper_scissors") {
       return "rock_paper_scissors";
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.startsWith("session_not_found") && !message.startsWith("session_state_missing")) {
+      throw error;
+    }
+  }
+
+  try {
+    const view = (await app.deps.storyBuilder.getSessionView(sessionId)) as { activityKey?: string };
+    if (view?.activityKey === "story_builder") {
+      return "story_builder";
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -205,7 +218,7 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       const statuses = statusFilter === "all" ? undefined : [statusFilter];
 
       try {
-        const [speedTypingSessions, quickTriviaSessions, rpsSessions] = await Promise.all([
+        const [speedTypingSessions, quickTriviaSessions, rpsSessions, storySessions] = await Promise.all([
           app.deps.speedTyping.listSessionsForUser({
             userId,
             statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
@@ -218,8 +231,12 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
             userId,
             statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
           }),
+          app.deps.storyBuilder.listSessionsForUser({
+            userId,
+            statuses: statuses as Array<"pending" | "running" | "ended"> | undefined,
+          }),
         ]);
-        const sessions = [...speedTypingSessions, ...quickTriviaSessions, ...rpsSessions];
+        const sessions = [...speedTypingSessions, ...quickTriviaSessions, ...rpsSessions, ...storySessions];
         return reply.status(200).send({ sessions });
       } catch (error) {
         return respondWithError(reply, error);
@@ -256,10 +273,13 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
       request.log.info({ activityKey, rawBody: request.body }, 'create_session_debug_received_body');
       const useQuickTrivia = activityKey === "quick_trivia";
       const useRps = activityKey === "rock_paper_scissors";
+      const useStoryBuilder = activityKey === "story_builder";
       const parseResult = useQuickTrivia
         ? createQuickTriviaSessionDto.safeParse(request.body)
         : useRps
         ? createRpsSessionDto.safeParse(request.body)
+        : useStoryBuilder
+        ? createStorySessionDto.safeParse(request.body)
         : createSessionDto.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({ error: "invalid_request", details: parseResult.error.flatten() });
@@ -279,6 +299,11 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
           });
         } else if (useRps) {
           sessionId = await app.deps.rockPaperScissors.createSession({
+            ...(dto as any),
+            creatorUserId: request.auth.userId,
+          });
+        } else if (useStoryBuilder) {
+          sessionId = await app.deps.storyBuilder.createSession({
             ...(dto as any),
             creatorUserId: request.auth.userId,
           });
@@ -338,6 +363,12 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
             byUserId: request.auth.userId,
             isAdmin: request.auth.isAdmin,
           });
+        } else if (owner === "story_builder") {
+          await app.deps.storyBuilder.startSession({
+            sessionId: request.params.id,
+            byUserId: request.auth.userId,
+            isAdmin: request.auth.isAdmin,
+          });
         } else {
           return reply.status(404).send({ error: "session_not_found" });
         }
@@ -387,6 +418,8 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
         await app.deps.quickTrivia.joinSession({ sessionId: request.params.id, userId: dto.userId });
       } else if (owner === "rock_paper_scissors") {
         await app.deps.rockPaperScissors.joinSession({ sessionId: request.params.id, userId: dto.userId });
+      } else if (owner === "story_builder") {
+        await app.deps.storyBuilder.joinSession({ sessionId: request.params.id, userId: dto.userId });
       } else {
         await app.deps.speedTyping.joinSession({ sessionId: request.params.id, userId: dto.userId });
       }
@@ -438,6 +471,8 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
         await app.deps.quickTrivia.leaveSession({ sessionId: request.params.id, userId: dto.userId });
       } else if (owner === "rock_paper_scissors") {
         await app.deps.rockPaperScissors.leaveSession({ sessionId: request.params.id, userId: dto.userId });
+      } else if (owner === "story_builder") {
+        await app.deps.storyBuilder.leaveSession({ sessionId: request.params.id, userId: dto.userId });
       } else {
         await app.deps.speedTyping.leaveSession({ sessionId: request.params.id, userId: dto.userId });
       }
@@ -492,6 +527,8 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
         await app.deps.quickTrivia.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
       } else if (owner === "rock_paper_scissors") {
         await app.deps.rockPaperScissors.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
+      } else if (owner === "story_builder") {
+        await app.deps.storyBuilder.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
       } else {
         await app.deps.speedTyping.setReady({ sessionId: request.params.id, userId: dto.userId, ready: dto.ready ?? true });
       }
@@ -514,13 +551,69 @@ export async function registerSessionRoutes(app: FastifyInstance): Promise<void>
             const viewQT = await app.deps.quickTrivia.getSessionView(request.params.id);
             return reply.status(200).send(viewQT);
           } catch {
-            const rpsView = await app.deps.rockPaperScissors.getSessionView(request.params.id);
-            return reply.status(200).send(rpsView);
+            try {
+              const rpsView = await app.deps.rockPaperScissors.getSessionView(request.params.id);
+              return reply.status(200).send(rpsView);
+            } catch {
+              const storyView = await app.deps.storyBuilder.getSessionView(request.params.id);
+              return reply.status(200).send(storyView);
+            }
           }
         }
       } catch (error) {
         return respondWithError(reply, error);
       }
     },
+  );
+
+  app.post(
+    "/activities/:sessionId/story/roles",
+    async (request: FastifyRequest<{ Params: { sessionId: string }; Body: { role: "boy" | "girl" } }>, reply: FastifyReply) => {
+      const { sessionId } = request.params;
+      const { role } = request.body;
+      const userId = request.auth?.userId;
+      if (!userId) return reply.status(401).send({ error: "unauthorized" });
+
+      try {
+        const view = await app.deps.storyBuilder.assignRole(sessionId, userId, role);
+        return reply.send(view);
+      } catch (error) {
+        return respondWithError(reply, error);
+      }
+    }
+  );
+
+  app.post(
+    "/activities/:sessionId/story/turn",
+    async (request: FastifyRequest<{ Params: { sessionId: string }; Body: { content: string } }>, reply: FastifyReply) => {
+      const { sessionId } = request.params;
+      const { content } = request.body;
+      const userId = request.auth?.userId;
+      if (!userId) return reply.status(401).send({ error: "unauthorized" });
+
+      try {
+        const view = await app.deps.storyBuilder.submitTurn(sessionId, userId, content);
+        return reply.send(view);
+      } catch (error) {
+        return respondWithError(reply, error);
+      }
+    }
+  );
+
+  app.post(
+    "/activities/:sessionId/story/score",
+    async (request: FastifyRequest<{ Params: { sessionId: string }; Body: { roundIdx: number; score: number } }>, reply: FastifyReply) => {
+      const { sessionId } = request.params;
+      const { roundIdx, score } = request.body;
+      const userId = request.auth?.userId;
+      if (!userId) return reply.status(401).send({ error: "unauthorized" });
+
+      try {
+        const view = await app.deps.storyBuilder.scoreLine(sessionId, userId, roundIdx, score);
+        return reply.send(view);
+      } catch (error) {
+        return respondWithError(reply, error);
+      }
+    }
   );
 }

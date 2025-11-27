@@ -47,9 +47,11 @@ def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
 async def register(payload: schemas.RegisterRequest, request: Request, response: Response) -> schemas.RegisterResponse:
 	ip = _client_ip(request)
 	email_key = payload.email.lower().strip() if getattr(payload, "email", None) else ip
-	if not await rate_limit.allow("register:ip", ip, limit=5, window_seconds=60):
+	limit_ip = 500 if settings.is_dev() else 5
+	if not await rate_limit.allow("register:ip", ip, limit=limit_ip, window_seconds=60):
 		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
-	if not await rate_limit.allow("register:email", email_key, limit=2, window_seconds=60):
+	limit_email = 200 if settings.is_dev() else 2
+	if not await rate_limit.allow("register:email", email_key, limit=limit_email, window_seconds=60):
 		_raise("rate_limited_email", status.HTTP_429_TOO_MANY_REQUESTS)
 	try:
 		res = await service.register(payload, ip_address=ip)
@@ -65,10 +67,14 @@ async def register(payload: schemas.RegisterRequest, request: Request, response:
 @router.post("/auth/login", response_model=schemas.LoginResponse)
 async def login(payload: schemas.LoginRequest, request: Request, response: Response) -> schemas.LoginResponse:
 	ip = _client_ip(request)
-	ident = (payload.email or payload.handle or "").lower().strip() or ip
-	if not await rate_limit.allow("login:ip", ip, limit=10, window_seconds=60):
+	# payload.email is required by schema, so we can use it directly.
+	# If handle login is added later, update schema and use getattr(payload, "handle", None).
+	ident = payload.email.lower().strip() if payload.email else ip
+	limit_ip = 1000 if settings.is_dev() else 10
+	if not await rate_limit.allow("login:ip", ip, limit=limit_ip, window_seconds=60):
 		_raise("rate_limited_ip", status.HTTP_429_TOO_MANY_REQUESTS)
-	if not await rate_limit.allow("login:id", ident, limit=5, window_seconds=60):
+	limit_id = 500 if settings.is_dev() else 5
+	if not await rate_limit.allow("login:id", ident, limit=limit_id, window_seconds=60):
 		_raise("rate_limited_id", status.HTTP_429_TOO_MANY_REQUESTS)
 	try:
 		device_label = payload.device_label or request.headers.get("X-Device-Label", "")

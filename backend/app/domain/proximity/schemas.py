@@ -48,11 +48,13 @@ class NearbyUser(BaseModel):
 	handle: str
 	avatar_url: Optional[str] = None
 	major: Optional[str] = None
+	graduation_year: Optional[int] = None
 	distance_m: Optional[int] = Field(default=None, ge=0)
 	is_friend: bool = False
 	bio: Optional[str] = None
-	graduation_year: Optional[int] = None
+	passions: list[str] = Field(default_factory=list)
 	gallery: list[GalleryImage] = Field(default_factory=list)
+	courses: list[str] = Field(default_factory=list)
 
 
 class NearbyResponse(BaseModel):

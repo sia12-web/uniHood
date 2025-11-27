@@ -62,6 +62,8 @@ def _to_profile(user: models.User) -> schemas.ProfileOut:
 		graduation_year=user.graduation_year,
 		passions=user.passions,
 		gallery=_to_gallery(user.profile_gallery),
+		lat=user.lat,
+		lon=user.lon,
 	)
 
 
@@ -209,6 +211,10 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 			seen.add(key)
 			cleaned.append(trimmed)
 		updates["passions"] = cleaned
+	if "lat" in patch_data:
+		updates["lat"] = patch_data.get("lat")
+	if "lon" in patch_data:
+		updates["lon"] = patch_data.get("lon")
 
 	policy.validate_profile_patch(updates)
 	if "handle" in updates:
@@ -240,8 +246,10 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					major = $6,
 					graduation_year = $7,
 					passions = $8::jsonb,
+					lat = $9,
+					lon = $10,
 					updated_at = NOW()
-				WHERE id = $9
+				WHERE id = $11
 				""",
 				user.handle,
 				user.handle,
@@ -251,6 +259,8 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				user.major,
 				user.graduation_year,
 				passions_payload,
+				user.lat,
+				user.lon,
 				auth_user.id,
 			)
 	profile = _to_profile(user)

@@ -281,25 +281,14 @@ class PresenceNamespace(socketio.AsyncNamespace):
 
     async def _authorise(self, environ: dict, auth: Optional[dict]) -> Dict[str, Optional[str]]:
         scope = environ.get("asgi.scope", environ)
-        auth_payload = auth or scope.get("auth") or {}
+        auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
+        ctx: Optional[Dict[str, Optional[str]]] = None
+
         ticket = auth_payload.get("ticket")
         if ticket:
-            key = f"rticket:{ticket}"
-            cached = await redis_client.get(key)
-            if not cached:
-                raise ValueError("invalid_ticket")
-            await redis_client.delete(key)
-            try:
-                parsed = json.loads(cached)
-            except json.JSONDecodeError as exc:  # pragma: no cover - defensive
-                raise ValueError("invalid_ticket") from exc
-            ctx = {
-                "user_id": str(parsed.get("user_id")),
-                "campus_id": str(parsed.get("campus_id")),
-                "session_id": str(parsed.get("session_id")),
-                "handle": parsed.get("handle"),
-            }
-        else:
+            ctx = await self._consume_ticket(str(ticket))
+
+        if ctx is None:
             token = auth_payload.get("token")
             if not token:
                 auth_header = _header(scope, "authorization")
@@ -308,13 +297,38 @@ class PresenceNamespace(socketio.AsyncNamespace):
             if not token:
                 raise ValueError("missing_token")
             ctx = parse_access_token(token)
+
         if not ctx.get("user_id") or not ctx.get("campus_id") or not ctx.get("session_id"):
             raise ValueError("missing_claims")
+
         return {
             "user_id": str(ctx["user_id"]),
             "campus_id": str(ctx["campus_id"]),
             "session_id": str(ctx["session_id"]),
             "handle": ctx.get("handle"),
+        }
+
+    async def _consume_ticket(self, ticket: str) -> Optional[Dict[str, Optional[str]]]:
+        key = f"rticket:{ticket}"
+        cached = await redis_client.get(key)
+        if not cached:
+            return None
+        await redis_client.delete(key)
+        try:
+            parsed = json.loads(cached)
+        except json.JSONDecodeError:  # pragma: no cover - defensive
+            logger.debug("presence ticket decode failed", exc_info=True)
+            return None
+        user_id = parsed.get("user_id")
+        campus_id = parsed.get("campus_id")
+        session_id = parsed.get("session_id")
+        if not user_id or campus_id is None or not session_id:
+            return None
+        return {
+            "user_id": str(user_id),
+            "campus_id": str(campus_id),
+            "session_id": str(session_id),
+            "handle": parsed.get("handle"),
         }
 
     async def _emit_resume_snapshot(self, sid: str, ctx: Dict[str, Optional[str]]) -> None:

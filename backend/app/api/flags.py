@@ -130,3 +130,20 @@ async def evaluate_flag_endpoint(
 		campus_id=campus_id or user.campus_id,
 		traits={"handle": user.handle} if user.handle else None,
 	)
+
+
+@router.get("/evaluate", response_model=dict[str, bool])
+async def evaluate_all_flags_endpoint(
+	user: AuthenticatedUser = Depends(get_current_user),
+) -> dict[str, bool]:
+	all_flags = await flags.list_flags()
+	result = {}
+	for flag in all_flags:
+		eval_result = await flags.evaluate_flag(
+			flag.key,
+			user_id=user.id,
+			campus_id=user.campus_id,
+			traits={"handle": user.handle} if user.handle else None,
+		)
+		result[flag.key] = eval_result.enabled
+	return result

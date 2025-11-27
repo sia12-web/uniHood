@@ -73,7 +73,7 @@ export default function PrivacyForm({ value, onSubmit }: Props) {
 			<section className="space-y-3">
 				<header>
 					<h2 className="text-xl font-semibold text-slate-900">Profile visibility</h2>
-					<p className="text-sm text-slate-600">Control who can find and view your profile across Divan.</p>
+					<p className="text-sm text-slate-600">Control who can find and view your profile across Campus.</p>
 				</header>
 				<div className="space-y-3">
 					{VISIBILITY_OPTIONS.map((option) => {

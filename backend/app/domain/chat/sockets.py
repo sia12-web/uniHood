@@ -10,6 +10,7 @@ import socketio
 from app.domain.proximity import live_sessions
 from app.infra.auth import AuthenticatedUser, _parse_token as parse_access_token
 from app.infra.redis import redis_client
+from app.settings import settings
 from app.obs import metrics as obs_metrics
 
 _namespace: "ChatNamespace" | None = None
@@ -69,34 +70,89 @@ class ChatNamespace(socketio.AsyncNamespace):
 		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}
 		ticket = auth_payload.get("ticket")
 		ctx: Dict[str, Optional[str]]
+
+		def _dev_fallback_context() -> Dict[str, Optional[str]]:
+			user_id = auth_payload.get("user_id") or auth_payload.get("userId")
+			campus_id = auth_payload.get("campus_id") or auth_payload.get("campusId") or "dev-campus"
+			session_id = auth_payload.get("session_id") or auth_payload.get("sessionId") or "dev-session"
+			handle = auth_payload.get("handle")
+			return {
+				"user_id": user_id,
+				"campus_id": campus_id,
+				"session_id": session_id,
+				"handle": handle,
+			}
+
 		if ticket:
 			key = f"rticket:{ticket}"
 			cached = await redis_client.get(key)
 			if not cached:
-				raise ValueError("invalid_ticket")
-			await redis_client.delete(key)
-			try:
-				parsed = json.loads(cached)
-			except json.JSONDecodeError as exc:
-				raise ValueError("invalid_ticket") from exc
-			ctx = {
-				"user_id": parsed.get("user_id"),
-				"campus_id": parsed.get("campus_id"),
-				"session_id": parsed.get("session_id"),
-				"handle": parsed.get("handle"),
-			}
+				if settings.is_dev():
+					ctx = _dev_fallback_context()
+				else:
+					raise ValueError("invalid_ticket")
+			else:
+				await redis_client.delete(key)
+				try:
+					parsed = json.loads(cached)
+				except json.JSONDecodeError as exc:
+					if settings.is_dev():
+						ctx = _dev_fallback_context()
+					else:
+						raise ValueError("invalid_ticket") from exc
+				else:
+					ctx = {
+						"user_id": parsed.get("user_id"),
+						"campus_id": parsed.get("campus_id"),
+						"session_id": parsed.get("session_id"),
+						"handle": parsed.get("handle"),
+					}
 		else:
 			token = auth_payload.get("token")
 			if not token:
 				auth_header = _header(scope, "authorization")
 				if auth_header and auth_header.lower().startswith("bearer "):
 					token = auth_header.split(" ", 1)[1]
-			if not token:
-				raise ValueError("missing_token")
-			ctx = parse_access_token(token)
+				if not token:
+					# In dev, allow direct identity fields to keep local sockets usable without JWTs.
+					if settings.is_dev():
+						user_id = auth_payload.get("user_id") or auth_payload.get("userId")
+						campus_id = auth_payload.get("campus_id") or auth_payload.get("campusId")
+						session_id = auth_payload.get("session_id") or auth_payload.get("sessionId") or "dev-session"
+						handle = auth_payload.get("handle")
+						if user_id and campus_id:
+							ctx = {
+								"user_id": user_id,
+								"campus_id": campus_id,
+								"session_id": session_id,
+								"handle": handle,
+							}
+						else:
+							raise ValueError("missing_token")
+					else:
+						raise ValueError("missing_token")
+				else:
+					try:
+						ctx = parse_access_token(token)
+					except Exception:
+						# Dev fallback: when using synthetic/local tokens without campus claims,
+						# fall back to explicit handshake fields so sockets stay usable.
+						if settings.is_dev():
+							ctx = _dev_fallback_context()
+							if not ctx.get("user_id") or ctx.get("campus_id") is None:
+								raise
+							else:
+								pass
+						else:
+							raise
 
-		if not ctx.get("user_id") or ctx.get("campus_id") is None:
-			raise ValueError("missing_claims")
+		if not ctx.get("campus_id") and settings.is_dev():
+			ctx["campus_id"] = auth_payload.get("campus_id") or auth_payload.get("campusId") or "dev-campus"
+			if not ctx.get("session_id") and settings.is_dev():
+				ctx["session_id"] = auth_payload.get("session_id") or auth_payload.get("sessionId") or "dev-session"
+
+			if not ctx.get("user_id") or ctx.get("campus_id") is None:
+				raise ValueError("missing_claims")
 
 		return AuthenticatedUser(
 			id=str(ctx["user_id"]),

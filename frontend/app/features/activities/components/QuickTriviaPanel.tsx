@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuickTriviaSession, type TriviaState } from "../hooks/useQuickTriviaSession";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
-import { Trophy, Timer, Zap, Users, CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { Trophy, Timer, Zap, Users, CheckCircle2, XCircle, AlertCircle, Clock, Lock } from "lucide-react";
 
 type QuickTriviaController = {
   state: TriviaState;
@@ -230,20 +230,31 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
               const isSelected = state.selectedIndex === idx;
               const isCorrect = state.correctIndex === idx;
               const showResult = state.correctIndex !== undefined;
+              const optionLabel = typeof opt === "string" && opt.trim().length > 0 ? opt.trim() : `Option ${idx + 1}`;
               
               let cardClass = "border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-white";
               let textClass = "text-slate-700";
-              let icon = null;
+              let badge: React.ReactNode = null;
 
               if (showResult) {
                 if (isCorrect) {
                   cardClass = "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500";
                   textClass = "text-emerald-900 font-bold";
-                  icon = <CheckCircle2 className="h-5 w-5 text-emerald-600" />;
+                  badge = (
+                    <span className="flex items-center gap-1 text-sm font-semibold text-emerald-600">
+                      <CheckCircle2 className="h-5 w-5" />
+                      Correct
+                    </span>
+                  );
                 } else if (isSelected) {
                   cardClass = "border-rose-500 bg-rose-50 ring-1 ring-rose-500";
                   textClass = "text-rose-900 font-bold";
-                  icon = <XCircle className="h-5 w-5 text-rose-600" />;
+                  badge = (
+                    <span className="flex items-center gap-1 text-sm font-semibold text-rose-600">
+                      <XCircle className="h-5 w-5" />
+                      Wrong
+                    </span>
+                  );
                 } else {
                   cardClass = "border-slate-100 bg-slate-50 opacity-50";
                 }
@@ -257,13 +268,20 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
                   key={idx}
                   onClick={() => !state.locked && selectOption(idx)}
                   disabled={Boolean(state.locked) || Boolean(blurActive)}
+                  aria-label={optionLabel}
                   className={`group relative flex w-full items-center justify-between rounded-xl border-2 p-4 text-left transition-all ${cardClass}`}
                 >
                   <span className={`text-lg ${textClass}`}>{opt}</span>
-                  {icon}
+                  {badge}
                 </button>
               );
             })}
+            {state.locked ? (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <Lock className="h-3.5 w-3.5" />
+                Locked
+              </div>
+            ) : null}
           </div>
           
           {/* Progress Bar */}
@@ -312,6 +330,7 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
       {state.tieBreakWinnerUserId ? (
         <div className="mt-2 text-lg text-slate-600">
           <span className="font-bold text-amber-600">{resolveName(state.tieBreakWinnerUserId)}</span> won by speed!
+          <p className="sr-only">Winner by time advantage: {resolveName(state.tieBreakWinnerUserId)}</p>
         </div>
       ) : state.winnerUserId ? (
         <div className="mt-2 text-lg text-slate-600">

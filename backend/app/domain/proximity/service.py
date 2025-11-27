@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import base64
+import json
 import math
 import logging
 import time
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from uuid import UUID
 
 from app.domain.identity.models import parse_profile_gallery
@@ -50,9 +51,10 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
 	rows = await pool.fetch(
 		"""
-		SELECT id, display_name, handle, avatar_url, major, bio, graduation_year, profile_gallery
-		FROM users
-		WHERE id = ANY($1::uuid[])
+		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions,
+		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
+		FROM users u
+		WHERE u.id = ANY($1::uuid[])
 		""",
 		list({uid for uid in user_ids}),
 	)
@@ -65,6 +67,8 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"bio": row.get("bio"),
 			"graduation_year": row.get("graduation_year"),
 			"gallery": [image.to_dict() for image in parse_profile_gallery(row.get("profile_gallery"))],
+			"passions": json.loads(row["passions"]) if isinstance(row.get("passions"), str) else (row.get("passions") or []),
+			"courses": row.get("courses") or [],
 		}
 		for row in rows
 	}
@@ -110,11 +114,101 @@ async def _fetch_live_candidates(key: str, auth_user_id: str, *, radius: int, ce
 	return live
 
 
+async def _fetch_directory_candidates(
+	campus_id: str, 
+	auth_user_id: str, 
+	lat: Optional[float], 
+	lon: Optional[float], 
+	limit: int, 
+	offset: int = 0
+) -> List[PresenceTuple]:
+	pool = await get_pool()
+	
+	if lat is None or lon is None:
+		# Fallback: return users ordered by creation date if we don't know where the user is
+		rows = await pool.fetch(
+			"""
+			SELECT id FROM users
+			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
+			ORDER BY created_at DESC
+			LIMIT $3 OFFSET $4
+			""",
+			campus_id,
+			auth_user_id,
+			limit,
+			offset,
+		)
+		return [(str(row["id"]), 0.0) for row in rows]
+
+	# Haversine formula in SQL
+	# 6371000 is Earth radius in meters
+	rows = await pool.fetch(
+		"""
+		SELECT id, 
+			(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+				cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
+				sin(radians($3)) * sin(radians(lat))
+			)))) AS distance
+		FROM users
+		WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+		ORDER BY distance ASC
+		LIMIT $5 OFFSET $6
+		""",
+		campus_id,
+		auth_user_id,
+		lat,
+		lon,
+		limit,
+		offset,
+	)
+	return [(str(row["id"]), float(row["distance"])) for row in rows]
+
+
 async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> NearbyResponse:
-	if not await allow("nearby", auth_user.id, limit=30):
+	limit = 300 if settings.is_dev() else 30
+	if not await allow("nearby", auth_user.id, limit=limit):
 		raise RateLimitExceeded("nearby")
 
 	campus_id = str(query.campus_id or auth_user.campus_id)
+
+	# If radius > 50m, switch to Directory Mode (DB query)
+	if query.radius_m > 50:
+		# Fetch user location from DB
+		pool = await get_pool()
+		user_row = await pool.fetchrow("SELECT lat, lon FROM users WHERE id = $1", auth_user.id)
+		lat = user_row["lat"] if user_row else None
+		lon = user_row["lon"] if user_row else None
+
+		# Simple pagination using cursor as offset if needed, or just limit
+		# For now, we'll just fetch the top N users
+		live = await _fetch_directory_candidates(campus_id, auth_user.id, lat, lon, limit=query.limit)
+		
+		# Load profile data
+		profiles = await _load_user_lite([uid for uid, _ in live])
+		
+		# Build response
+		items = []
+		for uid, distance in live:
+			profile = profiles.get(uid)
+			if not profile:
+				continue
+			items.append(
+				NearbyUser(
+					user_id=UUID(uid),
+					display_name=str(profile["display_name"]),
+					handle=str(profile["handle"]),
+					avatar_url=str(profile["avatar_url"]) if profile["avatar_url"] else None,
+					major=str(profile["major"]) if profile["major"] else None,
+					bio=str(profile["bio"]) if profile["bio"] else None,
+					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
+					distance_m=int(distance) if distance > 0 else None,
+					gallery=profile["gallery"], # type: ignore
+					passions=profile["passions"], # type: ignore
+				)
+			)
+		return NearbyResponse(items=items, cursor=None)
+
+	# Otherwise, use existing Proximity Mode (Redis)
 	presence_key = f"presence:{auth_user.id}"
 	user_presence = await redis_client.hgetall(presence_key)
 	if not user_presence:
@@ -225,6 +319,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 				bio=profile.get("bio") or None,
 				graduation_year=profile.get("graduation_year"),
 				gallery=profile.get("gallery", []),
+				passions=profile.get("passions", []),
+				courses=profile.get("courses") or [],
 			)
 		)
 

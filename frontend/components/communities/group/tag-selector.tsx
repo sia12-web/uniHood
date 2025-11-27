@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { searchTags } from "@/lib/communities";
 
@@ -26,20 +25,35 @@ type TagSelectorProps = {
 export function TagSelector({ value, onChange, disabled = false, limit = 10 }: TagSelectorProps) {
 	const [input, setInput] = useState("");
 	const query = useDebouncedValue(input, 250);
+	const [suggestionPool, setSuggestionPool] = useState<string[]>([]);
 
-	const { data } = useQuery({
-		queryKey: ["groupTagSearch", query],
-		queryFn: () => searchTags(query),
-		enabled: query.trim().length >= 2,
-		staleTime: 30_000,
-	});
+	useEffect(() => {
+		const trimmed = query.trim().toLowerCase();
+		if (trimmed.length < 2 || disabled) {
+			setSuggestionPool([]);
+			return;
+		}
+		let cancelled = false;
+		(async () => {
+			try {
+				const result = await searchTags(trimmed);
+				if (!cancelled) {
+					setSuggestionPool(result?.tags ?? []);
+				}
+			} catch {
+				if (!cancelled) {
+					setSuggestionPool([]);
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [disabled, query]);
 
 	const suggestions = useMemo(() => {
-		if (!data?.tags) {
-			return [] as string[];
-		}
-		return data.tags.filter((tag) => !value.includes(tag)).slice(0, 8);
-	}, [data?.tags, value]);
+		return suggestionPool.filter((tag) => !value.includes(tag)).slice(0, 8);
+	}, [suggestionPool, value]);
 
 	const remaining = limit - value.length;
 

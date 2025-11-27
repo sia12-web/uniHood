@@ -295,3 +295,15 @@ export async function matchPeople(
 		signal: options.signal,
 	});
 }
+
+export async function updateProfileLocation(
+	userId: string,
+	lat: number,
+	lon: number
+): Promise<void> {
+	await request("/profile/me", {
+		method: "PATCH",
+		userId,
+		body: { lat, lon },
+	});
+}

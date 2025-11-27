@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from app.domain.identity.schemas import GalleryImage
+
 
 class DiscoveryCard(BaseModel):
 	user_id: UUID
@@ -17,7 +19,11 @@ class DiscoveryCard(BaseModel):
 	major: Optional[str] = None
 	graduation_year: Optional[int] = Field(default=None, ge=1900, le=2100)
 	interests: list[str] = Field(default_factory=list)
+	passions: list[str] = Field(default_factory=list)
+	courses: list[str] = Field(default_factory=list)
 	distance_m: Optional[float] = None
+	gallery: list[GalleryImage] = Field(default_factory=list)
+	is_friend: bool = False
 
 
 class DiscoveryFeedResponse(BaseModel):
@@ -34,4 +40,3 @@ class InteractionPayload(BaseModel):
 class InteractionResponse(BaseModel):
 	next_cursor: Optional[str] = None
 	exhausted: bool = False
-

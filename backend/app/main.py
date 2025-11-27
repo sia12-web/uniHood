@@ -21,12 +21,14 @@ from app.api import (
 	admin_verify,
 	auth,
 	chat,
+	courses,
 	discovery,
 	consent as consent_api,
 	contact_discovery,
 	flags as flags_api,
 	interests,
 	leaderboards,
+	meetups,
 	ops,
 	passkeys as passkeys_api,
 	privacy,
@@ -292,6 +294,7 @@ app.add_middleware(
 
 
 app.include_router(auth.router, tags=["identity"])
+app.include_router(courses.router, tags=["identity"])
 app.include_router(interests.router, tags=["identity"])
 app.include_router(profile.router, tags=["profile"])
 app.include_router(public_profile.router, tags=["profile"])
@@ -302,6 +305,7 @@ app.include_router(chat.router, tags=["chat"])
 app.include_router(rooms.router, tags=["rooms"])
 app.include_router(activities.router, tags=["activities"])
 app.include_router(leaderboards.router, tags=["leaderboards"])
+app.include_router(meetups.router, tags=["meetups"])
 app.include_router(security.router, tags=["security"])
 app.include_router(search.router, tags=["search"])
 app.include_router(ops.router, tags=["ops"])

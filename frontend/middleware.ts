@@ -17,7 +17,9 @@ function isPublicPath(pathname: string): boolean {
 	// Allow static and Next internals
 	if (pathname.startsWith("/_next/")) return true;
 	if (pathname.startsWith("/static/")) return true;
-	if (pathname === "/favicon.ico" || pathname === "/robots.txt" || pathname === "/manifest.json") return true;
+	if (pathname.startsWith("/brand/")) return true; // Allow brand assets
+	if (pathname === "/favicon.ico" || pathname === "/favicon.png" || pathname === "/favicon.svg") return true;
+	if (pathname === "/robots.txt" || pathname === "/manifest.json") return true;
 	return false;
 }
 

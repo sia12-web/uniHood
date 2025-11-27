@@ -64,7 +64,7 @@ export default function AdminConsentPage() {
 			<header className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
 				<div>
 					<h1 className="text-2xl font-semibold text-slate-900">Consent manager</h1>
-					<p className="text-sm text-slate-600">Review policy documents and record acknowledgements for Divan admins.</p>
+					<p className="text-sm text-slate-600">Review policy documents and record acknowledgements for Campus admins.</p>
 				</div>
 				<button
 					type="button"

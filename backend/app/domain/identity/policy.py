@@ -11,6 +11,7 @@ import asyncpg
 
 from app.domain.identity.models import Campus
 from app.infra.redis import redis_client
+from app.settings import settings
 
 HANDLE_REGEX = re.compile(r"^[a-z0-9_]{3,20}$")
 PASSWORD_MIN_LEN = 8
@@ -209,7 +210,8 @@ async def _bucketed_limit(key: str, ttl: int, limit: int, reason: str) -> None:
 async def enforce_register_rate(ip: str, *, now: float | None = None) -> None:
 	now = now or time.time()
 	bucket = time.strftime("%Y%m%d%H", time.gmtime(now))
-	await _bucketed_limit(f"rl:auth:register:{ip}:{bucket}", 3600, REGISTER_PER_HOUR, "register_rate")
+	limit = 1000 if settings.is_dev() else REGISTER_PER_HOUR
+	await _bucketed_limit(f"rl:auth:register:{ip}:{bucket}", 3600, limit, "register_rate")
 
 
 async def enforce_verify_rate(email: str, *, now: float | None = None) -> None:
@@ -221,7 +223,8 @@ async def enforce_verify_rate(email: str, *, now: float | None = None) -> None:
 async def enforce_login_rate(email: str, *, now: float | None = None) -> None:
 	now = now or time.time()
 	bucket = time.strftime("%Y%m%d%H%M", time.gmtime(now))
-	await _bucketed_limit(f"rl:auth:login:{email}:{bucket}", 60, LOGIN_PER_MINUTE, "login_rate")
+	limit = 1000 if settings.is_dev() else LOGIN_PER_MINUTE
+	await _bucketed_limit(f"rl:auth:login:{email}:{bucket}", 60, limit, "login_rate")
 
 
 async def enforce_resend_rate(email: str, *, now: float | None = None) -> None:

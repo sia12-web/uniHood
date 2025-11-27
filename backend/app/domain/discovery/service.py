@@ -74,6 +74,10 @@ async def list_feed(
 		uid_str = str(user.user_id)
 		if uid_str in liked or uid_str in passed:
 			continue
+		raw_passions = getattr(user, "passions", None) or getattr(user, "interests", None) or []
+		passions: list[str] = [str(p).strip() for p in raw_passions if isinstance(p, str) and str(p).strip()]
+		gallery = getattr(user, "gallery", None) or []
+		courses = getattr(user, "courses", None) or []
 		items.append(
 			DiscoveryCard(
 				user_id=user.user_id,
@@ -83,8 +87,12 @@ async def list_feed(
 				campus_id=card_campus,
 				major=user.major,
 				graduation_year=user.graduation_year,
-				interests=getattr(user, "passions", []) or getattr(user, "interests", []) or [],
+				interests=passions,
+				passions=passions,
+				courses=courses,
 				distance_m=user.distance_m,
+				gallery=gallery,
+				is_friend=bool(getattr(user, "is_friend", False)),
 			)
 		)
 

@@ -126,7 +126,7 @@ export default function LinkedAccounts({ userId, campusId }: LinkedAccountsProps
 			<header className="rounded border border-slate-200 bg-white px-4 py-3 shadow-sm">
 				<h2 className="text-lg font-semibold text-slate-900">Linked sign-in providers</h2>
 				<p className="text-sm text-slate-500">
-					Connect OAuth identities so users can sign in with SSO and still inherit their existing Divan profile.
+					Connect OAuth identities so users can sign in with SSO and still inherit their existing Campus profile.
 				</p>
 			</header>
 			{error ? (

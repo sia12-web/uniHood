@@ -14,7 +14,14 @@ _pool: Optional[asyncpg.pool.Pool] = None
 async def init_pool() -> asyncpg.pool.Pool:
 	global _pool
 	if _pool is None:
-		_pool = await asyncpg.create_pool(dsn=settings.postgres_url, min_size=1, max_size=5)
+		# Force 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
+		dsn = settings.postgres_url.replace("localhost", "127.0.0.1")
+		_pool = await asyncpg.create_pool(
+			dsn=dsn,
+			min_size=0,
+			max_size=5,
+			ssl='disable',  # Use 'disable' string, not False boolean
+		)
 	return _pool
 
 

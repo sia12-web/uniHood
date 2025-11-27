@@ -9,7 +9,8 @@ type EventName =
   | "activity.penalty.applied"
   | "activity.session.presence"
   | "activity.session.countdown"
-  | "activity.session.countdown.cancelled";
+  | "activity.session.countdown.cancelled"
+  | "story.session.updated";
 
 export interface EventEnvelope<T = unknown> {
   name: EventName;

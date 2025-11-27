@@ -25,7 +25,7 @@ const OVERVIEW_CARDS = [
     title: "Explore matches",
     href: "/match",
     description:
-      "Use Divan’s matching prompts to discover collaborators you haven’t met yet and break the ice confidently.",
+      "Use Campus’s matching prompts to discover collaborators you haven’t met yet and break the ice confidently.",
   },
 ];
 

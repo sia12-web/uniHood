@@ -1,4 +1,5 @@
 import axios from "axios";
+import { readAuthSnapshot } from "./auth-storage";
 
 const API_BASE =
 	process.env.NEXT_PUBLIC_COMMUNITIES_API_BASE ??
@@ -12,6 +13,14 @@ export const api = axios.create({
 	headers: {
 		"Content-Type": "application/json",
 	},
+});
+
+api.interceptors.request.use((config) => {
+	const snapshot = readAuthSnapshot();
+	if (snapshot?.access_token) {
+		config.headers.Authorization = `Bearer ${snapshot.access_token}`;
+	}
+	return config;
 });
 
 api.interceptors.response.use(

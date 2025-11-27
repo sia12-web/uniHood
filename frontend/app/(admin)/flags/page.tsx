@@ -178,7 +178,7 @@ export default function AdminFlagsPage() {
 			<header className="space-y-2">
 				<h1 className="text-2xl font-semibold text-slate-900">Feature flags</h1>
 				<p className="text-sm text-slate-600">
-					Manage rollout state, percentage experiments, and audience overrides for Divan features. Overrides are processed in
+					Manage rollout state, percentage experiments, and audience overrides for Campus features. Overrides are processed in
 					order of specificity (user, campus, global).
 				</p>
 			</header>

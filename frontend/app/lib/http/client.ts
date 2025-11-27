@@ -201,7 +201,8 @@ async function decodeSuccess<T>(response: Response): Promise<T | undefined> {
 		}
 	}
 	if (typeof (response as { text?: unknown }).text === "function") {
-		const text = await response.text();
+		const textReader = typeof response.clone === "function" ? response.clone().text() : response.text();
+		const text = await textReader;
 		return text as unknown as T;
 	}
 	return undefined;
@@ -219,7 +220,8 @@ async function parseErrorDetail(response: Response): Promise<ErrorDetail> {
 	}
 	if (typeof (response as { text?: unknown }).text === "function") {
 		try {
-			const text = await response.text();
+			const textReader = typeof response.clone === "function" ? response.clone().text() : response.text();
+			const text = await textReader;
 			return text || null;
 		} catch {
 			return null;

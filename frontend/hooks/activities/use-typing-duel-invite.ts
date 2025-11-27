@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  getSelf,
-  listSpeedTypingSessions,
-  type SpeedTypingLobbySummary,
-} from "@/app/features/activities/api/client";
+import { listSpeedTypingSessions } from "@/app/features/activities/api/client";
+import { readAuthUser } from "@/lib/auth-storage";
+import { getDemoUserId } from "@/lib/env";
 
 export type TypingDuelInvite = {
   sessionId: string;
@@ -19,19 +17,15 @@ type Options = {
 
 const POLL_INTERVAL_MS = 5_000;
 
-function pickOpponent(summary: SpeedTypingLobbySummary, selfId: string): string | null {
-  const participant = summary.participants.find((entry) => entry.userId !== selfId);
-  return participant ? participant.userId : null;
-}
-
 export function useTypingDuelInvite(options?: Options) {
   const [invite, setInvite] = useState<TypingDuelInvite | null>(null);
   const handledRef = useRef<Set<string>>(new Set());
   const activeInviteIdRef = useRef<string | null>(null);
-  const selfIdRef = useRef<string>(getSelf());
+  const selfIdRef = useRef<string>("");
 
   useEffect(() => {
-    selfIdRef.current = getSelf();
+    const user = readAuthUser();
+    selfIdRef.current = user?.userId || getDemoUserId();
   }, []);
 
   const acknowledge = useCallback((sessionId: string) => {
@@ -58,32 +52,39 @@ export function useTypingDuelInvite(options?: Options) {
       }
 
       try {
-        const summaries = await listSpeedTypingSessions("pending");
+        const sessions = await listSpeedTypingSessions("pending");
         if (cancelled) {
           return;
         }
 
         const selfId = selfIdRef.current;
-        const next = summaries.find((summary) => {
-          if (summary.activityKey !== "speed_typing") {
+        const next = sessions.find((session) => {
+          if (session.status !== "pending") {
             return false;
           }
-          if (summary.creatorUserId === selfId) {
+
+          const participants = session.participants ?? [];
+          const isParticipant = participants.some((entry) => entry.userId === selfId);
+          if (!isParticipant) {
             return false;
           }
-          if (!summary.participants.some((entry) => entry.userId === selfId)) {
+
+          // Creator can't invite themselves; treat any session they created as already acknowledged
+          if (session.creatorUserId === selfId) {
             return false;
           }
-          const opponentId = pickOpponent(summary, selfId);
-          if (!opponentId) {
-            return false;
-          }
+
+          const opponentEntry = participants.find((entry) => entry.userId !== selfId);
+          const opponentId = opponentEntry?.userId ?? session.creatorUserId;
+
           if (options?.peerUserId && opponentId !== options.peerUserId) {
             return false;
           }
-          if (handledRef.current.has(summary.id)) {
+
+          if (handledRef.current.has(session.id)) {
             return false;
           }
+
           return true;
         });
 
@@ -91,11 +92,11 @@ export function useTypingDuelInvite(options?: Options) {
           activeInviteIdRef.current = null;
           setInvite(null);
         } else if (activeInviteIdRef.current !== next.id) {
-          const opponentUserId = pickOpponent(next, selfId);
-          if (opponentUserId) {
-            activeInviteIdRef.current = next.id;
-            setInvite({ sessionId: next.id, opponentUserId });
-          }
+          const participants = next.participants ?? [];
+          const opponentEntry = participants.find((entry) => entry.userId !== selfIdRef.current);
+          const opponentUserId = opponentEntry?.userId ?? next.creatorUserId;
+          activeInviteIdRef.current = next.id;
+          setInvite({ sessionId: next.id, opponentUserId });
         }
       } catch (error) {
         if (!cancelled) {

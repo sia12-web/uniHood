@@ -5,14 +5,14 @@ These notes assume Windows PowerShell (the default shell in this workspace) and 
 ## 1. Install once (per clone)
 
 ```powershell
-cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
+cd C:\Users\shahb\OneDrive\Desktop\Campus\frontend
 pnpm install
 ```
 
 ## 2. Start the development server
 
 ```powershell
-cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
+cd C:\Users\shahb\OneDrive\Desktop\Campus\frontend
 $env:NODE_OPTIONS=""
 $env:NEXT_TELEMETRY_DISABLED="1"
 pnpm dev
@@ -53,7 +53,7 @@ pnpm dev
 ## 3. Run the Playwright smoke test
 
 ```powershell
-cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
+cd C:\Users\shahb\OneDrive\Desktop\Campus\frontend
 pnpm test:e2e -- communities
 ```
 
@@ -67,7 +67,7 @@ pnpm test:e2e -- communities
 - **Production build** (optional check):
 
   ```powershell
-  cd C:\Users\shahb\OneDrive\Desktop\Divan\frontend
+  cd C:\Users\shahb\OneDrive\Desktop\Campus\frontend
   pnpm build
   ```
 

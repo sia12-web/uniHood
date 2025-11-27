@@ -32,7 +32,7 @@ export default function SessionsSettingsPage() {
 		<main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
 			<header className="space-y-2">
 				<h1 className="text-2xl font-semibold text-slate-900">Active sessions</h1>
-				<p className="text-sm text-slate-600">Sign out of devices that should no longer have access to your Divan account.</p>
+				<p className="text-sm text-slate-600">Sign out of devices that should no longer have access to your Campus account.</p>
 			</header>
 			<section className="rounded border border-slate-200 bg-white p-4 shadow-sm">
 				{sessions.length === 0 ? (

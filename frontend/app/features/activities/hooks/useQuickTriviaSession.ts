@@ -3,7 +3,7 @@ import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
 
 export interface TriviaState {
-  phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error";
+  phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";
   sessionId?: string;
   activityKey?: "quick_trivia";
   currentRound?: number;

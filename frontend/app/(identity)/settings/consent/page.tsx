@@ -76,7 +76,7 @@ export default function ConsentSettingsPage() {
 		<main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-10">
 			<header className="space-y-2">
 				<h1 className="text-2xl font-semibold text-slate-900">Consent preferences</h1>
-				<p className="text-sm text-slate-600">Review policy documents and acknowledge required terms for your Divan account.</p>
+				<p className="text-sm text-slate-600">Review policy documents and acknowledge required terms for your Campus account.</p>
 			</header>
 			{error ? <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p> : null}
 			{message ? <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}

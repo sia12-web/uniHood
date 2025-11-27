@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import NextDynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Keyboard, Trophy, Users, ArrowLeft } from "lucide-react";
 
 import { createSpeedTypingSession, getSelf } from "@/app/features/activities/api/client";
@@ -14,6 +15,23 @@ import type { FriendRow } from "@/lib/types";
 const SpeedTypingPanel = NextDynamic(async () => (await import("@/app/features/activities/components/SpeedTypingPanel")).SpeedTypingPanel, { ssr: false });
 
 export default function SpeedTypingEntryPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50 pb-20">
+          <div className="mx-auto flex max-w-5xl items-center justify-center px-6 py-20 text-slate-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            Loading speed typing…
+          </div>
+        </main>
+      }
+    >
+      <SpeedTypingEntryPageContent />
+    </Suspense>
+  );
+}
+
+function SpeedTypingEntryPageContent() {
   const [sessionId, setSessionId] = useState<string>("");
   const [friendId, setFriendId] = useState<string>("");
   const [selfId, setSelfId] = useState<string>("");
@@ -23,6 +41,11 @@ export default function SpeedTypingEntryPage() {
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const { invite, acknowledge } = useTypingDuelInvite(); // reuse speed typing invite poll
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const inviteCardRef = useRef<HTMLDivElement>(null);
+  const [inviteFocusPulse, setInviteFocusPulse] = useState(false);
+  const wantsInviteFocus = searchParams?.get("focus") === "invites";
 
   useEffect(() => {
     // Resolve selfId on client to avoid hydration mismatches
@@ -85,6 +108,19 @@ export default function SpeedTypingEntryPage() {
     setSessionId(invite.sessionId);
     acknowledge(invite.sessionId);
   };
+
+  useEffect(() => {
+    if (!wantsInviteFocus) {
+      return;
+    }
+    inviteCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setInviteFocusPulse(true);
+    const timer = window.setTimeout(() => setInviteFocusPulse(false), 2200);
+    router.replace("/activities/speed_typing", { scroll: false });
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [router, wantsInviteFocus]);
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20">
@@ -253,7 +289,12 @@ export default function SpeedTypingEntryPage() {
 
             {/* Invites Card */}
             <div className="flex flex-col gap-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg ring-1 ring-slate-900/5">
+              <div
+                ref={inviteCardRef}
+                className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${
+                  inviteFocusPulse || invite ? "border-2 border-rose-200 ring-rose-200/40" : "border border-slate-200"
+                }`}
+              >
                 <div className="mb-6 flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-slate-900">Invite Inbox</h2>

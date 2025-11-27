@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import LeaderboardTable from "@/components/LeaderboardTable";
+import BrandLogo from "@/components/BrandLogo";
 import StreakBadge from "@/components/StreakBadge";
 import { fetchLeaderboard, fetchMySummary } from "@/lib/leaderboards";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
@@ -53,9 +54,24 @@ export default function LeaderboardsPage() {
 
   const activeBadges: BadgeSummary[] = useMemo(() => summary?.badges ?? [], [summary]);
 
-  return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
-      <header className="flex flex-col gap-4">
+	return (
+		<main className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+			<div className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-r from-white via-amber-50 to-rose-50 p-5 shadow-lg">
+				<div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,255,255,0.9),transparent_60%)]" aria-hidden />
+				<div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+					<div className="max-w-xl">
+						<p className="text-xs uppercase tracking-[0.35em] text-rose-500">Divan Leaderboards</p>
+						<h1 className="mt-1 text-3xl font-semibold text-slate-900">See who is leading the campus</h1>
+						<p className="mt-2 text-sm text-slate-700">
+							Track the top performers and your own streak. Win duels, trivia, and social milestones to climb.
+						</p>
+					</div>
+					<div className="flex items-center justify-center rounded-2xl bg-white/90 px-4 py-3 shadow-md ring-1 ring-rose-100">
+						<BrandLogo withWordmark logoWidth={210} logoHeight={210} logoClassName="h-20 w-auto" className="text-[#b7222d]" />
+					</div>
+				</div>
+			</div>
+			<header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-4">
           <h1 className="text-2xl font-semibold text-slate-900">Leaderboards</h1>
           <div className="flex gap-2">

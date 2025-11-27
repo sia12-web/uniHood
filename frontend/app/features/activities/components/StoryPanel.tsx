@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, User, Heart, Send, BookOpen, PenTool, Sparkles } from "lucide-react";
+import { Loader2, User, Heart, Send, BookOpen, PenTool, Sparkles, Star, Trophy } from "lucide-react";
 import { useStorySession } from "@/app/features/activities/hooks/useStorySession";
 
 export function StoryPanel() {
@@ -16,8 +16,13 @@ export function StoryPanel() {
     scenario,
     lines,
     currentTurn,
+    winner,
+    ready,
+    partnerId,
     joinRole,
+    setReady,
     submitTurn,
+    scoreLine,
   } = session;
 
   // Auto-scroll to bottom when lines change
@@ -49,13 +54,62 @@ export function StoryPanel() {
     );
   }
 
+  const partnerLabel = partnerId ? partnerId.slice(0, 6).concat("…") : "partner";
+
+  // 0. Ready-up gate
+  if (!ready.me) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+          <Sparkles className="h-10 w-10" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-slate-900">Ready to tell a story?</h2>
+          <p className="text-sm text-slate-600">Click ready once you and your partner are in the room.</p>
+        </div>
+        <button
+          onClick={() => setReady(true)}
+          className="rounded-2xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-violet-500"
+        >
+          I&apos;m Ready
+        </button>
+      </div>
+    );
+  }
+
+  if (!ready.partner) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+          <Loader2 className="h-10 w-10 animate-spin" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-slate-900">Waiting for your partner</h2>
+          <p className="text-sm text-slate-600">Let them know to ready up before picking roles.</p>
+        </div>
+        <button
+          onClick={() => setReady(false)}
+          className="rounded-2xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+        >
+          I need a moment
+        </button>
+      </div>
+    );
+  }
+
   // 1. Role Selection
   if (!role) {
     return (
       <div className="py-12">
         <div className="mb-8 text-center">
           <h2 className="text-2xl font-bold text-slate-900">Choose Your Character</h2>
-          <p className="text-slate-600">Select a role to begin the story.</p>
+          <p className="text-slate-600">Both players are ready. Pick who plays boy or girl.</p>
+          <button
+            onClick={() => setReady(false)}
+            className="mt-3 text-xs font-semibold text-slate-400 hover:text-slate-600"
+          >
+            Not ready yet?
+          </button>
         </div>
         
         <div className="grid gap-6 sm:grid-cols-2">
@@ -100,7 +154,7 @@ export function StoryPanel() {
         <p className="mt-2 text-slate-600">
           You are playing as <span className={`font-bold ${role === 'boy' ? 'text-blue-600' : 'text-pink-600'}`}>{role === 'boy' ? 'Boy' : 'Girl'}</span>
         </p>
-        <p className="mt-1 text-sm text-slate-500">The story will begin once they join.</p>
+        <p className="mt-1 text-sm text-slate-500">The story will begin once {partnerLabel} joins.</p>
       </div>
     );
   }
@@ -121,6 +175,19 @@ export function StoryPanel() {
         </div>
       </div>
 
+      {/* Winner Banner */}
+      {winner && (
+        <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-4 text-center text-white shadow-inner">
+          <div className="flex items-center justify-center gap-2">
+            <Trophy className="h-6 w-6 text-white" />
+            <h3 className="text-xl font-bold">
+              {winner === "tie" ? "It's a Tie!" : `${winner === "boy" ? "Boy" : "Girl"} Wins!`}
+            </h3>
+          </div>
+          <p className="text-sm font-medium text-amber-100">Based on audience ratings</p>
+        </div>
+      )}
+
       {/* Story Lines */}
       <div 
         ref={scrollRef}
@@ -135,13 +202,7 @@ export function StoryPanel() {
           )}
           
           {lines.map((line, i) => {
-            const isBoy = line.idx % 2 !== 0; // Assuming odd idx is Boy, even is Girl? Or based on role?
-            // Let's check the original code:
-            // const isBoy = line.idx % 2 !== 0;
-            // const isMe = (role === "boy" && isBoy) || (role === "girl" && !isBoy);
-            // Wait, usually idx starts at 0 or 1. 
-            // If idx 1 is Boy, then idx 2 is Girl.
-            
+            const isBoy = line.roundIdx % 2 !== 0;
             const isMe = (role === "boy" && isBoy) || (role === "girl" && !isBoy);
             
             return (
@@ -164,6 +225,40 @@ export function StoryPanel() {
                   >
                     <p className="whitespace-pre-wrap">{line.content}</p>
                   </div>
+
+                  {/* Scoring UI */}
+                  <div className="mt-1 flex items-center gap-1">
+                    {isMe ? (
+                       // Show score received
+                       line.score ? (
+                         <div className="flex items-center gap-0.5 text-yellow-500">
+                           <span className="text-xs font-bold">{line.score}</span>
+                           <Star className="h-3 w-3 fill-current" />
+                         </div>
+                       ) : null
+                    ) : (
+                       // Show scoring buttons
+                       <div className="flex gap-0.5 rounded-full bg-white/50 p-1 backdrop-blur-sm transition-opacity hover:bg-white">
+                         {[1, 2, 3, 4, 5].map((star) => (
+                           <button
+                             key={star}
+                             onClick={() => scoreLine(line.roundIdx, star)}
+                             className="group/star focus:outline-none"
+                             title={`Rate ${star} stars`}
+                             aria-label={`Rate ${star} stars`}
+                           >
+                             <Star 
+                               className={`h-4 w-4 transition-all ${
+                                 (line.score || 0) >= star 
+                                   ? "fill-yellow-400 text-yellow-400" 
+                                   : "text-slate-300 group-hover/star:text-yellow-200"
+                               }`} 
+                             />
+                           </button>
+                         ))}
+                       </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -173,7 +268,12 @@ export function StoryPanel() {
 
       {/* Input Area */}
       <div className="border-t border-slate-200 bg-white p-4">
-        {currentTurn?.isMyTurn ? (
+        {winner ? (
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-4 text-sm text-slate-500">
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            <span>Story completed!</span>
+          </div>
+        ) : currentTurn?.isMyTurn ? (
           <div className="flex gap-3">
             <div className="relative flex-1">
               <textarea

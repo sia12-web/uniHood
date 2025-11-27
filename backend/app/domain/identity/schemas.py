@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any, Dict, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, RootModel
@@ -116,6 +116,8 @@ class ProfileOut(BaseModel):
 	graduation_year: Optional[Annotated[int, Field(ge=1900, le=2100)]] = None
 	passions: list[Annotated[str, Field(max_length=40)]] = Field(default_factory=list)
 	gallery: list[GalleryImage] = Field(default_factory=list)
+	lat: Optional[float] = None
+	lon: Optional[float] = None
 
 
 class ProfilePatch(BaseModel):
@@ -127,6 +129,8 @@ class ProfilePatch(BaseModel):
 	major: Optional[Annotated[str, Field(max_length=80)]] = None
 	graduation_year: Optional[Annotated[int, Field(ge=1900, le=2100)]] = None
 	passions: Optional[list[Annotated[str, Field(max_length=40)]]] = None
+	lat: Optional[float] = None
+	lon: Optional[float] = None
 
 
 class PresignRequest(BaseModel):
@@ -748,3 +752,19 @@ class MatchPerson(BaseModel):
 	score: float
 	interests: list[str] = Field(default_factory=list)
 	skills: list[PublicSkill] = Field(default_factory=list)
+
+
+class Course(BaseModel):
+	code: str
+	name: Optional[str] = None
+
+
+class UserCourse(BaseModel):
+	code: str
+	visibility: Literal["everyone", "friends", "none"] = "everyone"
+	created_at: Optional[datetime] = None
+
+
+class CourseBulkSetRequest(BaseModel):
+	codes: List[str]
+	visibility: Literal["everyone", "friends", "none"] = "everyone"

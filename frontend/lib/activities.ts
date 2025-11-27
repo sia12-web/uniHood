@@ -2,7 +2,7 @@ import { apiFetch as httpFetch, type ApiFetchOptions } from "@/app/lib/http/clie
 import { io, Socket } from "socket.io-client";
 
 export type ActivityKind = "typing_duel" | "story_alt" | "trivia" | "rps";
-export type ActivityState = "lobby" | "active" | "completed" | "cancelled" | "expired";
+export type ActivityState = "lobby" | "active" | "running" | "completed" | "cancelled" | "expired";
 export type RoundState = "pending" | "open" | "closed" | "scored";
 
 export type ActivityOptions = {
@@ -187,15 +187,20 @@ type RpsRevealPayload = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-const SOCKET_BASE = process.env.NEXT_PUBLIC_SOCKET_URL ?? API_BASE ?? "";
+// Activity HTTP endpoints live on the main backend (FastAPI); keep the core service URL for legacy session flows only.
+const ACTIVITIES_BASE = (process.env.NEXT_PUBLIC_BACKEND_URL ?? API_BASE ?? "").replace(/\/$/, "");
+const SOCKET_BASE =
+	process.env.NEXT_PUBLIC_ACTIVITIES_CORE_SOCKET_URL ??
+	process.env.NEXT_PUBLIC_SOCKET_URL ??
+	ACTIVITIES_BASE;
 
 let socketInstance: ActivitiesSocket | null = null;
 
 function resolveUrl(path: string): string {
-	if (!API_BASE) {
+	if (!ACTIVITIES_BASE) {
 		return path;
 	}
-	return path.startsWith("/") ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
+	return path.startsWith("/") ? `${ACTIVITIES_BASE}${path}` : `${ACTIVITIES_BASE}/${path}`;
 }
 
 async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {

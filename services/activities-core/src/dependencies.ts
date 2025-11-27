@@ -10,6 +10,7 @@ import { EventPublisher } from "./lib/events";
 import { createSpeedTypingService, SpeedTypingService } from "./services/speedTyping";
 import { createQuickTriviaService, QuickTriviaService } from "./services/quickTrivia";
 import { createRockPaperScissorsService, RockPaperScissorsService } from "./services/rockPaperScissors";
+import { StoryBuilderService } from "./services/storyBuilder";
 
 export interface ServiceContainer {
   prisma: PrismaClient;
@@ -20,6 +21,7 @@ export interface ServiceContainer {
   speedTyping: SpeedTypingService;
   quickTrivia: QuickTriviaService;
   rockPaperScissors: RockPaperScissorsService;
+  storyBuilder: StoryBuilderService;
 }
 
 export async function createServiceContainer(
@@ -35,6 +37,7 @@ export async function createServiceContainer(
   const speedTyping = createSpeedTypingService({ prisma, redis, limiter, publisher, scheduler });
   const quickTrivia = createQuickTriviaService({ prisma, redis, limiter, publisher, scheduler });
   const rockPaperScissors = createRockPaperScissorsService({ prisma, redis, limiter, publisher, scheduler });
+  const storyBuilder = new StoryBuilderService(prisma, redis, publisher, scheduler);
 
   // multiplex scheduler callback to both services; each will no-op if not applicable
   scheduler.setCallback(async (sessionId, roundIndex) => {
@@ -42,6 +45,7 @@ export async function createServiceContainer(
       speedTyping.handleTimerElapsed(sessionId, roundIndex),
       quickTrivia.handleTimerElapsed(sessionId, roundIndex),
       rockPaperScissors.handleTimerElapsed(sessionId, roundIndex),
+      storyBuilder.handleTimerElapsed(sessionId, roundIndex),
     ]);
   });
 
@@ -54,5 +58,6 @@ export async function createServiceContainer(
     speedTyping,
     quickTrivia,
     rockPaperScissors,
+    storyBuilder,
   };
 }

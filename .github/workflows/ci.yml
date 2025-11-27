@@ -135,10 +135,7 @@ jobs:
       - name: Install Playwright Browsers
         uses: microsoft/playwright-github-action@v1
 
-      - name: Build app
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
-        run: npm run -s build
+
 
       - name: Run E2E tests (Playwright)
         env:

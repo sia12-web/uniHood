@@ -227,7 +227,8 @@ async def login(
 	async with pool.acquire() as conn:
 		row = await conn.fetchrow("SELECT * FROM users WHERE email = $1", email)
 		if not row:
-			raise LoginFailed("not_found")
+			# Return generic error to prevent user enumeration
+			raise LoginFailed("invalid_credentials")
 		user = models.User.from_record(row)
 		if not user.password_hash:
 			raise LoginFailed("password_missing")

@@ -2,6 +2,8 @@ import random
 import time
 import uuid
 import httpx
+import os
+import sys
 
 API_URL = "http://localhost:8000"
 CAMPUS_ID = "33333333-3333-3333-3333-333333333333"

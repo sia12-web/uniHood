@@ -262,7 +262,9 @@ if settings.environment == "dev":
 		return {"ok": True, "bytes": len(data)}
 
 	app.mount("/uploads", StaticFiles(directory=str(upload_root), check_dir=True), name="uploads")
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+
+# Use the same allowed origins for Socket.IO as for the REST API
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)
 sio.register_namespace(PresenceNamespace())
 social_namespace = SocialNamespace()
 sio.register_namespace(social_namespace)

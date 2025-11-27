@@ -42,7 +42,8 @@ async def require_admin(
 ) -> None:
 	token = settings.obs_admin_token
 	if not token:
-		return
+		# Fail closed: if no token is configured, no admin access is allowed.
+		raise HTTPException(status.HTTP_403_FORBIDDEN, detail="admin_token_not_configured")
 	provided = _resolve_token(X_Admin_Token, authorization)
 	if provided != token:
 		raise HTTPException(status.HTTP_403_FORBIDDEN, detail="forbidden")

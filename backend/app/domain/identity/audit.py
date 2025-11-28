@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 
@@ -11,6 +12,7 @@ from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 
 STREAM_KEY = "x:identity.events"
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -27,7 +29,11 @@ async def log_event(event: str, *, user_id: Optional[str] = None, meta: Optional
 		payload["user_id"] = user_id
 	if meta:
 		payload.update(_stringify(meta))
-	await redis_client.xadd(STREAM_KEY, payload)
+	try:
+		await redis_client.xadd(STREAM_KEY, payload)
+	except Exception:
+		# Failing to append audit events should not break core flows (e.g. register/login)
+		logger.warning("failed to append identity audit event", exc_info=True)
 
 
 def inc_session_created() -> None:

@@ -16,6 +16,13 @@ function isActive(pathname: string, href: string) {
 
 export default function SiteHeader() {
   const pathname = usePathname() ?? "/";
+
+  const transparentLogoPrefixes = ["/chat", "/friends", "/activities", "/meetups"];
+  const logoBackgroundTone = transparentLogoPrefixes.some((prefix) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+    ? "transparent"
+    : "light";
   const suppressedPrefixes = ["/", "/social", "/settings/profile", "/onboarding", "/login"];
   const shouldRenderHeader = !suppressedPrefixes.some((prefix) =>
     prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
@@ -64,7 +71,13 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-warm-sand bg-glass shadow-soft">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <BrandLogo withWordmark logoWidth={160} logoHeight={160} logoClassName="h-24 w-auto" className="text-[#b7222d]" />
+        <BrandLogo
+          backgroundTone={logoBackgroundTone}
+          logoWidth={160}
+          logoHeight={160}
+          logoClassName="h-10 w-auto sm:h-12"
+          className="text-[#b7222d]"
+        />
         <nav className="hidden items-center gap-1 md:flex">
           {visibleLinks.map((link) => (
             <Link

@@ -154,8 +154,8 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 						password_hash,
 					)
 
-				if settings.is_dev():
-					await conn.execute("UPDATE users SET email_verified = TRUE WHERE id = $1", str(user_id))
+				# if settings.is_dev():
+				# 	await conn.execute("UPDATE users SET email_verified = TRUE WHERE id = $1", str(user_id))
 
 				token = await _upsert_verification(conn, user_id)
 	finally:
@@ -164,8 +164,8 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 	obs_metrics.inc_identity_register()
 	
 	# Send verification email
-	if not settings.is_dev():
-		await mailer.send_email_verification(email, token, user_id=str(user_id))
+	# if not settings.is_dev():
+	await mailer.send_email_verification(email, token, user_id=str(user_id))
 		
 	return schemas.RegisterResponse(user_id=user_id, email=email)
 

@@ -5,7 +5,7 @@ import Script from "next/script";
 import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
-  title: "DIvan",
+  title: "Divan",
   description: "Phase 1 proximity core UI",
 };
 

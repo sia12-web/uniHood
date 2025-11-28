@@ -101,15 +101,15 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen w-full bg-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
-        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start">
+        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
 			<div className="relative flex flex-col">
-				<BrandLogo
-					withWordmark
-					logoWidth={1040}
-					logoHeight={1040}
-					className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
-					logoClassName="h-[48rem] w-auto"
-				/>
+			<BrandLogo
+				backgroundTone="transparent"
+				logoWidth={1600}
+				logoHeight={1600}
+				className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
+				logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
+			/>
 			</div>
 		</section>
 

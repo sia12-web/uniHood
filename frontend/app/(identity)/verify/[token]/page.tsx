@@ -46,10 +46,14 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 					<div className="relative flex flex-col">
 						<BrandLogo
 							withWordmark
-							logoWidth={1040}
-							logoHeight={1040}
-							className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
-							logoClassName="h-[48rem] w-auto"
+							backgroundTone="light"
+							logoWidth={320}
+							logoHeight={320}
+							className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
+							logoClassName="h-20 w-auto sm:h-28 lg:h-32"
+							wordmarkTitleClassName="text-4xl sm:text-5xl lg:text-6xl"
+							taglineClassName="text-[0.55rem] tracking-[0.6em] sm:text-[0.65rem]"
+							tagline="Campus proximity"
 						/>
 					</div>
 				</section>

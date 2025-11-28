@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPassword(email);
       setSubmitted(true);
-    } catch (err) {
+    } catch {
       // Generic error message
       setError("Unable to process request. Please try again.");
     } finally {
@@ -33,10 +33,14 @@ export default function ForgotPasswordPage() {
           <div className="relative flex flex-col">
             <BrandLogo
               withWordmark
-              logoWidth={1040}
-              logoHeight={1040}
-              className="w-full max-w-6xl justify-center text-9xl font-semibold text-[#b7222d] lg:justify-start"
-              logoClassName="h-[48rem] w-auto"
+              backgroundTone="light"
+              logoWidth={320}
+              logoHeight={320}
+              className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
+              logoClassName="h-20 w-auto sm:h-28 lg:h-32"
+              wordmarkTitleClassName="text-4xl sm:text-5xl lg:text-6xl"
+              taglineClassName="text-[0.55rem] tracking-[0.6em] sm:text-[0.65rem]"
+              tagline="Campus proximity"
             />
           </div>
         </section>
@@ -50,7 +54,7 @@ export default function ForgotPasswordPage() {
 
             {submitted ? (
               <div className="mt-6 rounded-lg bg-green-50 p-4 text-green-800">
-                <p>If an account exists with that email, we've sent password reset instructions.</p>
+                <p>If an account exists with that email, we&apos;ve sent password reset instructions.</p>
                 <Link href="/login" className="mt-4 block font-medium text-[#b7222d] hover:underline">
                   Return to login
                 </Link>

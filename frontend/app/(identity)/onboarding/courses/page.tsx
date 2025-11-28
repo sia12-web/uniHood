@@ -82,7 +82,16 @@ export default function CoursesOnboardingPage() {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-6 text-center">
-          <BrandLogo withWordmark logoWidth={400} logoHeight={400} logoClassName="h-40 w-auto" className="text-[#b7222d]" />
+          <BrandLogo
+            withWordmark
+            backgroundTone="light"
+            logoWidth={220}
+            logoHeight={220}
+            logoClassName="h-16 w-auto sm:h-20"
+            wordmarkTitleClassName="text-3xl sm:text-4xl"
+            taglineClassName="tracking-[0.5em]"
+            className="text-[#b7222d]"
+          />
           <h1 className="text-4xl font-bold text-slate-900">Welcome to Divan!</h1>
           <p className="text-lg text-slate-600">You're all set. Redirecting you to the dashboard...</p>
         </div>
@@ -94,7 +103,16 @@ export default function CoursesOnboardingPage() {
     <main className="min-h-screen w-full bg-white text-base">
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-12">
         <header className="mb-8 flex flex-col gap-4">
-            <BrandLogo withWordmark logoWidth={400} logoHeight={400} logoClassName="h-32 w-auto" className="text-[#b7222d]" />
+            <BrandLogo
+              withWordmark
+              backgroundTone="light"
+              logoWidth={220}
+              logoHeight={220}
+              logoClassName="h-16 w-auto sm:h-20"
+              wordmarkTitleClassName="text-3xl sm:text-4xl"
+              taglineClassName="tracking-[0.5em]"
+              className="text-[#b7222d]"
+            />
             <h1 className="text-3xl font-bold text-slate-900">What are you studying?</h1>
             <p className="text-slate-600">Select your courses to find classmates.</p>
         </header>

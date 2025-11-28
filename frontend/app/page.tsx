@@ -110,6 +110,14 @@ const activityPreviews = [
     tag: "New",
     image: "/activities/story.svg",
   },
+  {
+    key: "tictactoe",
+    title: "Tic Tac Toe",
+    description: "The classic game of X's and O's. Challenge a friend.",
+    href: "/activities/tictactoe/new",
+    tag: "Classic",
+    image: "/activities/tictactoe.svg",
+  },
 ];
 
 type FriendPreview = {
@@ -870,9 +878,6 @@ export default function HomePage() {
                     </Link>
                   </div>
                 </div>
-                <div className="flex items-center justify-center rounded-2xl bg-white/85 px-4 py-3 shadow-md ring-1 ring-rose-100">
-                  <BrandLogo withWordmark logoWidth={210} logoHeight={210} logoClassName="h-40 w-auto" className="text-[#b7222d]" />
-                </div>
               </div>
             </header>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -987,23 +992,6 @@ export default function HomePage() {
                     >
                       Find classmates
                     </Link>
-                  </div>
-                </div>
-                <div className="flex w-full max-w-xs flex-col items-center gap-3 text-left">
-                  <div className="w-full rounded-2xl bg-white/90 px-3 py-2 text-center shadow-md ring-1 ring-white/50">
-                    <BrandLogo withWordmark logoWidth={200} logoHeight={200} logoClassName="h-40 w-auto" className="mx-auto text-[#b7222d]" />
-                  </div>
-                  <div className="grid w-full grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
-                    <div className="rounded-xl bg-white/10 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.25em] text-rose-100">Unread</p>
-                      <p className="text-2xl font-semibold">{chatUnreadCount > 0 ? formatCount(chatUnreadCount) : "All clear"}</p>
-                      <p className="text-xs text-slate-200/80">Synced across devices</p>
-                    </div>
-                    <div className="rounded-xl bg-white/10 p-3">
-                      <p className="text-[0.6rem] uppercase tracking-[0.25em] text-rose-100">Connections</p>
-                      <p className="text-2xl font-semibold">{friendPreviewList.length || 5}</p>
-                      <p className="text-xs text-slate-200/80">Ready to ping</p>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1145,9 +1133,6 @@ export default function HomePage() {
                       {inviteButtonLabel}
                     </button>
                   </div>
-                </div>
-                <div className="flex items-center justify-center rounded-2xl bg-white/85 px-4 py-3 shadow-md ring-1 ring-rose-100">
-                  <BrandLogo withWordmark logoWidth={220} logoHeight={220} logoClassName="h-40 w-auto" className="text-[#b7222d]" />
                 </div>
               </div>
             </header>
@@ -1614,7 +1599,7 @@ export default function HomePage() {
       <div className="flex min-h-screen w-full gap-8 px-0">
         <aside className="flex w-64 flex-col border-r border-rose-100 bg-white/90 px-4 py-8 text-slate-700 shadow-xl">
           <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100">
-            <BrandLogo className="flex" logoClassName="h-36 w-auto" logoWidth={160} logoHeight={160} withWordmark />
+            <BrandLogo className="flex" logoClassName="h-36 w-auto" backgroundTone="transparent" logoWidth={160} logoHeight={160} />
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">
             {navItems.map((item) => (

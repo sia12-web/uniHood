@@ -19,12 +19,8 @@ server.register(async function (fastify) {
         // In a real app, we'd look up the session to see what activity it is.
         // For this task, I'll assume if the ID starts with 'ttt-', it's Tic-Tac-Toe.
 
-        if (sessionId.startsWith('ttt-')) {
-            handleTicTacToeConnection(connection, req, sessionId);
-        } else {
-            // Fallback or other activities
-            connection.socket.close(1000, 'Unknown activity');
-        }
+        // Default to Tic-Tac-Toe for now as it's the only implemented activity in this service
+        handleTicTacToeConnection(connection, req, sessionId);
     });
 
     fastify.post('/activities/tictactoe/create', async (req, _reply) => {

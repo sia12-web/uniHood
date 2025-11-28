@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -28,7 +28,7 @@ const staffProfile = {
   default_campus: "global",
 };
 
-async function stubStaffIdentity(page: Parameters<typeof test>[0]["page"]) {
+async function stubStaffIdentity(page: Page) {
   await page.route("**/api/mod/v1/me", async (route) => {
     await route.fulfill({
       status: 200,
@@ -76,7 +76,7 @@ test.describe("moderation audit explorer", () => {
       events_per_minute: 12,
     };
 
-  await page.route("**/api/mod/v1/admin/audit**", async (route) => {
+    await page.route("**/api/mod/v1/admin/audit**", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -92,8 +92,8 @@ test.describe("moderation audit explorer", () => {
 
     await page.getByRole("button", { name: "Expand" }).first().click();
 
-  await expect(page.getByText("JSON Patch")).toBeVisible();
-  await expect(page.getByText("/status")).toBeVisible();
+    await expect(page.getByText("JSON Patch")).toBeVisible();
+    await expect(page.getByText("/status")).toBeVisible();
     await expect(page.getByRole("button", { name: "Collapse" })).toBeVisible();
   });
 });
@@ -125,7 +125,7 @@ test.describe("case timeline", () => {
       });
     });
 
-  await page.route("**/api/mod/v1/admin/audit**", async (route) => {
+    await page.route("**/api/mod/v1/admin/audit**", async (route) => {
       const timelineResponse: AuditResponse = {
         items: [
           {

@@ -126,9 +126,9 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
               </div>
               <div className="flex flex-col items-end gap-2">
                 <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${meetup.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" :
-                    meetup.status === "CANCELLED" ? "bg-red-100 text-red-700" :
-                      meetup.status === "ENDED" ? "bg-slate-100 text-slate-700" :
-                        "bg-blue-100 text-blue-700"
+                  meetup.status === "CANCELLED" ? "bg-red-100 text-red-700" :
+                    meetup.status === "ENDED" ? "bg-slate-100 text-slate-700" :
+                      "bg-blue-100 text-blue-700"
                   }`}>
                   {meetup.status}
                 </span>
@@ -174,13 +174,14 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                 </button>
               )}
 
-              <button
-                onClick={() => setIsCancelOpen(true)}
-                className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel Meetup
-              </button>
+              {isHost && (
+                <button
+                  onClick={() => setIsCancelOpen(true)}
+                  className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-6 py-3 text-sm font-bold text-red-700 hover:bg-red-100"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Cancel Meetup
+                </button>
               )}
             </div>
           </div>

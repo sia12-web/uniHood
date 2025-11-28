@@ -201,12 +201,11 @@ export async function removeGalleryImage(
 export async function saveProfileCourses(
 	userId: string,
 	campusId: string | null,
-	codes: string[],
-	visibility: "everyone" | "friends" | "none" = "everyone",
+	courses: ProfileCourseInput[],
 ): Promise<ProfileCourse[]> {
-	return request<ProfileCourse[]>("/user/courses", {
-		method: "POST",
-		body: { codes, visibility },
+	return request<ProfileCourse[]>("/profile/courses", {
+		method: "PUT",
+		body: { courses },
 		headers: authHeaders(userId, campusId),
 	});
 }

@@ -18,7 +18,7 @@ export default function ForgotUsernamePage() {
     try {
       await forgotUsername(email);
       setSubmitted(true);
-    } catch (err) {
+    } catch {
       // Generic error message
       setError("Unable to process request. Please try again.");
     } finally {
@@ -54,7 +54,7 @@ export default function ForgotUsernamePage() {
 
             {submitted ? (
               <div className="mt-6 rounded-lg bg-green-50 p-4 text-green-800">
-                <p>If an account exists with that email, we've sent your username.</p>
+                <p>If an account exists with that email, we&apos;ve sent your username.</p>
                 <Link href="/login" className="mt-4 block font-medium text-[#b7222d] hover:underline">
                   Return to login
                 </Link>

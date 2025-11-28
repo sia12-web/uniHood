@@ -45,7 +45,7 @@ function ResetPasswordForm() {
       await resetPassword(token, password);
       setSubmitted(true);
       setTimeout(() => router.push("/login"), 3000);
-    } catch (err) {
+    } catch {
       setError("Unable to reset password. The link may have expired.");
     } finally {
       setSubmitting(false);
@@ -134,7 +134,7 @@ export default function ResetPasswordPage() {
               <h2 className="text-3xl font-semibold text-slate-900">Set New Password</h2>
             </header>
             <Suspense fallback={<div>Loading...</div>}>
-                <ResetPasswordForm />
+              <ResetPasswordForm />
             </Suspense>
             <footer className="mt-6 flex flex-col gap-2 border-t border-[#f0d8d9] pt-4 text-sm text-slate-700">
               <Link href="/login" className="font-semibold text-[#b7222d] underline-offset-4 hover:underline">

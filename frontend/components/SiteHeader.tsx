@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import BrandLogo from "@/components/BrandLogo";
-import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") {
@@ -28,25 +27,19 @@ export default function SiteHeader() {
     prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
   );
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!shouldRenderHeader || typeof window === "undefined") {
       return;
     }
-    setAuthUser(readAuthUser());
     setHydrated(true);
-    const cleanup = onAuthChange(() => setAuthUser(readAuthUser()));
-    return () => {
-      cleanup();
-    };
   }, [shouldRenderHeader]);
 
-  const navLinks = useMemo(() => {
+  const navLinks = useMemo<Array<{ href: string; label: string }>>(() => {
     // Hide user name and profile link from the top bar; only show sign-in when logged out.
     return [];
-  }, [authUser]);
+  }, []);
 
   const visibleLinks = hydrated ? navLinks : [];
 
@@ -83,11 +76,10 @@ export default function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-                activeMap[link.href]
-                  ? "bg-midnight text-white shadow-soft"
-                  : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
-              }`}
+              className={`rounded-full px-3 py-2 text-sm font-medium transition ${activeMap[link.href]
+                ? "bg-midnight text-white shadow-soft"
+                : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
+                }`}
             >
               {link.label}
             </Link>
@@ -120,11 +112,10 @@ export default function SiteHeader() {
               <Link
                 key={`mobile-${link.href}`}
                 href={link.href}
-                className={`rounded px-3 py-2 text-sm font-medium ${
-                  activeMap[link.href]
-                    ? "bg-midnight text-white"
-                    : "text-navy hover:bg-warm-sand hover:text-midnight"
-                }`}
+                className={`rounded px-3 py-2 text-sm font-medium ${activeMap[link.href]
+                  ? "bg-midnight text-white"
+                  : "text-navy hover:bg-warm-sand hover:text-midnight"
+                  }`}
               >
                 {link.label}
               </Link>

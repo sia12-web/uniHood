@@ -25,6 +25,7 @@ const DEFAULT_OPTIONS: Record<ActivityKind, ActivityOptions> = {
   story_alt: { story: { turns: 4, turn_seconds: 45, max_chars_per_turn: 320 } },
   trivia: { trivia: { questions: 3, per_question_s: 12 } },
   rps: { rps: { best_of: 3 } },
+  tictactoe: { tictactoe: { time_limit_s: 300 } },
 };
 
 const KIND_LABEL: Record<ActivityKind, string> = {
@@ -32,6 +33,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   story_alt: "Story Tag",
   trivia: "Trivia",
   rps: "Rock · Paper · Scissors",
+  tictactoe: "Tic-Tac-Toe",
 };
 
 function resolveMatchPath(activity: ActivitySummary): string {
@@ -44,6 +46,8 @@ function resolveMatchPath(activity: ActivitySummary): string {
       return `/activities/trivia/${activity.id}`;
     case "rps":
       return `/activities/rps/${activity.id}`;
+    case "tictactoe":
+      return `/activities/tictactoe/${activity.id}`;
     default:
       return "#";
   }
@@ -135,7 +139,7 @@ export default function PeerActivityPage({ params }: Props) {
   );
 
   const creationButtons = useMemo(() => {
-    const kinds: ActivityKind[] = ["typing_duel", "story_alt", "trivia", "rps"];
+    const kinds: ActivityKind[] = ["typing_duel", "story_alt", "trivia", "rps", "tictactoe"];
     return kinds.map((kind) => (
       <button
         key={kind}

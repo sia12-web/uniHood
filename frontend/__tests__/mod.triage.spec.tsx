@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -28,13 +29,13 @@ vi.mock("@/hooks/mod/triage/use-queue", async () => {
 	const actual = await vi.importActual<typeof import("@/hooks/mod/triage/use-queue")>("@/hooks/mod/triage/use-queue");
 	return {
 		...actual,
-		useQueue: useQueueMock,
+		useQueue: useQueueMock as any,
 	};
 });
 
 const useQueueSummariesMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/mod/triage/use-queue-summaries", () => ({
-	useQueueSummaries: useQueueSummariesMock,
+	useQueueSummaries: useQueueSummariesMock as any,
 }));
 
 const useCaseActionsMock = vi.hoisted(() => vi.fn());
@@ -44,27 +45,27 @@ vi.mock("@/hooks/mod/triage/use-case-actions", () => ({
 
 const useCaseMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/mod/use-case", () => ({
-	useCase: useCaseMock,
+	useCase: useCaseMock as any,
 }));
 
 const useCannedActionsMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/mod/triage/use-canned", () => ({
-	useCannedActions: useCannedActionsMock,
+	useCannedActions: useCannedActionsMock as any,
 }));
 
 const useClaimLockMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/mod/triage/use-claim-lock", () => ({
-	useClaimLock: useClaimLockMock,
+	useClaimLock: useClaimLockMock as any,
 }));
 
 const useSlaTargetsMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/mod/triage/use-sla", () => ({
-	useSlaTargets: useSlaTargetsMock,
+	useSlaTargets: useSlaTargetsMock as any,
 }));
 
 const emitSafetyMetricMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/obs/safety", () => ({
-	emitSafetyMetric: emitSafetyMetricMock,
+	emitSafetyMetric: emitSafetyMetricMock as any,
 }));
 
 beforeEach(() => {

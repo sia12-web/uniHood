@@ -451,10 +451,7 @@ export default function ProfileSettingsPage() {
 		}
 		const updated = await patchProfile(authUser.userId, authUser.campusId ?? null, patch);
 
-		if (patch.courses) {
-			const newCourses = await saveProfileCourses(authUser.userId, authUser.campusId ?? null, patch.courses);
-			updated.courses = newCourses;
-		}
+
 
 		const merged = mergeCourses(profile, updated);
 		setProfile(merged);
@@ -607,62 +604,6 @@ export default function ProfileSettingsPage() {
 		setCourseErrorMessage(null);
 	}, []);
 
-	const handleCourseFormSubmit = useCallback(() => {
-		const codeTrimmed = courseFormState.code.trim();
-		if (!codeTrimmed) {
-			setCourseErrorMessage("Course code is required.");
-			return;
-		}
-		const trimmedName = courseFormState.name.trim();
-		const termTrimmed = courseFormState.term.trim();
-		
-		let nextCourses: CourseItem[];
-		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
-			nextCourses = coursesDraft.map((course) =>
-				course._localId === activeCourseForm.targetId
-					? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
-					: course,
-			);
-		} else {
-			const newCourse: CourseItem = {
-				_localId: randomLocalId("new"),
-				name: trimmedName,
-				code: codeTrimmed,
-				term: termTrimmed,
-			};
-			nextCourses = [...coursesDraft, newCourse];
-		}
-		setCoursesDraft(nextCourses);
-		setActiveCourseForm(null);
-		setCourseFormState(emptyCourseForm());
-		setCourseErrorMessage(null);
-		setCourseFeedback(null);
-		void persistCourses(nextCourses);
-	}, [activeCourseForm, courseFormState, coursesDraft, persistCourses]);
-
-	const handleCourseRemove = useCallback(
-		(targetId: string) => {
-			const nextCourses = coursesDraft.filter((course) => course._localId !== targetId);
-			setCoursesDraft(nextCourses);
-			setCourseFeedback(null);
-			setCourseErrorMessage(null);
-			if (activeCourseForm?.targetId === targetId) {
-				setActiveCourseForm(null);
-				setCourseFormState(emptyCourseForm());
-			}
-			void persistCourses(nextCourses);
-		},
-		[activeCourseForm, coursesDraft, persistCourses],
-	);
-
-	const handleCoursesReset = useCallback(() => {
-		setCoursesDraft(normaliseCourses(activeProfile?.courses));
-		setCourseErrorMessage(null);
-		setCourseFeedback(null);
-		setActiveCourseForm(null);
-		setCourseFormState(emptyCourseForm());
-	}, [activeProfile, normaliseCourses]);
-
 	const persistCourses = useCallback(async (newCourses: CourseItem[]) => {
 		const payload = toCoursePayload(newCourses);
 		setCourseSaving(true);
@@ -715,6 +656,59 @@ export default function ProfileSettingsPage() {
 			setCourseSaving(false);
 		}
 	}, [authUser, isDraftMode, normaliseCourses, toast]);
+
+
+	const handleCourseFormSubmit = useCallback(() => {
+		const codeTrimmed = courseFormState.code.trim();
+		if (!codeTrimmed) {
+			setCourseErrorMessage("Course code is required.");
+			return;
+		}
+		const trimmedName = courseFormState.name.trim();
+		const termTrimmed = courseFormState.term.trim();
+
+		let nextCourses: CourseItem[];
+		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
+			nextCourses = coursesDraft.map((course) =>
+				course._localId === activeCourseForm.targetId
+					? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
+					: course,
+			);
+		} else {
+			const newCourse: CourseItem = {
+				_localId: randomLocalId("new"),
+				name: trimmedName,
+				code: codeTrimmed,
+				term: termTrimmed,
+			};
+			nextCourses = [...coursesDraft, newCourse];
+		}
+		setCoursesDraft(nextCourses);
+		setActiveCourseForm(null);
+		setCourseFormState(emptyCourseForm());
+		setCourseErrorMessage(null);
+		setCourseFeedback(null);
+		void persistCourses(nextCourses);
+	}, [activeCourseForm, courseFormState, coursesDraft, persistCourses]);
+
+	const handleCourseRemove = useCallback(
+		(targetId: string) => {
+			const nextCourses = coursesDraft.filter((course) => course._localId !== targetId);
+			setCoursesDraft(nextCourses);
+			setCourseFeedback(null);
+			setCourseErrorMessage(null);
+			if (activeCourseForm?.targetId === targetId) {
+				setActiveCourseForm(null);
+				setCourseFormState(emptyCourseForm());
+			}
+			void persistCourses(nextCourses);
+		},
+		[activeCourseForm, coursesDraft, persistCourses],
+	);
+
+
+
+
 
 	const retryFetch = useCallback(() => {
 		setReloadToken((prev) => prev + 1);

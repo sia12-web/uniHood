@@ -12,7 +12,7 @@ const AuthenticatedAppChrome = dynamic(() => import("@/components/AuthenticatedA
   ssr: true,
 });
 
-const AUTH_CHROME_ROUTES = ["/login", "/onboarding", "/verify", "/admin"];
+const AUTH_CHROME_ROUTES = ["/login", "/reset-password", "/forgot-password", "/forgot-username", "/onboarding", "/verify", "/admin"];
 
 export default function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";

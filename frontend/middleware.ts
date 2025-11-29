@@ -8,11 +8,17 @@ const PUBLIC_PATHS = new Set([
 	"/onboarding",
 	"/features",
 	"/consent",
+	"/reset-password",
+	"/forgot-password",
+	"/select-university",
+	"/select-courses",
 ]);
 
 function isPublicPath(pathname: string): boolean {
 	if (pathname === "/") return false;
 	if (PUBLIC_PATHS.has(pathname)) return true;
+	if (pathname.startsWith("/verify")) return true; // Allow verification routes
+	if (pathname === "/verify-email") return true; // Allow legacy verification route
 	if (pathname.startsWith("/api/")) return true;
 	// Allow static and Next internals
 	if (pathname.startsWith("/_next/")) return true;

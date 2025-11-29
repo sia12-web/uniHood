@@ -182,6 +182,10 @@ function resolveCore(path: string): string {
   return path.startsWith('/') ? `${CORE_BASE}${path}` : `${CORE_BASE}/${path}`;
 }
 
+export function resolveActivitiesCoreUrl(path: string): string {
+	return resolveCore(path);
+}
+
 function buildRequestAuthHeaders(): Record<string, string> {
   const headerBag = new Headers();
   headerBag.set('Content-Type', 'application/json');
@@ -292,6 +296,18 @@ export function __debugSelfUser(): string | null {
 }
 
 // --- New activity-centric API (maps to FastAPI /activities routes) ---
+
+export async function createTicTacToeSession(): Promise<string> {
+  const result = await coreRequest<{ sessionId?: string }>(
+    '/activities/tictactoe/create',
+    { method: 'POST' },
+  );
+  const sessionId = result?.sessionId;
+  if (typeof sessionId !== 'string' || !sessionId.trim()) {
+    throw new Error('session_create_failed');
+  }
+  return sessionId.trim();
+}
 
 export interface ActivitySummary {
   id: string; kind: 'typing_duel' | 'story_alt' | 'trivia' | 'rps'; state: string;

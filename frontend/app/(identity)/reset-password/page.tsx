@@ -112,18 +112,14 @@ export default function ResetPasswordPage() {
   return (
     <main className="min-h-screen w-full bg-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
-        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start">
+        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
           <div className="relative flex flex-col">
             <BrandLogo
-              withWordmark
-              backgroundTone="light"
-              logoWidth={320}
-              logoHeight={320}
+              backgroundTone="transparent"
+              logoWidth={1600}
+              logoHeight={1600}
               className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
-              logoClassName="h-20 w-auto sm:h-28 lg:h-32"
-              wordmarkTitleClassName="text-4xl sm:text-5xl lg:text-6xl"
-              taglineClassName="text-[0.55rem] tracking-[0.6em] sm:text-[0.65rem]"
-              tagline="Campus proximity"
+              logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
             />
           </div>
         </section>

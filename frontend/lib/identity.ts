@@ -15,9 +15,9 @@ async function request<T>(path: string, options: ApiFetchOptions = {}): Promise<
 export type RegisterPayload = {
 	email: string;
 	password: string;
-	handle: string;
+	handle?: string;
 	display_name?: string;
-	campus_id: string;
+	campus_id?: string;
 };
 
 export type RegisterResponse = {

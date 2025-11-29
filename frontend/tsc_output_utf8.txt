@@ -1,17 +1,5 @@
-﻿app/(activities)/activities/with/[peerId]/page.tsx(23,7): error TS2741: Property 'tictactoe' is missing in type '{ typing_duel: { typing: { duration_s: number; }; }; story_alt: { story: { turns: number; turn_seconds: number; max_chars_per_turn: number; }; }; trivia: { trivia: { questions: number; per_question_s: number; }; }; rps: { ...; }; }' but required in type 'Record<ActivityKind, ActivityOptions>'.
-app/(activities)/activities/with/[peerId]/page.tsx(30,7): error TS2741: Property 'tictactoe' is missing in type '{ typing_duel: string; story_alt: string; trivia: string; rps: string; }' but required in type 'Record<ActivityKind, string>'.
-app/(identity)/settings/profile/page.tsx(636,96): error TS2345: Argument of type 'ProfileCourseInput[]' is not assignable to parameter of type 'string[]'.
-  Type 'ProfileCourseInput' is not assignable to type 'string'.
-app/meetups/page.tsx(125,3): error TS2304: Cannot find name 'useEffect'.
-components/SiteHeader.tsx(55,16): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(55,48): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(84,25): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(85,26): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(87,32): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(92,21): error TS2339: Property 'label' does not exist on type 'never'.
-components/SiteHeader.tsx(121,37): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(122,28): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(124,34): error TS2339: Property 'href' does not exist on type 'never'.
-components/SiteHeader.tsx(129,23): error TS2339: Property 'label' does not exist on type 'never'.
-e2e/mod-audit.spec.ts(31,67): error TS2339: Property 'page' does not exist on type 'String'.
-e2e/mod-audit.spec.ts(32,47): error TS7006: Parameter 'route' implicitly has an 'any' type.
+﻿app/(activities)/activities/page.tsx(28,14): error TS2741: Property 'onToggleReady' is missing in type '{ state: TicTacToeState; onMove: (index: number) => void; onRestart: () => void; }' but required in type 'BoardProps'.
+app/features/activities/components/TicTacToeBoard.tsx(112,57): error TS7053: Element implicitly has an 'any' type because expression of type '"X" | "O" | "spectator"' can't be used to index type '{ X?: string | undefined; O?: string | undefined; }'.
+  Property 'spectator' does not exist on type '{ X?: string | undefined; O?: string | undefined; }'.
+app/features/activities/components/TicTacToeBoard.tsx(117,54): error TS7053: Element implicitly has an 'any' type because expression of type '"X" | "O" | "spectator"' can't be used to index type '{ X?: string | undefined; O?: string | undefined; }'.
+  Property 'spectator' does not exist on type '{ X?: string | undefined; O?: string | undefined; }'.

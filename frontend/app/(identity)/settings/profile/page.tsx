@@ -5,6 +5,7 @@ import { useCallback, useContext, useEffect, useId, useMemo, useState } from "re
 
 import ProfileForm from "@/components/ProfileForm";
 import ProfileGalleryManager from "@/components/ProfileGalleryManager";
+import WebsiteSettings from "@/components/WebsiteSettings";
 import {
 	commitAvatar,
 	commitGallery,
@@ -750,13 +751,13 @@ export default function ProfileSettingsPage() {
 	const galleryDisabled = isDraftMode || !authUser;
 
 	return (
-		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200">
+		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-12">
 				<header className="flex flex-col gap-2">
-					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Profile settings</p>
-					<h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Shape your Campus identity</h1>
-					<p className="text-sm text-slate-600 sm:text-base">
+					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
+					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
+					<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
 						Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
 					</p>
 				</header>
@@ -804,6 +805,7 @@ export default function ProfileSettingsPage() {
 									)}
 								/>
 							</section>
+							<WebsiteSettings />
 							<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
 								<header className="flex flex-wrap items-center justify-between gap-3">
 									<div>
@@ -1083,9 +1085,10 @@ export default function ProfileSettingsPage() {
 								)}
 							</section>
 						</aside>
-					</div>
-				) : null}
-			</div>
-		</main>
+					</div >
+				) : null
+				}
+			</div >
+		</main >
 	);
 }

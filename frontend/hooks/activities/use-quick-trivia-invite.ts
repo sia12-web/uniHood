@@ -45,11 +45,19 @@ export function useQuickTriviaInvite(options?: Options) {
   }, [options?.peerUserId]);
 
   useEffect(() => {
+    const selfId = getSelf();
+
+    // Don't poll if not authenticated
+    if (!selfId || selfId === 'anonymous-user') {
+      return;
+    }
+
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let endpointNotFound = false;
 
     const poll = async () => {
-      if (cancelled) {
+      if (cancelled || endpointNotFound) {
         return;
       }
 
@@ -83,10 +91,16 @@ export function useQuickTriviaInvite(options?: Options) {
         }
       } catch (error) {
         if (!cancelled) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+            endpointNotFound = true;
+            console.info("quick_trivia_invite_endpoint_not_available", "Stopped polling");
+            return;
+          }
           console.warn("quick_trivia_invite_poll_failed", error);
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !endpointNotFound) {
           timer = setTimeout(poll, POLL_INTERVAL_MS);
         }
       }

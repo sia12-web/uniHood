@@ -54,13 +54,10 @@ const ActivityIcon = () => (
   </svg>
 );
 
-const SettingsIcon = () => (
+const ProfileIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={iconClassName} aria-hidden>
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Zm7.94-2.78a1 1 0 0 0 .2-1.09l-1.08-2.36a1 1 0 0 1 .12-.97l1.54-2.3a1 1 0 0 0-.17-1.3l-1.73-1.73a1 1 0 0 0-1.3-.17l-2.3 1.54a1 1 0 0 1-.97.12L13.37 2.86a1 1 0 0 0-1.09-.2l-2.48.9a1 1 0 0 0-.63.82l-.28 2.7a1 1 0 0 1-.63.82l-2.36 1.08a1 1 0 0 0-.58.91v2.45a1 1 0 0 0 .58.91l2.36 1.08a1 1 0 0 1 .63.82l.28 2.7a1 1 0 0 0 .63.82l2.48.9a1 1 0 0 0 1.09-.2l2.36-2.14a1 1 0 0 1 .97-.12l2.3 1.54a1 1 0 0 0 1.3-.17l1.73-1.73a1 1 0 0 0 .17-1.3l-1.54-2.3a1 1 0 0 1-.12-.97Z"
-    />
+    <circle cx="12" cy="7" r="4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2" />
   </svg>
 );
 
@@ -71,7 +68,7 @@ const ProfileSettingsInline = dynamic(
     ssr: false,
     loading: () => (
       <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 text-sm text-slate-600 shadow-sm">
-        Loading settings...
+        Loading profile...
       </div>
     ),
   },
@@ -114,7 +111,7 @@ const activityPreviews = [
     key: "tictactoe",
     title: "Tic Tac Toe",
     description: "The classic game of X's and O's. Challenge a friend.",
-    href: "/activities/tictactoe/new",
+    href: "/activities/tictactoe",
     tag: "Classic",
     image: "/activities/tictactoe.svg",
   },
@@ -171,7 +168,7 @@ function formatChatTime(iso: string | null | undefined): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type NavKey = "dashboard" | "friends" | "chats" | "activities" | "settings" | "discovery" | "meetups";
+type NavKey = "dashboard" | "friends" | "chats" | "activities" | "profile" | "discovery" | "meetups";
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
@@ -683,9 +680,9 @@ export default function HomePage() {
         badge: hasStoryInvite || hasTypingInvite ? "Live" : null,
       },
       {
-        key: "settings" as const,
-        label: "Settings",
-        icon: <SettingsIcon />,
+        key: "profile" as const,
+        label: "Profile",
+        icon: <ProfileIcon />,
         badge: null,
       },
     ],
@@ -708,7 +705,16 @@ export default function HomePage() {
         return (
           <div className="space-y-6">
             <header>
-              <h1 className="text-3xl font-bold text-slate-900">Welcome back, {authUser?.displayName || "Student"}</h1>
+              <h1 className="text-3xl font-bold text-slate-900">
+                Welcome back,{" "}
+                <button
+                  type="button"
+                  onClick={() => handleNavClick("profile")}
+                  className="text-slate-900 hover:text-rose-600 hover:underline decoration-2 underline-offset-4 transition-colors"
+                >
+                  {authUser?.displayName || "Student"}
+                </button>
+              </h1>
               <p className="text-slate-600">Here&apos;s what&apos;s happening in your network.</p>
             </header>
 
@@ -1098,12 +1104,12 @@ export default function HomePage() {
           ? "You have a story invite waiting. Tap below to join."
           : hasTypingInvite
             ? "You have a live typing duel invite ready."
-            : "Challenge friends to typing duels, trivia, or rock-paper-scissors without leaving this view.";
+            : "Spin up a duel, trivia match, or chill co-op session without leaving this space.";
         const inviteButtonLabel = hasStoryInvite
           ? "Open story invite"
           : hasTypingInvite
             ? "Open typing duel"
-            : "Waiting for invites";
+            : "Explore activities";
         const canOpenInvite = hasStoryInvite || hasTypingInvite;
         const handleInviteClick = () => {
           if (hasStoryInvite) {
@@ -1120,19 +1126,20 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.9),transparent_55%)]" aria-hidden />
               <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
-                  <p className="text-sm uppercase tracking-[0.35em] text-rose-500">Activities</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-slate-900">Launch games or accept invites</h2>
+                  <p className="text-sm uppercase tracking-[0.35em] text-rose-500">Live arena</p>
+                  <h2 className="mt-2 text-3xl font-semibold text-slate-900">Jump into campus challenges</h2>
                   <p className="mt-2 text-sm text-slate-700">{inviteMessage}</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={handleInviteClick}
-                      disabled={!canOpenInvite}
-                      className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {inviteButtonLabel}
-                    </button>
-                  </div>
+                  {canOpenInvite ? (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={handleInviteClick}
+                        className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500"
+                      >
+                        {inviteButtonLabel}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </header>
@@ -1363,7 +1370,7 @@ export default function HomePage() {
           </div>
         );
       }
-      case "settings":
+      case "profile":
         return (
           <div className="rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-xl">
             <ProfileSettingsInline />
@@ -1595,9 +1602,9 @@ export default function HomePage() {
     }
   };
   return (
-    <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white text-base md:text-lg">
+    <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="flex min-h-screen w-full gap-8 px-0">
-        <aside className="flex w-64 flex-col border-r border-rose-100 bg-white/90 px-4 py-8 text-slate-700 shadow-xl">
+        <aside className="flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
           <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100">
             <BrandLogo className="flex" logoClassName="h-36 w-auto" backgroundTone="transparent" logoWidth={160} logoHeight={160} />
           </div>

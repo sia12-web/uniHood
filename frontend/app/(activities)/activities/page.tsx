@@ -8,11 +8,21 @@ export default function ActivitiesPage() {
     const [matchId, setMatchId] = useState<string>("");
 
     useEffect(() => {
-        // Generate a random match ID for the preview session
-        setMatchId(Math.random().toString(36).substring(7));
+        // Check URL params for matchId
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('matchId');
+        if (id) {
+            setMatchId(id);
+        } else {
+            // Generate a random match ID for the preview session
+            const newId = Math.random().toString(36).substring(7);
+            setMatchId(newId);
+            // Update URL without reloading
+            window.history.replaceState({}, '', `?matchId=${newId}`);
+        }
     }, []);
 
-    const { state, makeMove, restartGame } = useTicTacToeSession(matchId);
+    const { state, makeMove, restartGame, toggleReady } = useTicTacToeSession(matchId);
 
     if (!matchId) {
         return (
@@ -25,7 +35,7 @@ export default function ActivitiesPage() {
     return (
         <main className="min-h-screen bg-[#0c0b16] flex items-center justify-center p-4 relative overflow-hidden">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,211,238,0.1),transparent_50%)]" />
-            <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} />
+            <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} />
         </main>
     );
 }

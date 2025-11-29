@@ -33,74 +33,68 @@ export function ActivityAcceptanceProvider({ children }: ProviderProps) {
   const notifiedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    const user = readAuthUser();
+    const userId = user?.userId;
+
+    // Don't poll if not authenticated
+    if (!userId) {
+      return;
+    }
+
     let active = true;
 
     const poll = async () => {
       try {
-        const user = readAuthUser();
-        if (!user?.userId) return;
+        // Re-check auth on each poll in case it changed
+        const currentUser = readAuthUser();
+        if (!currentUser?.userId) return;
 
         const activities = await listActivities();
         if (!active) return;
 
         // Filter for activities created by me (user_a)
-        const myActivities = activities.filter((a) => a.user_a === user.userId);
+        const myActivities = activities.filter((a) => a.user_a === currentUser.userId);
 
         for (const activity of myActivities) {
           const prevState = knownActivitiesRef.current.get(activity.id);
-          
+
           // Update known state
           knownActivitiesRef.current.set(activity.id, activity.state);
 
           // Check for transition to active/running
-          // If we didn't know about it, and it's active, maybe we missed the transition?
-          // Or if it was lobby and now active.
-          
-          const isNowActive = activity.state === "active" || (activity.kind === "story_alt" && activity.state === "running"); // story may report running once started
-          // Actually ActivityState type has 'active'. Backend might return 'running'.
-          // Let's check ActivityState definition in frontend/lib/activities.ts: "lobby" | "active" | "completed" ...
-          
-          // If the backend returns "running", does the frontend type match?
-          // In storyBuilder.ts, phase is "running".
-          // I should check if listActivities maps it.
-          
-          // Assuming "active" or "running" means started.
-          
+          const isNowActive = activity.state === "active" || (activity.kind === "story_alt" && activity.state === "running");
+
           if (isNowActive && !notifiedRef.current.has(activity.id)) {
-             // If we knew it was lobby before, OR if it's just active and we haven't notified yet (and it's recent?)
-             // To avoid notifying for old completed games, we should check created_at?
-             // Or just rely on "prevState === 'lobby'".
-             
-             if (prevState === "lobby") {
-               notifiedRef.current.add(activity.id);
-               
-               let title = "Activity Started";
-               let description = "Your friend has joined the game!";
+            if (prevState === "lobby") {
+              notifiedRef.current.add(activity.id);
 
-               if (activity.kind === "story_alt") {
-                 title = "Story Started";
-                 description = "Your friend joined the story. It's time to write!";
-               } else if (activity.kind === "typing_duel") {
-                 title = "Duel Started";
-                 description = "Your opponent is ready. Go!";
-               } else if (activity.kind === "rps") {
-                 title = "RPS Match";
-                 description = "Opponent joined. Make your move!";
-               } else if (activity.kind === "trivia") {
-                 title = "Trivia Started";
-                 description = "Friend joined. Good luck!";
-               }
+              let title = "Activity Started";
+              let description = "Your friend has joined the game!";
 
-                toast.push({
-                  id: `activity-start-${activity.id}`,
-                  title,
-                  description,
-                  variant: "success",
-                });
+              if (activity.kind === "story_alt") {
+                title = "Story Started";
+                description = "Your friend joined the story. It's time to write!";
+              } else if (activity.kind === "typing_duel") {
+                title = "Duel Started";
+                description = "Your opponent is ready. Go!";
+              } else if (activity.kind === "rps") {
+                title = "RPS Match";
+                description = "Opponent joined. Make your move!";
+              } else if (activity.kind === "trivia") {
+                title = "Trivia Started";
+                description = "Friend joined. Good luck!";
               }
-           }
-         }
-       } catch {
+
+              toast.push({
+                id: `activity-start-${activity.id}`,
+                title,
+                description,
+                variant: "success",
+              });
+            }
+          }
+        }
+      } catch {
         // ignore
       }
     };

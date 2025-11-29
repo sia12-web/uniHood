@@ -63,6 +63,14 @@ export function useStoryInvite() {
   }, [clearInvite]);
 
   useEffect(() => {
+    const user = readAuthUser();
+    const userId = user?.userId || getDemoUserId();
+
+    // Don't poll if not authenticated
+    if (!userId) {
+      return;
+    }
+
     let active = true;
     const poll = async () => {
       try {

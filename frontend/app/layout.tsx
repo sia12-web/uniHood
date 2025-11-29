@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body className="bg-white text-slate-900 antialiased">
+      <body className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50 antialiased">
         <AppChrome>{children}</AppChrome>
       </body>
     </html>

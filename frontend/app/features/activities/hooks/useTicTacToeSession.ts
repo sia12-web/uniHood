@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { getSelf } from "../api/client";
+import { getSelf, resolveActivitiesCoreUrl } from "../api/client";
 
 export interface TicTacToeState {
     board: (string | null)[];
@@ -10,9 +10,37 @@ export interface TicTacToeState {
     myRole?: 'X' | 'O' | 'spectator';
     connected: boolean;
     error?: string;
+    status: 'lobby' | 'ready' | 'countdown' | 'playing' | 'finished';
+    ready: Record<string, boolean>;
+    scores: Record<string, number>;
+    countdown: number | null;
 }
 
-const CORE_BASE = (process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || "http://localhost:3001").replace(/\/$/, "");
+function resolveSocketUrl(sessionId: string): string | null {
+    if (!sessionId) {
+        return null;
+    }
+    const path = `/activities/session/${sessionId}/stream`;
+    let target = resolveActivitiesCoreUrl(path);
+    if (!target) {
+        return null;
+    }
+    if (!target.startsWith("http://") && !target.startsWith("https://")) {
+        if (typeof window === "undefined") {
+            return null;
+        }
+        const origin = window.location.origin;
+        const prefix = target.startsWith("/") ? "" : "/";
+        target = `${origin}${prefix}${target}`;
+    }
+    if (target.startsWith("https://")) {
+        return `wss://${target.slice("https://".length)}`;
+    }
+    if (target.startsWith("http://")) {
+        return `ws://${target.slice("http://".length)}`;
+    }
+    return null;
+}
 
 export function useTicTacToeSession(sessionId: string) {
     const [state, setState] = useState<TicTacToeState>({
@@ -21,7 +49,11 @@ export function useTicTacToeSession(sessionId: string) {
         winner: null,
         players: {},
         spectators: [],
-        connected: false
+        connected: false,
+        status: 'lobby',
+        ready: {},
+        scores: {},
+        countdown: null
     });
 
     const wsRef = useRef<WebSocket | null>(null);
@@ -29,24 +61,17 @@ export function useTicTacToeSession(sessionId: string) {
 
     useEffect(() => {
         if (!sessionId) return;
-
-        const isAbsolute = CORE_BASE.startsWith("http://") || CORE_BASE.startsWith("https://");
-        let origin: string;
-        if (isAbsolute) {
-            origin = CORE_BASE.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
-        } else {
-            origin = `ws://localhost:3001`;
+        const socketUrl = resolveSocketUrl(sessionId);
+        if (!socketUrl) {
+            setState((s) => ({ ...s, error: "unresolved_socket" }));
+            return;
         }
-
-        const url = `${origin}/activities/session/${sessionId}/stream`;
-        console.log('Connecting to', url);
-
-        const ws = new WebSocket(url);
+        const ws = new WebSocket(socketUrl);
         wsRef.current = ws;
+        setState((s) => ({ ...s, error: undefined }));
 
         ws.onopen = () => {
-            console.log('Connected to Tic-Tac-Toe session');
-            setState(s => ({ ...s, connected: true }));
+            setState((s) => ({ ...s, connected: true }));
             // Join as random role or spectator?
             // For now, just join. The server will assign based on availability.
             // We need to send a join message.
@@ -73,9 +98,12 @@ export function useTicTacToeSession(sessionId: string) {
             }
         };
 
+        ws.onerror = () => {
+            setState((s) => ({ ...s, connected: false, error: "connection_error" }));
+        };
+
         ws.onclose = () => {
-            console.log('Disconnected');
-            setState(s => ({ ...s, connected: false }));
+            setState((s) => ({ ...s, connected: false }));
         };
 
         return () => {
@@ -98,5 +126,14 @@ export function useTicTacToeSession(sessionId: string) {
         }
     }, []);
 
-    return { state, makeMove, restartGame, self: selfRef.current };
+    const toggleReady = useCallback(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'ready',
+                payload: { userId: selfRef.current }
+            }));
+        }
+    }, []);
+
+    return { state, makeMove, restartGame, toggleReady, self: selfRef.current };
 }

@@ -43,11 +43,20 @@ export function useTypingDuelInvite(options?: Options) {
   }, [options?.peerUserId]);
 
   useEffect(() => {
+    const user = readAuthUser();
+    const userId = user?.userId || getDemoUserId();
+
+    // Don't poll if not authenticated
+    if (!userId) {
+      return;
+    }
+
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let endpointNotFound = false; // Track if endpoint returns 404
 
     const poll = async () => {
-      if (cancelled) {
+      if (cancelled || endpointNotFound) {
         return;
       }
 
@@ -100,10 +109,17 @@ export function useTypingDuelInvite(options?: Options) {
         }
       } catch (error) {
         if (!cancelled) {
+          // Check if it's a 404 error (endpoint doesn't exist)
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+            endpointNotFound = true;
+            console.info("typing_duel_invite_endpoint_not_available", "Stopped polling");
+            return; // Stop polling
+          }
           console.warn("typing_duel_invite_poll_failed", error);
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !endpointNotFound) {
           timer = setTimeout(poll, POLL_INTERVAL_MS);
         }
       }

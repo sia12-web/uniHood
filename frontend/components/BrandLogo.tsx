@@ -41,9 +41,9 @@ export default function BrandLogo({
   
   let emblemBackdropClasses = "";
   if (backgroundTone === "dark") {
-    emblemBackdropClasses = "bg-white/15 ring-1 ring-white/25 shadow-[0_15px_35px_rgba(0,0,0,0.65)]";
+    emblemBackdropClasses = "bg-white/15 shadow-[0_15px_35px_rgba(0,0,0,0.65)]";
   } else if (backgroundTone === "light") {
-    emblemBackdropClasses = "bg-white ring-1 ring-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.18)]";
+    emblemBackdropClasses = "bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)]";
   } else {
     // transparent
     emblemBackdropClasses = "";

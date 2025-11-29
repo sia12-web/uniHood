@@ -90,6 +90,21 @@ export default function LoginPage() {
       } catch {
         // localStorage is optional; ignore failures (e.g., SSR or disabled storage).
       }
+
+      // Check if user needs to complete onboarding
+      try {
+        const { fetchProfile } = await import("@/lib/identity");
+        const profile = await fetchProfile(response.user_id, null);
+
+        if (!profile.campus_id) {
+          router.replace("/select-university");
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+        // Continue to dashboard if profile fetch fails
+      }
+
       router.replace("/");
     } catch (err) {
       setError(describeLoginError(err));
@@ -102,16 +117,16 @@ export default function LoginPage() {
     <main className="min-h-screen w-full bg-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
         <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
-			<div className="relative flex flex-col">
-			<BrandLogo
-				backgroundTone="transparent"
-				logoWidth={1600}
-				logoHeight={1600}
-				className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
-				logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
-			/>
-			</div>
-		</section>
+          <div className="relative flex flex-col">
+            <BrandLogo
+              backgroundTone="transparent"
+              logoWidth={1600}
+              logoHeight={1600}
+              className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
+              logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
+            />
+          </div>
+        </section>
 
         <section className="flex flex-1">
           <div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">

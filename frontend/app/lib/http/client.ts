@@ -39,12 +39,12 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 		baseHeaders.set("Content-Type", contentType);
 	}
 
-	    applyAuthHeaders(baseHeaders);
+	applyAuthHeaders(baseHeaders);
 
 	const resolved = resolveInput(input);
 
 	let attempt = 0;
-		let refreshAttempted = false;
+	let refreshAttempted = false;
 	// eslint-disable-next-line no-constant-condition -- loop managed via returns
 	while (true) {
 		const headers = new Headers(baseHeaders);
@@ -64,14 +64,14 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 				return (await decodeSuccess<T>(response)) as T;
 			}
 
-				if (response.status === 401 && !refreshAttempted && typeof window !== "undefined") {
-					refreshAttempted = true;
-					const refreshed = await refreshAccessToken();
-					if (refreshed) {
-						applyAuthHeaders(baseHeaders, { force: true });
-						continue;
-					}
+			if (response.status === 401 && !refreshAttempted && typeof window !== "undefined") {
+				refreshAttempted = true;
+				const refreshed = await refreshAccessToken();
+				if (refreshed) {
+					applyAuthHeaders(baseHeaders, { force: true });
+					continue;
 				}
+			}
 
 			if (shouldRetryResponse(response) && attempt < policy.maxAttempts) {
 				attempt += 1;

@@ -1,14 +1,86 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Check, ChevronsUpDown } from "lucide-react";
 
 import { fetchProfile, patchProfile } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
+import { cn } from "@/lib/utils";
 
 const currentYear = new Date().getFullYear();
 const YEAR_MIN = currentYear;
 const YEAR_MAX = currentYear + 8;
+
+const MAJORS = [
+	"Accounting",
+	"Aerospace Engineering",
+	"Anthropology",
+	"Architecture",
+	"Art History",
+	"Biochemistry",
+	"Biology",
+	"Biomedical Engineering",
+	"Business Administration",
+	"Chemical Engineering",
+	"Chemistry",
+	"Civil Engineering",
+	"Communications",
+	"Computer Engineering",
+	"Computer Science",
+	"Criminal Justice",
+	"Cybersecurity",
+	"Data Science",
+	"Dentistry",
+	"Economics",
+	"Education",
+	"Electrical Engineering",
+	"English Literature",
+	"Environmental Science",
+	"Fashion Design",
+	"Film Studies",
+	"Finance",
+	"Fine Arts",
+	"Forensic Science",
+	"Graphic Design",
+	"Health Sciences",
+	"History",
+	"Hospitality Management",
+	"Human Resources",
+	"Industrial Engineering",
+	"Information Technology",
+	"International Relations",
+	"Journalism",
+	"Law",
+	"Liberal Arts",
+	"Linguistics",
+	"Management Information Systems",
+	"Marketing",
+	"Mathematics",
+	"Mechanical Engineering",
+	"Medicine",
+	"Music",
+	"Neuroscience",
+	"Nursing",
+	"Nutrition",
+	"Pharmacy",
+	"Philosophy",
+	"Physics",
+	"Political Science",
+	"Psychology",
+	"Public Health",
+	"Public Relations",
+	"Robotics",
+	"Social Work",
+	"Sociology",
+	"Software Engineering",
+	"Statistics",
+	"Theater Arts",
+	"Undeclared",
+	"Urban Planning",
+	"Veterinary Medicine",
+	"Zoology",
+].sort();
 
 export default function MajorYearPage() {
 	const [major, setMajor] = useState("");
@@ -17,6 +89,11 @@ export default function MajorYearPage() {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [campusId, setCampusId] = useState<string | null>(null);
+
+	const [isMajorOpen, setIsMajorOpen] = useState(false);
+	const majorInputRef = useRef<HTMLInputElement>(null);
+	const majorListRef = useRef<HTMLUListElement>(null);
+
 	const router = useRouter();
 
 	useEffect(() => {
@@ -40,6 +117,29 @@ export default function MajorYearPage() {
 		};
 		void load();
 	}, [router]);
+
+	// Close dropdown when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				majorInputRef.current &&
+				!majorInputRef.current.contains(event.target as Node) &&
+				majorListRef.current &&
+				!majorListRef.current.contains(event.target as Node)
+			) {
+				setIsMajorOpen(false);
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, []);
+
+	const filteredMajors = useMemo(() => {
+		if (!major) return MAJORS;
+		const lower = major.toLowerCase();
+		return MAJORS.filter((m) => m.toLowerCase().includes(lower));
+	}, [major]);
 
 	const gradYearHelp = useMemo(() => {
 		if (!gradYear) return `Between ${YEAR_MIN} and ${YEAR_MAX}`;
@@ -86,6 +186,11 @@ export default function MajorYearPage() {
 		}
 	};
 
+	const handleSelectMajor = (selectedMajor: string) => {
+		setMajor(selectedMajor);
+		setIsMajorOpen(false);
+	};
+
 	if (loading) {
 		return <div className="flex min-h-[60vh] items-center justify-center text-slate-500">Loading...</div>;
 	}
@@ -110,22 +215,65 @@ export default function MajorYearPage() {
 					)}
 
 					<div className="space-y-4">
-						<div>
+						<div className="relative">
 							<label htmlFor="major" className="block text-sm font-medium text-slate-700">
 								Major or program
 							</label>
-							<input
-								id="major"
-								name="major"
-								type="text"
-								required
-								value={major}
-								onChange={(e) => setMajor(e.target.value)}
-								maxLength={120}
-								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
-								placeholder="e.g., Computer Science"
-							/>
+							<div className="relative mt-1">
+								<input
+									ref={majorInputRef}
+									id="major"
+									name="major"
+									type="text"
+									required
+									value={major}
+									onChange={(e) => {
+										setMajor(e.target.value);
+										setIsMajorOpen(true);
+									}}
+									onFocus={() => setIsMajorOpen(true)}
+									maxLength={120}
+									className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm transition-all focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] sm:text-sm"
+									placeholder="Search for your major..."
+									autoComplete="off"
+								/>
+								<div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+									<ChevronsUpDown className="h-4 w-4" />
+								</div>
+							</div>
+
+							{isMajorOpen && (
+								<ul
+									ref={majorListRef}
+									className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+								>
+									{filteredMajors.length === 0 ? (
+										<li className="relative cursor-default select-none px-4 py-2 text-slate-500">
+											No majors found.
+										</li>
+									) : (
+										filteredMajors.map((m) => (
+											<li
+												key={m}
+												className={cn(
+													"relative cursor-pointer select-none px-4 py-2 transition-colors hover:bg-[#fff0f1] hover:text-[#d64045]",
+													major === m ? "bg-[#fff0f1] text-[#d64045] font-medium" : "text-slate-900"
+												)}
+												onClick={() => handleSelectMajor(m)}
+											>
+												<span className="block truncate">{m}</span>
+												{major === m && (
+													<span className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#d64045]">
+														<Check className="h-4 w-4" />
+													</span>
+												)}
+											</li>
+										))
+									)}
+								</ul>
+							)}
 						</div>
+
 						<div>
 							<label htmlFor="gradYear" className="block text-sm font-medium text-slate-700">
 								Graduation year
@@ -140,25 +288,25 @@ export default function MajorYearPage() {
 								required
 								value={gradYear}
 								onChange={(e) => setGradYear(e.target.value)}
-								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
+								className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm transition-all focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] sm:text-sm"
 								placeholder={`${YEAR_MIN + 3}`}
 							/>
 							<p className="mt-1 text-xs text-slate-500">{gradYearHelp}</p>
 						</div>
 					</div>
 
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between pt-4">
 						<button
 							type="button"
 							onClick={() => router.push("/select-university")}
-							className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+							className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
 						>
 							Back
 						</button>
 						<button
 							type="submit"
 							disabled={submitting}
-							className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
+							className="group relative flex justify-center rounded-xl border border-transparent bg-[#d64045] px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-[#c7343a] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
 						>
 							{submitting ? "Saving..." : "Continue"}
 						</button>

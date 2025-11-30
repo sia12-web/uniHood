@@ -122,10 +122,10 @@ export default function OnboardingPage() {
         <BrandLogo
           asLink={false}
           backgroundTone="transparent"
-          logoWidth={160}
-          logoHeight={160}
+          logoWidth={480}
+          logoHeight={480}
           className="justify-center text-[#b7222d]"
-          logoClassName="h-24 w-auto"
+          logoClassName="h-72 w-auto"
         />
         <div className="mt-8 max-w-md text-center">
           <h2 className="text-3xl font-bold text-slate-900">Check your email</h2>

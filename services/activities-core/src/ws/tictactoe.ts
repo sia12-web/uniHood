@@ -7,10 +7,15 @@ export interface GameState {
     winner: string | null;
     players: { X?: string; O?: string };
     spectators: string[];
+    status: 'lobby' | 'ready' | 'countdown' | 'playing' | 'finished';
+    ready: Record<string, boolean>;
+    scores: Record<string, number>;
+    countdown: number | null;
 }
 
 const sessions: Record<string, GameState> = {};
 const connections: Record<string, Set<any>> = {};
+const countdowns: Record<string, NodeJS.Timeout> = {};
 
 export function handleTicTacToeConnection(connection: SocketStream, _req: FastifyRequest, sessionId: string) {
     const socket = connection.socket;
@@ -22,18 +27,16 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
             turn: 'X',
             winner: null,
             players: {},
-            spectators: []
+            spectators: [],
+            status: 'lobby',
+            ready: {},
+            scores: {},
+            countdown: null
         };
         connections[sessionId] = new Set();
     }
 
-    // const session = sessions[sessionId];
     connections[sessionId].add(socket);
-
-    // Handle join
-    // We expect a "join" message or we infer from query params?
-    // useQuickTriviaSession sends nothing on connect, but maybe expects messages.
-    // Let's implement a simple protocol.
 
     socket.on('message', (message: Buffer) => {
         try {
@@ -61,12 +64,36 @@ function handleMessage(socket: any, sessionId: string, data: any) {
         const { userId, role } = data.payload;
         if (role === 'X' && !session.players.X) session.players.X = userId;
         else if (role === 'O' && !session.players.O) session.players.O = userId;
+        else if (!session.players.X) session.players.X = userId; // Auto-assign X
+        else if (!session.players.O) session.players.O = userId; // Auto-assign O
         else session.spectators.push(userId);
 
+        // Initialize score if new
+        if (!session.scores[userId]) session.scores[userId] = 0;
+
+        broadcastState(sessionId);
+    } else if (data.type === 'ready') {
+        const { userId } = data.payload;
+        session.ready[userId] = !session.ready[userId]; // Toggle ready
+
+        // Check if both players are present and ready
+        const playerX = session.players.X;
+        const playerO = session.players.O;
+
+        if (playerX && playerO && session.ready[playerX] && session.ready[playerO]) {
+            startCountdown(sessionId);
+        } else {
+            // Cancel countdown if someone unreadies
+            if (session.status === 'countdown') {
+                clearInterval(countdowns[sessionId]);
+                session.status = 'lobby';
+                session.countdown = null;
+            }
+        }
         broadcastState(sessionId);
     } else if (data.type === 'move') {
         const { index, userId } = data.payload;
-        if (session.winner) return;
+        if (session.status !== 'playing' || session.winner) return;
 
         const role = session.players.X === userId ? 'X' : session.players.O === userId ? 'O' : null;
         if (!role || session.turn !== role) return;
@@ -75,14 +102,51 @@ function handleMessage(socket: any, sessionId: string, data: any) {
             session.board[index] = role;
             session.turn = role === 'X' ? 'O' : 'X';
             checkWin(session);
+
+            if (session.winner) {
+                session.status = 'finished';
+                if (session.winner !== 'draw') {
+                    const winnerId = session.players[session.winner as 'X' | 'O'];
+                    if (winnerId) {
+                        session.scores[winnerId] = (session.scores[winnerId] || 0) + 1;
+                        // TODO: Persist score to DB
+                    }
+                }
+            }
             broadcastState(sessionId);
         }
     } else if (data.type === 'restart') {
-        session.board = Array(9).fill(null);
-        session.turn = 'X';
-        session.winner = null;
-        broadcastState(sessionId);
+        // Only allow restart if game is finished
+        if (session.status === 'finished') {
+            session.board = Array(9).fill(null);
+            session.turn = 'X'; // Winner starts? Or alternate? Let's stick to X for now.
+            session.winner = null;
+            session.status = 'lobby'; // Go back to lobby to ready up again
+            session.ready = {}; // Reset ready state
+            broadcastState(sessionId);
+        }
     }
+}
+
+function startCountdown(sessionId: string) {
+    const session = sessions[sessionId];
+    session.status = 'countdown';
+    session.countdown = 3;
+    broadcastState(sessionId);
+
+    if (countdowns[sessionId]) clearInterval(countdowns[sessionId]);
+
+    countdowns[sessionId] = setInterval(() => {
+        if (session.countdown && session.countdown > 0) {
+            session.countdown--;
+            broadcastState(sessionId);
+        } else {
+            clearInterval(countdowns[sessionId]);
+            session.status = 'playing';
+            session.countdown = null;
+            broadcastState(sessionId);
+        }
+    }, 1000);
 }
 
 export function checkWin(session: GameState) {

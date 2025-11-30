@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     postgres_ssl: bool = _env_field(False, "POSTGRES_SSL")
     secret_key: str = _env_field(..., "SECRET_KEY")
     campus_ttl_seconds: int = 3600
+    default_campus_id: str = _env_field("c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2", "DEFAULT_CAMPUS_ID")
     # Presence entries older than this are considered stale and ignored by Nearby
     presence_stale_seconds: int = 3600
     # Keepalive loop interval and idle timeout for "go live" sessions

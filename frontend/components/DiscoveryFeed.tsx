@@ -70,10 +70,11 @@ function getYearLabel(gradYear: number): string {
   return "grad";
 }
 
-async function fetchNearby(userId: string, campusId: string, radius: number) {
+async function fetchNearby(userId: string, campusId: string, radius: number, scope: "campus" | "global" = "campus") {
   const url = new URL("/proximity/nearby", BACKEND_URL);
   url.searchParams.set("campus_id", campusId);
   url.searchParams.set("radius_m", String(radius));
+  url.searchParams.set("scope", scope);
   const response = await fetch(url.toString(), {
     headers: {
       "X-User-Id": userId,
@@ -97,6 +98,7 @@ async function fetchNearby(userId: string, campusId: string, radius: number) {
 
 export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) {
   const [radius, setRadius] = useState<number>(2000); // Default to wider range
+  const [scope, setScope] = useState<"campus" | "global">("campus");
   const [users, setUsers] = useState<NearbyUser[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid');
   const [swipeIndex, setSwipeIndex] = useState(0);
@@ -244,7 +246,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
     setLoading(true);
     try {
-      const items = await fetchNearby(currentUserId, currentCampusId, radius);
+      const items = await fetchNearby(currentUserId, currentCampusId, radius, scope);
       const patched = withFriendStatus(items);
       setUsers(patched);
       usersRef.current = patched;
@@ -263,7 +265,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     } finally {
       setLoading(false);
     }
-  }, [authEvaluated, currentCampusId, currentUserId, radius, withFriendStatus]);
+  }, [authEvaluated, currentCampusId, currentUserId, radius, scope, withFriendStatus]);
 
   // Initial nearby fetch
   useEffect(() => {
@@ -511,6 +513,20 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               </div>
 
               <div className="grid grid-cols-2 gap-3 lg:flex lg:w-full lg:items-center">
+                {/* University Filter */}
+                <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
+                  <select
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value as "campus" | "global")}
+                    className="h-10 w-full appearance-none rounded-xl border-0 bg-white px-4 pr-8 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 transition focus:ring-2 focus:ring-rose-500"
+                    aria-label="Filter by University"
+                  >
+                    <option value="campus">My Campus</option>
+                    <option value="global">All Universities</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                </div>
+
                 {/* Major Filter */}
                 <div className="relative lg:flex-1">
                   <select

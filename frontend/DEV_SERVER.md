@@ -14,13 +14,13 @@ pnpm install
 ## 2. Start the Development Server
 
 ```bash
-npm run dev
+npm run dev        # Turbopack (recommended)
 # or
-pnpm dev
+npm run dev:legacy # Webpack dev server
 ```
 
 - Next.js listens on port `3000` by default.
-- The server rebuilds on every file change.
+- Turbopack dev server gives much faster cold + hot rebuilds. Use `dev:legacy` only if you hit unsupported features.
 - Configure environment variables in `.env.local` (copy from `.env.example`).
 
 ### Go Live Feature (Optional)
@@ -35,6 +35,18 @@ To enable the "Go Live" proximity feature locally:
 
 - **GoLiveStrip Sandbox**: `http://localhost:3000/_harness/proximity/golive`
   - Test the UI states without network calls.
+
+## 2.1 Speeding up rebuilds
+
+- Turbopack caches live under `.next/cache`. You can move them to a faster disk by setting `NEXT_CACHE_DIR` before running the dev server:
+
+  ```powershell
+  # PowerShell example (run once)
+  $env:NEXT_CACHE_DIR = "C:\\dev\\divan-cache"
+  npm run dev
+  ```
+
+- Playwright prep no longer nukes `.next` by default. If you do need a pristine build when running `npm run test:e2e`, opt in with `CLEAR_NEXT_BUILD=1 npm run test:e2e`.
 
 ## 3. Running Tests
 
@@ -51,6 +63,13 @@ npm run test:e2e
 
 ```bash
 npm test
+```
+
+Run static analysis explicitly when needed:
+
+```bash
+npm run lint
+npm run typecheck
 ```
 
 ## 4. Troubleshooting

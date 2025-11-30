@@ -115,7 +115,7 @@ async def _fetch_live_candidates(key: str, auth_user_id: str, *, radius: int, ce
 
 
 async def _fetch_directory_candidates(
-	campus_id: str, 
+	campus_id: Optional[str], 
 	auth_user_id: str, 
 	lat: Optional[float], 
 	lon: Optional[float], 
@@ -126,41 +126,74 @@ async def _fetch_directory_candidates(
 	
 	if lat is None or lon is None:
 		# Fallback: return users ordered by creation date if we don't know where the user is
-		rows = await pool.fetch(
-			"""
-			SELECT id FROM users
-			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
-			ORDER BY created_at DESC
-			LIMIT $3 OFFSET $4
-			""",
-			campus_id,
-			auth_user_id,
-			limit,
-			offset,
-		)
+		if campus_id:
+			rows = await pool.fetch(
+				"""
+				SELECT id FROM users
+				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
+				ORDER BY created_at DESC
+				LIMIT $3 OFFSET $4
+				""",
+				campus_id,
+				auth_user_id,
+				limit,
+				offset,
+			)
+		else:
+			rows = await pool.fetch(
+				"""
+				SELECT id FROM users
+				WHERE id != $1 AND deleted_at IS NULL
+				ORDER BY created_at DESC
+				LIMIT $2 OFFSET $3
+				""",
+				auth_user_id,
+				limit,
+				offset,
+			)
 		return [(str(row["id"]), 0.0) for row in rows]
 
 	# Haversine formula in SQL
 	# 6371000 is Earth radius in meters
-	rows = await pool.fetch(
-		"""
-		SELECT id, 
-			(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
-				cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
-				sin(radians($3)) * sin(radians(lat))
-			)))) AS distance
-		FROM users
-		WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
-		ORDER BY distance ASC
-		LIMIT $5 OFFSET $6
-		""",
-		campus_id,
-		auth_user_id,
-		lat,
-		lon,
-		limit,
-		offset,
-	)
+	if campus_id:
+		rows = await pool.fetch(
+			"""
+			SELECT id, 
+				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+					cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
+					sin(radians($3)) * sin(radians(lat))
+				)))) AS distance
+			FROM users
+			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			ORDER BY distance ASC
+			LIMIT $5 OFFSET $6
+			""",
+			campus_id,
+			auth_user_id,
+			lat,
+			lon,
+			limit,
+			offset,
+		)
+	else:
+		rows = await pool.fetch(
+			"""
+			SELECT id, 
+				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+					cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
+					sin(radians($2)) * sin(radians(lat))
+				)))) AS distance
+			FROM users
+			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			ORDER BY distance ASC
+			LIMIT $4 OFFSET $5
+			""",
+			auth_user_id,
+			lat,
+			lon,
+			limit,
+			offset,
+		)
 	return [(str(row["id"]), float(row["distance"])) for row in rows]
 
 
@@ -170,9 +203,11 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		raise RateLimitExceeded("nearby")
 
 	campus_id = str(query.campus_id or auth_user.campus_id)
+	if query.scope == "global":
+		campus_id = None
 
-	# If radius > 50m, switch to Directory Mode (DB query)
-	if query.radius_m > 50:
+	# If radius > 50m or global scope, switch to Directory Mode (DB query)
+	if query.radius_m > 50 or query.scope == "global":
 		# Fetch user location from DB
 		pool = await get_pool()
 		user_row = await pool.fetchrow("SELECT lat, lon FROM users WHERE id = $1", auth_user.id)

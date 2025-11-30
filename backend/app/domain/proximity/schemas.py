@@ -38,6 +38,7 @@ class NearbyQuery(BaseModel):
 	limit: int = Field(default=50, ge=1, le=200)
 	filter: Literal["all", "friends"] = "all"
 	include: Optional[list[Literal["profile", "distance"]]] = None
+	scope: Literal["campus", "global"] = "campus"
 
 
 class NearbyUser(BaseModel):

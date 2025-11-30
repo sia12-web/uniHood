@@ -165,6 +165,7 @@ async def _build_nearby_query(
     limit: int = Query(default=50, ge=1, le=200),
     filter: str = Query(default="all"),
     include: Optional[List[str]] = Query(default=None),
+    scope: str = Query(default="campus", pattern="^(campus|global)$"),
 ) -> NearbyQuery:
     include_list = list(include) if include else None
     return NearbyQuery(
@@ -174,6 +175,7 @@ async def _build_nearby_query(
         limit=limit,
         filter=filter,
         include=include_list,
+        scope=scope,
     )
 
 
@@ -182,7 +184,8 @@ async def nearby(
     query: NearbyQuery = Depends(_build_nearby_query),
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    if query.campus_id and str(query.campus_id) != str(auth_user.campus_id):
+    # Only enforce campus mismatch if we are NOT in global scope
+    if query.scope == "campus" and query.campus_id and str(query.campus_id) != str(auth_user.campus_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "campus mismatch")
     try:
         response = await get_nearby(auth_user, query)

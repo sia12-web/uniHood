@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
-import BrandLogo from "@/components/BrandLogo";
+import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
 import { useTypingDuelInviteState } from "@/components/providers/typing-duel-invite-provider";
 import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
@@ -17,9 +17,8 @@ import { useChatRoster } from "@/hooks/chat/use-chat-roster";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { fetchLeaderboard, fetchMySummary } from "@/lib/leaderboards";
-import { fetchProfile } from "@/lib/identity";
+import { fetchProfile, fetchUserCourses, listCampuses } from "@/lib/identity";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { NetworkProgressCircle } from "@/components/NetworkProgressCircle";
 import { fetchFriends, sendInvite } from "@/lib/social";
 import type { FriendRow, ProfileRecord } from "@/lib/types";
 
@@ -62,6 +61,22 @@ const ProfileIcon = () => (
 );
 
 // HeartIcon removed (unused)
+const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
+  loading: () => (
+    <span className="text-2xl font-black tracking-tight text-[#b7222d]">Divan</span>
+  ),
+});
+
+const NetworkProgressCircle = dynamic(
+  () => import("@/components/NetworkProgressCircle").then((mod) => mod.NetworkProgressCircle),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mb-6 h-32 w-32 animate-pulse rounded-full border border-slate-200" aria-label="Loading network score" />
+    ),
+  },
+);
+
 const ProfileSettingsInline = dynamic(
   () => import("@/app/(identity)/settings/profile/page").then((mod) => mod.default),
   {
@@ -169,10 +184,28 @@ function formatChatTime(iso: string | null | undefined): string {
 }
 
 type NavKey = "dashboard" | "friends" | "chats" | "activities" | "profile" | "discovery" | "meetups";
+const NAV_SECTIONS: NavKey[] = ["dashboard", "friends", "chats", "activities", "profile", "discovery", "meetups"];
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
-  const [activeSection, setActiveSection] = useState<NavKey>("dashboard");
+  const [activeSection, setActiveSection] = useState<NavKey>(() => {
+    if (typeof window !== "undefined") {
+      const savedSection = window.localStorage.getItem("divan.home.activeSection") as NavKey | null;
+      const savedUser = window.localStorage.getItem("divan.home.activeSectionUser") ?? "";
+      const auth = readAuthUser();
+      if (auth?.userId && savedUser === auth.userId && savedSection && NAV_SECTIONS.includes(savedSection)) {
+        return savedSection;
+      }
+    }
+    return "dashboard";
+  });
+  const persistActiveSection = useCallback((section: NavKey, userId?: string | null) => {
+    setActiveSection(section);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("divan.home.activeSection", section);
+      window.localStorage.setItem("divan.home.activeSectionUser", userId ?? "");
+    }
+  }, []);
   const majorFilterId = useId();
   const yearFilterId = useId();
   const campusFilterId = useId();
@@ -243,13 +276,25 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (!authHydrated) return;
+    persistActiveSection("dashboard", authUser?.userId ?? null);
+  }, [authUser?.userId, authHydrated, persistActiveSection]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadProfile = async () => {
-      if (!authUser?.userId) return;
+      if (!authUser?.userId) {
+        setSelfProfile(null);
+        return;
+      }
       try {
-        const profile = await fetchProfile(authUser.userId, authUser.campusId ?? null);
+        const [profile, courses] = await Promise.all([
+          fetchProfile(authUser.userId, authUser.campusId ?? null),
+          fetchUserCourses(authUser.userId, authUser.campusId ?? null).catch(() => null),
+        ]);
+        const enriched = Array.isArray(courses) ? { ...profile, courses } : profile;
         if (!cancelled) {
-          setSelfProfile(profile);
+          setSelfProfile(enriched);
         }
       } catch (err) {
         if (!cancelled) {
@@ -265,13 +310,40 @@ export default function HomePage() {
     };
   }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadCampuses = async () => {
+      try {
+        const rows = await listCampuses();
+        if (!cancelled) {
+          const map = rows.reduce<Record<string, string>>((acc, campus) => {
+            if (campus.id && campus.name) {
+              acc[campus.id] = campus.name;
+            }
+            return acc;
+          }, {});
+          setCampusNames(map);
+        }
+      } catch {
+        // Non-blocking; default labels will be used if campus lookup fails.
+      }
+    };
+    void loadCampuses();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const formatCount = (value: number): string => (value > 99 ? "99+" : String(value));
 
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
   const rosterPeerIds = useMemo(() => chatRosterEntries.map((entry) => entry.peerId), [chatRosterEntries]);
   const discoverPeerIds = useMemo(() => discoverPeople.map((p) => p.userId), [discoverPeople]);
+  const recentFriendPeerIds = useMemo(() => recentFriends.map((row) => row.friend_id), [recentFriends]);
   const { presence: rosterPresence } = usePresence(rosterPeerIds);
   const { presence: discoverPresence } = usePresence(discoverPeerIds);
+  const { presence: recentFriendsPresence } = usePresence(recentFriendPeerIds);
+  const [campusNames, setCampusNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -305,6 +377,8 @@ export default function HomePage() {
         const items = Array.isArray(payload?.items) ? payload.items : [];
         const mapped: FriendPreview[] = items.map((raw, idx) => {
           const graduationYear = (raw as { graduation_year?: number | string }).graduation_year;
+          const rawName = (raw.display_name || raw.handle || "").toString().trim();
+          const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawName);
           const passions =
             Array.isArray((raw as { passions?: string[] }).passions)
               ? (raw as { passions?: string[] }).passions?.filter((item): item is string => typeof item === "string" && item.trim().length > 0) ?? []
@@ -318,17 +392,23 @@ export default function HomePage() {
               ?.map((entry) => entry.url)
               .filter((url): url is string => Boolean(url)) ?? [];
           const campusId = (raw as { campus_id?: string | null }).campus_id ?? authUser?.campusId ?? null;
+          const campusName =
+            (raw as { campus_name?: string | null }).campus_name ??
+            (campusId ? campusNames[campusId] : undefined);
+          const campusLabel =
+            campusName ??
+            (campusId && authUser?.campusId && campusId === authUser.campusId ? "Your campus" : "Campus peer");
           const isFriend = Boolean((raw as { is_friend?: boolean }).is_friend);
           const isFriendOfFriend = Boolean((raw as { is_friend_of_friend?: boolean }).is_friend_of_friend);
           const year = normalizeYear(graduationYear ? String(graduationYear) : undefined);
           return {
             userId: raw.user_id,
-            name: raw.display_name || raw.handle || "Unknown",
+            name: uuidLike ? raw.handle || "Classmate" : rawName || raw.handle || "Classmate",
             detail: raw.handle ? `@${raw.handle}` : passions[0] ?? "Nearby classmate",
             status: isFriend ? "Online" : "Away",
             major: raw.major ?? "Undeclared",
             year: year === "all" ? "freshman" : year,
-            campus: campusId ?? "University",
+            campus: campusLabel,
             campusId,
             avatarColor: palette[idx % palette.length],
             imageUrl: raw.avatar_url ?? null,
@@ -353,7 +433,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [authUser?.campusId, authUser?.userId, selectedRangeFilter]);
+  }, [authUser?.campusId, authUser?.userId, campusNames, selectedRangeFilter]);
 
   const [activitySnapshot, setActivitySnapshot] = useState<{
     totalGames: number;
@@ -444,7 +524,7 @@ export default function HomePage() {
         setFriendCount(friends.length);
         // Sort by created_at desc
         const sorted = friends.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setRecentFriends(sorted.slice(0, 2));
+        setRecentFriends(sorted.slice(0, 5));
       } catch (err) {
         console.error("Failed to load recent friends", err);
       }
@@ -462,6 +542,7 @@ export default function HomePage() {
     () => (selfProfile?.courses ?? []).map((c) => (c.code || c.name).toLowerCase().trim()).filter(Boolean),
     [selfProfile?.courses],
   );
+  const myCoursesSet = useMemo(() => new Set(myCourses), [myCourses]);
   const myMajor = useMemo(() => selfProfile?.major?.toLowerCase?.().trim() ?? null, [selfProfile?.major]);
   const recentFriendIds = useMemo(() => new Set(recentFriends.map((row) => row.friend_id)), [recentFriends]);
 
@@ -606,6 +687,22 @@ export default function HomePage() {
     }));
   }, [chatRosterEntries, rosterPresence]);
 
+  const frequentChats = useMemo(() => {
+    if (!chatRosterEntries.length) return [];
+    const sorted = [...chatRosterEntries].sort((a, b) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    return sorted.slice(0, 4).map((entry) => ({
+      peerId: entry.peerId,
+      name: entry.displayName || entry.handle || entry.peerId,
+      handle: entry.handle,
+      snippet: entry.lastMessageSnippet ?? "Say hey — they’re online.",
+      online: Boolean(rosterPresence[entry.peerId]?.online),
+    }));
+  }, [chatRosterEntries, rosterPresence]);
+
   useEffect(() => {
     if (cardIndex >= visibleFriendPreviewList.length) {
       setCardIndex(Math.max(visibleFriendPreviewList.length - 1, 0));
@@ -694,7 +791,7 @@ export default function HomePage() {
       router.push("/meetups");
       return;
     }
-    setActiveSection(key);
+    persistActiveSection(key, authUser?.userId ?? null);
     if (key === "chats") {
       acknowledgeChatUnread();
     }
@@ -705,12 +802,12 @@ export default function HomePage() {
         return (
           <div className="space-y-6">
             <header>
-              <h1 className="text-3xl font-bold text-slate-900">
-                Welcome back,{" "}
+              <h1 className="text-3xl font-bold text-rose-700">
+                Welcome,{" "}
                 <button
                   type="button"
                   onClick={() => handleNavClick("profile")}
-                  className="text-slate-900 hover:text-rose-600 hover:underline decoration-2 underline-offset-4 transition-colors"
+                  className="text-rose-700 hover:text-rose-600 hover:underline decoration-2 underline-offset-4 transition-colors"
                 >
                   {authUser?.displayName || "Student"}
                 </button>
@@ -811,6 +908,12 @@ export default function HomePage() {
                   ) : (
                     suggestedPeople.slice(0, 3).map((person) => {
                       const isInvited = inviteSent.has(person.userId);
+                      const sharedCourses =
+                        person.courses
+                          ?.filter((course) => {
+                            const key = course.toLowerCase().trim();
+                            return key.length > 0 && myCoursesSet.has(key);
+                          }) ?? [];
                       return (
                         <div key={person.userId} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -824,17 +927,9 @@ export default function HomePage() {
                             <div>
                               <p className="text-sm font-semibold text-slate-900">{person.name}</p>
                               <p className="text-xs text-slate-500">
-                                {(() => {
-                                  if (myCourses.length && person.courses?.length) {
-                                    const shared = person.courses.filter((c) =>
-                                      myCourses.includes(c.toLowerCase().trim()),
-                                    );
-                                    if (shared.length > 0) {
-                                      return `${shared.length} shared course${shared.length > 1 ? "s" : ""}`;
-                                    }
-                                  }
-                                  return person.campus;
-                                })()}
+                                {sharedCourses.length > 0
+                                  ? `${sharedCourses.length} shared course${sharedCourses.length > 1 ? "s" : ""}: ${sharedCourses.slice(0, 2).join(", ")}${sharedCourses.length > 2 ? "…" : ""}`
+                                  : person.detail || person.campus}
                               </p>
                             </div>
                           </div>
@@ -918,6 +1013,19 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-3 text-indigo-900">
+                    <div className="space-y-1">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-indigo-500">Meetups</p>
+                      <p className="text-sm font-semibold">Make room with your friends there</p>
+                      <p className="text-xs text-indigo-700">Plan gatherings and hangouts with your circle.</p>
+                    </div>
+                    <Link
+                      href="/meetups"
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                    >
+                      Open Meetups
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -932,40 +1040,33 @@ export default function HomePage() {
                 </Link>
               </div>
               <div className="mt-3 divide-y divide-slate-100">
-                {friendPreviewList.map((friend) => (
-                  <div key={friend.name} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-full bg-rose-100 text-sm font-semibold text-rose-700">
-                        {friend.name.slice(0, 2).toUpperCase()}
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{friend.name}</p>
-                        <p className="text-xs text-slate-500">{friend.detail}</p>
+                {recentFriends.length === 0 ? (
+                  <div className="py-3 text-sm text-slate-500">No accepted friends yet. Send invites to see them here.</div>
+                ) : (
+                  recentFriends.map((friend) => {
+                    const name = friend.friend_display_name || friend.friend_handle || "Friend";
+                    const online = recentFriendsPresence[friend.friend_id]?.online;
+                    return (
+                      <div key={friend.friend_id} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="grid h-10 w-10 place-items-center rounded-full bg-rose-100 text-sm font-semibold text-rose-700">
+                            {name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{name}</p>
+                            <p className="text-xs text-slate-500">{friend.friend_handle ? `@${friend.friend_handle}` : friend.friend_id}</p>
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${online ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                            }`}
+                        >
+                          {online ? "Online" : "Away"}
+                        </span>
                       </div>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${discoverPresence[friend.userId]?.online ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
-                        }`}
-                    >
-                      {discoverPresence[friend.userId]?.online ? "Online" : "Away"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-3xl border border-indigo-100 bg-indigo-50 p-5 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-indigo-500">Meetups</p>
-                  <h3 className="mt-1 text-lg font-semibold text-indigo-900">Make room with your friends there</h3>
-                  <p className="text-sm text-indigo-700">Plan gatherings and hangouts with your circle.</p>
-                </div>
-                <Link
-                  href="/meetups"
-                  className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-                >
-                  Open Meetups
-                </Link>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -1064,33 +1165,34 @@ export default function HomePage() {
               <section className="flex flex-col gap-4 rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-rose-500">Inbox snapshot</p>
-                    <p className="text-sm text-rose-700">Glance before diving in.</p>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-rose-500">Frequent chats</p>
+                    <p className="text-sm text-rose-700">Friends you talk to most often.</p>
                   </div>
                   <Link href="/chat" className="text-xs font-semibold text-rose-600 hover:text-rose-700">
-                    Open /chat
+                    Open chats
                   </Link>
                 </div>
                 <div className="space-y-3">
-                  {friendPreviewList.slice(0, 4).map((friend) => (
-                    <div key={friend.name} className="flex items-center justify-between gap-3 rounded-2xl bg-white/80 px-3 py-3 shadow-sm">
+                  {frequentChats.length > 0 ? frequentChats.map((chat) => (
+                    <div key={chat.peerId} className="flex items-center justify-between gap-3 rounded-2xl bg-white/80 px-3 py-3 shadow-sm">
                       <div className="flex items-center gap-3">
-                        <span className={`grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br ${friend.avatarColor} text-sm font-semibold text-slate-900`}>
-                          {friend.name.slice(0, 2).toUpperCase()}
+                        <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-rose-200 via-amber-100 to-white text-sm font-semibold text-slate-900">
+                          {chat.name.slice(0, 2).toUpperCase()}
                         </span>
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{friend.name}</p>
-                          <p className="text-xs text-slate-500">{friend.detail}</p>
+                          <p className="text-sm font-semibold text-slate-900">{chat.name}</p>
+                          <p className="text-xs text-slate-500">{chat.handle ? `@${chat.handle}` : chat.snippet}</p>
                         </div>
                       </div>
-                      <span className="text-[11px] font-semibold text-rose-500">{discoverPresence[friend.userId]?.online ? "Online" : "Away"}</span>
+                      <span className={`text-[11px] font-semibold ${chat.online ? "text-emerald-600" : "text-rose-500"}`}>
+                        {chat.online ? "Online" : "Away"}
+                      </span>
                     </div>
-                  ))}
-                  {!friendPreviewList.length ? (
+                  )) : (
                     <div className="rounded-2xl border border-rose-100 bg-white/80 px-4 py-3 text-xs text-rose-700">
-                      Add friends to populate your chat sidebar.
+                      No conversations yet. Start a thread from the chats page.
                     </div>
-                  ) : null}
+                  )}
                 </div>
                 <div className="rounded-2xl border border-rose-100 bg-white/70 px-4 py-3 text-xs text-rose-700">
                   Pinned tip: Start in /chat to thread messages, share files, and enable delivery receipts.
@@ -1373,7 +1475,7 @@ export default function HomePage() {
       case "profile":
         return (
           <div className="rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-xl">
-            <ProfileSettingsInline />
+            <ProfileSettingsInline embedded={true} />
           </div>
         );
       case "dashboard":
@@ -1605,8 +1707,25 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="flex min-h-screen w-full gap-8 px-0">
         <aside className="flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
-          <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100">
-            <BrandLogo className="flex" logoClassName="h-36 w-auto" backgroundTone="transparent" logoWidth={160} logoHeight={160} />
+          <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
+            <BrandLogo
+              className="flex-shrink-0"
+              logoClassName="!h-24 w-auto"
+              backgroundTone="transparent"
+              logoWidth={120}
+              logoHeight={120}
+            />
+            <span className="h-10 w-px flex-shrink-0 bg-rose-200" aria-hidden />
+            <div className="flex flex-shrink-0 items-center">
+              <Image
+                src="/university-logos/mcgill.svg"
+                alt="McGill University"
+                width={56}
+                height={56}
+                className="h-14 w-auto rounded-lg object-contain"
+                priority
+              />
+            </div>
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">
             {navItems.map((item) => (
@@ -1691,4 +1810,3 @@ export default function HomePage() {
     </main>
   );
 }
-

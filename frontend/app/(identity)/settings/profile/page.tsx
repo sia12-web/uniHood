@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Image as ImageIcon, BookOpen, Settings } from "lucide-react";
 
 import ProfileForm from "@/components/ProfileForm";
 import ProfileGalleryManager from "@/components/ProfileGalleryManager";
@@ -10,6 +12,7 @@ import {
 	commitAvatar,
 	commitGallery,
 	fetchProfile,
+	fetchUserCourses,
 	patchProfile,
 	presignAvatar,
 	presignGallery,
@@ -220,11 +223,11 @@ function buildMissingTasks(profile: ProfileRecord): string[] {
 	const major = (profile.major ?? "").trim();
 	const statusText = (profile.status?.text ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
-	if (!handle) {
-		tasks.push("Claim your Campus handle so classmates can @mention you.");
+	if (handle.length < 3) {
+		tasks.push("Claim your Campus handle (3+ chars) so classmates can @mention you.");
 	}
-	if (!bio) {
-		tasks.push("Write a short bio that spotlights what you want to work on.");
+	if (bio.length < 40) {
+		tasks.push("Write a bio (40+ chars) that spotlights what you want to work on.");
 	}
 	if (!profile.avatar_url) {
 		tasks.push("Add an avatar to boost trust in invites and room requests.");
@@ -279,7 +282,7 @@ function toCourseItems(source: ProfileCourse[] | undefined | null): CourseItem[]
 			_localId: course.id ?? randomLocalId(`existing-${index}`),
 			id: course.id,
 			name: course.name.trim(),
-			code: course.code?.trim() ?? "",
+			code: course.code?.trim().toUpperCase() ?? "",
 			term: course.term?.trim() ?? "",
 		}));
 }
@@ -289,8 +292,8 @@ function toCoursePayload(items: CourseItem[]): ProfileCourseInput[] {
 		.map(({ id, name, code, term }) => ({
 			id,
 			name: name.trim(),
-			code: code.trim() ? code.trim() : null,
-			term: term.trim() ? term.trim() : null,
+			code: code.trim().toUpperCase() || undefined,
+			term: term.trim() || undefined,
 		}))
 		.filter((course) => course.name.length > 0);
 }
@@ -325,8 +328,9 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 	});
 }
 
-export default function ProfileSettingsPage() {
+export default function ProfileSettingsPage({ embedded = false }: { embedded?: boolean }) {
 	const toast = useContext(ToastContext);
+	const [activeTab, setActiveTab] = useState<"general" | "gallery" | "courses" | "settings">("general");
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -349,7 +353,21 @@ export default function ProfileSettingsPage() {
 	const courseCodeId = useId();
 	const courseTermId = useId();
 	const normaliseCourses = useCallback(
-		(list: ProfileCourse[] | undefined | null) => toCourseItems(list),
+		(list: ProfileCourse[] | undefined | null) => {
+			const uppercased = toCourseItems(list).map((course) => ({
+				...course,
+				code: course.code.toUpperCase(),
+				name: course.name.trim(),
+			}));
+			const deduped: Record<string, CourseItem> = {};
+			for (const course of uppercased) {
+				const key = course.code || course.name.toUpperCase();
+				if (!deduped[key]) {
+					deduped[key] = course;
+				}
+			}
+			return Object.values(deduped);
+		},
 		[],
 	);
 
@@ -399,9 +417,16 @@ export default function ProfileSettingsPage() {
 		setLoading(true);
 		async function loadProfile() {
 			try {
-				const record = ensureCourses(await fetchProfile(safeUserId, safeCampusId));
+				const [record, courses] = await Promise.all([
+					fetchProfile(safeUserId, safeCampusId),
+					fetchUserCourses(safeUserId, safeCampusId).catch(() => null),
+				]);
+				const hydrated = ensureCourses({
+					...record,
+					...(Array.isArray(courses) ? { courses } : {}),
+				});
 				if (!cancelled) {
-					setProfile(record);
+					setProfile(hydrated);
 					setDraftProfile(null);
 					setError(null);
 				}
@@ -632,10 +657,11 @@ export default function ProfileSettingsPage() {
 				throw new Error("Sign in to update courses.");
 			}
 			const updatedCourses = await saveProfileCourses(authUser.userId, authUser.campusId ?? null, payload);
-			setProfile((prev) => (prev ? { ...prev, courses: updatedCourses } : prev));
-			setDraftProfile((prev) => (prev ? { ...prev, courses: updatedCourses } : prev));
+			const safeCourses = updatedCourses.map((c) => ({ ...c, name: c.name || c.code }));
+			setProfile((prev) => (prev ? { ...prev, courses: safeCourses } : prev));
+			setDraftProfile((prev) => (prev ? { ...prev, courses: safeCourses } : prev));
 			setCourseFeedback("Courses updated.");
-			setCoursesDraft(normaliseCourses(updatedCourses));
+			setCoursesDraft(normaliseCourses(safeCourses));
 			if (toast) {
 				toast.push({
 					title: "Courses updated",
@@ -661,25 +687,32 @@ export default function ProfileSettingsPage() {
 
 	const handleCourseFormSubmit = useCallback(() => {
 		const codeTrimmed = courseFormState.code.trim();
-		if (!codeTrimmed) {
-			setCourseErrorMessage("Course code is required.");
+		// Allow saving if either name OR code is present.
+		// If code is missing but name is present, that's fine.
+		// If name is missing but code is present, use code as name.
+		const nameTrimmed = courseFormState.name.trim();
+		const termTrimmed = courseFormState.term.trim();
+
+		if (!codeTrimmed && !nameTrimmed) {
+			setCourseErrorMessage("Course name or code is required.");
 			return;
 		}
-		const trimmedName = courseFormState.name.trim();
-		const termTrimmed = courseFormState.term.trim();
+
+		const finalName = nameTrimmed || codeTrimmed;
+		const finalCode = codeTrimmed || null;
 
 		let nextCourses: CourseItem[];
 		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
 			nextCourses = coursesDraft.map((course) =>
 				course._localId === activeCourseForm.targetId
-					? { ...course, name: trimmedName, code: codeTrimmed, term: termTrimmed }
+					? { ...course, name: finalName, code: finalCode || "", term: termTrimmed }
 					: course,
 			);
 		} else {
 			const newCourse: CourseItem = {
 				_localId: randomLocalId("new"),
-				name: trimmedName,
-				code: codeTrimmed,
+				name: finalName,
+				code: finalCode || "",
 				term: termTrimmed,
 			};
 			nextCourses = [...coursesDraft, newCourse];
@@ -750,17 +783,292 @@ export default function ProfileSettingsPage() {
 	const galleryImages = activeProfile?.gallery ?? [];
 	const galleryDisabled = isDraftMode || !authUser;
 
+	const TABS = [
+		{ id: "general", label: "General", icon: User },
+		{ id: "gallery", label: "Gallery", icon: ImageIcon },
+		{ id: "courses", label: "Courses", icon: BookOpen },
+		{ id: "settings", label: "Settings", icon: Settings },
+	] as const;
+
+	const renderContent = () => {
+		if (!activeProfile) return null;
+
+		switch (activeTab) {
+			case "general":
+				return (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						transition={{ duration: 0.2 }}
+						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+					>
+						<ProfileForm
+							profile={activeProfile}
+							onSubmit={formSubmit}
+							onAvatarUpload={avatarUpload}
+							onRequestDeletion={deletionHandler}
+							deleteLoading={deleteLoading}
+						/>
+					</motion.div>
+				);
+			case "gallery":
+				return (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						transition={{ duration: 0.2 }}
+						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+					>
+						<ProfileGalleryManager
+							images={galleryImages}
+							onUpload={handleGalleryUpload}
+							onRemove={handleGalleryRemove}
+							uploading={galleryUploading}
+							removingKey={galleryRemovingKey}
+							error={galleryError}
+							disabled={galleryDisabled}
+							limit={6}
+						/>
+					</motion.div>
+				);
+			case "courses":
+				return (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						transition={{ duration: 0.2 }}
+						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+					>
+						<header className="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h2 className="text-sm font-semibold text-slate-900">Courses</h2>
+								<p className="mt-1 text-xs text-slate-500">
+									List the classes you are taking so we can suggest study groups and match classmates.
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={openCreateCourseForm}
+								disabled={courseSaving || !!activeCourseForm}
+								className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								Add course
+							</button>
+						</header>
+						{courseErrorMessage ? (
+							<p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+								{courseErrorMessage}
+							</p>
+						) : null}
+						{activeCourseForm?.mode === "create" ? (
+							<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+								<p className="text-sm font-semibold text-slate-900">Add course</p>
+								<div className="mt-3 grid gap-3 md:grid-cols-3">
+									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseCodeId}>
+										<span className="font-medium">Course code<span className="text-rose-500">*</span></span>
+										<input
+											id={courseCodeId}
+											type="text"
+											value={courseFormState.code}
+											onChange={(event) => handleCourseInputChange("code", event.target.value)}
+											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+											maxLength={24}
+											placeholder="e.g., CS-204"
+											required
+										/>
+									</label>
+									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
+										<span className="font-medium">Course name</span>
+										<input
+											id={courseNameId}
+											type="text"
+											value={courseFormState.name}
+											onChange={(event) => handleCourseInputChange("name", event.target.value)}
+											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+											maxLength={80}
+										/>
+									</label>
+									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseTermId}>
+										<span className="font-medium">Semester / Year</span>
+										<input
+											id={courseTermId}
+											type="text"
+											value={courseFormState.term}
+											onChange={(event) => handleCourseInputChange("term", event.target.value)}
+											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+											maxLength={40}
+											placeholder="e.g., Fall 2025"
+										/>
+									</label>
+								</div>
+								<div className="mt-4 flex flex-wrap justify-end gap-2">
+									<button
+										type="button"
+										onClick={cancelCourseForm}
+										className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										onClick={handleCourseFormSubmit}
+										disabled={courseSaving}
+										className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+									>
+										Save course
+									</button>
+								</div>
+							</div>
+						) : null}
+						{coursesDraft.length ? (
+							<ul className="mt-4 space-y-3">
+								{coursesDraft.map((course) => {
+									const isEditing = activeCourseForm?.mode === "edit" && activeCourseForm.targetId === course._localId;
+									return (
+										<li key={course._localId} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+											{isEditing ? (
+												<div>
+													<p className="text-sm font-semibold text-slate-900">Edit course</p>
+													<div className="mt-3 grid gap-3 md:grid-cols-3">
+														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseNameId}-edit`}>
+															<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
+															<input
+																id={`${courseNameId}-edit`}
+																type="text"
+																value={courseFormState.name}
+																onChange={(event) => handleCourseInputChange("name", event.target.value)}
+																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																maxLength={80}
+																required
+															/>
+														</label>
+														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseCodeId}-edit`}>
+															<span className="font-medium">Course code</span>
+															<input
+																id={`${courseCodeId}-edit`}
+																type="text"
+																value={courseFormState.code}
+																onChange={(event) => handleCourseInputChange("code", event.target.value)}
+																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																maxLength={24}
+																placeholder="e.g., CS-204"
+															/>
+														</label>
+														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseTermId}-edit`}>
+															<span className="font-medium">Semester / Year</span>
+															<input
+																id={`${courseTermId}-edit`}
+																type="text"
+																value={courseFormState.term}
+																onChange={(event) => handleCourseInputChange("term", event.target.value)}
+																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																maxLength={40}
+																placeholder="e.g., Fall 2025"
+															/>
+														</label>
+													</div>
+													<div className="mt-4 flex flex-wrap justify-end gap-2">
+														<button
+															type="button"
+															onClick={cancelCourseForm}
+															className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+														>
+															Cancel
+														</button>
+														<button
+															type="button"
+															onClick={handleCourseFormSubmit}
+															disabled={courseSaving}
+															className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+														>
+															Save changes
+														</button>
+													</div>
+												</div>
+											) : (
+												<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+													<div>
+														<p className="text-sm font-semibold text-slate-900">{course.name}</p>
+														<div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+															{course.code ? (
+																<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+																	{course.code}
+																</span>
+															) : null}
+															{course.term ? (
+																<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+																	{course.term}
+																</span>
+															) : null}
+														</div>
+													</div>
+													<div className="flex gap-2">
+														<button
+															type="button"
+															onClick={() => openEditCourseForm(course)}
+															className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+														>
+															Edit
+														</button>
+														<button
+															type="button"
+															onClick={() => handleCourseRemove(course._localId)}
+															className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+														>
+															Remove
+														</button>
+													</div>
+												</div>
+											)}
+										</li>
+									);
+								})}
+							</ul>
+						) : (
+							<p className="mt-4 text-sm text-slate-500">
+								No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
+							</p>
+						)}
+
+						{courseFeedback && !courseErrorMessage ? (
+							<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>
+						) : null}
+					</motion.div>
+				);
+			case "settings":
+				return (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						transition={{ duration: 0.2 }}
+					>
+						<WebsiteSettings />
+					</motion.div>
+				);
+			default:
+				return null;
+		}
+	};
+
 	return (
-		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
-			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
-			<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-12">
-				<header className="flex flex-col gap-2">
-					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
-					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
-					<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
-						Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
-					</p>
-				</header>
+		<main className={`relative min-h-screen ${embedded ? "bg-transparent" : "bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900"}`}>
+			{!embedded && (
+				<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
+			)}
+			<div className={`mx-auto flex w-full ${embedded ? "" : "max-w-5xl px-6 py-12"} flex-col gap-6`}>
+				{!embedded && (
+					<header className="flex flex-col gap-2">
+						<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
+						<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
+						<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
+							Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
+						</p>
+					</header>
+				)}
 				{!isDraftMode && error ? (
 					<div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 shadow-sm">
 						<p className="font-semibold">Something went wrong</p>
@@ -784,224 +1092,28 @@ export default function ProfileSettingsPage() {
 				{activeProfile ? (
 					<div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
 						<div className="flex flex-col gap-6">
-							<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
-								<ProfileForm
-									profile={activeProfile}
-									onSubmit={formSubmit}
-									onAvatarUpload={avatarUpload}
-									onRequestDeletion={deletionHandler}
-									deleteLoading={deleteLoading}
-									gallerySlot={(
-										<ProfileGalleryManager
-											images={galleryImages}
-											onUpload={handleGalleryUpload}
-											onRemove={handleGalleryRemove}
-											uploading={galleryUploading}
-											removingKey={galleryRemovingKey}
-											error={galleryError}
-											disabled={galleryDisabled}
-											limit={6}
-										/>
-									)}
-								/>
-							</section>
-							<WebsiteSettings />
-							<section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
-								<header className="flex flex-wrap items-center justify-between gap-3">
-									<div>
-										<h2 className="text-sm font-semibold text-slate-900">Courses</h2>
-										<p className="mt-1 text-xs text-slate-500">
-											List the classes you are taking so we can suggest study groups and match classmates.
-										</p>
-									</div>
-									<button
-										type="button"
-										onClick={openCreateCourseForm}
-										disabled={courseSaving || !!activeCourseForm}
-										className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-									>
-										Add course
-									</button>
-								</header>
-								{courseErrorMessage ? (
-									<p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
-										{courseErrorMessage}
-									</p>
-								) : null}
-								{activeCourseForm?.mode === "create" ? (
-									<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-										<p className="text-sm font-semibold text-slate-900">Add course</p>
-										<div className="mt-3 grid gap-3 md:grid-cols-3">
-											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseCodeId}>
-												<span className="font-medium">Course code<span className="text-rose-500">*</span></span>
-												<input
-													id={courseCodeId}
-													type="text"
-													value={courseFormState.code}
-													onChange={(event) => handleCourseInputChange("code", event.target.value)}
-													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-													maxLength={24}
-													placeholder="e.g., CS-204"
-													required
-												/>
-											</label>
-											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
-												<span className="font-medium">Course name</span>
-												<input
-													id={courseNameId}
-													type="text"
-													value={courseFormState.name}
-													onChange={(event) => handleCourseInputChange("name", event.target.value)}
-													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-													maxLength={80}
-												/>
-											</label>
-											<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseTermId}>
-												<span className="font-medium">Semester / Year</span>
-												<input
-													id={courseTermId}
-													type="text"
-													value={courseFormState.term}
-													onChange={(event) => handleCourseInputChange("term", event.target.value)}
-													className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-													maxLength={40}
-													placeholder="e.g., Fall 2025"
-												/>
-											</label>
-										</div>
-										<div className="mt-4 flex flex-wrap justify-end gap-2">
-											<button
-												type="button"
-												onClick={cancelCourseForm}
-												className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-											>
-												Cancel
-											</button>
-											<button
-												type="button"
-												onClick={handleCourseFormSubmit}
-												disabled={courseSaving}
-												className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-											>
-												Save course
-											</button>
-										</div>
-									</div>
-								) : null}
-								{coursesDraft.length ? (
-									<ul className="mt-4 space-y-3">
-										{coursesDraft.map((course) => {
-											const isEditing = activeCourseForm?.mode === "edit" && activeCourseForm.targetId === course._localId;
-											return (
-												<li key={course._localId} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-													{isEditing ? (
-														<div>
-															<p className="text-sm font-semibold text-slate-900">Edit course</p>
-															<div className="mt-3 grid gap-3 md:grid-cols-3">
-																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseNameId}-edit`}>
-																	<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
-																	<input
-																		id={`${courseNameId}-edit`}
-																		type="text"
-																		value={courseFormState.name}
-																		onChange={(event) => handleCourseInputChange("name", event.target.value)}
-																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-																		maxLength={80}
-																		required
-																	/>
-																</label>
-																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseCodeId}-edit`}>
-																	<span className="font-medium">Course code</span>
-																	<input
-																		id={`${courseCodeId}-edit`}
-																		type="text"
-																		value={courseFormState.code}
-																		onChange={(event) => handleCourseInputChange("code", event.target.value)}
-																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-																		maxLength={24}
-																		placeholder="e.g., CS-204"
-																	/>
-																</label>
-																<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseTermId}-edit`}>
-																	<span className="font-medium">Semester / Year</span>
-																	<input
-																		id={`${courseTermId}-edit`}
-																		type="text"
-																		value={courseFormState.term}
-																		onChange={(event) => handleCourseInputChange("term", event.target.value)}
-																		className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-																		maxLength={40}
-																		placeholder="e.g., Fall 2025"
-																	/>
-																</label>
-															</div>
-															<div className="mt-4 flex flex-wrap justify-end gap-2">
-																<button
-																	type="button"
-																	onClick={cancelCourseForm}
-																	className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-																>
-																	Cancel
-																</button>
-																<button
-																	type="button"
-																	onClick={handleCourseFormSubmit}
-																	disabled={courseSaving}
-																	className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-																>
-																	Save changes
-																</button>
-															</div>
-														</div>
-													) : (
-														<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-															<div>
-																<p className="text-sm font-semibold text-slate-900">{course.name}</p>
-																<div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-																	{course.code ? (
-																		<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-																			{course.code}
-																		</span>
-																	) : null}
-																	{course.term ? (
-																		<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-																			{course.term}
-																		</span>
-																	) : null}
-																</div>
-															</div>
-															<div className="flex gap-2">
-																<button
-																	type="button"
-																	onClick={() => openEditCourseForm(course)}
-																	className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-																>
-																	Edit
-																</button>
-																<button
-																	type="button"
-																	onClick={() => handleCourseRemove(course._localId)}
-																	className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-																>
-																	Remove
-																</button>
-															</div>
-														</div>
-													)}
-												</li>
-											);
-										})}
-									</ul>
-								) : (
-									<p className="mt-4 text-sm text-slate-500">
-										No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
-									</p>
-								)}
-
-								{courseFeedback && !courseErrorMessage ? (
-									<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>
-								) : null}
-							</section>
+							<div className="flex gap-2 overflow-x-auto pb-2">
+								{TABS.map((tab) => {
+									const isActive = activeTab === tab.id;
+									const Icon = tab.icon;
+									return (
+										<button
+											key={tab.id}
+											onClick={() => setActiveTab(tab.id)}
+											className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${isActive
+												? "bg-slate-900 text-white shadow-md"
+												: "bg-white text-slate-600 hover:bg-slate-50"
+												}`}
+										>
+											<Icon className="h-4 w-4" />
+											{tab.label}
+										</button>
+									);
+								})}
+							</div>
+							<AnimatePresence mode="wait">
+								{renderContent()}
+							</AnimatePresence>
 						</div>
 						<aside className="flex flex-col gap-5">
 							<section className="rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white shadow-lg">

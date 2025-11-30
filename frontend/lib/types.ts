@@ -5,22 +5,22 @@ export type GalleryImage = {
 };
 
 export type NearbyUser = {
- user_id: string;
- display_name: string;
- handle: string;
- avatar_url?: string | null;
- major?: string | null;
- bio?: string | null;
- graduation_year?: number | null;
- distance_m?: number | null;
- is_friend?: boolean;
- is_friend_of_friend?: boolean;
+  user_id: string;
+  display_name: string;
+  handle: string;
+  avatar_url?: string | null;
+  major?: string | null;
+  bio?: string | null;
+  graduation_year?: number | null;
+  distance_m?: number | null;
+  is_friend?: boolean;
+  is_friend_of_friend?: boolean;
   campus_id?: string | null;
   interests?: string[];
   gallery?: GalleryImage[];
   passions?: string[];
   courses?: string[];
-};export type NearbyDiff = {
+}; export type NearbyDiff = {
   radius_m: number;
   added: NearbyUser[];
   removed: string[];
@@ -194,6 +194,7 @@ export type CampusRow = {
   id: string;
   name: string;
   domain: string;
+  logo_url?: string | null;
 };
 
 export type ProfilePrivacy = {

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	commitAvatar,
+	fetchUserCourses,
 	listCampuses,
 	patchProfile,
 	registerIdentity,
@@ -105,6 +106,32 @@ describe("identity api helpers", () => {
 		const [, options] = fetchMock.mock.calls[0];
 		const headers = normaliseHeaders(options?.headers);
 		expect(headers).toMatchObject({ "x-user-id": "u-1", "x-campus-id": "c-1" });
+	});
+
+	it("fetches user courses with auth headers and normalises codes", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			headers: jsonHeaders,
+			json: async () => [
+				{ code: "COMP 202" },
+				{ code: "  HIST101  " },
+				{ code: "" },
+				{ name: "NoCodeCourse" },
+			],
+		});
+		(globalThis as any).fetch = fetchMock;
+
+		const result = await fetchUserCourses("u-123", "campus-abc");
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const [, options] = fetchMock.mock.calls[0];
+		const headers = normaliseHeaders(options?.headers);
+		expect(headers).toMatchObject({ "x-user-id": "u-123", "x-campus-id": "campus-abc" });
+		expect(result).toEqual([
+			{ code: "COMP 202", name: "COMP 202" },
+			{ code: "HIST101", name: "HIST101" },
+		]);
 	});
 
 	it("raises error message from backend", async () => {

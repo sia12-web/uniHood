@@ -12,7 +12,7 @@ from uuid import UUID
 import asyncpg
 
 from app.domain.identity import models, policy, profile_public, s3, schemas
-from app.domain.identity.service import ProfileNotFound
+from app.domain.identity.service import CampusNotFound, ProfileNotFound
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
@@ -215,6 +215,8 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 		updates["lat"] = patch_data.get("lat")
 	if "lon" in patch_data:
 		updates["lon"] = patch_data.get("lon")
+	if "campus_id" in patch_data and payload.campus_id is not None:
+		updates["campus_id"] = str(payload.campus_id)
 
 	policy.validate_profile_patch(updates)
 	if "handle" in updates:
@@ -223,6 +225,11 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
+			if "campus_id" in updates:
+				exists = await conn.fetchval("SELECT 1 FROM campuses WHERE id = $1", updates["campus_id"])
+				if not exists:
+					raise CampusNotFound()
+
 			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			if "handle" in updates and updates["handle"] != user.handle:
 				handle_owner = await conn.fetchrow("SELECT id FROM users WHERE handle = $1", updates["handle"])
@@ -248,6 +255,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					passions = $8::jsonb,
 					lat = $9,
 					lon = $10,
+					campus_id = $12,
 					updated_at = NOW()
 				WHERE id = $11
 				""",
@@ -262,6 +270,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				user.lat,
 				user.lon,
 				auth_user.id,
+				str(user.campus_id),
 			)
 	profile = _to_profile(user)
 	try:

@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:legacy": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "cross-env NEXT_DISABLE_TS_DETECTION=1 eslint app components lib --ext ts,tsx --max-warnings=0",

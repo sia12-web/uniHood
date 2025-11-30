@@ -115,6 +115,7 @@ export default function ResetPasswordPage() {
         <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
           <div className="relative flex flex-col">
             <BrandLogo
+              asLink={false}
               backgroundTone="transparent"
               logoWidth={1600}
               logoHeight={1600}

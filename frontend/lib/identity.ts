@@ -1,6 +1,7 @@
 import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
 import type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
+export type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus };
 
 const BASE_URL = getBackendUrl();
 
@@ -41,6 +42,9 @@ export type LoginResponse = {
 export type VerificationResponse = {
 	verified: boolean;
 	user_id: string;
+	access_token?: string;
+	refresh_token?: string;
+	expires_in?: number;
 };
 
 export type ProfilePatchPayload = {
@@ -53,6 +57,7 @@ export type ProfilePatchPayload = {
 	graduation_year?: number | null;
 	passions?: string[];
 	courses?: string[];
+	campus_id?: string;
 };
 
 export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;
@@ -201,13 +206,26 @@ export async function removeGalleryImage(
 export async function saveProfileCourses(
 	userId: string,
 	campusId: string | null,
-	courses: ProfileCourseInput[],
-): Promise<ProfileCourse[]> {
-	return request<ProfileCourse[]>("/profile/courses", {
-		method: "PUT",
-		body: { courses },
+	courses: (string | ProfileCourseInput)[],
+): Promise<Course[]> {
+	const codes = courses
+		.map((c) => (typeof c === "string" ? c : c.code || c.name || ""))
+		.filter((c) => c.length > 0);
+	return request<Course[]>("/user/courses", {
+		method: "POST",
+		body: { codes },
 		headers: authHeaders(userId, campusId),
 	});
+}
+
+export async function fetchUserCourses(userId: string, campusId: string | null): Promise<ProfileCourse[]> {
+	const rows = await request<Array<{ code?: string | null; name?: string | null }>>("/user/courses", {
+		headers: authHeaders(userId, campusId),
+	});
+	return rows
+		.map((row) => (row?.code ?? "").toString().trim())
+		.filter((code) => code.length > 0)
+		.map((code) => ({ code, name: code }));
 }
 
 export type Course = {
@@ -217,4 +235,23 @@ export type Course = {
 
 export async function fetchPopularCourses(campusId: string): Promise<Course[]> {
 	return request<Course[]>(`/universities/${campusId}/popular-courses`);
+}
+
+export type NotificationPreferences = {
+	invites: boolean;
+	friends: boolean;
+	chat: boolean;
+	rooms: boolean;
+	activities: boolean;
+};
+
+export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {
+	return request<NotificationPreferences>("/settings/notifications");
+}
+
+export async function updateNotificationPreferences(patch: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+	return request<NotificationPreferences>("/settings/notifications", {
+		method: "PATCH",
+		body: patch,
+	});
 }

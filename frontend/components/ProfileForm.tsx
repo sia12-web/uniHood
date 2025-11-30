@@ -41,10 +41,6 @@ export default function ProfileForm({
 	);
 	const [passions, setPassions] = useState<string[]>(profile.passions ?? []);
 	const [passionDraft, setPassionDraft] = useState<string>("");
-	const [courses, setCourses] = useState<string[]>(
-		profile.courses?.map((c) => c.code || c.name) ?? [],
-	);
-	const [courseDraft, setCourseDraft] = useState<string>("");
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -59,8 +55,6 @@ export default function ProfileForm({
 		setGraduationYear(next.graduation_year ? String(next.graduation_year) : "");
 		setPassions(next.passions ?? []);
 		setPassionDraft("");
-		setCourses(next.courses?.map((c) => c.code || c.name) ?? []);
-		setCourseDraft("");
 	}, []);
 
 	useEffect(() => {
@@ -119,15 +113,6 @@ export default function ProfileForm({
 			normalisedPassions.some((value, index) => value !== currentPassions[index]);
 		if (passionsChanged) {
 			patch.passions = normalisedPassions;
-			changed = true;
-		}
-		const normalisedCourses = courses.map((item) => item.trim()).filter(Boolean);
-		const currentCourses = current.courses?.map((c) => c.code || c.name) ?? [];
-		const coursesChanged =
-			normalisedCourses.length !== currentCourses.length ||
-			normalisedCourses.some((value, index) => value !== currentCourses[index]);
-		if (coursesChanged) {
-			patch.courses = normalisedCourses;
 			changed = true;
 		}
 		return { patch, changed };
@@ -217,41 +202,6 @@ export default function ProfileForm({
 			}
 		},
 		[addPassion, passionDraft],
-	);
-
-	const addCourse = useCallback(
-		(value: string) => {
-			const trimmed = value.trim().replace(/\s+/g, " ");
-			if (!trimmed) {
-				return;
-			}
-			if (courses.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
-				return;
-			}
-			setCourses([...courses, trimmed]);
-			setCourseDraft("");
-			setError(null);
-			setFeedback(null);
-		},
-		[courses, setError, setFeedback],
-	);
-
-	const removeCourse = useCallback(
-		(value: string) => {
-			setCourses((prev) => prev.filter((item) => item !== value));
-			setError(null);
-		},
-		[setError],
-	);
-
-	const handleCourseKeyDown = useCallback(
-		(event: KeyboardEvent<HTMLInputElement>) => {
-			if (event.key === "Enter" || event.key === ",") {
-				event.preventDefault();
-				addCourse(courseDraft);
-			}
-		},
-		[addCourse, courseDraft],
 	);
 
 	return (
@@ -376,57 +326,6 @@ export default function ProfileForm({
 							type="button"
 							onClick={() => addPassion(passionDraft)}
 							disabled={passionDraft.trim().length === 0}
-							className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							Add
-						</button>
-					</div>
-				</section>
-				<section className="flex flex-col gap-2 text-sm text-slate-700">
-					<div className="flex flex-col gap-1">
-						<span className="font-medium">Courses</span>
-						<p className="text-xs text-slate-500">
-							List the classes you are taking so we can suggest study groups and match classmates.
-						</p>
-					</div>
-					{courses.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
-							{courses.map((item) => (
-								<span
-									key={item.toLowerCase()}
-									className="group inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 border border-emerald-200"
-								>
-									{item}
-									<button
-										type="button"
-										onClick={() => removeCourse(item)}
-										className="text-emerald-500 transition hover:text-emerald-700"
-										aria-label={`Remove ${item}`}
-									>
-										×
-									</button>
-								</span>
-							))}
-						</div>
-					) : (
-						<p className="text-xs italic text-slate-400">
-							No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
-						</p>
-					)}
-					<div className="flex flex-wrap gap-2">
-						<input
-							type="text"
-							value={courseDraft}
-							onChange={(event) => setCourseDraft(event.target.value.slice(0, 20))}
-							onKeyDown={handleCourseKeyDown}
-							maxLength={20}
-							placeholder={courses.length === 0 ? "e.g., CS101" : "Add another course"}
-							className="grow rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-						/>
-						<button
-							type="button"
-							onClick={() => addCourse(courseDraft)}
-							disabled={courseDraft.trim().length === 0}
 							className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							Add

@@ -95,7 +95,7 @@ export default function CoursesOnboardingPage() {
             backgroundTone="light"
             logoWidth={220}
             logoHeight={220}
-            logoClassName="h-16 w-auto sm:h-20"
+            logoClassName="h-20 w-auto sm:h-24"
             wordmarkTitleClassName="text-3xl sm:text-4xl"
             taglineClassName="tracking-[0.5em]"
             className="text-[#b7222d]"
@@ -116,7 +116,7 @@ export default function CoursesOnboardingPage() {
             backgroundTone="light"
             logoWidth={220}
             logoHeight={220}
-            logoClassName="h-16 w-auto sm:h-20"
+            logoClassName="h-20 w-auto sm:h-24"
             wordmarkTitleClassName="text-3xl sm:text-4xl"
             taglineClassName="tracking-[0.5em]"
             className="text-[#b7222d]"

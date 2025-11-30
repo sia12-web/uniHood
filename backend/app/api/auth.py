@@ -101,9 +101,19 @@ async def login(payload: schemas.LoginRequest, request: Request, response: Respo
 
 
 @router.post("/auth/verify-email", response_model=schemas.VerificationStatus)
-async def verify_email(payload: schemas.VerifyRequest, response: Response) -> schemas.VerificationStatus:
+async def verify_email(payload: schemas.VerifyRequest, request: Request, response: Response) -> schemas.VerificationStatus:
+	ip = _client_ip(request)
 	try:
-		res = await service.verify_email(payload)
+		res = await service.verify_email(
+			payload,
+			ip=ip,
+			user_agent=request.headers.get("User-Agent"),
+			device_label=request.headers.get("X-Device-Label", ""),
+		)
+		if res.refresh_token:
+			rf_fp = secrets.token_urlsafe(24)
+			set_refresh_cookies(response, refresh_token=res.refresh_token, rf_fp=rf_fp)
+			res.refresh_token = ""
 		response.headers["X-Request-Id"] = get_request_id()
 		return res
 	except service.VerificationError as exc:

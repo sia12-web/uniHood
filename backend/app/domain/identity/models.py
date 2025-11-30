@@ -143,6 +143,7 @@ class Campus:
 	id: UUID
 	name: str
 	domain: Optional[str]
+	logo_url: Optional[str] = None
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "Campus":
@@ -150,6 +151,7 @@ class Campus:
 			id=_as_uuid(record["id"]),
 			name=str(record.get("name", "")),
 			domain=record.get("domain"),
+			logo_url=record.get("logo_url"),
 		)
 
 

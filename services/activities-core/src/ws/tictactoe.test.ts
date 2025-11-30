@@ -7,7 +7,11 @@ describe('TicTacToe Logic', () => {
             turn: 'X',
             winner: null,
             players: {},
-            spectators: []
+            spectators: [],
+            status: 'lobby',
+            ready: {},
+            scores: {},
+            countdown: null
         };
     }
 

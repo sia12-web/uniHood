@@ -74,7 +74,7 @@ export default function TicTacToeEntryPage() {
       <div className="relative overflow-hidden bg-[#040617] pb-12 pt-16 text-white shadow-xl lg:pt-24">
         <div className="absolute inset-0 bg-[url('/activities/tictactoe.svg')] bg-cover bg-center opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#040617]" />
-        <div className="relative mx-auto flex max-w-5xl flex-col gap-6 px-6">
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-6">
           <Link
             href="/"
             className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
@@ -110,9 +110,9 @@ export default function TicTacToeEntryPage() {
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-5xl px-6">
-        <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl ring-1 ring-slate-900/5">
+      <div className="mx-auto mt-8 max-w-6xl px-6">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">
+          <section className="rounded-3xl bg-transparent p-12 shadow-2xl lg:min-h-[600px]">
             <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-slate-900">Start a new match</h2>

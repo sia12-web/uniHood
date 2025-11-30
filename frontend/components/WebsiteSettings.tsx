@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchNotificationPreferences, updateNotificationPreferences } from "@/lib/identity";
 
 type WebsiteSettingsState = {
     theme: "light" | "dark" | "system";
     notifications: boolean;
-    soundEffects: boolean;
 };
 
 const DEFAULT_SETTINGS: WebsiteSettingsState = {
     theme: "system",
     notifications: true,
-    soundEffects: true,
 };
 
 export default function WebsiteSettings() {
@@ -23,16 +22,26 @@ export default function WebsiteSettings() {
         const stored = localStorage.getItem("divan.website.settings");
         if (stored) {
             try {
-                setSettings(JSON.parse(stored));
+                const parsed = JSON.parse(stored);
+                setSettings(prev => ({ ...prev, theme: parsed.theme ?? "system" }));
             } catch (e) {
                 console.error("Failed to parse settings", e);
             }
         }
+
+        // Fetch real notification prefs
+        fetchNotificationPreferences()
+            .then(prefs => {
+                // If any pref is true, we consider notifications "on"
+                const isOn = Object.values(prefs).some(v => v === true);
+                setSettings(prev => ({ ...prev, notifications: isOn }));
+            })
+            .catch(err => console.error("Failed to fetch notification prefs", err));
     }, []);
 
     useEffect(() => {
         if (mounted) {
-            localStorage.setItem("divan.website.settings", JSON.stringify(settings));
+            localStorage.setItem("divan.website.settings", JSON.stringify({ theme: settings.theme }));
             // Apply theme
             if (settings.theme === "dark" || (settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
                 document.documentElement.classList.add("dark");
@@ -40,10 +49,26 @@ export default function WebsiteSettings() {
                 document.documentElement.classList.remove("dark");
             }
         }
-    }, [settings, mounted]);
+    }, [settings.theme, mounted]);
 
-    const toggleNotifications = () => setSettings(prev => ({ ...prev, notifications: !prev.notifications }));
-    const toggleSound = () => setSettings(prev => ({ ...prev, soundEffects: !prev.soundEffects }));
+    const toggleNotifications = async () => {
+        const nextState = !settings.notifications;
+        setSettings(prev => ({ ...prev, notifications: nextState }));
+
+        try {
+            // Update all prefs to match the toggle
+            await updateNotificationPreferences({
+                invites: nextState,
+                friends: nextState,
+                chat: nextState,
+                rooms: nextState,
+                activities: nextState,
+            });
+        } catch (err) {
+            console.error("Failed to update notification prefs", err);
+        }
+    };
+
     const setTheme = (theme: WebsiteSettingsState["theme"]) => setSettings(prev => ({ ...prev, theme }));
 
     if (!mounted) return null;
@@ -89,23 +114,6 @@ export default function WebsiteSettings() {
                     >
                         <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.notifications ? "translate-x-6" : "translate-x-1"
-                                }`}
-                        />
-                    </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="font-medium text-slate-900">Sound Effects</p>
-                        <p className="text-sm text-slate-500">Play sounds for interactions.</p>
-                    </div>
-                    <button
-                        onClick={toggleSound}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.soundEffects ? "bg-rose-500" : "bg-slate-200"
-                            }`}
-                    >
-                        <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.soundEffects ? "translate-x-6" : "translate-x-1"
                                 }`}
                         />
                     </button>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
 import { verifyEmailToken } from "@/lib/identity";
+import { storeAuthSnapshot } from "@/lib/auth-storage";
 
 type VerifyPageProps = {
 	params: { token: string };
@@ -18,6 +19,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 	const [status, setStatus] = useState<VerifyStatus>("loading");
 	const [message, setMessage] = useState<string>("Verifying your email…");
 	const [countdown, setCountdown] = useState(3);
+	const [redirectPath, setRedirectPath] = useState("/login");
 
 	useEffect(() => {
 		let cancelled = false;
@@ -25,10 +27,23 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 			setStatus("loading");
 			setMessage("Verifying your email…");
 			try {
-				await verifyEmailToken(token);
+				const result = await verifyEmailToken(token);
 				if (!cancelled) {
 					setStatus("success");
-					setMessage("Email verified! Redirecting to sign in...");
+					if (result.access_token) {
+						setMessage("Email verified! Redirecting to onboarding...");
+						setRedirectPath("/select-university");
+						storeAuthSnapshot({
+							access_token: result.access_token,
+							refresh_token: result.refresh_token || "",
+							token_type: "bearer",
+							expires_in: result.expires_in || 900,
+							user_id: result.user_id,
+							stored_at: new Date().toISOString(),
+						});
+					} else {
+						setMessage("Email verified! Redirecting to sign in...");
+					}
 				}
 			} catch (error) {
 				if (!cancelled) {
@@ -50,7 +65,8 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 				setCountdown((prev) => {
 					if (prev <= 1) {
 						clearInterval(countdownInterval);
-						router.push("/login");
+						clearInterval(countdownInterval);
+						router.push(redirectPath);
 						return 0;
 					}
 					return prev - 1;
@@ -59,7 +75,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 
 			return () => clearInterval(countdownInterval);
 		}
-	}, [status, router]);
+	}, [status, router, redirectPath]);
 
 	return (
 		<main className="min-h-screen w-full bg-white">
@@ -93,10 +109,10 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 						{status === "success" ? (
 							<div className="mt-6 flex flex-col gap-3">
 								<Link
-									href="/login"
+									href={redirectPath}
 									className="inline-block rounded-xl bg-[#d64045] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2"
 								>
-									Go to Sign In
+									{redirectPath === "/login" ? "Go to Sign In" : "Continue"}
 								</Link>
 								<p className="text-xs text-slate-500">
 									Redirecting automatically in {countdown} second{countdown !== 1 ? 's' : ''}...

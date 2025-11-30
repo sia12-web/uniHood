@@ -120,7 +120,7 @@ async def send_email_change_confirmation(new_email: str, token: str, *, user_id:
 async def send_email_verification(email: str, token: str, *, user_id: str | None = None) -> None:
     # Construct verification link (assuming frontend URL structure)
     # Ideally this should be passed in or configured
-    verify_url = f"http://localhost:3000/verify-email?token={token}"
+    verify_url = f"http://localhost:3000/verify/{token}"
     
     subject = "Verify your email"
     body = f"""

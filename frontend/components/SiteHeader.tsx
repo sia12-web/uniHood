@@ -3,8 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 import BrandLogo from "@/components/BrandLogo";
+import { readAuthSnapshot } from "@/lib/auth-storage";
+import { fetchProfile, listCampuses } from "@/lib/identity";
+
+const MCGILL_ID = "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") {
@@ -22,19 +27,66 @@ export default function SiteHeader() {
   )
     ? "transparent"
     : "light";
-  const suppressedPrefixes = ["/", "/social", "/settings/profile", "/onboarding", "/login"];
+  const suppressedPrefixes = [
+    "/",
+    "/social",
+    "/settings/profile",
+    "/onboarding",
+    "/friends",
+    "/meetups",
+    "/discovery",
+    "/activities",
+    "/chat",
+    "/login",
+    "/select-university",
+    "/select-courses",
+    "/set-profile",
+    "/welcome",
+    "/major-year",
+    "/passions",
+    "/photos",
+  ];
   const shouldRenderHeader = !suppressedPrefixes.some((prefix) =>
     prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [campusLogoSrc, setCampusLogoSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!shouldRenderHeader || typeof window === "undefined") {
       return;
     }
     setHydrated(true);
-  }, [shouldRenderHeader]);
+
+    const loadCampus = async () => {
+      try {
+        const auth = readAuthSnapshot();
+        if (!auth?.user_id) return;
+
+        let cid: string | null | undefined = auth.campus_id;
+        if (!cid) {
+          // Fallback to fetching profile if campus_id is missing in auth snapshot
+          const profile = await fetchProfile(auth.user_id, null);
+          cid = profile.campus_id;
+        }
+
+        if (cid) {
+          const campuses = await listCampuses();
+          const campus = campuses.find((c) => c.id === cid);
+          const isMcGill = campus?.id === MCGILL_ID || campus?.name?.toLowerCase().includes("mcgill");
+          const logo =
+            campus?.logo_url ??
+            (campus?.domain ? `https://logo.clearbit.com/${campus.domain}` : null) ??
+            (isMcGill ? "/university-logos/mcgill.svg" : null);
+          setCampusLogoSrc(logo);
+        }
+      } catch (err) {
+        console.error("Failed to load campus info for header", err);
+      }
+    };
+    loadCampus();
+  }, [shouldRenderHeader, pathname]);
 
   const navLinks = useMemo<Array<{ href: string; label: string }>>(() => {
     // Hide user name and profile link from the top bar; only show sign-in when logged out.
@@ -62,15 +114,34 @@ export default function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-warm-sand bg-glass shadow-soft">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <BrandLogo
-          backgroundTone={logoBackgroundTone}
-          logoWidth={160}
-          logoHeight={160}
-          logoClassName="h-10 w-auto sm:h-12"
-          className="text-[#b7222d]"
-        />
+    <header className={`sticky top-0 z-30 ${logoBackgroundTone === "transparent" ? "" : "border-b border-warm-sand bg-glass shadow-soft"}`}>
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <BrandLogo
+            backgroundTone={logoBackgroundTone}
+            logoWidth={220}
+            logoHeight={220}
+            logoClassName="h-16 w-auto sm:h-20"
+            className="text-[#b7222d]"
+            asLink={false}
+          />
+          {campusLogoSrc && (
+            <>
+              <div className="h-8 w-px bg-[#b7222d]/20" />
+              <div className="flex items-center justify-center h-14 w-14 overflow-hidden rounded-full border border-warm-sand/60 bg-white">
+                <Image
+                  src={campusLogoSrc}
+                  alt="Campus Logo"
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </>
+          )}
+        </div>
         <nav className="hidden items-center gap-1 md:flex">
           {visibleLinks.map((link) => (
             <Link

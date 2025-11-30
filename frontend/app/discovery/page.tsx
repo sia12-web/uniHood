@@ -2,7 +2,6 @@
 
 import DiscoveryFeed from "@/components/DiscoveryFeed";
 import Link from "next/link";
-import BrandLogo from "@/components/BrandLogo";
 
 export default function DiscoveryPage() {
   return (
@@ -14,15 +13,8 @@ export default function DiscoveryPage() {
           </svg>
           Back to Dashboard
         </Link>
-        <div className="flex flex-1 justify-center">
-          <BrandLogo
-            backgroundTone="transparent"
-            logoWidth={240}
-            logoHeight={240}
-            logoClassName="h-16 w-auto sm:h-24"
-          />
-        </div>
-        <div className="min-w-[6rem] text-right text-base font-bold text-slate-900 sm:text-lg">Discovery</div>
+        <div className="flex-1" aria-hidden />
+        <div className="min-w-[6rem]" aria-hidden />
       </div>
       <DiscoveryFeed />
     </main>

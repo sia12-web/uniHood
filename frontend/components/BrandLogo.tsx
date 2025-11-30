@@ -18,6 +18,11 @@ type BrandLogoProps = {
   backgroundTone?: "light" | "dark" | "transparent";
   logoWidth?: number;
   logoHeight?: number;
+  /**
+   * Whether the logo should be a clickable link to the home page.
+   * Set to false for login/onboarding pages where you want just the image.
+   */
+  asLink?: boolean;
 };
 
 export default function BrandLogo({
@@ -29,31 +34,34 @@ export default function BrandLogo({
   taglineClassName,
   tagline = "Campus discovery",
   backgroundTone = "light",
-  logoWidth = 96,
-  logoHeight = 96,
+  logoWidth = 140,
+  logoHeight = 140,
+  asLink = true,
 }: BrandLogoProps) {
   const baseClasses = "inline-flex max-w-full flex-wrap items-center gap-3 text-[#1b2a3a]";
   const mergedClasses = cn(baseClasses, className);
   const mergedLogoClasses = cn(
-    "h-16 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 group-hover:scale-[1.02]",
+    "h-20 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 sm:h-24",
+    asLink && "group-hover:scale-[1.02]",
     logoClassName,
   );
-  
+
   let emblemBackdropClasses = "";
   if (backgroundTone === "dark") {
-    emblemBackdropClasses = "bg-white/15 shadow-[0_15px_35px_rgba(0,0,0,0.65)]";
+    emblemBackdropClasses = "";
   } else if (backgroundTone === "light") {
-    emblemBackdropClasses = "bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)]";
+    emblemBackdropClasses = "";
   } else {
     // transparent
     emblemBackdropClasses = "";
   }
 
-  return (
-    <Link href="/" className={mergedClasses} aria-label="Divan home">
+  const logoContent = (
+    <>
       <span
         className={cn(
-          "group flex shrink-0 items-center justify-center rounded-2xl p-2 transition-shadow duration-200",
+          "flex shrink-0 items-center justify-center rounded-2xl p-2 transition-shadow duration-200",
+          asLink && "group",
           emblemBackdropClasses,
         )}
       >
@@ -81,6 +89,20 @@ export default function BrandLogo({
           </span>
         </span>
       ) : null}
-    </Link>
+    </>
+  );
+
+  if (asLink) {
+    return (
+      <Link href="/" className={mergedClasses} aria-label="Divan home">
+        {logoContent}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={mergedClasses}>
+      {logoContent}
+    </div>
   );
 }

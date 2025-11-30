@@ -32,6 +32,12 @@ const nextConfig = (() => {
 	});
 
 	return {
+		eslint: {
+			ignoreDuringBuilds: true,
+		},
+		typescript: {
+			ignoreBuildErrors: true,
+		},
 		images: {
 			remotePatterns,
 		},

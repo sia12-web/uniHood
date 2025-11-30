@@ -1,23 +1,18 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useMemo, useState } from "react";
+
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
 import { HttpError } from "@/app/lib/http/errors";
-import { listCampuses, loginIdentity, registerIdentity, type RegisterPayload } from "@/lib/identity";
-import { storeAuthSnapshot } from "@/lib/auth-storage";
+import { registerIdentity, resendVerification, type RegisterPayload } from "@/lib/identity";
 
 const INITIAL_FORM = {
   email: "",
   password: "",
   confirmPassword: "",
-  username: "",
-  campusId: "",
 };
-
-const DEFAULT_CAMPUS = { id: "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2", name: "McGill University" };
 
 type JoinForm = typeof INITIAL_FORM;
 
@@ -38,28 +33,12 @@ const describeJoinError = (error: unknown): string => {
     switch (code) {
       case "email_taken":
         return "That email already has an account. Try signing in.";
-      case "handle_taken":
-        return "That username is taken. Pick another.";
-      case "handle_reserved":
-        return "That username is being claimed right now. Try again shortly.";
-      case "handle_format_error":
-        return "Username must be 3-20 letters, numbers, or underscores.";
       case "password_too_weak":
         return "Please choose a stronger password.";
-      case "email_domain_mismatch":
-        return "Use your university-issued email to join this campus.";
       case "register_rate":
         return "Too many sign-up attempts. Wait a minute and try again.";
-      case "email_unverified":
-        return "Check your inbox to verify your email, then sign in.";
       default:
         break;
-    }
-    if (error.status === 401) {
-      return "Authentication required. Try signing in again.";
-    }
-    if (error.status === 429) {
-      return "You hit the limit. Please slow down and try again.";
     }
     return error.message || "We couldn’t create your account.";
   }
@@ -71,11 +50,12 @@ const describeJoinError = (error: unknown): string => {
 
 export default function OnboardingPage() {
   const [form, setForm] = useState<JoinForm>(INITIAL_FORM);
-  const [campuses, setCampuses] = useState<{ id: string; name: string }[]>([]);
-  const [loadingCampuses, setLoadingCampuses] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [success, setSuccess] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
 
   const disabled = useMemo(
     () =>
@@ -83,40 +63,9 @@ export default function OnboardingPage() {
       !form.email.trim() ||
       !form.password ||
       !form.confirmPassword ||
-      form.password !== form.confirmPassword ||
-      !form.username.trim() ||
-      !form.campusId,
-    [form.campusId, form.email, form.username, form.password, form.confirmPassword, submitting],
+      form.password !== form.confirmPassword,
+    [form.email, form.password, form.confirmPassword, submitting],
   );
-
-  useEffect(() => {
-    const load = async () => {
-      setLoadingCampuses(true);
-      try {
-        const rows = await listCampuses();
-        const unique = new Map<string, { id: string; name: string }>();
-        [DEFAULT_CAMPUS, ...rows].forEach((row) => {
-          if (row?.id) {
-            unique.set(row.id, { id: row.id, name: row.name || "Campus" });
-          }
-        });
-        const list = Array.from(unique.values());
-        setCampuses(list);
-        if (!form.campusId && list.length) {
-          setForm((prev) => ({ ...prev, campusId: list[0].id }));
-        }
-      } catch (err) {
-        console.error("Failed to load campuses", err);
-        setCampuses([DEFAULT_CAMPUS]);
-        if (!form.campusId) {
-          setForm((prev) => ({ ...prev, campusId: DEFAULT_CAMPUS.id }));
-        }
-      } finally {
-        setLoadingCampuses(false);
-      }
-    };
-    void load();
-  }, [form.campusId]);
 
   // Use a stable placeholder to avoid SSR/CSR mismatch.
   const demoEmail = useMemo(() => "name@university.edu", []);
@@ -125,72 +74,110 @@ export default function OnboardingPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const buildHandle = (raw: string, fallbackEmail: string): string => {
-    const base = raw?.trim() || fallbackEmail.split("@")[0] || "user";
-    let handle = base.toLowerCase().replace(/[^a-z0-9_]/g, "_");
-    handle = handle.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
-    if (handle.length > 20) {
-      handle = handle.slice(0, 20);
-    }
-    return handle;
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      const handle = buildHandle(form.username, form.email);
       if (form.password !== form.confirmPassword) {
         setError("Passwords do not match.");
         setSubmitting(false);
         return;
       }
-      if (!/^[a-z0-9_]{3,20}$/.test(handle)) {
-        setError("Username must be 3-20 characters, letters/numbers/underscores only.");
-        setSubmitting(false);
-        return;
-      }
+
       const payload: RegisterPayload = {
         email: form.email.trim().toLowerCase(),
         password: form.password,
-        handle,
-        display_name: form.username.trim() || handle,
-        campus_id: form.campusId,
       };
       await registerIdentity(payload);
-      // Auto-login after registration
-      const loginResponse = await loginIdentity({ email: payload.email, password: payload.password });
-      const snapshot = { ...loginResponse, stored_at: new Date().toISOString() };
-      storeAuthSnapshot(snapshot);
-      router.replace("/onboarding/courses");
+
+      setSuccess(true);
     } catch (err) {
       setError(describeJoinError(err));
-    } finally {
       setSubmitting(false);
     }
   };
 
+  const handleResend = async () => {
+    setResending(true);
+    setResendMessage(null);
+    try {
+      await resendVerification(form.email);
+      setResendMessage("Verification email resent!");
+    } catch {
+      setResendMessage("Failed to resend email.");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleChangeEmail = () => {
+    setSuccess(false);
+    setResendMessage(null);
+  };
+
+  if (success) {
+    return (
+      <main className="min-h-screen w-full bg-white text-base flex flex-col items-center justify-center p-4">
+        <BrandLogo
+          asLink={false}
+          backgroundTone="transparent"
+          logoWidth={160}
+          logoHeight={160}
+          className="justify-center text-[#b7222d]"
+          logoClassName="h-24 w-auto"
+        />
+        <div className="mt-8 max-w-md text-center">
+          <h2 className="text-3xl font-bold text-slate-900">Check your email</h2>
+          <p className="mt-4 text-lg text-slate-600">
+            We sent a verification link to <span className="font-semibold">{form.email}</span>.
+          </p>
+          <p className="mt-2 text-slate-600">
+            Click the link to verify your account and continue.
+          </p>
+          <div className="mt-8 flex flex-col gap-4 items-center">
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="text-[#d64045] font-medium hover:underline disabled:opacity-50"
+            >
+              {resending ? "Resending..." : "Resend Verification Email"}
+            </button>
+            {resendMessage && <p className="text-sm text-slate-500">{resendMessage}</p>}
+
+            <button
+              onClick={handleChangeEmail}
+              className="text-slate-500 text-sm hover:text-slate-700"
+            >
+              Change Email
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen w-full bg-white text-base">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
-		<section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
-			<div className="relative flex flex-col">
-			<BrandLogo
-				backgroundTone="transparent"
-				logoWidth={1600}
-				logoHeight={1600}
-				className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
-				logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
-			/>
-			</div>
-		</section>
+        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
+          <div className="relative flex flex-col">
+            <BrandLogo
+              asLink={false}
+              backgroundTone="transparent"
+              logoWidth={1600}
+              logoHeight={1600}
+              className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
+              logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
+            />
+          </div>
+        </section>
 
         <section className="flex flex-1">
           <div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">
             <header className="flex flex-col gap-2">
               <h2 className="text-3xl font-semibold text-slate-900">Join Divan</h2>
-              <p className="text-sm text-slate-600">Use your university email to claim a seat and meet classmates.</p>
+              <p className="text-sm text-slate-600">Create an account to get started.</p>
             </header>
 
             {error ? (
@@ -207,7 +194,7 @@ export default function OnboardingPage() {
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder={demoEmail || "name@university.edu"}
+                  placeholder={demoEmail || "name@example.com"}
                   value={form.email}
                   onChange={(event) => handleChange("email")(event.target.value)}
                   className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
@@ -238,39 +225,6 @@ export default function OnboardingPage() {
                   onChange={(event) => handleChange("confirmPassword")(event.target.value)}
                   className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
                 />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
-                <span>Username</span>
-                <input
-                  required
-                  type="text"
-                  autoComplete="username"
-                  placeholder="username"
-                  value={form.username}
-                  onChange={(event) => handleChange("username")(event.target.value)}
-                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
-                />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
-                <span>University</span>
-                <select
-                  required
-                  value={form.campusId}
-                  onChange={(event) => handleChange("campusId")(event.target.value)}
-                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
-                >
-                  <option value="" disabled>
-                    {loadingCampuses ? "Loading campuses..." : "Select campus"}
-                  </option>
-                  {campuses.map((campus) => (
-                    <option key={campus.id} value={campus.id}>
-                      {campus.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500">Choose your university. If only one appears, start there.</p>
               </label>
 
               <button

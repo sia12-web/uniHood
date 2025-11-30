@@ -53,7 +53,7 @@ def _now() -> datetime:
 
 
 async def _fetch_campus(conn: asyncpg.Connection, campus_id: UUID) -> models.Campus:
-	row = await conn.fetchrow("SELECT id, name, domain FROM campuses WHERE id = $1", str(campus_id))
+	row = await conn.fetchrow("SELECT id, name, domain, logo_url FROM campuses WHERE id = $1", str(campus_id))
 	if not row:
 		raise CampusNotFound()
 	return models.Campus.from_record(row)
@@ -87,8 +87,22 @@ async def _upsert_verification(conn: asyncpg.Connection, user_id: UUID) -> str:
 
 async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> schemas.RegisterResponse:
 	email = policy.normalise_email(payload.email)
-	handle = policy.normalise_handle(payload.handle)
-	display = handle
+	if payload.handle:
+		handle = policy.normalise_handle(payload.handle)
+	else:
+		handle = f"user_{uuid4().hex[:12]}"
+	
+	display = payload.display_name or handle
+	campus_id = payload.campus_id
+	if campus_id is None:
+		default_campus_raw = (getattr(settings, "default_campus_id", "") or "").strip()
+		if default_campus_raw:
+			try:
+				campus_id = UUID(default_campus_raw)
+			except ValueError as exc:
+				raise IdentityServiceError("campus_not_configured", status_code=500) from exc
+	# if campus_id is None:
+	# 	raise policy.IdentityPolicyError("campus_required")
 
 	await policy.enforce_register_rate(ip_address)
 	policy.guard_handle_format(handle)
@@ -99,8 +113,9 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 	try:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
-			campus = await _fetch_campus(conn, payload.campus_id)
-			policy.guard_email_domain(email, campus)
+			if campus_id:
+				campus = await _fetch_campus(conn, campus_id)
+				policy.guard_email_domain(email, campus)
 
 			async with conn.transaction():
 				existing_user = await conn.fetchrow("SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL", email)
@@ -111,6 +126,8 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 
 				if existing_user and existing_user.get("email_verified"):
 					raise policy.EmailConflict("email_taken")
+
+				campus_id_val = str(campus_id) if campus_id else None
 
 				if existing_user:
 					user_id = UUID(str(existing_user["id"]))
@@ -128,7 +145,7 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 						""",
 						handle,
 						display,
-						str(payload.campus_id),
+						campus_id_val,
 						email,
 						password_hash,
 						str(user_id),
@@ -150,7 +167,7 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 						email,
 						handle,
 						display,
-						str(payload.campus_id),
+						campus_id_val,
 						password_hash,
 					)
 
@@ -170,7 +187,13 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 	return schemas.RegisterResponse(user_id=user_id, email=email)
 
 
-async def verify_email(payload: schemas.VerifyRequest) -> schemas.VerificationStatus:
+async def verify_email(
+	payload: schemas.VerifyRequest,
+	*,
+	ip: Optional[str] = None,
+	user_agent: Optional[str] = None,
+	device_label: str = "",
+) -> schemas.VerificationStatus:
 	token = payload.token.strip()
 	if not token:
 		raise VerificationError("token_missing")
@@ -192,9 +215,23 @@ async def verify_email(payload: schemas.VerifyRequest) -> schemas.VerificationSt
 				"UPDATE users SET email_verified = TRUE, updated_at = NOW() WHERE id = $1",
 				str(verification.user_id),
 			)
+			row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", str(verification.user_id))
+			user = models.User.from_record(row)
 
 	obs_metrics.inc_identity_verify()
-	return schemas.VerificationStatus(verified=True, user_id=verification.user_id)
+	tokens = await sessions.issue_session_tokens(
+		user,
+		ip=ip,
+		user_agent=user_agent,
+		device_label=device_label,
+	)
+	return schemas.VerificationStatus(
+		verified=True,
+		user_id=verification.user_id,
+		access_token=tokens.access_token,
+		refresh_token=tokens.refresh_token,
+		expires_in=tokens.expires_in,
+	)
 
 
 async def resend_verification(payload: schemas.ResendRequest) -> None:
@@ -263,8 +300,8 @@ async def login(
 async def list_campuses() -> list[schemas.CampusOut]:
 	pool = await get_pool()
 	async with pool.acquire() as conn:
-		rows = await conn.fetch("SELECT id, name, domain FROM campuses ORDER BY name ASC")
-	return [schemas.CampusOut(id=row["id"], name=row["name"], domain=row.get("domain")) for row in rows]
+		rows = await conn.fetch("SELECT id, name, domain, logo_url FROM campuses ORDER BY name ASC")
+	return [schemas.CampusOut(id=row["id"], name=row["name"], domain=row.get("domain"), logo_url=row.get("logo_url")) for row in rows]
 
 
 async def request_password_reset(payload: schemas.PasswordResetRequest) -> None:

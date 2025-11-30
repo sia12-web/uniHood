@@ -21,14 +21,15 @@ class CampusOut(BaseModel):
 	id: UUID
 	name: str
 	domain: Optional[str] = None
+	logo_url: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
 	email: EmailStr
 	password: Annotated[str, Field(min_length=8)]
-	handle: Annotated[str, Field(pattern=HANDLE_PATTERN)]
+	handle: Optional[Annotated[str, Field(pattern=HANDLE_PATTERN)]] = None
 	display_name: Annotated[str, Field(default="", max_length=80)]
-	campus_id: UUID
+	campus_id: Optional[UUID] = None
 
 
 class RegisterResponse(BaseModel):
@@ -131,6 +132,7 @@ class ProfilePatch(BaseModel):
 	passions: Optional[list[Annotated[str, Field(max_length=40)]]] = None
 	lat: Optional[float] = None
 	lon: Optional[float] = None
+	campus_id: Optional[UUID] = None
 
 
 class PresignRequest(BaseModel):
@@ -159,6 +161,9 @@ class GalleryRemoveRequest(BaseModel):
 class VerificationStatus(BaseModel):
 	verified: bool
 	user_id: UUID
+	access_token: Optional[str] = None
+	refresh_token: Optional[str] = None
+	expires_in: Optional[int] = None
 
 
 class HandleAvailability(RootModel[dict]):

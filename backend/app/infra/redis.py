@@ -12,6 +12,9 @@ Also adds small compatibility wrappers:
 from __future__ import annotations
 
 import redis.asyncio as redis
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import BusyLoadingError, ConnectionError as RedisConnectionError, TimeoutError
 
 from app.settings import settings
 
@@ -93,9 +96,20 @@ class RedisProxy:
 	def __getattr__(self, item):
 		return getattr(self._client, item)
 
+def _create_client() -> redis.Redis:
+	"""Instantiate a Redis client with retry/backoff for transient outages."""
+	retry = Retry(ExponentialBackoff(cap=1.0, base=0.1), retries=5)
+	return redis.from_url(
+		settings.redis_url,
+		decode_responses=True,
+		retry=retry,
+		retry_on_error=(BusyLoadingError, RedisConnectionError, TimeoutError),
+		health_check_interval=30,
+	)
+
 
 # Create proxy with the real client by default
-_real_client = redis.from_url(settings.redis_url, decode_responses=True)
+_real_client = _create_client()
 redis_client: RedisProxy = RedisProxy(_real_client)
 
 

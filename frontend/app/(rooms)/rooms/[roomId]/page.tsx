@@ -48,7 +48,7 @@ export default function RoomPage({ params }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const roomsSocketStatus = useSocketStatus(onRoomsSocketStatus, getRoomsSocketStatus);
-  const roomsReconnecting = roomsSocketStatus === 'reconnecting' || roomsSocketStatus === 'connecting';
+  const roomsReconnecting = roomsSocketStatus === 'reconnecting';
   const roomsDisconnected = roomsSocketStatus === 'disconnected';
 
   const canModerate = room?.role === 'owner' || room?.role === 'moderator';

@@ -1,11 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar } from "lucide-react";
 
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
@@ -17,10 +17,11 @@ import { useChatRoster } from "@/hooks/chat/use-chat-roster";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { fetchLeaderboard, fetchMySummary } from "@/lib/leaderboards";
-import { fetchProfile, fetchUserCourses, listCampuses } from "@/lib/identity";
+import { listCampuses } from "@/lib/identity";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { fetchFriends, sendInvite } from "@/lib/social";
-import type { FriendRow, ProfileRecord } from "@/lib/types";
+import { fetchFriends } from "@/lib/social";
+import { listMeetups, type MeetupResponse } from "@/lib/meetups";
+import type { FriendRow } from "@/lib/types";
 
 const iconClassName = "h-4 w-4 flex-none";
 
@@ -88,6 +89,15 @@ const ProfileSettingsInline = dynamic(
     ),
   },
 );
+
+const DiscoveryFeed = dynamic(() => import("@/components/DiscoveryFeed"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-96 items-center justify-center rounded-3xl border border-slate-200 bg-slate-50">
+      <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+    </div>
+  ),
+});
 
 const activityPreviews = [
   {
@@ -183,22 +193,23 @@ function formatChatTime(iso: string | null | undefined): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type NavKey = "dashboard" | "friends" | "chats" | "activities" | "profile" | "discovery" | "meetups";
-const NAV_SECTIONS: NavKey[] = ["dashboard", "friends", "chats", "activities", "profile", "discovery", "meetups"];
+type NavKey = "dashboard" | "network" | "games" | "profile" | "discovery" | "meetups" | "friends";
+const NAV_SECTIONS: NavKey[] = ["dashboard", "network", "games", "profile", "discovery", "meetups"];
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
-  const [activeSection, setActiveSection] = useState<NavKey>(() => {
-    if (typeof window !== "undefined") {
-      const savedSection = window.localStorage.getItem("divan.home.activeSection") as NavKey | null;
-      const savedUser = window.localStorage.getItem("divan.home.activeSectionUser") ?? "";
-      const auth = readAuthUser();
-      if (auth?.userId && savedUser === auth.userId && savedSection && NAV_SECTIONS.includes(savedSection)) {
-        return savedSection;
-      }
+  const [activeSection, setActiveSection] = useState<NavKey>("dashboard");
+
+  // Restore active section from localStorage after hydration
+  useEffect(() => {
+    const savedSection = window.localStorage.getItem("divan.home.activeSection") as NavKey | null;
+    const savedUser = window.localStorage.getItem("divan.home.activeSectionUser") ?? "";
+    const auth = readAuthUser();
+    if (auth?.userId && savedUser === auth.userId && savedSection && NAV_SECTIONS.includes(savedSection)) {
+      setActiveSection(savedSection);
     }
-    return "dashboard";
-  });
+  }, []);
+
   const persistActiveSection = useCallback((section: NavKey, userId?: string | null) => {
     setActiveSection(section);
     if (typeof window !== "undefined") {
@@ -206,64 +217,30 @@ export default function HomePage() {
       window.localStorage.setItem("divan.home.activeSectionUser", userId ?? "");
     }
   }, []);
-  const majorFilterId = useId();
-  const yearFilterId = useId();
-  const campusFilterId = useId();
-  const rangeFilterId = useId();
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [draftMajorFilter, setDraftMajorFilter] = useState<string | "all">("all");
-  const [draftYearFilter, setDraftYearFilter] = useState<FriendPreview["year"] | "all">("all");
-  const [draftUniversityFilter, setDraftUniversityFilter] = useState<string | "all">("all");
-  const [draftRangeFilter, setDraftRangeFilter] = useState<"all" | "20" | "50" | "100" | "200">("all");
-  const [selectedYearFilter, setSelectedYearFilter] = useState<FriendPreview["year"] | "all">("all");
-  const [selectedMajorFilter, setSelectedMajorFilter] = useState<string | "all">("all");
-  const [selectedUniversityFilter, setSelectedUniversityFilter] = useState<string | "all">("all");
-  const [selectedRangeFilter, setSelectedRangeFilter] = useState<"all" | "20" | "50" | "100" | "200">("all");
+
   const [cardIndex, setCardIndex] = useState(0);
   const [goLiveActive, setGoLiveActive] = useState(false);
-  const [isActivating, setIsActivating] = useState(false);
-  const [selfProfile, setSelfProfile] = useState<ProfileRecord | null>(null);
+
+
+
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
   const [friendCount, setFriendCount] = useState(0);
-  const [suggestedPeople, setSuggestedPeople] = useState<FriendPreview[]>([]);
-  const [inviteSent, setInviteSent] = useState<Set<string>>(new Set());
+  const [recentMeetups, setRecentMeetups] = useState<MeetupResponse[]>([]);
+  const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
+  const [meetupsLoading, setMeetupsLoading] = useState(true);
 
   const handleToggleLive = () => {
-    if (goLiveActive) {
-      setGoLiveActive(false);
-      return;
-    }
-
-    setIsActivating(true);
-    // Simulate activation delay for effect
-    setTimeout(() => {
-      setGoLiveActive(true);
-      setIsActivating(false);
-    }, 1500);
+    setGoLiveActive((prev) => !prev);
   };
 
   const { inboundPending } = useInviteInboxCount();
-  const { hasNotification: hasFriendAcceptanceNotification, latestFriendPeerId } = useFriendAcceptanceIndicator();
+  const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
   const { totalUnread: chatUnreadCount, acknowledgeAll: acknowledgeChatUnread } = useChatUnreadIndicator();
-  const { entries: chatRosterEntries, loading: chatRosterLoading, error: chatRosterError } = useChatRoster();
-  const { hasPending: hasStoryInvite, openLatest: openStoryInvite } = useStoryInviteState();
-  const { hasPending: hasTypingInvite, openLatest: openTypingInvite } = useTypingDuelInviteState();
-  const pendingInviteCount = (hasStoryInvite ? 1 : 0) + (hasTypingInvite ? 1 : 0);
-  const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
+  const { entries: chatRosterEntries, loading: chatRosterLoading } = useChatRoster();
+  const { hasPending: hasStoryInvite } = useStoryInviteState();
+  const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
 
-  const friendsHref = useMemo(() => {
-    const params = new URLSearchParams();
-    if (hasFriendAcceptanceNotification) {
-      params.set("filter", "accepted");
-      if (latestFriendPeerId) {
-        params.set("focus", latestFriendPeerId);
-      }
-    } else if (inboundPending > 0) {
-      params.set("filter", "pending");
-    }
-    const query = params.toString();
-    return query ? `/friends?${query}` : "/friends";
-  }, [hasFriendAcceptanceNotification, inboundPending, latestFriendPeerId]);
+  const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
 
   useEffect(() => {
     const hydrate = () => {
@@ -279,36 +256,6 @@ export default function HomePage() {
     if (!authHydrated) return;
     persistActiveSection("dashboard", authUser?.userId ?? null);
   }, [authUser?.userId, authHydrated, persistActiveSection]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadProfile = async () => {
-      if (!authUser?.userId) {
-        setSelfProfile(null);
-        return;
-      }
-      try {
-        const [profile, courses] = await Promise.all([
-          fetchProfile(authUser.userId, authUser.campusId ?? null),
-          fetchUserCourses(authUser.userId, authUser.campusId ?? null).catch(() => null),
-        ]);
-        const enriched = Array.isArray(courses) ? { ...profile, courses } : profile;
-        if (!cancelled) {
-          setSelfProfile(enriched);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Failed to load profile for suggestions", err);
-        }
-      }
-    };
-    if (authHydrated) {
-      void loadProfile();
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,7 +281,7 @@ export default function HomePage() {
     };
   }, []);
 
-  const formatCount = (value: number): string => (value > 99 ? "99+" : String(value));
+
 
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
   const rosterPeerIds = useMemo(() => chatRosterEntries.map((entry) => entry.peerId), [chatRosterEntries]);
@@ -433,13 +380,14 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [authUser?.campusId, authUser?.userId, campusNames, selectedRangeFilter]);
+  }, [authUser?.campusId, authUser?.userId, campusNames]);
 
   const [activitySnapshot, setActivitySnapshot] = useState<{
     totalGames: number;
     wins: number;
     streak: number;
     socialScore: number;
+    rank: number | null;
     loading: boolean;
     error: string | null;
   }>({
@@ -447,6 +395,7 @@ export default function HomePage() {
     wins: 0,
     streak: 0,
     socialScore: 0,
+    rank: null,
     loading: true,
     error: null,
   });
@@ -474,7 +423,8 @@ export default function HomePage() {
         const wins = Math.max(0, Math.round(summary.scores.overall ?? 0));
         const streak = Math.max(0, summary.streak?.current ?? 0);
         const socialScore = Math.max(0, Math.round(summary.scores.social ?? 0));
-        setActivitySnapshot({ totalGames, wins, streak, socialScore, loading: false, error: null });
+        const rank = summary.ranks.overall ?? null;
+        setActivitySnapshot({ totalGames, wins, streak, socialScore, rank, loading: false, error: null });
       } catch (err) {
         if (controller.signal.aborted) return;
         const message = err instanceof Error ? err.message : "Unable to load activity snapshot";
@@ -534,143 +484,80 @@ export default function HomePage() {
     }
   }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
-  const myPassions = useMemo(
-    () => (selfProfile?.passions ?? []).map((item) => item.toLowerCase().trim()).filter(Boolean),
-    [selfProfile?.passions],
-  );
-  const myCourses = useMemo(
-    () => (selfProfile?.courses ?? []).map((c) => (c.code || c.name).toLowerCase().trim()).filter(Boolean),
-    [selfProfile?.courses],
-  );
-  const myCoursesSet = useMemo(() => new Set(myCourses), [myCourses]);
-  const myMajor = useMemo(() => selfProfile?.major?.toLowerCase?.().trim() ?? null, [selfProfile?.major]);
-  const recentFriendIds = useMemo(() => new Set(recentFriends.map((row) => row.friend_id)), [recentFriends]);
-
-  const computeSuggestionScore = useCallback(
-    (person: FriendPreview) => {
-      let score = 0;
-      if (person.campusId && authUser?.campusId && person.campusId === authUser.campusId) {
-        score += 2;
-      }
-      if (person.isFriendOfFriend) {
-        score += 5;
-      }
-      if (typeof person.distance === "number") {
-        if (person.distance <= 20) score += 3;
-        else if (person.distance <= 100) score += 2;
-        else if (person.distance <= 250) score += 1;
-      }
-      if (myMajor && person.major?.toLowerCase?.().trim() === myMajor) {
-        score += 2;
-      }
-      if (myPassions.length && person.passions?.length) {
-        const shared = person.passions
-          .map((item) => item.toLowerCase().trim())
-          .filter((item) => myPassions.includes(item));
-        if (shared.length > 0) {
-          score += 1 + shared.length;
-        }
-      }
-      if (myCourses.length && person.courses?.length) {
-        const shared = person.courses
-          .map((item) => item.toLowerCase().trim())
-          .filter((item) => myCourses.includes(item));
-        if (shared.length > 0) {
-          score += 3 + shared.length * 2;
-        }
-      }
-      return score;
-    },
-    [authUser?.campusId, myMajor, myPassions, myCourses],
-  );
-
   useEffect(() => {
-    const nonFriends = discoverPeople.filter(
-      (person) => !person.isFriend && !recentFriendIds.has(person.userId),
-    );
-    const scored = nonFriends
-      .map((person) => ({ ...person, compatibilityScore: computeSuggestionScore(person) }))
-      .filter((person) => (person.compatibilityScore ?? 0) > 0);
-    const sorted = scored.sort((a, b) => {
-      if ((b.compatibilityScore ?? 0) !== (a.compatibilityScore ?? 0)) {
-        return (b.compatibilityScore ?? 0) - (a.compatibilityScore ?? 0);
+    const loadMeetups = async () => {
+      if (!authUser?.campusId) {
+        setMeetupsLoading(false);
+        return;
       }
-      const aDistance = a.distance ?? Number.POSITIVE_INFINITY;
-      const bDistance = b.distance ?? Number.POSITIVE_INFINITY;
-      return aDistance - bDistance;
-    });
-    if (sorted.length > 0) {
-      setSuggestedPeople(sorted.slice(0, 3));
-      return;
-    }
-    const fallback = [...nonFriends].sort((a, b) => {
-      const aDistance = a.distance ?? Number.POSITIVE_INFINITY;
-      const bDistance = b.distance ?? Number.POSITIVE_INFINITY;
-      return aDistance - bDistance;
-    });
-    setSuggestedPeople(fallback.slice(0, 3));
-  }, [computeSuggestionScore, discoverPeople, recentFriendIds]);
+      try {
+        const data = await listMeetups(authUser.campusId);
+        
+        // For Recent Activity: joined meetups
+        const joined = data.filter(m => m.is_joined);
+        setJoinedMeetups(joined);
 
-  const handleConnect = async (userId: string) => {
-    if (!authUser?.userId || !authUser?.campusId) return;
-    try {
-      setInviteSent((prev) => new Set(prev).add(userId));
-      await sendInvite(authUser.userId, authUser.campusId, userId);
-    } catch (err) {
-      console.error("Failed to send invite", err);
-      setInviteSent((prev) => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }
-  };
-
-  const activityLeaderboard = useMemo(() => {
-    const name = authUser?.displayName?.split(" ")[0] ?? (authUser?.handle ? `@${authUser.handle}` : "You");
-    return {
-      name,
-      totalGames: activitySnapshot.totalGames,
-      wins: activitySnapshot.wins,
-      streak: activitySnapshot.streak,
-      score: activitySnapshot.socialScore,
+        // Filter for upcoming/active and sort by start_at
+        const upcoming = data
+          .filter(m => m.status === "ACTIVE" || m.status === "UPCOMING")
+          .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
+          .slice(0, 3);
+        setRecentMeetups(upcoming);
+      } catch (err) {
+        console.error("Failed to load meetups", err);
+      } finally {
+        setMeetupsLoading(false);
+      }
     };
-  }, [
-    activitySnapshot.socialScore,
-    activitySnapshot.streak,
-    activitySnapshot.totalGames,
-    activitySnapshot.wins,
-    authUser?.displayName,
-    authUser?.handle,
-  ]);
+    if (authHydrated) {
+      void loadMeetups();
+    }
+  }, [authHydrated, authUser?.campusId]);
+
+
+
+
+
+  const combinedActivity = useMemo(() => {
+    const activities: {
+      type: 'friend' | 'meetup';
+      date: Date;
+      id: string;
+      data: any;
+    }[] = [];
+
+    recentFriends.forEach(f => {
+      activities.push({
+        type: 'friend',
+        date: new Date(f.created_at),
+        id: `friend-${f.friend_id}`,
+        data: f
+      });
+    });
+
+    joinedMeetups.forEach(m => {
+      activities.push({
+        type: 'meetup',
+        date: new Date(m.created_at),
+        id: `meetup-${m.id}`,
+        data: m
+      });
+    });
+
+    return activities.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
+  }, [recentFriends, joinedMeetups]);
 
   const friendPreviewList = useMemo(() => discoverPeople, [discoverPeople]);
-  const availableMajors = useMemo(() => Array.from(new Set(friendPreviewList.map((friend) => friend.major))), [friendPreviewList]);
-  const availableUniversities = useMemo(() => Array.from(new Set(friendPreviewList.map((friend) => friend.campus))), [friendPreviewList]);
-  const visibleFriendPreviewList = useMemo(() => {
-    return friendPreviewList.filter((friend) => {
-      const matchesYear = selectedYearFilter === "all" || friend.year === selectedYearFilter;
-      const matchesMajor = selectedMajorFilter === "all" || friend.major === selectedMajorFilter;
-      const matchesUniversity = selectedUniversityFilter === "all" || friend.campus === selectedUniversityFilter;
-      const matchesRange =
-        selectedRangeFilter === "all" ||
-        friend.distance === undefined ||
-        friend.distance === null ||
-        friend.distance <= Number(selectedRangeFilter);
-      return matchesYear && matchesMajor && matchesUniversity && matchesRange;
-    });
-  }, [friendPreviewList, selectedUniversityFilter, selectedMajorFilter, selectedYearFilter, selectedRangeFilter]);
+
+
+  const visibleFriendPreviewList = useMemo(() => friendPreviewList, [friendPreviewList]);
   const discoveryPreviewList = useMemo<FriendPreview[]>(() => {
-    return visibleFriendPreviewList.slice(0, 4);
-  }, [visibleFriendPreviewList]);
-  const discoveryFiltersActive = useMemo(
-    () =>
-      selectedMajorFilter !== "all" ||
-      selectedYearFilter !== "all" ||
-      selectedUniversityFilter !== "all" ||
-      selectedRangeFilter !== "all",
-    [selectedMajorFilter, selectedRangeFilter, selectedUniversityFilter, selectedYearFilter],
-  );
+    return visibleFriendPreviewList.slice(0, 4).map((p) => ({
+      ...p,
+      status: discoverPresence[p.userId]?.online ? "Online" : "Offline",
+    }));
+  }, [visibleFriendPreviewList, discoverPresence]);
+
 
   const chatPreviewCards = useMemo<ChatPreview[]>(() => {
     if (!chatRosterEntries.length) {
@@ -687,21 +574,7 @@ export default function HomePage() {
     }));
   }, [chatRosterEntries, rosterPresence]);
 
-  const frequentChats = useMemo(() => {
-    if (!chatRosterEntries.length) return [];
-    const sorted = [...chatRosterEntries].sort((a, b) => {
-      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-      return bTime - aTime;
-    });
-    return sorted.slice(0, 4).map((entry) => ({
-      peerId: entry.peerId,
-      name: entry.displayName || entry.handle || entry.peerId,
-      handle: entry.handle,
-      snippet: entry.lastMessageSnippet ?? "Say hey — they’re online.",
-      online: Boolean(rosterPresence[entry.peerId]?.online),
-    }));
-  }, [chatRosterEntries, rosterPresence]);
+
 
   useEffect(() => {
     if (cardIndex >= visibleFriendPreviewList.length) {
@@ -731,48 +604,22 @@ export default function HomePage() {
     router.push("/login");
   }, [router]);
 
-  const openFilterModal = useCallback(() => {
-    setDraftMajorFilter(selectedMajorFilter);
-    setDraftYearFilter(selectedYearFilter);
-    setDraftUniversityFilter(selectedUniversityFilter);
-    setDraftRangeFilter(selectedRangeFilter);
-    setFilterModalOpen(true);
-  }, [selectedUniversityFilter, selectedMajorFilter, selectedYearFilter, selectedRangeFilter]);
 
-  const handleApplyFilters = useCallback(() => {
-    setSelectedMajorFilter(draftMajorFilter);
-    setSelectedYearFilter(draftYearFilter);
-    setSelectedUniversityFilter(draftUniversityFilter);
-    setSelectedRangeFilter(draftRangeFilter);
-    setFilterModalOpen(false);
-  }, [draftUniversityFilter, draftMajorFilter, draftYearFilter, draftRangeFilter]);
 
-  const handleCancelFilters = useCallback(() => {
-    setDraftMajorFilter(selectedMajorFilter);
-    setDraftYearFilter(selectedYearFilter);
-    setDraftUniversityFilter(selectedUniversityFilter);
-    setDraftRangeFilter(selectedRangeFilter);
-    setFilterModalOpen(false);
-  }, [selectedUniversityFilter, selectedMajorFilter, selectedYearFilter, selectedRangeFilter]);
+
 
   const navItems = useMemo(
     () => [
       { key: "dashboard" as const, label: "Dashboard", icon: <DiscoveryIcon />, badge: null },
       {
-        key: "friends" as const,
-        label: "Friends",
+        key: "network" as const,
+        label: "Network",
         icon: <UsersIcon />,
-        badge: hasFriendsNotification ? (inboundPending > 0 ? formatCount(inboundPending) : "New") : null,
+        badge: (hasFriendsNotification || chatUnreadCount > 0) ? "New" : null,
       },
       {
-        key: "chats" as const,
-        label: "Chats",
-        icon: <ChatIcon />,
-        badge: chatUnreadCount > 0 ? formatCount(chatUnreadCount) : null,
-      },
-      {
-        key: "activities" as const,
-        label: "Activities",
+        key: "games" as const,
+        label: "Games",
         icon: <ActivityIcon />,
         badge: hasStoryInvite || hasTypingInvite ? "Live" : null,
       },
@@ -783,7 +630,7 @@ export default function HomePage() {
         badge: null,
       },
     ],
-    [hasFriendsNotification, inboundPending, chatUnreadCount, hasStoryInvite, hasTypingInvite],
+    [hasFriendsNotification, chatUnreadCount, hasStoryInvite, hasTypingInvite],
   );
 
   const handleNavClick = (key: NavKey) => {
@@ -791,615 +638,493 @@ export default function HomePage() {
       router.push("/meetups");
       return;
     }
-    persistActiveSection(key, authUser?.userId ?? null);
-    if (key === "chats") {
-      acknowledgeChatUnread();
+    if (key === "friends") {
+      router.push("/friends");
+      return;
     }
+    persistActiveSection(key, authUser?.userId ?? null);
   };
   const renderSection = () => {
     switch (activeSection) {
       case "dashboard":
         return (
-          <div className="space-y-6">
-            <header>
-              <h1 className="text-3xl font-bold text-rose-700">
-                Welcome,{" "}
-                <button
-                  type="button"
-                  onClick={() => handleNavClick("profile")}
-                  className="text-rose-700 hover:text-rose-600 hover:underline decoration-2 underline-offset-4 transition-colors"
-                >
-                  {authUser?.displayName || "Student"}
-                </button>
-              </h1>
-              <p className="text-slate-600">Here&apos;s what&apos;s happening in your network.</p>
+          <div className="space-y-8">
+            {/* Header */}
+            <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                  Welcome back,{" "}
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick("profile")}
+                    className="text-rose-600 hover:text-rose-700 hover:underline decoration-2 underline-offset-4 transition-colors"
+                  >
+                    {authUser?.displayName || "Student"}
+                  </button>
+                </h1>
+                <p className="text-slate-600">Here&apos;s your campus snapshot for today.</p>
+              </div>
             </header>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {/* Network Building Stats */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">Network Building</h3>
-                <div className="flex flex-col items-center">
-                  <NetworkProgressCircle score={activitySnapshot.socialScore} className="mb-6" />
-                  <div className="w-full space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Friends</span>
-                      <span className="text-xl font-bold text-slate-900">{friendCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Pending Invites</span>
-                      <span className="text-xl font-bold text-slate-900">{inboundPending}</span>
-                    </div>
-                    <p className="text-center text-xs text-slate-500">You&apos;re growing your circle!</p>
+            {/* Stats Overview Row */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* Friends Stat */}
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Friends</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">{friendCount}</p>
                   </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                    <UsersIcon />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-emerald-600">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+                      <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 11.586 15.293 7.293A1 1 0 0115 7h-3z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                  <span>Growing network</span>
                 </div>
               </div>
 
-              {/* Activities Progress */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Activities</h3>
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Active Invites</span>
-                    <span className="text-xl font-bold text-slate-900">{pendingInviteCount}</span>
+              {/* Invites Stat */}
+              <button
+                onClick={() => handleNavClick("friends")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Pending Invites</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">{inboundPending}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Total Score</span>
-                    <span className="text-xl font-bold text-slate-900">{activityLeaderboard.score}</span>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full transition ${inboundPending > 0 ? "bg-amber-100 text-amber-600 animate-pulse" : "bg-slate-50 text-slate-400"}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                    </svg>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full bg-indigo-500 transition-all duration-500"
-                      style={{ width: `${Math.min((activityLeaderboard.score % 100), 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {activityLeaderboard.score > 0 ? "Keep playing to climb the leaderboard." : "Play games to earn points."}
-                  </p>
+                </div>
+                <div className="mt-4 text-xs font-medium text-slate-500 group-hover:text-rose-600 transition-colors">
+                  {inboundPending > 0 ? "Review requests →" : "All caught up"}
+                </div>
+              </button>
+
+              {/* Network Score Stat */}
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Social Score</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{activitySnapshot.socialScore}</p>
+                  <p className="mt-1 text-xs text-slate-500">Top 15% on campus</p>
+                </div>
+                <div className="h-20 w-20">
+                  <NetworkProgressCircle score={activitySnapshot.socialScore} size={80} strokeWidth={6} />
                 </div>
               </div>
+            </div>
 
-              {/* Discovery Link */}
-              <Link href="/discovery" className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-white shadow-lg transition hover:shadow-xl">
-                <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl transition group-hover:bg-white/20" />
-                <h3 className="relative text-xl font-bold">Discovery</h3>
-                <p className="relative mt-2 text-slate-300">Find people around you and in other universities.</p>
-                <div className="relative mt-6 inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition group-hover:bg-white/30">
-                  Launch Discovery
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            {/* Compact Live Discovery */}
+            <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-rose-50/50 p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+              <div className="absolute top-0 right-0 -mt-16 -mr-16 h-40 w-40 rounded-full bg-gradient-to-br from-rose-400/20 to-amber-300/20 blur-3xl" />
+              <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-40 w-40 rounded-full bg-gradient-to-tr from-indigo-400/20 to-emerald-300/20 blur-3xl" />
+
+              <div className="relative z-10 flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    Live on Campus
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500">See who&apos;s active right now</p>
+                </div>
+                <Link href="/discovery" className="group flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold text-indigo-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-indigo-700 hover:ring-indigo-200">
+                  View Map
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 transition-transform group-hover:translate-x-0.5">
+                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
                   </svg>
-                </div>
-              </Link>
-
-              {/* Recent Activity */}
-              <div className="col-span-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:col-span-2 lg:col-span-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Recent Activity</h3>
-                <div className="mt-4 space-y-4">
-                  {recentFriends.length === 0 && (
-                    <div className="text-sm text-slate-500">No recent activity.</div>
-                  )}
-                  {recentFriends.map((friend) => (
-                    <div key={friend.friend_id} className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </Link>
+              </div>
+              <div className="relative z-10 flex gap-4 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
+                {/* Go Live Toggle */}
+                <button
+                  onClick={handleToggleLive}
+                  className="group flex flex-col items-center gap-2 min-w-[72px]"
+                >
+                  <div className={`relative h-16 w-16 rounded-full p-[3px] transition-all duration-500 ${goLiveActive ? "bg-gradient-to-tr from-emerald-400 to-teal-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" : "bg-slate-100 hover:bg-slate-200"}`}>
+                    <div className="h-full w-full rounded-full bg-white p-1">
+                      <div className="h-full w-full rounded-full bg-slate-50 flex items-center justify-center overflow-hidden">
+                        {authUser?.photoURL ? (
+                          <img src={authUser.photoURL} alt="Me" className="h-full w-full object-cover opacity-90" />
+                        ) : (
+                          <span className="text-xs font-bold text-slate-400">You</span>
+                        )}
+                      </div>
+                    </div>
+                    {goLiveActive && (
+                      <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                    )}
+                    {!goLiveActive && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6 text-slate-600">
+                          <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
                         </svg>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          You became friends with{" "}
-                          <span className="font-bold">
-                            {friend.friend_display_name ?? friend.friend_handle ?? friend.friend_id}
-                          </span>
-                        </p>
+                    )}
+                  </div>
+                  <span className={`text-xs font-medium transition-colors ${goLiveActive ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
+                    {goLiveActive ? "Live" : "Go Live"}
+                  </span>
+                </button>
+
+                {/* Live Peers */}
+                {discoveryPreviewList.map((person) => (
+                  <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px] cursor-pointer group">
+                    <div className={`relative h-16 w-16 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300"}`}>
+                      <div className="h-full w-full rounded-full bg-white p-1">
+                        <div className="h-full w-full rounded-full bg-slate-100 overflow-hidden">
+                          <img
+                            src={person.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${person.name}`}
+                            alt={person.name}
+                            className="h-full w-full object-cover transition group-hover:scale-110"
+                          />
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <span className="text-xs font-medium text-slate-600 truncate w-16 text-center">{person.name.split(" ")[0]}</span>
+                  </div>
+                ))}
               </div>
+            </section>
 
-              {/* Suggested Connections */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Suggested</h3>
-                <div className="mt-4 space-y-4">
-                  {suggestedPeople.length === 0 ? (
-                    <div className="text-sm text-slate-500">No suggestions available.</div>
-                  ) : (
-                    suggestedPeople.slice(0, 3).map((person) => {
-                      const isInvited = inviteSent.has(person.userId);
-                      const sharedCourses =
-                        person.courses
-                          ?.filter((course) => {
-                            const key = course.toLowerCase().trim();
-                            return key.length > 0 && myCoursesSet.has(key);
-                          }) ?? [];
+            {/* Recent Activity (Full Width) */}
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+              </div>
+              <div className="space-y-4">
+                {combinedActivity.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mb-3">
+                      <ActivityIcon />
+                    </div>
+                    <p className="text-sm text-slate-500">No recent activity.</p>
+                    <p className="text-xs text-slate-400">Connect with friends or join meetups to see updates.</p>
+                  </div>
+                ) : (
+                  combinedActivity.map((item) => {
+                    if (item.type === 'friend') {
+                      const friend = item.data as FriendRow;
                       return (
-                        <div key={person.userId} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-200">
-                              <img
-                                src={person.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${person.name}`}
-                                alt={person.name}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{person.name}</p>
-                              <p className="text-xs text-slate-500">
-                                {sharedCourses.length > 0
-                                  ? `${sharedCourses.length} shared course${sharedCourses.length > 1 ? "s" : ""}: ${sharedCourses.slice(0, 2).join(", ")}${sharedCourses.length > 2 ? "…" : ""}`
-                                  : person.detail || person.campus}
-                              </p>
-                            </div>
+                        <div key={item.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition">
+                          <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+                            <CheckCircle2 className="h-6 w-6" />
                           </div>
-                          <button
-                            onClick={() => handleConnect(person.userId)}
-                            disabled={isInvited}
-                            className={`rounded-full p-2 transition ${isInvited ? "bg-green-100 text-green-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-                            aria-label={isInvited ? "Invite sent" : "Add friend"}
-                          >
-                            {isInvited ? (
-                              <CheckCircle2 className="h-4 w-4" />
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                                <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                              </svg>
-                            )}
-                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              New Connection
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">
+                              You are now friends with <span className="font-medium text-slate-700">{friend.friend_display_name || friend.friend_handle}</span>
+                            </p>
+                          </div>
+                          <span className="text-xs text-slate-400 whitespace-nowrap">
+                            {item.date.toLocaleDateString()}
+                          </span>
                         </div>
                       );
-                    })
-                  )}
-                </div>
-                <Link href="/discovery" className="mt-6 block w-full rounded-xl border border-slate-200 py-2 text-center text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  View All Suggestions
-                </Link>
-              </div>
-            </div>
-          </div>
-        );
-      case "friends":
-        return (
-          <div className="space-y-5">
-            <header className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-r from-white via-rose-50 to-amber-50 p-6 shadow-lg">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.9),transparent_55%)]" aria-hidden />
-              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-sm uppercase tracking-[0.35em] text-rose-500">Friends</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-slate-900">Stay in sync with your circle</h2>
-                  <p className="mt-2 text-sm text-slate-700">
-                    {hasFriendsNotification
-                      ? "You have updates waiting. Tap through to approve invites or greet new peers."
-                      : "Invite classmates or accept pending requests to populate your radar."}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Link href={friendsHref} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800">
-                      Open friends
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </header>
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pending invites</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{inboundPending > 0 ? formatCount(inboundPending) : "All clear"}</p>
-                <p className="text-xs text-slate-500">Approved friends land in chat instantly.</p>
-              </div>
-              <div className="rounded-3xl border border-rose-100 bg-rose-50 p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.2em] text-rose-500">Live connections</p>
-                <p className="mt-2 text-3xl font-semibold text-rose-600">{hasFriendAcceptanceNotification ? "New matches" : "Keep exploring"}</p>
-                <p className="text-xs text-rose-500">Glow on your radar when friends head nearby.</p>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Quick actions</p>
-                <div className="mt-3 flex flex-col gap-2">
-                  <Link
-                    href="/friends?filter=pending"
-                    className="inline-flex items-center justify-between rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-slate-400"
-                  >
-                    Review invites
-                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      {inboundPending > 0 ? formatCount(inboundPending) : "0"}
-                    </span>
-                  </Link>
-                  <Link
-                    href="/chat"
-                    className="inline-flex items-center justify-between rounded-2xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800"
-                  >
-                    Open chats
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-3 text-indigo-900">
-                    <div className="space-y-1">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-indigo-500">Meetups</p>
-                      <p className="text-sm font-semibold">Make room with your friends there</p>
-                      <p className="text-xs text-indigo-700">Plan gatherings and hangouts with your circle.</p>
-                    </div>
-                    <Link
-                      href="/meetups"
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-                    >
-                      Open Meetups
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Recent friends</p>
-                  <p className="text-sm text-slate-600">Newest people in your circle.</p>
-                </div>
-                <Link href="/friends" className="text-xs font-semibold text-rose-500 hover:text-rose-600">
-                  Manage all
-                </Link>
-              </div>
-              <div className="mt-3 divide-y divide-slate-100">
-                {recentFriends.length === 0 ? (
-                  <div className="py-3 text-sm text-slate-500">No accepted friends yet. Send invites to see them here.</div>
-                ) : (
-                  recentFriends.map((friend) => {
-                    const name = friend.friend_display_name || friend.friend_handle || "Friend";
-                    const online = recentFriendsPresence[friend.friend_id]?.online;
-                    return (
-                      <div key={friend.friend_id} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-10 w-10 place-items-center rounded-full bg-rose-100 text-sm font-semibold text-rose-700">
-                            {name.slice(0, 2).toUpperCase()}
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{name}</p>
-                            <p className="text-xs text-slate-500">{friend.friend_handle ? `@${friend.friend_handle}` : friend.friend_id}</p>
+                    } else if (item.type === 'meetup') {
+                      const meetup = item.data as MeetupResponse;
+                      return (
+                        <div key={item.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition">
+                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                            <Calendar className="h-6 w-6" />
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              Joined Meetup
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">
+                              You joined <span className="font-medium text-slate-700">{meetup.title}</span>
+                            </p>
+                          </div>
+                          <span className="text-xs text-slate-400 whitespace-nowrap">
+                            {item.date.toLocaleDateString()}
+                          </span>
                         </div>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${online ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
-                            }`}
-                        >
-                          {online ? "Online" : "Away"}
-                        </span>
-                      </div>
-                    );
+                      );
+                    }
+                    return null;
                   })
                 )}
               </div>
-            </div>
+            </section>
           </div>
         );
-      case "chats":
+      case "network":
         return (
-          <div className="space-y-5">
-            <header className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-r from-[#0f152a] via-[#1c2340] to-[#0f152a] p-6 text-white shadow-xl">
-              <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.14),_transparent_60%)] blur-3xl" aria-hidden />
-              <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-xl space-y-2">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-rose-200">Chats preview</p>
-                  <h2 className="text-2xl font-semibold md:text-3xl">Drop into conversations without opening the full inbox</h2>
-                  <p className="text-sm text-slate-200/90">
-                    Peek at the latest threads and reply cues. The full experience lives at <span className="font-semibold">/chat</span>.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <Link
-                      href="/chat"
-                      className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0f152a] shadow hover:bg-rose-50"
-                    >
-                      Open full chats
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                    <Link
-                      href="/friends"
-                      className="inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/60"
-                    >
-                      Find classmates
-                    </Link>
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-8">
+            <header>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">Network</h2>
+              <p className="text-sm text-slate-500">Your social hub on campus.</p>
             </header>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              <section className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-rose-400">Threads in motion</p>
-                    <p className="text-sm text-slate-600">Latest pulses from friends and studios.</p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Chats Card */}
+              <div className="col-span-1 md:col-span-2 lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                      <ChatIcon />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Messages</h3>
+                      <p className="text-xs text-slate-500">Recent conversations</p>
+                    </div>
                   </div>
-                  <Link href="/chat" className="text-xs font-semibold text-rose-500 hover:text-rose-600">
-                    Jump to inbox
+                  <Link href="/chat" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
+                    Open Inbox
                   </Link>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {chatRosterLoading
-                    ? Array.from({ length: 4 }).map((_, idx) => (
-                      <div
-                        key={`chat-skeleton-${idx}`}
-                        className="h-36 animate-pulse rounded-2xl border border-slate-100 bg-white/70"
-                      />
-                    ))
-                    : chatPreviewCards.length
-                      ? chatPreviewCards.map((chat) => (
-                        <div
+
+                <div className="flex-1 space-y-4">
+                  {chatRosterLoading ? (
+                    <div className="space-y-3">
+                      <div className="h-16 animate-pulse rounded-2xl bg-slate-50" />
+                      <div className="h-16 animate-pulse rounded-2xl bg-slate-50" />
+                    </div>
+                  ) : chatPreviewCards.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {chatPreviewCards.slice(0, 4).map((chat) => (
+                        <Link
                           key={chat.handle}
-                          className={`relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br ${chat.accent} p-4 shadow-sm`}
+                          href="/chat"
+                          className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-white hover:shadow-md hover:border-rose-100"
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{chat.name}</p>
-                              <p className="text-xs text-slate-500">{chat.handle}</p>
+                          <div className="relative">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-700 shadow-sm">
+                              {chat.name.slice(0, 2).toUpperCase()}
                             </div>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${chat.status === "online" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                                }`}
-                            >
-                              {chat.status === "online" ? "Online" : "Away"}
-                            </span>
-                          </div>
-                          <p className="mt-3 text-sm text-slate-800 line-clamp-2">{chat.snippet}</p>
-                          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-                            <span>{chat.time}</span>
-                            {chat.unread ? (
-                              <span className="rounded-full bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                {chat.unread} new
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">All caught up</span>
+                            {chat.status === "online" && (
+                              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
                             )}
                           </div>
-                        </div>
-                      ))
-                      : (
-                        <div className="rounded-2xl border border-slate-100 bg-white/80 p-4 text-sm text-slate-600 shadow-sm md:col-span-2">
-                          {chatRosterError ? chatRosterError : "No conversations yet. Send a hello from the /chat page."}
-                        </div>
-                      )}
-                </div>
-              </section>
-
-              <section className="flex flex-col gap-4 rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-rose-500">Frequent chats</p>
-                    <p className="text-sm text-rose-700">Friends you talk to most often.</p>
-                  </div>
-                  <Link href="/chat" className="text-xs font-semibold text-rose-600 hover:text-rose-700">
-                    Open chats
-                  </Link>
-                </div>
-                <div className="space-y-3">
-                  {frequentChats.length > 0 ? frequentChats.map((chat) => (
-                    <div key={chat.peerId} className="flex items-center justify-between gap-3 rounded-2xl bg-white/80 px-3 py-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-rose-200 via-amber-100 to-white text-sm font-semibold text-slate-900">
-                          {chat.name.slice(0, 2).toUpperCase()}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{chat.name}</p>
-                          <p className="text-xs text-slate-500">{chat.handle ? `@${chat.handle}` : chat.snippet}</p>
-                        </div>
-                      </div>
-                      <span className={`text-[11px] font-semibold ${chat.online ? "text-emerald-600" : "text-rose-500"}`}>
-                        {chat.online ? "Online" : "Away"}
-                      </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between">
+                              <p className="truncate font-bold text-slate-900">{chat.name}</p>
+                              {chat.unread ? (
+                                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                              ) : null}
+                            </div>
+                            <p className="truncate text-xs text-slate-500">{chat.snippet}</p>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                  )) : (
-                    <div className="rounded-2xl border border-rose-100 bg-white/80 px-4 py-3 text-xs text-rose-700">
-                      No conversations yet. Start a thread from the chats page.
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <p className="text-sm text-slate-400">No active chats.</p>
+                      <Link href="/chat" className="mt-2 text-xs font-bold text-slate-900 hover:underline">Start a conversation</Link>
                     </div>
                   )}
                 </div>
-                <div className="rounded-2xl border border-rose-100 bg-white/70 px-4 py-3 text-xs text-rose-700">
-                  Pinned tip: Start in /chat to thread messages, share files, and enable delivery receipts.
+              </div>
+
+              {/* Friends Card */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <UsersIcon />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Friends</h3>
+                      <p className="text-xs text-slate-500">{friendCount} connections</p>
+                    </div>
+                  </div>
+                  <Link href="/friends" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
+                    Manage
+                  </Link>
                 </div>
-              </section>
+
+                <div className="flex-1 flex flex-col justify-center gap-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+                    <span className="text-sm font-medium text-slate-600">Online Now</span>
+                    <span className="text-xl font-bold text-emerald-600">
+                      {recentFriends.filter((f) => recentFriendsPresence[f.friend_id]?.online).length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+                    <span className="text-sm font-medium text-slate-600">Pending Requests</span>
+                    <span className={`text-xl font-bold ${inboundPending > 0 ? "text-rose-600" : "text-slate-400"}`}>
+                      {inboundPending}
+                    </span>
+                  </div>
+                  <Link
+                    href="/discovery"
+                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                  >
+                    Find New Friends
+                  </Link>
+                </div>
+              </div>
+
+              {/* Meetups Card */}
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Campus Meetups</h3>
+                      <p className="text-xs text-slate-500">Upcoming events & study groups</p>
+                    </div>
+                  </div>
+                  <Link href="/meetups" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
+                    View All
+                  </Link>
+                </div>
+
+                <div className="flex-1">
+                  {meetupsLoading ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-32 animate-pulse rounded-2xl bg-slate-50" />
+                      ))}
+                    </div>
+                  ) : recentMeetups.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {recentMeetups.map((meetup) => {
+                        const date = new Date(meetup.start_at);
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                        const dateStr = isToday ? "Today" : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+                        return (
+                          <Link
+                            key={meetup.id}
+                            href={`/meetups/${meetup.id}`}
+                            className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-white hover:shadow-md hover:border-indigo-100"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between">
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meetup.category === 'study' ? 'bg-blue-100 text-blue-700' :
+                                  meetup.category === 'social' ? 'bg-rose-100 text-rose-700' :
+                                    meetup.category === 'game' ? 'bg-purple-100 text-purple-700' :
+                                      'bg-slate-100 text-slate-700'
+                                  }`}>
+                                  {meetup.category}
+                                </span>
+                                {meetup.status === "ACTIVE" && (
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                )}
+                              </div>
+                              <h4 className="mt-2 font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600">{meetup.title}</h4>
+                              <p className="mt-1 text-xs text-slate-500 line-clamp-2">{meetup.description || "No description"}</p>
+                            </div>
+                            <div className="mt-4 flex items-center gap-3 text-xs font-medium text-slate-400">
+                              <div className="flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                                  <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                                </svg>
+                                {dateStr} • {timeStr}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                                  <path d="M10 9a3 3 0 100-6 3 3 0 000 6zM6 8a2 2 0 11-4 0 2 2 0 014 0zM1.49 15.326a.78.78 0 01-.358-.442 3 3 0 014.308-3.516 6.484 6.484 0 00-1.905 3.959c-.023.222-.014.442.025.654a4.97 4.97 0 01-2.07-.655zM16.44 15.98a4.97 4.97 0 002.07-.654.78.78 0 00.358-.442 3 3 0 00-4.308-3.516 6.484 6.484 0 011.905 3.959c.023.222.014.442-.025.654zM9 12a4 4 0 014 4v.5a.5.5 0 01-.5.5h-7a.5.5 0 01-.5-.5V16a4 4 0 014-4z" />
+                                </svg>
+                                {meetup.participants_count}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+                      <div className="mb-3 rounded-full bg-indigo-50 p-3 text-indigo-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900">No upcoming meetups</h3>
+                      <p className="mt-1 text-xs text-slate-500 max-w-xs">
+                        Be the first to host a study group or hangout on campus.
+                      </p>
+                      <Link
+                        href="/meetups"
+                        className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
+                      >
+                        Create Meetup
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );
-      case "activities": {
-        const inviteMessage = hasStoryInvite
-          ? "You have a story invite waiting. Tap below to join."
-          : hasTypingInvite
-            ? "You have a live typing duel invite ready."
-            : "Spin up a duel, trivia match, or chill co-op session without leaving this space.";
-        const inviteButtonLabel = hasStoryInvite
-          ? "Open story invite"
-          : hasTypingInvite
-            ? "Open typing duel"
-            : "Explore activities";
-        const canOpenInvite = hasStoryInvite || hasTypingInvite;
-        const handleInviteClick = () => {
-          if (hasStoryInvite) {
-            openStoryInvite();
-            return;
-          }
-          if (hasTypingInvite) {
-            openTypingInvite();
-          }
-        };
+      case "games": {
+
         return (
-          <div className="space-y-5">
-            <header className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-r from-white via-amber-50 to-rose-50 p-6 shadow-lg">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.9),transparent_55%)]" aria-hidden />
-              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-sm uppercase tracking-[0.35em] text-rose-500">Live arena</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-slate-900">Jump into campus challenges</h2>
-                  <p className="mt-2 text-sm text-slate-700">{inviteMessage}</p>
-                  {canOpenInvite ? (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={handleInviteClick}
-                        className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500"
-                      >
-                        {inviteButtonLabel}
-                      </button>
+          <div className="space-y-8">
+            {/* Stats & Rank Card */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1c2e] via-[#1f2336] to-[#0f111a] p-8 text-white shadow-2xl">
+              <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
+              <div className="absolute right-0 top-0 -mt-20 -mr-20 h-80 w-80 rounded-full bg-rose-500/20 blur-3xl" />
+              <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
+
+              <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                {/* Rank Section */}
+                <div className="flex items-center gap-6">
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 shadow-lg shadow-orange-500/20">
+                    <div className="absolute inset-0.5 rounded-[14px] bg-[#1a1c2e] flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Rank</p>
+                        <p className="text-4xl font-black text-white">
+                          {activitySnapshot.loading ? "-" : activitySnapshot.rank ? `#${activitySnapshot.rank}` : "-"}
+                        </p>
+                      </div>
                     </div>
-                  ) : null}
-                </div>
-              </div>
-            </header>
-            <div className="rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50 via-rose-25 to-amber-50 p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-rose-500">Your activity snapshot</p>
-                  <h3 className="mt-2 text-lg font-semibold text-rose-900">How you&apos;re doing this week</h3>
-                  <p className="mt-1 text-xs text-rose-700/90">
-                    Track your streaks and wins across Campus games. These numbers update as you play duels, trivia, and more.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl bg-white/70 px-3 py-2 text-xs font-medium text-rose-700 shadow-sm">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-700">
-                    {activityLeaderboard.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="leading-tight">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-rose-400">Player</p>
-                    <p className="text-sm font-semibold text-rose-800 truncate max-w-[9rem]">{activityLeaderboard.name}</p>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Your Standing</h2>
+                    <p className="text-slate-400">Global Leaderboard</p>
+                    <Link
+                      href="/leaderboards"
+                      className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-400 hover:text-amber-300"
+                    >
+                      Open Leaderboard
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                        <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                      </svg>
+                    </Link>
                   </div>
                 </div>
-              </div>
 
-              {activitySnapshot.error ? (
-                <div className="mt-3 rounded-2xl bg-rose-100 px-3 py-2 text-[11px] font-semibold text-rose-700">
-                  {activitySnapshot.error}
-                </div>
-              ) : null}
-
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-rose-900 shadow-sm">
-                  <div className="flex items-center justify-between text-xs font-medium text-rose-500">
-                    <span>Total games</span>
-                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px]">All modes</span>
+                {/* Stats Grid */}
+                <div className="flex flex-1 justify-end gap-4 sm:gap-8">
+                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Games</p>
+                    <p className="mt-1 text-2xl font-bold text-white">
+                      {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
+                    </p>
                   </div>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight">
-                    {activitySnapshot.loading ? <span className="inline-block h-5 w-12 animate-pulse rounded bg-rose-100" /> : activityLeaderboard.totalGames}
-                  </p>
-                  <p className="mt-1 text-xs text-rose-500">Every duel, quiz, and match you&apos;ve played on Campus.</p>
-                </div>
-
-                <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-emerald-900 shadow-sm">
-                  <div className="flex items-center justify-between text-xs font-medium text-emerald-500">
-                    <span>Wins</span>
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px]">Best rounds</span>
+                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Wins</p>
+                    <p className="mt-1 text-2xl font-bold text-white">
+                      {activitySnapshot.loading ? "-" : activitySnapshot.wins}
+                    </p>
                   </div>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight">
-                    {activitySnapshot.loading ? <span className="inline-block h-5 w-12 animate-pulse rounded bg-emerald-100" /> : activityLeaderboard.wins}
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-500">Times you&apos;ve finished on top against friends and classmates.</p>
-                </div>
-
-                <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm text-amber-900 shadow-sm">
-                  <div className="flex items-center justify-between text-xs font-medium text-amber-500">
-                    <span>Win streak</span>
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px]">Current run</span>
+                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-rose-400">Streak</p>
+                    <p className="mt-1 text-2xl font-bold text-white">
+                      {activitySnapshot.loading ? "-" : activitySnapshot.streak}
+                    </p>
                   </div>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight">
-                    {activitySnapshot.loading ? <span className="inline-block h-5 w-12 animate-pulse rounded bg-amber-100" /> : activityLeaderboard.streak}
-                  </p>
-                  <p className="mt-1 text-xs text-amber-500">Keep playing without losing to grow this streak.</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-rose-700/90">
-                <p>
-                  Ready to climb higher? Open <span className="font-semibold">Typing Duel</span> or <span className="font-semibold">Quick Trivia</span> below and your
-                  wins will land here.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.35em] text-slate-500">Leaderboard preview</p>
-                  <h3 className="text-lg font-semibold text-slate-900">Today&apos;s movers</h3>
-                  <p className="text-xs text-slate-600">See where you stand against everyone this week.</p>
-                </div>
-                <Link
-                  href="/leaderboards"
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow hover:-translate-y-0.5 hover:shadow-lg"
-                >
-                  Open leaderboard
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-
-              {leaderboardPreview.error ? (
-                <div className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-600">
-                  {leaderboardPreview.error}
-                </div>
-              ) : null}
-
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                <div className="grid grid-cols-[60px_1fr_100px] bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-500">
-                  <span>Rank</span>
-                  <span>Player</span>
-                  <span className="text-right">Score</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(leaderboardPreview.loading ? Array.from({ length: 5 }) : leaderboardPreview.items).map((entry: any, idx) => {
-                    const rank = leaderboardPreview.loading ? idx + 1 : entry.rank;
-                    const isSelf = !leaderboardPreview.loading && entry.userId === authUser?.userId;
-                    const label = leaderboardPreview.loading
-                      ? "Loading..."
-                      : isSelf
-                        ? "You"
-                        : entry.userId.slice(0, 8);
-                    const score = leaderboardPreview.loading ? null : entry.score;
-                    return (
-                      <div
-                        key={leaderboardPreview.loading ? `skeleton-${idx}` : entry.userId}
-                        className={`grid grid-cols-[60px_1fr_100px] items-center px-4 py-3 text-sm ${isSelf ? "bg-emerald-50/80 text-emerald-900" : "bg-white text-slate-800"
-                          }`}
-                      >
-                        <div className="font-semibold text-slate-500">{rank}</div>
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
-                            {leaderboardPreview.loading ? "…" : label.slice(0, 2).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{label}</p>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                              {leaderboardPreview.loading ? "Syncing" : isSelf ? "This is you" : "Campus"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right text-base font-semibold">
-                          {leaderboardPreview.loading ? <span className="inline-block h-4 w-10 animate-pulse rounded bg-slate-100" /> : score?.toFixed(0)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!leaderboardPreview.loading &&
-                    authUser?.userId &&
-                    leaderboardPreview.items.every((row) => row.userId !== authUser.userId) &&
-                    activitySnapshot.error === null && (
-                      <div className="grid grid-cols-[60px_1fr_100px] items-center bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
-                        <div className="font-semibold text-slate-500">{activitySnapshot.loading ? "…" : "—"}</div>
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
-                            {activityLeaderboard.name.slice(0, 2).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">You</p>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-600">
-                              {activitySnapshot.loading ? "Loading…" : "Your position"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right text-base font-semibold">
-                          {activitySnapshot.loading ? <span className="inline-block h-4 w-10 animate-pulse rounded bg-emerald-100" /> : activityLeaderboard.wins.toFixed(0)}
-                        </div>
-                      </div>
-                    )}
                 </div>
               </div>
             </div>
@@ -1461,7 +1186,7 @@ export default function HomePage() {
                       </div>
                       <div className="pt-1">
                         <span className="inline-flex w-full items-center justify-center rounded-xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#ff5f72]/30 transition group-hover:bg-[#ff4b61]">
-                          {highlight ? "Join pending session" : "Open activity window"}
+                          {highlight ? "Join pending session" : "Open game window"}
                         </span>
                       </div>
                     </div>
@@ -1478,229 +1203,13 @@ export default function HomePage() {
             <ProfileSettingsInline embedded={true} />
           </div>
         );
-      case "dashboard":
-      default:
+      case "discovery":
         return (
-          <div className="space-y-5">
-            <Link href="/discovery" className="block group relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-purple-500 to-indigo-500 p-6 text-white shadow-lg transition hover:shadow-xl">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.2),_transparent_50%)]" />
-              <div className="relative z-10 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-rose-100">New Feature</p>
-                  <h2 className="mt-1 text-2xl font-bold">Student Connect</h2>
-                  <p className="mt-2 max-w-md text-sm text-rose-50">
-                    Find students from other campuses. Find study partners or new friends.
-                  </p>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition group-hover:bg-white/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
-
-            <section className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-base uppercase tracking-[0.35em] text-rose-500">People nearby</p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">Who is within your discovery range</h2>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleToggleLive}
-                    disabled={isActivating}
-                    className={`
-                      relative w-full max-w-xl rounded-2xl px-5 py-4 text-base font-semibold text-white shadow transition-all duration-300
-                      ${goLiveActive
-                        ? "bg-emerald-500 hover:bg-emerald-600 animate-pulse"
-                        : "bg-[#f05656] hover:bg-[#e14a4a] hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(240,86,86,0.5)]"
-                      }
-                      ${isActivating ? "scale-95 opacity-90 cursor-wait" : ""}
-                    `}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      {isActivating && <Loader2 className="h-5 w-5 animate-spin" />}
-                      {isActivating ? "Activating..." : goLiveActive ? "Live Active" : "Go Live"}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openFilterModal}
-                    className="w-full max-w-xl rounded-2xl border border-slate-200 px-5 py-4 text-base font-semibold text-slate-800 shadow hover:border-slate-400"
-                  >
-                    Refine discovery filters
-                  </button>
-                  {discoveryFiltersActive ? (
-                    <p className="w-full max-w-xl text-xs text-slate-500">
-                      Filters are active. Reset from the top banner or adjust here.
-                    </p>
-                  ) : (
-                    <p className="w-full max-w-xl text-xs text-slate-500">Preview below is lightweight—open discovery for the full feed.</p>
-                  )}
-                </div>
-
-                <div className="overflow-hidden rounded-3xl border border-slate-900/40 bg-gradient-to-br from-slate-900 via-rose-700 to-amber-400 p-5 text-white shadow-xl">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.35em] text-white/60">Preview deck</p>
-                      <h3 className="text-xl font-semibold">Fresh faces</h3>
-                      <p className="text-xs text-white/70">Tap through to see everyone.</p>
-                    </div>
-                    <Link
-                      href="/discovery"
-                      className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white hover:bg-white/25"
-                    >
-                      Discovery
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {discoveryPreviewList.slice(0, 3).map((person, idx) => {
-                      const isLive = Boolean(discoverPresence?.[person.userId]?.online);
-                      return (
-                        <div
-                          key={person.userId ?? `preview-${idx}`}
-                          className="rounded-2xl bg-white/10 p-4 backdrop-blur-md transition hover:-translate-y-1 hover:bg-white/15"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white">
-                                {person.name.slice(0, 1).toUpperCase()}
-                              </div>
-                              <span
-                                className={`absolute -right-1 -bottom-1 h-3 w-3 rounded-full ${isLive ? "bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]" : "bg-white/40"
-                                  }`}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-white">{person.name}</p>
-                              <p className="truncate text-xs text-white/70">{person.detail}</p>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
-                            <span className="rounded-full bg-white/10 px-3 py-1">{person.major}</span>
-                            <span className="rounded-full bg-white/10 px-3 py-1">{person.year}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {filterModalOpen ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-                <div
-                  className="absolute inset-0 bg-black/40"
-                  role="button"
-                  aria-label="Close filters"
-                  onClick={handleCancelFilters}
-                />
-                <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <label className="text-xs uppercase tracking-[0.25em] text-slate-500" htmlFor={majorFilterId}>
-                        Major
-                      </label>
-                      <select
-                        id={majorFilterId}
-                        value={draftMajorFilter}
-                        onChange={(e) => setDraftMajorFilter(e.target.value)}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        <option value="all">All majors</option>
-                        {availableMajors.map((major) => (
-                          <option key={major} value={major}>
-                            {major}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500" htmlFor={yearFilterId}>
-                        Year
-                      </label>
-                      <select
-                        id={yearFilterId}
-                        value={draftYearFilter}
-                        onChange={(e) => setDraftYearFilter(e.target.value as FriendPreview["year"] | "all")}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        <option value="all">All years</option>
-                        <option value="freshman">First year</option>
-                        <option value="sophomore">Second year</option>
-                        <option value="junior">Third year</option>
-                        <option value="senior">Fourth year</option>
-                        <option value="grad">Graduate</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500" htmlFor={campusFilterId}>
-                        University
-                      </label>
-                      <select
-                        id={campusFilterId}
-                        value={draftUniversityFilter}
-                        onChange={(e) => setDraftUniversityFilter(e.target.value)}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        <option value="all">All universities</option>
-                        {availableUniversities.map((campus) => (
-                          <option key={campus} value={campus}>
-                            {campus}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500" htmlFor={rangeFilterId}>
-                        Range
-                      </label>
-                      <select
-                        id={rangeFilterId}
-                        value={draftRangeFilter}
-                        onChange={(e) => setDraftRangeFilter(e.target.value as "all" | "20" | "50" | "100" | "200")}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        <option value="all">Any distance</option>
-                        <option value="20">Within 20</option>
-                        <option value="50">Within 50</option>
-                        <option value="100">Within 100</option>
-                        <option value="200">Within 200</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mt-6 flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={handleCancelFilters}
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyFilters}
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+          <div className="-mx-6 -my-12 md:-mx-10">
+            <DiscoveryFeed />
           </div>
         );
+
     }
   };
   return (

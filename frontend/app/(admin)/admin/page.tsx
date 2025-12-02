@@ -15,7 +15,7 @@ import { NetworkProgressCircle } from "@/components/NetworkProgressCircle";
 const ADMIN_FEATURES = [
   {
     title: "Policy & Consent",
-    href: "/consent",
+    href: "/admin/consent",
     icon: FileCheck,
     color: "text-blue-600",
     bg: "bg-blue-50",
@@ -23,7 +23,7 @@ const ADMIN_FEATURES = [
   },
   {
     title: "Feature Flags",
-    href: "/flags",
+    href: "/admin/flags",
     icon: Flag,
     color: "text-violet-600",
     bg: "bg-violet-50",
@@ -31,7 +31,7 @@ const ADMIN_FEATURES = [
   },
   {
     title: "Roles & Permissions",
-    href: "/rbac",
+    href: "/admin/rbac",
     icon: Users,
     color: "text-emerald-600",
     bg: "bg-emerald-50",
@@ -39,7 +39,7 @@ const ADMIN_FEATURES = [
   },
   {
     title: "Verification Queue",
-    href: "/verification",
+    href: "/admin/verification",
     icon: ShieldCheck,
     color: "text-amber-600",
     bg: "bg-amber-50",
@@ -157,7 +157,7 @@ export default function AdminOverviewPage() {
               ))}
             </div>
             <div className="border-t border-slate-100 bg-slate-50 p-3 text-center">
-              <Link href="/admin/audit" className="text-xs font-medium text-violet-600 hover:text-violet-700">
+              <Link href="/admin/mod/audit" className="text-xs font-medium text-violet-600 hover:text-violet-700">
                 View Full Audit Log
               </Link>
             </div>

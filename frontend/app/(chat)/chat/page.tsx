@@ -20,19 +20,11 @@ export default function ChatOverviewPage() {
   }, [activePeerId, preferredEntry, setActiveConversation]);
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center px-8 py-10 text-sm text-navy/60">
-        Loading chats...
-      </div>
-    );
+    return null;
   }
 
   if (!preferredEntry) {
-    return (
-      <div className="flex h-full items-center justify-center px-8 py-10 text-sm text-navy/60">
-        Start the conversation by inviting a classmate from the Friends tab.
-      </div>
-    );
+    return null;
   }
 
   return <ChatConversationView peerId={activePeerId ?? preferredEntry.peerId} />;

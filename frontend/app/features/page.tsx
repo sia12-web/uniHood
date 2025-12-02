@@ -53,10 +53,10 @@ const FEATURE_SECTIONS = [
       "Review policy gates, feature flags, RBAC, and verification pipelines run by campus operators.",
     links: [
       { href: "/admin", label: "Admin overview" },
-      { href: "/consent", label: "Consent manager" },
-      { href: "/flags", label: "Feature flags" },
-      { href: "/rbac", label: "Roles & permissions" },
-      { href: "/verification", label: "Verification review" },
+      { href: "/admin/consent", label: "Consent manager" },
+      { href: "/admin/flags", label: "Feature flags" },
+      { href: "/admin/rbac", label: "Roles & permissions" },
+      { href: "/admin/verification", label: "Verification review" },
     ],
   },
 ];

@@ -22,6 +22,7 @@ export type AuthUser = {
   campusId: string | null;
   handle?: string;
   displayName?: string;
+  photoURL?: string;
 };
 
 type TokenParts = {

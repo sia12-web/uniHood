@@ -3,6 +3,8 @@
 import clsx from "clsx";
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 import { ChatRosterProvider } from "@/components/chat-roster-context";
 import ChatConversationView from "@/components/ChatConversationView";
@@ -114,13 +116,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
   );
 
   if (!hydrated) {
-    return (
-      <div className={clsx("mx-auto flex w-full flex-1 flex-col gap-4 px-4 pb-4 pt-4", layoutHeightClass)}>
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-warm-sand bg-white shadow-xl">
-          <div className="flex-1 animate-pulse bg-cream/50" />
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -136,30 +132,20 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
       }}
     >
       <div className={clsx("flex w-full flex-1 flex-col gap-4 px-3 pb-4 pt-4 md:px-6 bg-gradient-to-br from-[#fff6f2] via-[#ffe9e4] to-white", layoutHeightClass)}>
-        <div className="flex w-full flex-col gap-3">
-          <div className="flex flex-col gap-3 rounded-3xl border border-[#f0d8d9] bg-white/90 px-5 py-4 shadow-lg md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-1">
-              <p className="text-xs uppercase tracking-[0.35em] text-[#c12c36]">Chats</p>
-              <h1 className="text-2xl font-semibold text-slate-900">Stay close to your threads</h1>
-              <p className="text-sm text-slate-600">Jump back into recent DMs or clear unread items without leaving this view.</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-[#f0d8d9] bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
-                <span>{totalChats} chats</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-[#f0d8d9] bg-[#fff2f3] px-4 py-2 text-sm font-semibold text-[#b7222d] shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-[#d64045]" aria-hidden />
-                <span>{totalUnread} unread</span>
-              </div>
-            </div>
-          </div>
-        </div>
         <div className="flex h-full w-full flex-1 flex-col overflow-hidden rounded-3xl border border-[#f0d8d9] bg-white/95 shadow-2xl md:flex-row">
           <aside className="flex h-full w-full flex-none flex-col border-b border-[#f0d8d9] bg-white/95 md:w-96 md:border-b-0 md:border-r">
             <div className="border-b border-[#f0d8d9] px-5 py-4">
-              <h2 className="text-lg font-semibold text-[#b7222d]">Chats</h2>
-              <p className="mt-1 text-xs text-slate-600">Keep tabs on your latest conversations.</p>
+              <div className="flex items-center gap-3 mb-1">
+                <Link 
+                  href="/" 
+                  className="text-slate-400 hover:text-[#b7222d] transition-colors p-1 -ml-1 rounded-full hover:bg-red-50"
+                  aria-label="Back to home"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+                <h2 className="text-lg font-semibold text-[#b7222d]">Chats</h2>
+              </div>
+              <p className="text-xs text-slate-600">Keep tabs on your latest conversations.</p>
               <div className="mt-3">
                 <label htmlFor="chat-search" className="sr-only">
                   Search chats

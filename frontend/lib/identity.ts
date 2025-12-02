@@ -1,7 +1,7 @@
 import { apiFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { getBackendUrl } from "./env";
-import type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus } from "./types";
-export type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus };
+import type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus, SocialLinks } from "./types";
+export type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileStatus, SocialLinks };
 
 const BASE_URL = getBackendUrl();
 
@@ -58,6 +58,7 @@ export type ProfilePatchPayload = {
 	passions?: string[];
 	courses?: string[];
 	campus_id?: string;
+	social_links?: SocialLinks;
 };
 
 export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;

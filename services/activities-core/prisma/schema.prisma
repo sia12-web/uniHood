@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+model UserGameStats {
+  userId       String   @map("user_id") @db.Uuid
+  activityKey  String   @map("activity_key") @db.VarChar(50)
+  gamesPlayed  Int      @default(0) @map("games_played")
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  draws        Int      @default(0)
+  points       Int      @default(0)
+  currentStreak Int     @default(0) @map("current_streak")
+  maxStreak    Int      @default(0) @map("max_streak")
+  lastPlayedAt DateTime @default(now()) @map("last_played_at") @db.Timestamptz
+
+  @@id([userId, activityKey])
+  @@map("user_game_stats")
+}

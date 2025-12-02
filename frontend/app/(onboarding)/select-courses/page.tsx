@@ -99,7 +99,7 @@ export default function SelectCoursesPage() {
 			}
 			await saveProfileCourses(auth.user_id, campusId, unique);
 
-			router.push("/set-profile");
+			router.push("/passions");
 		} catch (err) {
 			console.error(err);
 			setError("Failed to save courses.");
@@ -226,13 +226,20 @@ export default function SelectCoursesPage() {
                         </div>
                     </div>
 
-                    <div className="pt-6">
+                    <div className="pt-6 space-y-3">
                         <button
                             onClick={handleSubmit}
                             disabled={submitting}
                             className="w-full rounded-xl bg-[#d64045] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#d64045]/20 transition-all hover:bg-[#c7343a] hover:shadow-[#d64045]/40 focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {submitting ? "Saving..." : "Continue"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push("/passions")}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                        >
+                            Skip for now
                         </button>
                     </div>
                 </div>

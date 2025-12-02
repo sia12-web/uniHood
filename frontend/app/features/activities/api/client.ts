@@ -199,8 +199,6 @@ function buildRequestAuthHeaders(): Record<string, string> {
   const activitiesAuth = resolveActivitiesAuthorization();
   if (activitiesAuth) {
     headerBag.set('Authorization', activitiesAuth);
-    // Also set lowercase variant in case some middleware normalizes keys differently
-    headerBag.set('authorization', activitiesAuth);
   }
   const selfUser = getSelf();
   if (selfUser) {
@@ -209,16 +207,23 @@ function buildRequestAuthHeaders(): Record<string, string> {
   return Object.fromEntries(headerBag.entries());
 }
 
+function mergeHeadersCaseInsensitive(...sources: Array<Record<string, string>>): Record<string, string> {
+  const merged = new Map<string, string>();
+  for (const source of sources) {
+    for (const [key, value] of Object.entries(source)) {
+      merged.set(key.toLowerCase(), value);
+    }
+  }
+  return Object.fromEntries(merged.entries());
+}
+
 async function coreRequestRaw(path: string, init?: RequestInit): Promise<Response> {
   const normalizedInit = normalizeInit(init);
-  const headers = {
-    ...buildRequestAuthHeaders(),
-    ...headersToObject(normalizedInit?.headers),
-  } as Record<string, string>;
+  const headers = mergeHeadersCaseInsensitive(buildRequestAuthHeaders(), headersToObject(normalizedInit?.headers));
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && path.includes('/activities/session')) {
     console.debug('[coreRequest]', 'to:', resolveCore(path), path, normalizedInit?.method ?? 'GET', {
-      authorization: headers.Authorization ?? headers.authorization ?? null,
-      xUserId: headers['X-User-Id'] ?? headers['x-user-id'] ?? null,
+      authorization: headers.authorization ?? null,
+      xUserId: headers['x-user-id'] ?? null,
     });
   }
   const url = resolveCore(path);
@@ -297,10 +302,18 @@ export function __debugSelfUser(): string | null {
 
 // --- New activity-centric API (maps to FastAPI /activities routes) ---
 
-export async function createTicTacToeSession(): Promise<string> {
+export async function createTicTacToeSession(opponentId?: string): Promise<string> {
+  const self = getSelf();
   const result = await coreRequest<{ sessionId?: string }>(
-    '/activities/tictactoe/create',
-    { method: 'POST' },
+    '/activities/session',
+    {
+      method: 'POST',
+      body: {
+        activityKey: 'tictactoe',
+        creatorUserId: self || 'anonymous',
+        opponentId,
+      } as unknown as BodyInit,
+    },
   );
   const sessionId = result?.sessionId;
   if (typeof sessionId !== 'string' || !sessionId.trim()) {
@@ -485,6 +498,16 @@ export interface SpeedTypingLobbySummary {
   participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
 }
 
+export interface TicTacToeLobbySummary {
+  id: string;
+  activityKey: 'tictactoe';
+  status: 'pending' | 'running' | 'ended';
+  phase: 'lobby' | 'countdown' | 'running' | 'ended';
+  lobbyReady: boolean;
+  creatorUserId: string;
+  participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+}
+
 export interface QuickTriviaCountdown {
   startedAt: number;
   durationMs: number;
@@ -536,8 +559,14 @@ export interface StoryBuilderLobbySummary {
 
 export async function listSpeedTypingSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<SpeedTypingLobbySummary[]> {
   const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
-  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary> }>(`/activities/sessions${query}`);
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary | TicTacToeLobbySummary> }>(`/activities/sessions${query}`);
   return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'speed_typing') as SpeedTypingLobbySummary[] : [];
+}
+
+export async function listTicTacToeSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<TicTacToeLobbySummary[]> {
+  const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
+  const payload = await coreRequest<{ sessions?: Array<SpeedTypingLobbySummary | QuickTriviaLobbySummary | RockPaperScissorsLobbySummary | StoryBuilderLobbySummary | TicTacToeLobbySummary> }>(`/activities/sessions${query}`);
+  return Array.isArray(payload?.sessions) ? payload.sessions.filter((s) => s.activityKey === 'tictactoe') as TicTacToeLobbySummary[] : [];
 }
 
 export async function listQuickTriviaSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<QuickTriviaLobbySummary[]> {

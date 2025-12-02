@@ -1,5 +1,6 @@
 import { SocketStream } from '@fastify/websocket';
 import { FastifyRequest } from 'fastify';
+import { recordGameResult } from '../services/stats';
 
 export interface GameState {
     board: (string | null)[];
@@ -10,12 +11,226 @@ export interface GameState {
     status: 'lobby' | 'ready' | 'countdown' | 'playing' | 'finished';
     ready: Record<string, boolean>;
     scores: Record<string, number>;
+    roundWins: Record<string, number>;
     countdown: number | null;
+    invitedOpponentId?: string;
+    creatorUserId?: string;
+    roundIndex: number;
+    lastRoundWinner?: string | null;
+    matchWinner?: string | null;
 }
 
 const sessions: Record<string, GameState> = {};
 const connections: Record<string, Set<any>> = {};
 const countdowns: Record<string, NodeJS.Timeout> = {};
+const ROUND_WIN_TARGET = 3;
+
+// Exported session management functions for REST API integration
+export function createSession(sessionId: string, creatorUserId: string, participants: string[]): GameState {
+    sessions[sessionId] = {
+        board: Array(9).fill(null),
+        turn: 'X',
+        winner: null,
+        players: {},
+        spectators: [],
+        status: 'lobby',
+        ready: {},
+        scores: {},
+        roundWins: {},
+        countdown: null,
+        roundIndex: 0,
+        lastRoundWinner: null,
+        matchWinner: null,
+    };
+    connections[sessionId] = new Set();
+    return sessions[sessionId];
+}
+
+export function getSession(sessionId: string): GameState | undefined {
+    return sessions[sessionId];
+}
+
+export function hasSession(sessionId: string): boolean {
+    return sessionId in sessions;
+}
+
+export function listSessions(): Array<{
+    sessionId: string;
+    activityKey: 'tictactoe';
+    status: 'pending' | 'running' | 'ended';
+    phase: 'lobby' | 'countdown' | 'running' | 'ended';
+    lobbyReady: boolean;
+    creatorUserId: string;
+    participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+}> {
+    return Object.entries(sessions).map(([sessionId, session]) => {
+        const participants: Array<{ userId: string; joined: boolean; ready: boolean }> = [];
+        const addParticipant = (userId: string | undefined, joined: boolean) => {
+            if (!userId) return;
+            const ready = !!session.ready[userId];
+            participants.push({ userId, joined, ready });
+        };
+
+        addParticipant(session.creatorUserId, !!session.players.X || !!session.players.O);
+        addParticipant(session.players.X, !!session.players.X);
+        addParticipant(session.players.O, !!session.players.O);
+        if (session.invitedOpponentId && !participants.some(p => p.userId === session.invitedOpponentId)) {
+            participants.push({ userId: session.invitedOpponentId, joined: false, ready: false });
+        }
+
+        const hasBothReady = (() => {
+            const x = session.players.X;
+            const o = session.players.O;
+            if (!x || !o) return false;
+            return !!session.ready[x] && !!session.ready[o];
+        })();
+
+        return {
+            sessionId,
+            activityKey: 'tictactoe',
+            status: session.status === 'finished' ? 'ended' : session.status === 'playing' ? 'running' : 'pending',
+            phase: session.status === 'finished' ? 'ended' : session.status === 'playing' ? 'running' : 'lobby',
+            lobbyReady: hasBothReady,
+            creatorUserId: session.creatorUserId || 'anonymous',
+            participants,
+        };
+    });
+}
+
+// Create a new session and return the sessionId
+export function createTicTacToeSession(creatorUserId: string, opponentId?: string): string {
+    const sessionId = `ttt-${Math.random().toString(36).substring(2, 10)}`;
+    sessions[sessionId] = {
+        board: Array(9).fill(null),
+        turn: 'X',
+        winner: null,
+        players: {},
+        spectators: [],
+        status: 'lobby',
+        ready: {},
+        scores: {},
+        roundWins: {},
+        countdown: null,
+        invitedOpponentId: opponentId,
+        creatorUserId,
+        roundIndex: 0,
+        lastRoundWinner: null,
+        matchWinner: null,
+    };
+    connections[sessionId] = new Set();
+    return sessionId;
+}
+
+// Join an existing session
+export function joinSession(sessionId: string, userId: string, preferredRole?: 'X' | 'O'): void {
+    const session = sessions[sessionId];
+    if (!session) {
+        throw new Error('session_not_found');
+    }
+
+    // Assign player role or add as spectator
+    let assigned = false;
+
+    // Check if user is already a player
+    if (session.players.X === userId || session.players.O === userId) {
+        assigned = true;
+    } else {
+        const isCreator = session.creatorUserId === userId;
+        const isInvited = session.invitedOpponentId === userId;
+        const hasInvitation = !!session.invitedOpponentId;
+
+        if (hasInvitation) {
+            if (isCreator) {
+                if (preferredRole === 'O' && !session.players.O) { session.players.O = userId; assigned = true; }
+                else if (!session.players.X) { session.players.X = userId; assigned = true; }
+                else if (!session.players.O) { session.players.O = userId; assigned = true; }
+            } else if (isInvited) {
+                if (preferredRole === 'X' && !session.players.X) { session.players.X = userId; assigned = true; }
+                else if (!session.players.O) { session.players.O = userId; assigned = true; }
+                else if (!session.players.X) { session.players.X = userId; assigned = true; }
+            }
+        } else {
+            if (preferredRole === 'X' && !session.players.X) { session.players.X = userId; assigned = true; }
+            else if (preferredRole === 'O' && !session.players.O) { session.players.O = userId; assigned = true; }
+            else if (!session.players.X) { session.players.X = userId; assigned = true; }
+            else if (!session.players.O) { session.players.O = userId; assigned = true; }
+        }
+    }
+
+    if (!assigned && !session.spectators.includes(userId)) {
+        session.spectators.push(userId);
+    }
+
+    // Initialize score if new
+    if (!session.scores[userId]) {
+        session.scores[userId] = 0;
+    }
+
+    broadcastState(sessionId);
+}
+
+// Leave a session
+export function leaveSession(sessionId: string, userId: string): void {
+    const session = sessions[sessionId];
+    if (!session) {
+        throw new Error('session_not_found');
+    }
+
+    if (session.players.X === userId) {
+        session.players.X = undefined;
+    } else if (session.players.O === userId) {
+        session.players.O = undefined;
+    } else {
+        session.spectators = session.spectators.filter(s => s !== userId);
+    }
+
+    // Reset ready state for the leaving user
+    delete session.ready[userId];
+
+    broadcastState(sessionId);
+}
+
+// Set ready status for a user
+export function setReady(sessionId: string, userId: string, ready: boolean): void {
+    const session = sessions[sessionId];
+    if (!session) {
+        throw new Error('session_not_found');
+    }
+
+    session.ready[userId] = ready;
+
+    const playerX = session.players.X;
+    const playerO = session.players.O;
+    const bothPresent = !!playerX && !!playerO;
+    const bothReady = bothPresent && session.ready[playerX] && session.ready[playerO];
+    const autoAdvance = session.roundIndex >= 1;
+
+    if (bothPresent && !session.countdown && session.status !== 'playing') {
+        if (autoAdvance || bothReady) {
+            startCountdown(sessionId);
+        }
+    } else if (!autoAdvance && session.status === 'countdown' && !bothReady) {
+        clearInterval(countdowns[sessionId]);
+        session.status = 'lobby';
+        session.countdown = null;
+    }
+
+    broadcastState(sessionId);
+}
+
+// Start a session (force start)
+export function startSession(sessionId: string): void {
+    const session = sessions[sessionId];
+    if (!session) {
+        throw new Error('session_not_found');
+    }
+
+    if (!session.players.X || !session.players.O) {
+        throw new Error('not_enough_players');
+    }
+
+    startCountdown(sessionId);
+}
 
 export function handleTicTacToeConnection(connection: SocketStream, _req: FastifyRequest, sessionId: string) {
     const socket = connection.socket;
@@ -31,6 +246,7 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
             status: 'lobby',
             ready: {},
             scores: {},
+            roundWins: {},
             countdown: null
         };
         connections[sessionId] = new Set();
@@ -62,35 +278,28 @@ function handleMessage(socket: any, sessionId: string, data: any) {
 
     if (data.type === 'join') {
         const { userId, role } = data.payload;
-        if (role === 'X' && !session.players.X) session.players.X = userId;
-        else if (role === 'O' && !session.players.O) session.players.O = userId;
-        else if (!session.players.X) session.players.X = userId; // Auto-assign X
-        else if (!session.players.O) session.players.O = userId; // Auto-assign O
-        else session.spectators.push(userId);
-
-        // Initialize score if new
-        if (!session.scores[userId]) session.scores[userId] = 0;
-
-        broadcastState(sessionId);
+        try {
+            joinSession(sessionId, userId, role);
+        } catch (e) {
+            console.error('Failed to join session', e);
+        }
     } else if (data.type === 'ready') {
         const { userId } = data.payload;
-        session.ready[userId] = !session.ready[userId]; // Toggle ready
+        setReady(sessionId, userId, !session.ready[userId]);
 
-        // Check if both players are present and ready
         const playerX = session.players.X;
         const playerO = session.players.O;
 
-        if (playerX && playerO && session.ready[playerX] && session.ready[playerO]) {
-            startCountdown(sessionId);
-        } else {
-            // Cancel countdown if someone unreadies
-            if (session.status === 'countdown') {
-                clearInterval(countdowns[sessionId]);
-                session.status = 'lobby';
-                session.countdown = null;
+        const bothPresent = !!playerX && !!playerO;
+        const bothReady = bothPresent && session.ready[playerX] && session.ready[playerO];
+        const autoAdvance = session.roundIndex >= 1;
+
+        if (bothPresent && !session.countdown && session.status !== 'playing') {
+            if (autoAdvance || bothReady) {
+                startCountdown(sessionId);
             }
         }
-        broadcastState(sessionId);
+        // setReady already broadcasted state
     } else if (data.type === 'move') {
         const { index, userId } = data.payload;
         if (session.status !== 'playing' || session.winner) return;
@@ -104,14 +313,7 @@ function handleMessage(socket: any, sessionId: string, data: any) {
             checkWin(session);
 
             if (session.winner) {
-                session.status = 'finished';
-                if (session.winner !== 'draw') {
-                    const winnerId = session.players[session.winner as 'X' | 'O'];
-                    if (winnerId) {
-                        session.scores[winnerId] = (session.scores[winnerId] || 0) + 1;
-                        // TODO: Persist score to DB
-                    }
-                }
+                handleRoundEnd(sessionId);
             }
             broadcastState(sessionId);
         }
@@ -130,8 +332,12 @@ function handleMessage(socket: any, sessionId: string, data: any) {
 
 function startCountdown(sessionId: string) {
     const session = sessions[sessionId];
+    if (!session.players.X || !session.players.O) {
+        return;
+    }
     session.status = 'countdown';
     session.countdown = 3;
+    session.lastRoundWinner = null;
     broadcastState(sessionId);
 
     if (countdowns[sessionId]) clearInterval(countdowns[sessionId]);
@@ -166,6 +372,68 @@ export function checkWin(session: GameState) {
     if (!session.board.includes(null)) {
         session.winner = 'draw';
     }
+}
+
+function handleRoundEnd(sessionId: string) {
+    const session = sessions[sessionId];
+    if (!session) return;
+
+    let matchOver = false;
+    let roundWinnerId: string | null = null;
+    if (session.winner && session.winner !== 'draw') {
+        const winnerId = session.players[session.winner as 'X' | 'O'];
+        if (winnerId) {
+            session.roundWins[winnerId] = (session.roundWins[winnerId] || 0) + 1;
+            roundWinnerId = winnerId;
+            if (session.roundWins[winnerId] >= ROUND_WIN_TARGET) {
+                matchOver = true;
+                session.matchWinner = winnerId;
+            }
+        }
+    }
+
+    if (matchOver) {
+        const pX = session.players.X!;
+        const pO = session.players.O!;
+        const winsX = session.roundWins[pX] || 0;
+        const winsO = session.roundWins[pO] || 0;
+
+        const calculatePoints = (winnerWins: number, loserWins: number) => {
+            if (loserWins === 0) return 300; // 3-0
+            if (loserWins === 1) return 200; // 3-1
+            if (loserWins === 2) return 150; // 3-2
+            return 100;
+        };
+
+        if (session.matchWinner === pX) {
+            session.scores[pX] = calculatePoints(winsX, winsO);
+            session.scores[pO] = winsO * 50;
+            recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
+            recordGameResult(pO, 'tictactoe', 'loss', session.scores[pO]);
+        } else {
+            session.scores[pO] = calculatePoints(winsO, winsX);
+            session.scores[pX] = winsX * 50;
+            recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
+            recordGameResult(pX, 'tictactoe', 'loss', session.scores[pX]);
+        }
+
+        session.status = 'finished';
+        session.lastRoundWinner = roundWinnerId;
+        session.roundIndex += 1;
+        return;
+    }
+
+    // Auto-start next round
+    session.lastRoundWinner = roundWinnerId;
+    session.roundIndex += 1;
+    session.board = Array(9).fill(null);
+    session.turn = 'X';
+    session.winner = null;
+    session.status = 'lobby';
+    session.countdown = null;
+    if (session.players.X) session.ready[session.players.X] = true;
+    if (session.players.O) session.ready[session.players.O] = true;
+    startCountdown(sessionId);
 }
 
 function broadcastState(sessionId: string) {

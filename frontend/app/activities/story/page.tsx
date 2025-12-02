@@ -10,7 +10,7 @@ import { fetchFriends } from "@/lib/social";
 import { readAuthUser } from "@/lib/auth-storage";
 import { getDemoUserId, getDemoCampusId } from "@/lib/env";
 import type { FriendRow } from "@/lib/types";
-import { StoryPanel } from "@/app/features/activities/components/StoryPanel";
+import { StoryBuilderPanel } from "@/app/features/activities/components/StoryBuilderPanel";
 import { useStoryInvite } from "@/hooks/activities/use-story-invite";
 
 function StoryActivityContent() {
@@ -62,7 +62,7 @@ function StoryActivityContent() {
     setCreateError(null);
     try {
       const summary = await createActivity(friendId, {
-        kind: "story_alt",
+        kind: "story_builder",
         options: {}
       });
       router.push(`/activities/story?id=${summary.id}`);
@@ -205,7 +205,7 @@ function StoryActivityContent() {
               </div>
               
               <div className="p-6">
-                <StoryPanel />
+                <StoryBuilderPanel sessionId={activityId} />
               </div>
             </div>
           </div>

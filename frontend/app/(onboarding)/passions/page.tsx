@@ -93,11 +93,7 @@ export default function PassionsPage() {
 				router.replace("/login");
 				return;
 			}
-			if (passions.length < 3) {
-				setError("Add at least 3 passions to continue.");
-				setSubmitting(false);
-				return;
-			}
+			// Passions are optional, allow continuing with 0
 			await patchProfile(auth.user_id, campusId, { passions });
 			router.push("/photos");
 		} catch (err) {
@@ -193,18 +189,27 @@ export default function PassionsPage() {
 					<div className="flex items-center justify-between">
 						<button
 							type="button"
-							onClick={() => router.push("/major-year")}
+							onClick={() => router.push("/select-courses")}
 							className="text-sm font-semibold text-slate-600 hover:text-slate-900"
 						>
 							Back
 						</button>
-						<button
-							type="submit"
-							disabled={submitting}
-							className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
-						>
-							{submitting ? "Saving..." : "Continue"}
-						</button>
+						<div className="flex items-center gap-3">
+							<button
+								type="button"
+								onClick={() => router.push("/photos")}
+								className="text-sm font-medium text-slate-500 hover:text-slate-700"
+							>
+								Skip
+							</button>
+							<button
+								type="submit"
+								disabled={submitting}
+								className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
+							>
+								{submitting ? "Saving..." : "Continue"}
+							</button>
+						</div>
 					</div>
 				</form>
 			</div>

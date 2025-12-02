@@ -178,6 +178,7 @@ class User:
 	graduation_year: Optional[int] = None
 	passions: list[str] = field(default_factory=list)
 	profile_gallery: list[ProfileImage] = field(default_factory=list)
+	social_links: dict[str, str] = field(default_factory=dict)
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 
@@ -203,6 +204,7 @@ class User:
 			graduation_year=int(record.get("graduation_year")) if record.get("graduation_year") is not None else None,
 			passions=_coerce_json_to_list(record.get("passions")),
 			profile_gallery=parse_profile_gallery(record.get("profile_gallery")),
+			social_links=_coerce_json_to_dict(record.get("social_links")),
 			lat=record.get("lat"),
 			lon=record.get("lon"),
 		)

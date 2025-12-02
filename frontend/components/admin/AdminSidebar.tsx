@@ -17,10 +17,10 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Moderation", href: "/admin/mod/triage", icon: ShieldAlert },
-  { label: "Verification", href: "/verification", icon: FileCheck },
-  { label: "Feature Flags", href: "/flags", icon: Flag },
-  { label: "Permissions", href: "/rbac", icon: Users },
-  { label: "Policies", href: "/consent", icon: FileCheck }, // Reusing icon for now
+  { label: "Verification", href: "/admin/verification", icon: FileCheck },
+  { label: "Feature Flags", href: "/admin/flags", icon: Flag },
+  { label: "Permissions", href: "/admin/rbac", icon: Users },
+  { label: "Policies", href: "/admin/consent", icon: FileCheck }, // Reusing icon for now
 ];
 
 export function AdminSidebar() {

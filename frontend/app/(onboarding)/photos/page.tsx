@@ -119,7 +119,7 @@ export default function PhotosPage() {
 				router.replace("/login");
 				return;
 			}
-			router.push("/select-courses");
+			router.push("/set-profile");
 		} catch (err) {
 			console.error(err);
 			setError("Failed to continue. Please try again.");
@@ -253,14 +253,23 @@ export default function PhotosPage() {
 					>
 						Back
 					</button>
-					<button
-						type="button"
-						onClick={handleContinue}
-						disabled={saving || !canContinue}
-						className="group relative flex justify-center rounded-xl bg-[#d64045] px-8 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#c7343a] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
-					>
-						{saving ? "Saving..." : "Continue"}
-					</button>
+					<div className="flex items-center gap-3">
+						<button
+							type="button"
+							onClick={() => router.push("/set-profile")}
+							className="text-sm font-medium text-slate-500 hover:text-slate-700"
+						>
+							Skip
+						</button>
+						<button
+							type="button"
+							onClick={handleContinue}
+							disabled={saving || !canContinue}
+							className="group relative flex justify-center rounded-xl bg-[#d64045] px-8 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#c7343a] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+						>
+							{saving ? "Saving..." : "Continue"}
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

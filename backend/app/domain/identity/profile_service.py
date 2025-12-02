@@ -11,7 +11,7 @@ from uuid import UUID
 
 import asyncpg
 
-from app.domain.identity import models, policy, profile_public, s3, schemas
+from app.domain.identity import models, policy, profile_public, s3, schemas, courses as courses_service
 from app.domain.identity.service import CampusNotFound, ProfileNotFound
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
@@ -45,7 +45,7 @@ def _to_gallery(images: list[models.ProfileImage]) -> list[schemas.GalleryImage]
 	]
 
 
-def _to_profile(user: models.User) -> schemas.ProfileOut:
+def _to_profile(user: models.User, courses: Optional[list[schemas.Course]] = None) -> schemas.ProfileOut:
 	return schemas.ProfileOut(
 		id=user.id,
 		email=user.email,
@@ -61,7 +61,9 @@ def _to_profile(user: models.User) -> schemas.ProfileOut:
 		major=user.major,
 		graduation_year=user.graduation_year,
 		passions=user.passions,
+		courses=courses or [],
 		gallery=_to_gallery(user.profile_gallery),
+		social_links=schemas.SocialLinks(**(user.social_links or {})),
 		lat=user.lat,
 		lon=user.lon,
 	)
@@ -174,12 +176,14 @@ async def get_profile(user_id: str, *, auth_user: Optional[AuthenticatedUser] = 
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		user = await _load_user(conn, user_id, auth_user=auth_user)
-	return _to_profile(user)
+	courses = await courses_service.get_user_courses(user.id)
+	return _to_profile(user, [schemas.Course(code=course.code, name=course.code) for course in courses])
 
 
 async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePatch) -> schemas.ProfileOut:
 	updates: dict[str, object] = {}
 	patch_data = payload.model_dump(exclude_unset=True)
+	courses_to_set: Optional[list[str]] = None
 	if "bio" in patch_data:
 		updates["bio"] = (patch_data.get("bio") or "").strip()
 	if "privacy" in patch_data and payload.privacy is not None:
@@ -217,6 +221,24 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 		updates["lon"] = patch_data.get("lon")
 	if "campus_id" in patch_data and payload.campus_id is not None:
 		updates["campus_id"] = str(payload.campus_id)
+	if "social_links" in patch_data and payload.social_links is not None:
+		updates["social_links"] = payload.social_links.model_dump(exclude_unset=True)
+	if "courses" in patch_data:
+		raw_courses = patch_data.get("courses") or []
+		seen_courses: set[str] = set()
+		clean_courses: list[str] = []
+		for entry in raw_courses:
+			if not isinstance(entry, str):
+				continue
+			code = entry.strip()
+			if not code:
+				continue
+			normalized = code.upper()
+			if normalized in seen_courses:
+				continue
+			seen_courses.add(normalized)
+			clean_courses.append(normalized)
+		courses_to_set = clean_courses
 
 	policy.validate_profile_patch(updates)
 	if "handle" in updates:
@@ -242,6 +264,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 			privacy_payload = json.dumps(user.privacy or {})
 			status_payload = json.dumps(user.status or {})
 			passions_payload = json.dumps(user.passions or [])
+			social_links_payload = json.dumps(user.social_links or {})
 			await conn.execute(
 				"""
 				UPDATE users
@@ -256,6 +279,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					lat = $9,
 					lon = $10,
 					campus_id = $12,
+					social_links = $13::jsonb,
 					updated_at = NOW()
 				WHERE id = $11
 				""",
@@ -271,8 +295,13 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				user.lon,
 				auth_user.id,
 				str(user.campus_id),
+				social_links_payload,
 			)
-	profile = _to_profile(user)
+			# Persist courses after the user row update (default visibility: everyone)
+			if courses_to_set is not None:
+				await courses_service.set_user_courses(user.id, courses_to_set, "everyone")
+	courses_for_profile = await courses_service.get_user_courses(user.id)
+	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	try:
 		obs_metrics.inc_profile_update()
 	except Exception:  # pragma: no cover - metrics backend failures should not block profile saves
@@ -311,7 +340,8 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 			)
 			user.avatar_key = key
 			user.avatar_url = url
-	profile = _to_profile(user)
+	courses_for_profile = await courses_service.get_user_courses(user.id)
+	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_avatar_upload()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	return profile
@@ -349,7 +379,8 @@ async def commit_gallery(auth_user: AuthenticatedUser, request: schemas.GalleryC
 				auth_user.id,
 			)
 			user.profile_gallery = trimmed
-	profile = _to_profile(user)
+	courses_for_profile = await courses_service.get_user_courses(user.id)
+	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	return profile
@@ -375,7 +406,8 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 				auth_user.id,
 			)
 			user.profile_gallery = gallery
-	profile = _to_profile(user)
+	courses_for_profile = await courses_service.get_user_courses(user.id)
+	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	return profile

@@ -13,7 +13,11 @@ export interface TicTacToeState {
     status: 'lobby' | 'ready' | 'countdown' | 'playing' | 'finished';
     ready: Record<string, boolean>;
     scores: Record<string, number>;
+    roundWins?: Record<string, number>;
     countdown: number | null;
+    roundIndex?: number;
+    lastRoundWinner?: string | null;
+    matchWinner?: string | null;
 }
 
 function resolveSocketUrl(sessionId: string): string | null {

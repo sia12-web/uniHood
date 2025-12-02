@@ -19,7 +19,7 @@ export default function RoomChat({ messages, onSend, connectionStatus }: Props) 
   const [sending, setSending] = useState(false);
 
   const sorted = useMemo(() => [...messages].sort((a, b) => a.seq - b.seq), [messages]);
-  const reconnecting = connectionStatus === 'reconnecting' || connectionStatus === 'connecting';
+  const reconnecting = connectionStatus === 'reconnecting';
   const disconnected = connectionStatus === 'disconnected';
 
   async function handleSubmit(event: React.FormEvent) {

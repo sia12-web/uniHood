@@ -101,6 +101,14 @@ class StatusSettings(BaseModel):
 	updated_at: Optional[str] = None
 
 
+class SocialLinks(BaseModel):
+	instagram: Optional[Annotated[str, Field(max_length=100)]] = None
+	linkedin: Optional[Annotated[str, Field(max_length=100)]] = None
+	twitter: Optional[Annotated[str, Field(max_length=100)]] = None
+	tiktok: Optional[Annotated[str, Field(max_length=100)]] = None
+	website: Optional[Annotated[str, Field(max_length=200)]] = None
+
+
 class ProfileOut(BaseModel):
 	id: UUID
 	email: Optional[EmailStr] = None
@@ -116,7 +124,9 @@ class ProfileOut(BaseModel):
 	major: Optional[Annotated[str, Field(max_length=80)]] = None
 	graduation_year: Optional[Annotated[int, Field(ge=1900, le=2100)]] = None
 	passions: list[Annotated[str, Field(max_length=40)]] = Field(default_factory=list)
+	courses: list[Course] = Field(default_factory=list)
 	gallery: list[GalleryImage] = Field(default_factory=list)
+	social_links: SocialLinks = Field(default_factory=SocialLinks)
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 
@@ -130,6 +140,8 @@ class ProfilePatch(BaseModel):
 	major: Optional[Annotated[str, Field(max_length=80)]] = None
 	graduation_year: Optional[Annotated[int, Field(ge=1900, le=2100)]] = None
 	passions: Optional[list[Annotated[str, Field(max_length=40)]]] = None
+	courses: Optional[list[Annotated[str, Field(max_length=40)]]] = None
+	social_links: Optional[SocialLinks] = None
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 	campus_id: Optional[UUID] = None

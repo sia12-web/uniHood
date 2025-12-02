@@ -4,7 +4,7 @@ import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect
 
 import AvatarUploader from "./AvatarUploader";
 import type { ProfilePatchPayload } from "@/lib/identity";
-import type { ProfileRecord } from "@/lib/types";
+import type { ProfileRecord, SocialLinks } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
 
 type ProfileFormProps = {
@@ -41,6 +41,7 @@ export default function ProfileForm({
 	);
 	const [passions, setPassions] = useState<string[]>(profile.passions ?? []);
 	const [passionDraft, setPassionDraft] = useState<string>("");
+	const [socialLinks, setSocialLinks] = useState<SocialLinks>(profile.social_links ?? {});
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export default function ProfileForm({
 		setMajor(next.major ?? "");
 		setGraduationYear(next.graduation_year ? String(next.graduation_year) : "");
 		setPassions(next.passions ?? []);
+		setSocialLinks(next.social_links ?? {});
 		setPassionDraft("");
 	}, []);
 
@@ -115,6 +117,21 @@ export default function ProfileForm({
 			patch.passions = normalisedPassions;
 			changed = true;
 		}
+
+		// Check social links changes
+		const currentSocial = current.social_links ?? {};
+		const socialChanged =
+			(socialLinks.instagram ?? "") !== (currentSocial.instagram ?? "") ||
+			(socialLinks.linkedin ?? "") !== (currentSocial.linkedin ?? "") ||
+			(socialLinks.twitter ?? "") !== (currentSocial.twitter ?? "") ||
+			(socialLinks.tiktok ?? "") !== (currentSocial.tiktok ?? "") ||
+			(socialLinks.website ?? "") !== (currentSocial.website ?? "");
+
+		if (socialChanged) {
+			patch.social_links = socialLinks;
+			changed = true;
+		}
+
 		return { patch, changed };
 	};
 
@@ -330,6 +347,76 @@ export default function ProfileForm({
 						>
 							Add
 						</button>
+					</div>
+				</section>
+
+				<section className="flex flex-col gap-4 border-t border-slate-200 pt-4">
+					<h3 className="text-sm font-medium text-slate-900">Social Links</h3>
+					<div className="grid gap-4 md:grid-cols-2">
+						<label className="flex flex-col gap-1 text-sm text-slate-700">
+							<span className="font-medium">Instagram</span>
+							<div className="relative">
+								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<input
+									type="text"
+									value={socialLinks.instagram || ""}
+									onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+									maxLength={30}
+									placeholder="username"
+									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+								/>
+							</div>
+						</label>
+						<label className="flex flex-col gap-1 text-sm text-slate-700">
+							<span className="font-medium">Twitter / X</span>
+							<div className="relative">
+								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<input
+									type="text"
+									value={socialLinks.twitter || ""}
+									onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+									maxLength={30}
+									placeholder="username"
+									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+								/>
+							</div>
+						</label>
+						<label className="flex flex-col gap-1 text-sm text-slate-700">
+							<span className="font-medium">TikTok</span>
+							<div className="relative">
+								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<input
+									type="text"
+									value={socialLinks.tiktok || ""}
+									onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
+									maxLength={30}
+									placeholder="username"
+									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+								/>
+							</div>
+						</label>
+						<label className="flex flex-col gap-1 text-sm text-slate-700">
+							<span className="font-medium">LinkedIn</span>
+							<input
+								type="text"
+								value={socialLinks.linkedin || ""}
+								onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+								maxLength={100}
+								placeholder="Profile URL or username"
+								className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+							/>
+						</label>
+						<label className="flex flex-col gap-1 text-sm text-slate-700 md:col-span-2">
+							<span className="font-medium">Website</span>
+							<input
+								type="url"
+								value={socialLinks.website || ""}
+								onChange={(e) => setSocialLinks({ ...socialLinks, website: e.target.value })}
+								maxLength={200}
+								placeholder="https://your-site.com"
+								className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+							/>
+						</label>
 					</div>
 				</section>
 

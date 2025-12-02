@@ -54,7 +54,7 @@ export type FriendRow = {
   friend_display_name?: string | null;
 };
 
-export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity";
+export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity" | "tictactoe" | "typing_duel" | "trivia" | "rps" | "story_alt";
 
 export type LeaderboardPeriod = "daily" | "weekly" | "monthly";
 
@@ -211,6 +211,14 @@ export type ProfileStatus = {
   updated_at: string;
 };
 
+export type SocialLinks = {
+  instagram?: string | null;
+  linkedin?: string | null;
+  twitter?: string | null;
+  tiktok?: string | null;
+  website?: string | null;
+};
+
 export type ProfileRecord = {
   id: string;
   email: string;
@@ -228,6 +236,7 @@ export type ProfileRecord = {
   passions: string[];
   courses?: ProfileCourse[];
   gallery?: ProfileGalleryImage[];
+  social_links?: SocialLinks;
 };
 
 // Minimal image shape used by profile gallery UI

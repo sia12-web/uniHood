@@ -31,7 +31,6 @@ export interface StoryBuilderSession {
 
 const sessions: Record<string, StoryBuilderSession> = {};
 const connections: Record<string, Set<any>> = {};
-const countdowns: Record<string, NodeJS.Timeout> = {};
 
 const MAX_PARAGRAPHS_PER_USER = 3;
 
@@ -70,7 +69,7 @@ export function joinStoryBuilder(sessionId: string, userId: string) {
     const session = sessions[sessionId];
     if (!session) throw new Error('session_not_found');
 
-    let participant = session.participants.find(p => p.userId === userId);
+    const participant = session.participants.find(p => p.userId === userId);
     if (participant) {
         participant.joined = true;
     } else {

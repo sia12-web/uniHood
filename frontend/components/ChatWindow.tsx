@@ -4,11 +4,10 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, Smile, Search, Phone, Video, X, StopCircle } from "lucide-react";
+import { Send, Mic, Smile, X } from "lucide-react";
 
 import type { SocketConnectionStatus } from "@/app/lib/socket/base";
 
-import { ReportUI } from "@/app/features/moderation/ReportButton";
 import { useTypingDuelInvite } from "@/hooks/activities/use-typing-duel-invite";
 
 import type { ChatMessage } from "../lib/chat";
@@ -55,7 +54,6 @@ export default function ChatWindow({
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [expandedAttachmentIds, setExpandedAttachmentIds] = useState<Set<string>>(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -91,7 +89,6 @@ export default function ChatWindow({
 
   useEffect(() => {
     setDraft("");
-    setExpandedAttachmentIds(new Set());
   }, [conversationId]);
 
   async function handleSubmit(event?: React.FormEvent) {
@@ -183,24 +180,6 @@ export default function ChatWindow({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  function toggleAttachment(attachmentId: string) {
-    setExpandedAttachmentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(attachmentId)) {
-        next.delete(attachmentId);
-      } else {
-        next.add(attachmentId);
-      }
-      return next;
-    });
-  }
-
-  const otherLabel = useMemo(() => {
-    if (peerName && peerName.trim()) return peerName.trim();
-    return messages.find((message) => message.senderId !== selfUserId)?.senderId?.slice(0, 24) ?? "Friend";
-  }, [messages, peerName, selfUserId]);
-  
-  const statusLabel = peerStatusText ?? "Online";
   const reconnecting = connectionStatus === "reconnecting";
   const disconnected = connectionStatus === "disconnected";
 
@@ -236,7 +215,10 @@ export default function ChatWindow({
   }, [messages, selfUserId]);
 
   return (
-    <div className="relative flex h-full w-full flex-1 min-h-0 flex-col bg-[#f8f9fc] text-sm overflow-hidden">
+    <div
+      className="relative flex h-full w-full flex-1 min-h-0 flex-col bg-[#f8f9fc] text-sm overflow-hidden"
+      aria-label={`Conversation with ${peerName ?? "friend"}${peerStatusText ? ` (${peerStatusText})` : ""}`}
+    >
       
       {/* Connection Status */}
       <AnimatePresence>

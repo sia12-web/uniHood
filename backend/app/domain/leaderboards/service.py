@@ -486,10 +486,54 @@ class LeaderboardService:
 				user_id,
 			)
 
+		# Default streak from DB
+		current_streak = int(streak_row["current"]) if streak_row else 0
+		best_streak = int(streak_row["best"]) if streak_row else 0
+		last_active = int(streak_row["last_active_ymd"]) if streak_row else 0
+
+		counts_map = {
+			"games_played": 0,
+			"wins": 0,
+		}
+
+		# If querying today, overlay live data from Redis counters
+		if ymd == _today_ymd():
+			day_str = f"{ymd:08d}"
+			counters = await self._accrual.get_daily_counters(day=day_str, user_id=str(user_id))
+			
+			counts_map["games_played"] = counters.acts_played
+			counts_map["wins"] = counters.acts_won
+
+			# Calculate projected streak if there's activity today
+			if counters.touched:
+				prev_ymd = _date_to_ymd(_ymd_to_date(ymd) - timedelta(days=1))
+				if last_active == prev_ymd:
+					# Continued streak from yesterday
+					current_streak += 1
+					last_active = ymd
+				elif last_active == ymd:
+					# Already updated in DB (snapshot ran)
+					pass
+				else:
+					# Broken streak or new
+					current_streak = 1
+					last_active = ymd
+				
+				best_streak = max(best_streak, current_streak)
+
+			# Calculate projected score
+			live_score = self._score_for_user(counters, current_streak)
+			
+			# Overlay scores with live data
+			scores["social"] = live_score.social
+			scores["engagement"] = live_score.engagement
+			scores["popularity"] = live_score.popularity
+			scores["overall"] = live_score.overall
+
 		streak = StreakSummarySchema(
-			current=int(streak_row["current"]) if streak_row else 0,
-			best=int(streak_row["best"]) if streak_row else 0,
-			last_active_ymd=int(streak_row["last_active_ymd"]) if streak_row else 0,
+			current=current_streak,
+			best=best_streak,
+			last_active_ymd=last_active,
 		)
 		badge_payload = [
 			{"kind": row["kind"], "earned_ymd": int(row["earned_ymd"]), "meta": row["meta"] or {}}
@@ -501,6 +545,7 @@ class LeaderboardService:
 			campus_id=campus_id,
 			ranks=ranks,
 			scores=scores,
+			counts=counts_map,
 			streak=streak,
 			badges=badge_payload,
 		)

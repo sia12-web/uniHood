@@ -16,7 +16,7 @@ import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { useChatRoster } from "@/hooks/chat/use-chat-roster";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
-import { fetchLeaderboard, fetchMySummary } from "@/lib/leaderboards";
+import { fetchMySummary } from "@/lib/leaderboards";
 import { listCampuses } from "@/lib/identity";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { fetchFriends } from "@/lib/social";
@@ -235,7 +235,7 @@ export default function HomePage() {
 
   const { inboundPending } = useInviteInboxCount();
   const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
-  const { totalUnread: chatUnreadCount, acknowledgeAll: acknowledgeChatUnread } = useChatUnreadIndicator();
+  const { totalUnread: chatUnreadCount } = useChatUnreadIndicator();
   const { entries: chatRosterEntries, loading: chatRosterLoading } = useChatRoster();
   const { hasPending: hasStoryInvite } = useStoryInviteState();
   const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
@@ -399,15 +399,6 @@ export default function HomePage() {
     loading: true,
     error: null,
   });
-  const [leaderboardPreview, setLeaderboardPreview] = useState<{
-    items: Array<{ rank: number; score: number; userId: string }>;
-    loading: boolean;
-    error: string | null;
-  }>({
-    items: [],
-    loading: true,
-    error: null,
-  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -419,8 +410,9 @@ export default function HomePage() {
           campusId: authUser?.campusId ?? undefined,
           signal: controller.signal,
         });
-        const totalGames = Math.max(0, Math.round(summary.scores.engagement ?? 0));
-        const wins = Math.max(0, Math.round(summary.scores.overall ?? 0));
+        // Use raw counts if available, otherwise fallback to scores (which are weighted)
+        const totalGames = summary.counts?.games_played ?? Math.max(0, Math.round(summary.scores.engagement ?? 0));
+        const wins = summary.counts?.wins ?? Math.max(0, Math.round(summary.scores.overall ?? 0));
         const streak = Math.max(0, summary.streak?.current ?? 0);
         const socialScore = Math.max(0, Math.round(summary.scores.social ?? 0));
         const rank = summary.ranks.overall ?? null;
@@ -436,35 +428,6 @@ export default function HomePage() {
     }
     return () => controller.abort();
   }, [authHydrated, authUser?.campusId, authUser?.userId]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const load = async () => {
-      setLeaderboardPreview((prev) => ({ ...prev, loading: true, error: null }));
-      try {
-        const res = await fetchLeaderboard("overall", {
-          campusId: authUser?.campusId ?? undefined,
-          limit: 5,
-          signal: controller.signal,
-        });
-        const items =
-          res?.items?.map((row) => ({
-            rank: row.rank,
-            score: row.score,
-            userId: row.user_id,
-          })) ?? [];
-        setLeaderboardPreview({ items, loading: false, error: null });
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        const message = err instanceof Error ? err.message : "Unable to load leaderboard";
-        setLeaderboardPreview((prev) => ({ ...prev, loading: false, error: message }));
-      }
-    };
-    if (authHydrated) {
-      void load();
-    }
-    return () => controller.abort();
-  }, [authHydrated, authUser?.campusId]);
 
   useEffect(() => {
     const loadFriends = async () => {
@@ -516,15 +479,12 @@ export default function HomePage() {
 
 
 
+  type ActivityItem =
+    | { type: "friend"; date: Date; id: string; data: FriendRow }
+    | { type: "meetup"; date: Date; id: string; data: MeetupResponse };
 
-
-  const combinedActivity = useMemo(() => {
-    const activities: {
-      type: 'friend' | 'meetup';
-      date: Date;
-      id: string;
-      data: any;
-    }[] = [];
+  const combinedActivity = useMemo<ActivityItem[]>(() => {
+    const activities: ActivityItem[] = [];
 
     recentFriends.forEach(f => {
       activities.push({

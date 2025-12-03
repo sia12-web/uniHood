@@ -41,5 +41,6 @@ class MySummarySchema(BaseModel):
 	campus_id: UUID
 	ranks: Dict[str, Optional[int]]
 	scores: Dict[str, Optional[float]]
+	counts: Dict[str, int] = Field(default_factory=dict)
 	streak: StreakSummarySchema
 	badges: list[BadgeSummarySchema] = Field(default_factory=list)

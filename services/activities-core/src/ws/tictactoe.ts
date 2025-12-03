@@ -26,7 +26,7 @@ const countdowns: Record<string, NodeJS.Timeout> = {};
 const ROUND_WIN_TARGET = 3;
 
 // Exported session management functions for REST API integration
-export function createSession(sessionId: string, creatorUserId: string, participants: string[]): GameState {
+export function createSession(sessionId: string, _creatorUserId: string, _participants: string[]): GameState {
     sessions[sessionId] = {
         board: Array(9).fill(null),
         turn: 'X',
@@ -247,7 +247,8 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
             ready: {},
             scores: {},
             roundWins: {},
-            countdown: null
+            countdown: null,
+            roundIndex: 0
         };
         connections[sessionId] = new Set();
     }

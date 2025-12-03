@@ -89,6 +89,10 @@ export type MyLeaderboardSummary = {
   campus_id: string;
   ranks: Record<LeaderboardScope, number | null>;
   scores: Record<LeaderboardScope, number | null>;
+  counts?: {
+    games_played?: number;
+    wins?: number;
+  };
   streak: StreakSummary;
   badges: BadgeSummary[];
 };

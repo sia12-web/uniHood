@@ -57,7 +57,7 @@ export async function recordGameResult(
     // 2. Update Redis Leaderboards (Daily Counters)
     try {
         const now = new Date();
-        const ymd = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+        const ymd = now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
         const key = `lb:day:${ymd}:user:${userId}`;
 
         await redis.hIncrBy(key, 'acts_played', 1);

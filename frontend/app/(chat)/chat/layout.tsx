@@ -109,11 +109,6 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
   }, [rosterEntries, query]);
 
   const layoutHeightClass = "min-h-[calc(100vh-4rem)]";
-  const totalChats = rosterEntries.length;
-  const totalUnread = useMemo(
-    () => rosterEntries.reduce((sum, entry) => sum + (entry.unreadCount ?? 0), 0),
-    [rosterEntries],
-  );
 
   if (!hydrated) {
     return null;

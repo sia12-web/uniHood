@@ -13,7 +13,7 @@ interface BoardProps {
 }
 
 export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex, matchWinner } = state;
+    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
     const [copied, setCopied] = useState(false);

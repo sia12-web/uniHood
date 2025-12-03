@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, User, Heart, Send, BookOpen, PenTool, Sparkles, Star, Trophy, Check } from "lucide-react";
+import { Loader2, User, Send, BookOpen, PenTool, Star, Trophy, Check } from "lucide-react";
 import { useStoryBuilderSession } from "@/app/features/activities/hooks/useStoryBuilderSession";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import clsx from "clsx";
 
 export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
@@ -13,7 +13,6 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
 
   const {
     status,
-    phase,
     participants,
     paragraphs,
     currentTurnUserId,

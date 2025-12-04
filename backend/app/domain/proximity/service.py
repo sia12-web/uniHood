@@ -129,8 +129,14 @@ async def _fetch_directory_candidates(
 		if campus_id:
 			rows = await pool.fetch(
 				"""
-				SELECT id FROM users
+				SELECT id FROM users u
 				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
+				AND EXISTS (
+					SELECT 1 FROM sessions s
+					WHERE s.user_id = u.id
+					AND s.revoked = FALSE
+					AND s.last_used_at > NOW() - INTERVAL '24 hours'
+				)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",
@@ -142,8 +148,14 @@ async def _fetch_directory_candidates(
 		else:
 			rows = await pool.fetch(
 				"""
-				SELECT id FROM users
+				SELECT id FROM users u
 				WHERE id != $1 AND deleted_at IS NULL
+				AND EXISTS (
+					SELECT 1 FROM sessions s
+					WHERE s.user_id = u.id
+					AND s.revoked = FALSE
+					AND s.last_used_at > NOW() - INTERVAL '24 hours'
+				)
 				ORDER BY created_at DESC
 				LIMIT $2 OFFSET $3
 				""",
@@ -163,8 +175,14 @@ async def _fetch_directory_candidates(
 					cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
 					sin(radians($3)) * sin(radians(lat))
 				)))) AS distance
-			FROM users
+			FROM users u
 			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM sessions s
+				WHERE s.user_id = u.id
+				AND s.revoked = FALSE
+				AND s.last_used_at > NOW() - INTERVAL '24 hours'
+			)
 			ORDER BY distance ASC
 			LIMIT $5 OFFSET $6
 			""",
@@ -183,8 +201,14 @@ async def _fetch_directory_candidates(
 					cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
 					sin(radians($2)) * sin(radians(lat))
 				)))) AS distance
-			FROM users
+			FROM users u
 			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM sessions s
+				WHERE s.user_id = u.id
+				AND s.revoked = FALSE
+				AND s.last_used_at > NOW() - INTERVAL '24 hours'
+			)
 			ORDER BY distance ASC
 			LIMIT $4 OFFSET $5
 			""",

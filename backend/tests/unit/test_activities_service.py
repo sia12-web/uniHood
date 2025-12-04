@@ -75,7 +75,7 @@ async def test_story_alternation_completes_after_turns():
 	user_b = UserFactory("bob").to_user()
 
 	options = schemas.ActivityOptions(story=schemas.StoryOptions(turns=4, turn_seconds=15))
-	summary = await service.create_activity(user_a, user_b.id, schemas.CreateActivityRequest(kind="story_alt", options=options))
+	summary = await service.create_activity(user_a, user_b.id, schemas.CreateActivityRequest(kind="story_builder", options=options))
 	await service.start_activity(user_a, summary.id)
 
 	for turn in range(1, 5):

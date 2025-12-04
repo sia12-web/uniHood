@@ -27,8 +27,8 @@ const roomsManager = createSocketManager<EmptyIdentity>({
   endpoint: SOCKET_BASE,
   lowPriorityEvents: ["room:typing"],
   heartbeatEvent: "hb",
-  heartbeatIntervalMs: 15_000,
-  hiddenHeartbeatIntervalMs: 45_000,
+  heartbeatIntervalMs: 25_000,
+  hiddenHeartbeatIntervalMs: 60_000,
   buildAuthPayload: (_, token) => {
     if (token) {
       return { token };

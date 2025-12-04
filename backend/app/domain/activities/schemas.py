@@ -7,7 +7,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-ActivityKind = Literal["typing_duel", "story_alt", "trivia", "rps"]
+ActivityKind = Literal["typing_duel", "story_builder", "trivia", "rps"]
 ActivityState = Literal["lobby", "active", "completed", "cancelled", "expired"]
 RoundState = Literal["pending", "open", "closed", "scored"]
 

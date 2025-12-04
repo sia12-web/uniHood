@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Iterable, Tuple
+from typing import Any, Optional, Iterable, Tuple, Union
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     oauth_redirect_base: Optional[str] = _env_field(None, "OAUTH_REDIRECT_BASE")
     communities_workers_enabled: bool = _env_field(False, "COMMUNITIES_WORKERS_ENABLED")
     moderation_workers_enabled: bool = _env_field(False, "MODERATION_WORKERS_ENABLED")
-    moderation_staff_ids: Any = _env_field((), "MODERATION_STAFF_IDS")
+    moderation_staff_ids: Union[str, Tuple[str, ...]] = _env_field((), "MODERATION_STAFF_IDS")
     idempotency_required: bool = _env_field(True, "IDEMPOTENCY_REQUIRED")
     idempotency_ttl_seconds: int = _env_field(86400, "IDEMPOTENCY_TTL_SECONDS")
 

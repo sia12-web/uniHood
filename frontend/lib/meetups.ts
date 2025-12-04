@@ -2,8 +2,10 @@ import { api } from "./api";
 
 export type MeetupStatus = "UPCOMING" | "ACTIVE" | "ENDED" | "CANCELLED";
 export type MeetupRole = "HOST" | "PARTICIPANT";
-export type MeetupCategory = "study" | "social" | "game" | "food" | "other";
+export type MeetupCategory = "study" | "social" | "game" | "gym" | "food" | "other";
 export type MeetupParticipantStatus = "JOINED" | "LEFT";
+
+export type MeetupVisibility = "GLOBAL" | "PRIVATE";
 
 export interface MeetupParticipant {
   user_id: string;
@@ -11,7 +13,10 @@ export interface MeetupParticipant {
   status: MeetupParticipantStatus;
   joined_at: string;
   left_at?: string;
+  display_name?: string;
+  avatar_url?: string;
 }
+
 
 export interface MeetupResponse {
   id: string;
@@ -30,6 +35,9 @@ export interface MeetupResponse {
   participants_count: number;
   is_joined: boolean;
   my_role?: MeetupRole;
+  current_user_id?: string;
+  visibility: MeetupVisibility;
+  capacity: number;
 }
 
 export interface MeetupDetailResponse extends MeetupResponse {
@@ -43,6 +51,8 @@ export interface MeetupCreateRequest {
   start_at: string; // ISO string
   duration_min: number;
   campus_id?: string;
+  visibility: MeetupVisibility;
+  capacity: number;
 }
 
 export async function listMeetups(campusId?: string, category?: MeetupCategory): Promise<MeetupResponse[]> {

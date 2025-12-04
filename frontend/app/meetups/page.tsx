@@ -3,18 +3,19 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Calendar, Clock, Users } from "lucide-react";
-import { listMeetups, createMeetup, MeetupCategory, MeetupResponse } from "@/lib/meetups";
+import { Plus, Calendar, Clock, Users, Lock } from "lucide-react";
+import { listMeetups, createMeetup, MeetupCategory, MeetupResponse, MeetupVisibility } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { useRouter } from "next/navigation";
 
 const CATEGORIES: { label: string; value: MeetupCategory; color: string }[] = [
   { label: "Study", value: "study", color: "bg-blue-100 text-blue-700" },
   { label: "Social", value: "social", color: "bg-rose-100 text-rose-700" },
-  { label: "Game", value: "game", color: "bg-purple-100 text-purple-700" },
+  { label: "Gym", value: "gym", color: "bg-orange-100 text-orange-700" },
   { label: "Food", value: "food", color: "bg-amber-100 text-amber-700" },
   { label: "Other", value: "other", color: "bg-slate-100 text-slate-700" },
 ];
+
 
 function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
   const category = CATEGORIES.find((c) => c.value === meetup.category) || CATEGORIES[4];
@@ -31,6 +32,12 @@ function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
             Active
+          </span>
+        )}
+        {meetup.visibility === "PRIVATE" && (
+          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+            <Lock className="h-3 w-3" />
+            Private
           </span>
         )}
       </div>
@@ -107,6 +114,8 @@ export default function MeetupsPage() {
       start_at: startAt,
       duration_min: Number(formData.get("duration_min")),
       campus_id: authUser?.campusId ?? undefined,
+      visibility: formData.get("visibility") as MeetupVisibility,
+      capacity: Number(formData.get("capacity")),
     });
   };
 
@@ -248,6 +257,19 @@ export default function MeetupsPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Capacity (Max Participants)</label>
+                <input
+                  name="capacity"
+                  type="number"
+                  required
+                  min={2}
+                  max={50}
+                  defaultValue={10}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Date</label>
@@ -271,6 +293,20 @@ export default function MeetupsPage() {
                     aria-label="Time"
                     className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
+                <div className="mt-2 flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="visibility" value="GLOBAL" defaultChecked className="text-rose-600 focus:ring-rose-500" />
+                    <span className="text-sm font-medium text-slate-700">Global (Public)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="visibility" value="PRIVATE" className="text-rose-600 focus:ring-rose-500" />
+                    <span className="text-sm font-medium text-slate-700">Private (Friends Only)</span>
+                  </label>
                 </div>
               </div>
 

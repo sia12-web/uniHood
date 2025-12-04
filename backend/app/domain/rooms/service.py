@@ -375,7 +375,7 @@ class RoomService:
 
 	async def create_room(self, auth_user: AuthenticatedUser, payload: schemas.RoomCreateRequest) -> schemas.RoomSummary:
 		await policy.enforce_create_limit(auth_user.id)
-		capacity = policy.preset_to_capacity(payload.preset)
+		capacity = payload.capacity if payload.capacity is not None else policy.preset_to_capacity(payload.preset)
 		join_code = str(ulid.new()) if payload.visibility == "link" else None
 		campus_id = payload.campus_id or auth_user.campus_id
 		policy.ensure_same_campus(auth_user, campus_id)

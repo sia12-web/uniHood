@@ -9,7 +9,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
-from app.domain.social import audit, service
+from app.domain.social import audit, service, notifications
+
 from app.domain.social.exceptions import (
 	BlockLimitExceeded,
 	InviteAlreadyFriends,
@@ -239,3 +240,23 @@ async def remove_friend(
 		raise _map_error(exc, request_id) from None
 	return {"status": "ok"}
 
+	return {"status": "ok"}
+
+
+@router.get("/notifications", response_model=List[dict])
+async def list_notifications(
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> List[dict]:
+	service = notifications.NotificationService()
+	items = await service.get_my_notifications(auth_user.id)
+	return [item.to_dict() for item in items]
+
+
+@router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(
+	notification_id: str,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> dict:
+	service = notifications.NotificationService()
+	await service.mark_read(auth_user.id, notification_id)
+	return {"status": "ok"}

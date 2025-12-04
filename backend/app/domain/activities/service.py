@@ -697,7 +697,7 @@ class ActivitiesService:
 		if kind == "typing_duel":
 			duration = opts.typing.duration_s if opts.typing and opts.typing.duration_s else 60
 			meta["typing"] = {"duration_s": duration}
-		elif kind == "story_alt":
+		elif kind == "story_builder":
 			turns = opts.story.turns if opts.story and opts.story.turns else 6
 			turn_seconds = opts.story.turn_seconds if opts.story and opts.story.turn_seconds else 60
 			max_chars = opts.story.max_chars_per_turn if opts.story and opts.story.max_chars_per_turn else 400

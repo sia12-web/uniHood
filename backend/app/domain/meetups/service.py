@@ -12,11 +12,14 @@ from app.domain.rooms import models as room_models
 from app.domain.rooms import service as room_service
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
+from app.domain.social import notifications
+
 
 
 class MeetupService:
     def __init__(self):
         self._room_service = room_service.RoomService()
+        self._notification_service = notifications.NotificationService()
 
     async def _get_pool(self) -> asyncpg.Pool:
         return await get_pool()
@@ -37,6 +40,31 @@ class MeetupService:
             return schemas.MeetupStatus.ACTIVE
         return schemas.MeetupStatus.ENDED
 
+    async def _ensure_schema(self, conn: asyncpg.Connection) -> None:
+        # Add visibility column if it doesn't exist
+        await conn.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetups' AND column_name = 'visibility'
+                ) THEN
+                    ALTER TABLE meetups ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT 'GLOBAL';
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetups' AND column_name = 'capacity'
+                ) THEN
+                    ALTER TABLE meetups ADD COLUMN capacity INTEGER NOT NULL DEFAULT 10;
+                END IF;
+            END
+            $$;
+            """
+        )
+
     async def create_meetup(
         self, auth_user: AuthenticatedUser, payload: schemas.MeetupCreateRequest
     ) -> schemas.MeetupResponse:
@@ -47,9 +75,10 @@ class MeetupService:
         # Let's use 50 for now.
         room_payload = room_service.schemas.RoomCreateRequest(
             name=f"Meetup: {payload.title}",
-            preset="12+", # Largest preset
+            preset="12+", # Largest preset, but we override capacity
             visibility="private",
-            campus_id=payload.campus_id or auth_user.campus_id
+            campus_id=payload.campus_id or auth_user.campus_id,
+            capacity=payload.capacity
         )
         
         # We need to call create_room. It expects RoomCreateRequest.
@@ -57,15 +86,16 @@ class MeetupService:
         room = await self._room_service.create_room(auth_user, room_payload)
         
         async with pool.acquire() as conn:
+            await self._ensure_schema(conn)
             async with conn.transaction():
                 # Insert meetup
                 row = await conn.fetchrow(
                     """
                     INSERT INTO meetups (
                         creator_user_id, campus_id, title, description, category,
-                        start_at, duration_min, status, room_id
+                        start_at, duration_min, status, room_id, visibility, capacity
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                     RETURNING *
                     """,
                     UUID(auth_user.id),
@@ -76,7 +106,9 @@ class MeetupService:
                     payload.start_at,
                     payload.duration_min,
                     schemas.MeetupStatus.UPCOMING,
-                    UUID(room.id)
+                    UUID(room.id),
+                    payload.visibility.value,
+                    payload.capacity
                 )
                 
                 # Insert host participant
@@ -105,6 +137,10 @@ class MeetupService:
         # We use time-based filtering for status to be accurate
         now = datetime.now(timezone.utc)
         
+        # Visibility Logic:
+        # - GLOBAL: Visible to everyone
+        # - PRIVATE: Visible if (creator == me OR me is friend of creator)
+        
         query = """
             SELECT m.*, 
                    (SELECT COUNT(*) FROM meetup_participants mp WHERE mp.meetup_id = m.id AND mp.status = 'JOINED') as participants_count,
@@ -115,6 +151,16 @@ class MeetupService:
             WHERE m.campus_id = $1
             AND m.status != 'CANCELLED'
             AND (m.start_at + (m.duration_min || ' minutes')::interval) > $3
+            AND (
+                m.visibility = 'GLOBAL' 
+                OR m.creator_user_id = $2
+                OR EXISTS (
+                    SELECT 1 FROM friendships f 
+                    WHERE f.user_id = $2 
+                    AND f.friend_id = m.creator_user_id 
+                    AND f.status = 'accepted'
+                )
+            )
         """
         params = [UUID(campus_id), UUID(auth_user.id), now]
         
@@ -125,6 +171,7 @@ class MeetupService:
         query += " ORDER BY m.start_at ASC"
         
         async with pool.acquire() as conn:
+            await self._ensure_schema(conn)
             rows = await conn.fetch(query, *params)
             
         return [
@@ -141,6 +188,7 @@ class MeetupService:
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
+            await self._ensure_schema(conn)
             row = await conn.fetchrow(
                 """
                 SELECT m.*, 
@@ -158,15 +206,28 @@ class MeetupService:
             if not row:
                 raise HTTPException(status_code=404, detail="Meetup not found")
                 
+            # Check visibility access for detail as well
+            if row["visibility"] == schemas.MeetupVisibility.PRIVATE.value:
+                is_creator = str(row["creator_user_id"]) == str(auth_user.id)
+                if not is_creator:
+                    is_friend = await conn.fetchval(
+                        "SELECT 1 FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = 'accepted'",
+                        UUID(auth_user.id), row["creator_user_id"]
+                    )
+                    if not is_friend:
+                         raise HTTPException(status_code=403, detail="This is a private meetup.")
+
             participants_rows = await conn.fetch(
                 """
-                SELECT * FROM meetup_participants 
-                WHERE meetup_id = $1 AND status = 'JOINED'
-                ORDER BY joined_at ASC
+                SELECT mp.*, COALESCE(NULLIF(u.display_name, ''), u.handle) as display_name, u.avatar_url
+                FROM meetup_participants mp
+                JOIN users u ON u.id = mp.user_id
+                WHERE mp.meetup_id = $1
+                ORDER BY mp.joined_at ASC
                 """,
                 meetup_id
             )
-            
+
         response = self._map_row_to_response(
             row, 
             auth_user.id, 
@@ -181,7 +242,9 @@ class MeetupService:
                 role=p["role"],
                 status=p["status"],
                 joined_at=p["joined_at"],
-                left_at=p["left_at"]
+                left_at=p["left_at"],
+                display_name=p["display_name"],
+                avatar_url=p["avatar_url"]
             ) for p in participants_rows
         ]
         
@@ -191,13 +254,33 @@ class MeetupService:
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
+            await self._ensure_schema(conn)
             meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
             if not meetup:
                 raise HTTPException(status_code=404, detail="Meetup not found")
             
+            # Check visibility
+            if meetup["visibility"] == schemas.MeetupVisibility.PRIVATE.value:
+                is_creator = str(meetup["creator_user_id"]) == str(auth_user.id)
+                if not is_creator:
+                    is_friend = await conn.fetchval(
+                        "SELECT 1 FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = 'accepted'",
+                        UUID(auth_user.id), meetup["creator_user_id"]
+                    )
+                    if not is_friend:
+                         raise HTTPException(status_code=403, detail="Cannot join private meetup unless friends with host.")
+
             status = self._compute_status(meetup)
             if status in (schemas.MeetupStatus.ENDED, schemas.MeetupStatus.CANCELLED):
                 raise HTTPException(status_code=400, detail="Cannot join ended or cancelled meetup")
+            
+            # Check capacity
+            participants_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM meetup_participants WHERE meetup_id = $1 AND status = 'JOINED'",
+                meetup_id
+            )
+            if participants_count >= meetup.get("capacity", 10):
+                 raise HTTPException(status_code=409, detail="Meetup is full")
                 
             # Check if already joined
             existing = await conn.fetchrow(
@@ -241,6 +324,18 @@ class MeetupService:
                     joined_at=datetime.now(timezone.utc)
                 )
                 await self._room_service.add_member(room, member)
+
+        # Notify host
+        creator_id = str(meetup["creator_user_id"])
+        if creator_id != str(auth_user.id):
+            await self._notification_service.notify_user(
+                user_id=creator_id,
+                title="New Meetup Participant",
+                body=f"Someone joined your meetup: {meetup['title']}",
+                kind="meetup_join",
+                link=f"/meetups/{meetup_id}"
+            )
+
 
     async def leave_meetup(self, meetup_id: UUID, auth_user: AuthenticatedUser) -> None:
         pool = await self._get_pool()
@@ -306,5 +401,9 @@ class MeetupService:
             updated_at=row["updated_at"],
             participants_count=row.get("participants_count", 0),
             is_joined=is_joined,
-            my_role=my_role
+            my_role=my_role,
+            current_user_id=current_user_id,
+            visibility=row.get("visibility", schemas.MeetupVisibility.GLOBAL.value),
+            capacity=row.get("capacity", 10)
         )
+

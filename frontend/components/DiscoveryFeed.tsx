@@ -25,7 +25,7 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, X, LayoutGrid, Smartphone } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, X, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, MessageCircle, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type DiscoveryFeedProps = {
@@ -33,10 +33,24 @@ type DiscoveryFeedProps = {
 };
 
 const RADIUS_PRESETS = [
-  { label: "Room", value: 10, emoji: "🏠" },
-  { label: "Building", value: 50, emoji: "🏢" },
-  { label: "Campus", value: 500, emoji: "🎓" },
-  { label: "City", value: 2000, emoji: "🏙️" },
+  { label: "Room", value: 100, emoji: "🏠", scope: "global" as const },
+  { label: "Campus", value: 5000, emoji: "🎓", scope: "campus" as const },
+  { label: "City", value: 10000, emoji: "🏙️", scope: "global" as const },
+];
+
+const POPULAR_MAJORS = [
+  "Computer Science",
+  "Psychology",
+  "Economics",
+  "Biology",
+  "Engineering",
+  "Business",
+  "Political Science",
+  "Neuroscience",
+  "Arts",
+  "Finance",
+  "Marketing",
+  "Mathematics"
 ];
 
 type NearbyAccumulator<T> = {
@@ -47,8 +61,8 @@ type NearbyAccumulator<T> = {
 
 // Config parallels /proximity page
 const BACKEND_URL = getBackendUrl();
-const HEARTBEAT_VISIBLE_MS = 2000;
-const HEARTBEAT_HIDDEN_MS = 6000;
+const HEARTBEAT_VISIBLE_MS = 30000;
+const HEARTBEAT_HIDDEN_MS = 120000;
 const GO_LIVE_ENABLED =
   process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
@@ -64,11 +78,11 @@ function getYearLabel(gradYear: number): string {
 
   const diff = gradYear - academicYearStart;
   if (diff >= 4) return "freshman";
-  if (diff === 3) return "sophomore";
-  if (diff === 2) return "junior";
-  if (diff === 1) return "senior";
+  if (diff >= 1) return "undergrad"; // Covers Sophomore (3), Junior (2), Senior (1)
   return "grad";
 }
+
+
 
 async function fetchNearby(userId: string, campusId: string, radius: number, scope: "campus" | "global" = "campus") {
   const url = new URL("/proximity/nearby", BACKEND_URL);
@@ -86,7 +100,7 @@ async function fetchNearby(userId: string, campusId: string, radius: number, sco
     try {
       const body = await response.json();
       detail = typeof body?.detail === "string" ? body.detail : null;
-    } catch {}
+    } catch { }
     if (response.status === 400 && detail === "presence not found") {
       return [];
     }
@@ -109,12 +123,16 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [invitePendingId, setInvitePendingId] = useState<string | null>(null);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
-  
+  const [showProximityPrompt, setShowProximityPrompt] = useState(false);
+  const [pendingRadius, setPendingRadius] = useState<number | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+
   // Filters
   const [filterMajor, setFilterMajor] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
-  
+
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const nearbyStateRef = useRef<NearbyAccumulator<NearbyUser> | null>(null);
   const usersRef = useRef<NearbyUser[]>([]);
@@ -141,8 +159,15 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   }, [filteredUsers]);
 
   const uniqueMajors = useMemo(() => {
-    const majors = new Set(users.map((u) => u.major).filter(Boolean) as string[]);
-    return Array.from(majors);
+    const userMajors = users
+      .map((u) => u.major)
+      .filter((m): m is string => typeof m === "string" && m.length > 0 && m.toLowerCase() !== "none")
+      .map((m) => m.trim());
+
+    // Combine popular majors and user majors, removing duplicates
+    const allMajors = new Set([...POPULAR_MAJORS, ...userMajors]);
+
+    return Array.from(allMajors).sort();
   }, [users]);
 
   const currentUserId = authUser?.userId ?? null;
@@ -203,7 +228,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   useEffect(() => {
     if (!socket) return;
-    
+
     nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
       items: usersRef.current,
     });
@@ -277,7 +302,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   // Auto-Heartbeat Logic
   const sendHeartbeatSafe = useCallback(async () => {
     if (!authEvaluated || !goLiveAllowed || !currentUserId || !currentCampusId) return;
-    
+
     // Only send heartbeat if radius is small (Proximity Mode)
     if (radius > 50) return;
 
@@ -307,7 +332,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   // Trigger heartbeat on mount and interval
   useEffect(() => {
     void sendHeartbeatSafe();
-    
+
     const schedule = () => {
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
       const visible = document.visibilityState === "visible";
@@ -316,7 +341,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
         void sendHeartbeatSafe();
       }, interval);
     };
-    
+
     schedule();
     const vis = () => schedule();
     document.addEventListener("visibilitychange", vis);
@@ -329,7 +354,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   // Permanent Location Logic (Directory Mode)
   const updatePermanentLocationSafe = useCallback(async () => {
     if (!authEvaluated || !goLiveAllowed || !currentUserId || !currentCampusId) return;
-    
+
     // Only update permanent location if radius > 50 (Directory Mode)
     if (radius <= 50) return;
 
@@ -355,9 +380,9 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   // Trigger permanent location update when switching to Directory Mode
   useEffect(() => {
-      if (radius > 50) {
-          void updatePermanentLocationSafe();
-      }
+    if (radius > 50) {
+      void updatePermanentLocationSafe();
+    }
   }, [radius, updatePermanentLocationSafe]);
 
   const handleInvite = useCallback(
@@ -395,9 +420,46 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     [router],
   );
 
+  const handlePresetSelect = (preset: typeof RADIUS_PRESETS[number]) => {
+    if (preset.label === "Room") {
+      setPendingRadius(preset.value);
+      // Room mode implies we want to see everyone physically close, 
+      // but let's keep the scope flexible or default to global to find "gym crush" (anyone)
+      // The preset has scope: "global", so we'll apply that after confirmation.
+      setShowProximityPrompt(true);
+    } else {
+      setRadius(preset.value);
+      setScope(preset.scope);
+    }
+  };
+
+  const confirmProximityMode = async () => {
+    if (!pendingRadius) return;
+
+    try {
+      const pos = await requestBrowserPosition();
+      positionRef.current = pos;
+      setRadius(pendingRadius);
+      // For Room mode, we force global scope to see everyone around
+      setScope("global");
+      setShowProximityPrompt(false);
+
+      // Trigger immediate heartbeat with new location
+      if (currentUserId && currentCampusId) {
+        await sendHeartbeat(pos, currentUserId, currentCampusId, pendingRadius);
+        sentInitialHeartbeat.current = true;
+        void refreshNearby();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
+      setLocationNotice(message);
+      setShowProximityPrompt(false);
+    }
+  };
+
   if (variant === "mini") return null;
 
-  const isDirectoryMode = radius > 50;
+  const isDirectoryMode = radius > 100;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-50/50">
@@ -412,7 +474,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 {loading ? "Scanning..." : `${filteredUsers.length} students found`}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {/* View Toggle */}
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 ring-1 ring-slate-200">
@@ -440,7 +502,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
               <div className={cn(
                 "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset backdrop-blur-md",
-                isDirectoryMode 
+                isDirectoryMode
                   ? "bg-slate-100 text-slate-700 ring-slate-200"
                   : "bg-emerald-50 text-emerald-700 ring-emerald-200"
               )}>
@@ -464,41 +526,51 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
           {/* Controls Row */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            
+
             {/* Radius Control */}
-            <div className="flex-1 space-y-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+            <div className="relative flex-1 space-y-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <MapPin className="h-4 w-4 text-rose-500" />
-                  Search Radius
-                </label>
-                <span className="font-mono text-sm font-bold text-rose-600">{radius}m</span>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <MapPin className="h-4 w-4 text-rose-500" />
+                    Search Radius
+                  </label>
+                  <button
+                    onClick={() => setShowInfo(!showInfo)}
+                    className="rounded-full text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
+                    aria-label="More info"
+                  >
+                    <Info size={16} />
+                  </button>
+                </div>
               </div>
-              
-              <input
-                type="range"
-                min="10"
-                max="2000"
-                step="10"
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-rose-600 transition-all hover:bg-slate-300"
-                aria-label="Search Radius"
-              />
+
+              {showInfo && (
+                <div className="absolute left-4 top-12 z-30 w-64 rounded-xl bg-slate-800 p-4 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95">
+                  <div className="absolute -top-1.5 left-24 h-3 w-3 rotate-45 bg-slate-800"></div>
+                  <p className="mb-3">
+                    Use <span className="font-bold text-white">Room</span> mode to see people within 100m of you. Perfect for spotting your gym crush or classmates! 👀
+                  </p>
+                  <div className="border-t border-white/10 pt-2">
+                    <p className="mb-1"><span className="font-bold text-white">Campus:</span> See students from your university.</p>
+                    <p><span className="font-bold text-white">City:</span> Discover students from all universities nearby.</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between gap-2">
                 {RADIUS_PRESETS.map((preset) => (
                   <button
                     key={preset.value}
-                    onClick={() => setRadius(preset.value)}
+                    onClick={() => handlePresetSelect(preset)}
                     className={cn(
-                      "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium transition-all",
+                      "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-medium transition-all",
                       radius === preset.value
                         ? "bg-white text-rose-600 shadow-sm ring-1 ring-rose-200"
                         : "text-slate-500 hover:bg-white hover:text-slate-700 hover:shadow-sm"
                     )}
                   >
-                    <span className="text-base">{preset.emoji}</span>
+                    <span className="text-xl mb-1">{preset.emoji}</span>
                     {preset.label}
                   </button>
                 ))}
@@ -513,22 +585,8 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               </div>
 
               <div className="grid grid-cols-2 gap-3 lg:flex lg:w-full lg:items-center">
-                {/* University Filter */}
-                <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
-                  <select
-                    value={scope}
-                    onChange={(e) => setScope(e.target.value as "campus" | "global")}
-                    className="h-10 w-full appearance-none rounded-xl border-0 bg-white px-4 pr-8 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 transition focus:ring-2 focus:ring-rose-500"
-                    aria-label="Filter by University"
-                  >
-                    <option value="campus">My Campus</option>
-                    <option value="global">All Universities</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                </div>
-
                 {/* Major Filter */}
-                <div className="relative lg:flex-1">
+                <div className="relative col-span-2 lg:col-span-1 lg:flex-1">
                   <select
                     value={filterMajor}
                     onChange={(e) => setFilterMajor(e.target.value)}
@@ -553,10 +611,9 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                   >
                     <option value="all">All Years</option>
                     <option value="freshman">Freshman</option>
-                    <option value="sophomore">Sophomore</option>
-                    <option value="junior">Junior</option>
-                    <option value="senior">Senior</option>
+                    <option value="undergrad">Undergrad</option>
                     <option value="grad">Grad</option>
+                    <option value="phd">PhD</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </div>
@@ -574,7 +631,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             <div>
               <p className="font-bold">Location Access Needed</p>
               <p className="mt-1 text-amber-800">{locationNotice}</p>
-              <button 
+              <button
                 onClick={() => requestBrowserPosition()}
                 className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-200"
               >
@@ -627,26 +684,58 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
         ) : (
           <div className="flex flex-col items-center justify-center py-8">
             {swipeIndex < filteredUsers.length ? (
-              <div className="w-full max-w-sm">
-                <UserCard
-                  key={filteredUsers[swipeIndex].user_id}
-                  user={filteredUsers[swipeIndex]}
-                  isFriend={friendIds.has(filteredUsers[swipeIndex].user_id)}
-                  onInvite={async () => {
-                    await handleInvite(filteredUsers[swipeIndex].user_id);
-                    setSwipeIndex(prev => prev + 1);
-                  }}
-                  onChat={() => handleChat(filteredUsers[swipeIndex].user_id)}
-                  invitePending={invitePendingId === filteredUsers[swipeIndex].user_id}
-                />
-                <div className="mt-6 flex gap-4">
-                   <button 
-                     onClick={() => setSwipeIndex(prev => prev + 1)}
-                     className="flex-1 rounded-xl bg-slate-100 py-3 font-semibold text-slate-600 transition hover:bg-slate-200"
-                   >
-                     Pass
-                   </button>
+              <div className="flex w-full max-w-lg items-center justify-center gap-6">
+                {/* Left Arrow (Previous) */}
+                <button
+                  onClick={() => setSwipeIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={swipeIndex === 0}
+                  className="hidden rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:shadow-md disabled:opacity-50 sm:block"
+                  aria-label="Previous Profile"
+                >
+                  <ChevronLeft size={24} className="text-slate-600" />
+                </button>
+
+                <div className="w-full max-w-sm">
+                  <UserCard
+                    key={filteredUsers[swipeIndex].user_id}
+                    user={filteredUsers[swipeIndex]}
+                    isFriend={friendIds.has(filteredUsers[swipeIndex].user_id)}
+                    onInvite={async () => {
+                      await handleInvite(filteredUsers[swipeIndex].user_id);
+                      setSwipeIndex((prev) => prev + 1);
+                    }}
+                    onChat={() => handleChat(filteredUsers[swipeIndex].user_id)}
+                    invitePending={invitePendingId === filteredUsers[swipeIndex].user_id}
+                  />
+
+                  {/* Mobile Navigation Controls (Below Card) */}
+                  <div className="mt-6 flex items-center justify-center gap-4 sm:hidden">
+                    <button
+                      onClick={() => setSwipeIndex((prev) => Math.max(0, prev - 1))}
+                      disabled={swipeIndex === 0}
+                      className="rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:opacity-50"
+                      aria-label="Previous Profile"
+                    >
+                      <ChevronLeft size={24} className="text-slate-600" />
+                    </button>
+                    <button
+                      onClick={() => setSwipeIndex((prev) => prev + 1)}
+                      className="rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
+                      aria-label="Next Profile"
+                    >
+                      <ChevronRight size={24} className="text-slate-600" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Right Arrow (Next) */}
+                <button
+                  onClick={() => setSwipeIndex((prev) => prev + 1)}
+                  className="hidden rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:shadow-md sm:block"
+                  aria-label="Next Profile"
+                >
+                  <ChevronRight size={24} className="text-slate-600" />
+                </button>
               </div>
             ) : (
               <div className="text-center">
@@ -655,7 +744,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">That&apos;s everyone!</h3>
                 <p className="text-slate-500">You&apos;ve seen all profiles in this area.</p>
-                <button 
+                <button
                   onClick={() => setSwipeIndex(0)}
                   className="mt-4 font-medium text-rose-600 hover:underline"
                 >
@@ -666,7 +755,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           </div>
         )}
       </main>
-      
+
       {/* Toast Messages */}
       {inviteMessage && (
         <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-xl animate-in fade-in slide-in-from-bottom-4">
@@ -681,26 +770,79 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           {inviteError}
         </div>
       )}
+
+      {/* Proximity Mode Prompt Modal */}
+      {showProximityPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-rose-50 p-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 ring-8 ring-rose-50">
+                <MapPin className="h-8 w-8 text-rose-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Enter Proximity Mode?</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                To see who is in this <strong>Room</strong>, we need to access your precise location.
+              </p>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                  <div className="mt-0.5 rounded-full bg-emerald-100 p-1">
+                    <Zap className="h-3 w-3 text-emerald-600" />
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-medium text-slate-900">Live Updates</p>
+                    <p className="text-slate-500">See people moving in real-time.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                  <div className="mt-0.5 rounded-full bg-blue-100 p-1">
+                    <Info className="h-3 w-3 text-blue-600" />
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-medium text-slate-900">Privacy First</p>
+                    <p className="text-slate-500">Your location is only shared while you are active in this mode.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowProximityPrompt(false)}
+                  className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmProximityMode}
+                  className="rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-700"
+                >
+                  Enable Location
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function UserCard({ 
-  user, 
-  isFriend, 
-  onInvite, 
-  onChat, 
-  invitePending 
-}: { 
-  user: NearbyUser; 
-  isFriend: boolean; 
-  onInvite: () => void; 
+function UserCard({
+  user,
+  isFriend,
+  onInvite,
+  onChat,
+  invitePending
+}: {
+  user: NearbyUser;
+  isFriend: boolean;
+  onInvite: () => void;
   onChat: () => void;
   invitePending: boolean;
 }) {
   const [imageIndex, setImageIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
-  
+
   const images = useMemo(() => {
     if (user.gallery && user.gallery.length > 0) {
       return user.gallery.map((g) => g.url).filter(Boolean) as string[];
@@ -726,11 +868,11 @@ function UserCard({
   const initial = (user.display_name || user.handle || "?")[0].toUpperCase();
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+    <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-md transition-all hover:shadow-xl">
       {/* Image / Avatar Area */}
-      <div 
+      <div
         className={cn(
-          "relative aspect-[4/5] w-full bg-slate-100",
+          "relative h-full w-full",
           hasMultipleImages && "cursor-pointer"
         )}
         onClick={handleImageClick}
@@ -748,18 +890,18 @@ function UserCard({
             {initial}
           </div>
         )}
-        
+
         {/* Image Indicators */}
         {hasMultipleImages && !showDetails && (
-          <div className="absolute left-0 right-0 top-2 flex justify-center gap-1 px-2 z-10">
+          <div className="absolute left-0 right-0 top-3 z-10 flex justify-center gap-1.5 px-4">
             {images.map((_, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={cn(
-                  "h-1 flex-1 rounded-full backdrop-blur-md transition-all",
+                  "h-1 flex-1 rounded-full shadow-sm backdrop-blur-md transition-all",
                   idx === (imageIndex % images.length)
-                    ? "bg-white" 
-                    : "bg-white/30"
+                    ? "bg-white"
+                    : "bg-white/40"
                 )}
               />
             ))}
@@ -772,131 +914,143 @@ function UserCard({
             e.stopPropagation();
             setShowDetails(!showDetails);
           }}
-          className="absolute right-3 top-3 z-20 rounded-full bg-black/20 p-2 text-white backdrop-blur-md transition hover:bg-black/40"
+          className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
         >
-          {showDetails ? <X size={16} /> : <Info size={16} />}
+          {showDetails ? <X size={18} /> : <Info size={18} />}
         </button>
 
         {/* Details Overlay */}
         {showDetails && (
-          <div 
+          <div
             className="absolute inset-0 z-10 flex flex-col bg-slate-900/95 p-6 text-white animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-             <div className="mt-8 flex-1 overflow-y-auto scrollbar-hide">
-               <div className="mb-6">
-                 <h4 className="text-xl font-bold">{user.display_name}</h4>
-                 <p className="text-sm text-slate-400">@{user.handle}</p>
-               </div>
-               
-               <div className="mb-6">
-                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About</p>
-                 <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                   {user.bio || "No bio available."}
-                 </p>
-               </div>
+            <div className="mt-8 flex-1 overflow-y-auto scrollbar-hide">
+              <div className="mb-6">
+                <h4 className="text-2xl font-bold">{user.display_name}</h4>
+                <p className="text-sm text-slate-400">@{user.handle}</p>
+              </div>
 
-               <div className="mb-6">
-                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Passions</p>
-                 <div className="mt-2 flex flex-wrap gap-2">
-                   {user.passions && user.passions.length > 0 ? (
-                     user.passions.map((p) => (
-                       <span key={p} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white ring-1 ring-white/20">
-                         {p}
-                       </span>
-                     ))
-                   ) : (
-                     <span className="text-sm text-slate-500 italic">No passions listed</span>
-                   )}
-                 </div>
-               </div>
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-200">
+                  {user.bio || "No bio available."}
+                </p>
+              </div>
 
-               <div className="mb-6">
-                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Courses</p>
-                 <div className="mt-2 flex flex-wrap gap-2">
-                   {user.courses && user.courses.length > 0 ? (
-                     user.courses.map((c) => (
-                       <span key={c} className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/40">
-                         {c}
-                       </span>
-                     ))
-                   ) : (
-                     <span className="text-sm text-slate-500 italic">No courses listed</span>
-                   )}
-                 </div>
-               </div>
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Passions</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {user.passions && user.passions.length > 0 ? (
+                    user.passions.map((p) => (
+                      <span key={p} className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20">
+                        {p}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-500 italic">No passions listed</span>
+                  )}
+                </div>
+              </div>
 
-               <div>
-                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Details</p>
-                 <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span className="block text-slate-500">Major</span>
-                        <span className="text-slate-200">{user.major || "Undeclared"}</span>
-                    </div>
-                    <div>
-                        <span className="block text-slate-500">Year</span>
-                        <span className="text-slate-200">{user.graduation_year || "Unknown"}</span>
-                    </div>
-                 </div>
-               </div>
-             </div>
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Courses</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {user.courses && user.courses.length > 0 ? (
+                    user.courses.map((c) => (
+                      <span key={c} className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/40">
+                        {c}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-500 italic">No courses listed</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Details</p>
+                <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="block text-slate-500">Major</span>
+                    <span className="text-slate-200">{user.major || "Undeclared"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-500">Year</span>
+                    <span className="text-slate-200">{user.graduation_year || "Unknown"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-        
+
         {/* Content Overlay (Hidden when details shown) */}
         {!showDetails && (
           <>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5 text-white">
+            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
               <div className="mb-1 flex items-center gap-2">
-                <h3 className="text-lg font-bold leading-tight">{user.display_name || user.handle}</h3>
+                <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || user.handle}</h3>
                 {isFriend && (
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-sm">
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-sm ring-1 ring-emerald-500/40">
                     Friend
                   </span>
                 )}
               </div>
-              
-              <p className="text-sm font-medium text-slate-200">
-                {user.major || "Student"} {user.graduation_year ? `'${String(user.graduation_year).slice(-2)}` : ""}
+
+              <p className="text-sm font-medium text-slate-200 drop-shadow-sm">
+                {user.major || "Student"} {user.graduation_year ? `• '${String(user.graduation_year).slice(-2)}` : ""}
               </p>
-              
-              <div className="mt-3 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-xs font-medium backdrop-blur-md">
-                  <MapPin className="h-3 w-3" />
-                  {distance} away
-                </span>
+
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+                {distance && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-rose-400" />
+                    {distance} away
+                  </span>
+                )}
+              </div>
+
+              {/* Action Button */}
+              <div className="mt-4">
+                {isFriend ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChat();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+                  >
+                    <MessageCircle size={16} />
+                    Message
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onInvite();
+                    }}
+                    disabled={invitePending}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 transition hover:bg-rose-500 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {invitePending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        Connect
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </>
-        )}
-      </div>
-
-      {/* Action Area */}
-      <div className="border-t border-slate-100 p-3">
-        {isFriend ? (
-          <button
-            onClick={onChat}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
-          >
-            Message
-          </button>
-        ) : (
-          <button
-            onClick={onInvite}
-            disabled={invitePending}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-70"
-          >
-            {invitePending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              "Invite"
-            )}
-          </button>
         )}
       </div>
     </div>

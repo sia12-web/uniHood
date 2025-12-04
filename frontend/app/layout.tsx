@@ -7,16 +7,7 @@ import AppChrome from "@/components/AppChrome";
 export const metadata: Metadata = {
   title: "Divan",
   description: "Phase 1 proximity core UI",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "16x16" },
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "32x32" },
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "192x192" },
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "512x512" },
-    ],
-    apple: [{ url: "/favicon.svg" }],
-  },
+
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,26 +1,34 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
-
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { SocketConnectionStatus } from '@/app/lib/socket/base';
-
 import { ReportUI } from '@/app/features/moderation/ReportButton';
-
 import { RoomMessageDTO } from '../lib/rooms';
+import { Send, AlertCircle, Loader2 } from 'lucide-react';
 
 type Props = {
   messages: RoomMessageDTO[];
   onSend: (text: string) => Promise<void>;
   connectionStatus?: SocketConnectionStatus;
+  participantNames?: Record<string, string>;
+  currentUserId?: string;
 };
 
-export default function RoomChat({ messages, onSend, connectionStatus }: Props) {
+export default function RoomChat({ messages, onSend, connectionStatus, participantNames, currentUserId }: Props) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const sorted = useMemo(() => [...messages].sort((a, b) => a.seq - b.seq), [messages]);
   const reconnecting = connectionStatus === 'reconnecting';
   const disconnected = connectionStatus === 'disconnected';
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [sorted.length]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -36,43 +44,88 @@ export default function RoomChat({ messages, onSend, connectionStatus }: Props) 
   }
 
   return (
-    <main className="flex-1 p-4 flex flex-col">
-      {reconnecting ? (
-        <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700" role="status" aria-live="polite">
-          Reconnecting…
+    <div className="flex flex-col h-full bg-slate-50">
+      {/* Connection Status Bar */}
+      {(reconnecting || disconnected) && (
+        <div className={`px-4 py-2 text-xs font-medium text-center ${disconnected ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+          }`}>
+          {disconnected ? "Connection lost. Reconnecting..." : "Reconnecting..."}
         </div>
-      ) : null}
-      {disconnected ? (
-        <div className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert" aria-live="assertive">
-          Connection lost. Messages send once the connection returns.
-        </div>
-      ) : null}
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {sorted.map((message) => (
-          <div key={message.id} className="rounded border p-2">
-            <div className="text-xs text-muted-foreground flex items-center justify-between gap-2">
-              <span className="truncate">{message.sender_id}</span>
-              <div className="flex items-center gap-2">
-                <span>{new Date(message.created_at).toLocaleTimeString()}</span>
-                <ReportUI kind="room_message" targetId={message.id} />
+      )}
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+        {sorted.length === 0 && (
+          <div className="flex h-full items-center justify-center text-slate-400 text-sm">
+            No messages yet. Start the conversation!
+          </div>
+        )}
+
+        {sorted.map((message) => {
+          const isMe = currentUserId && message.sender_id === currentUserId;
+          const displayName = participantNames?.[message.sender_id] || "Unknown";
+          const initial = displayName[0]?.toUpperCase() || "?";
+
+          return (
+            <div key={message.id} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
+              <div className={`flex max-w-[80%] gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+
+                {/* Avatar (only for others) */}
+                {!isMe && (
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                    {initial}
+                  </div>
+                )}
+
+                <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                  {/* Name (only for others) */}
+                  {!isMe && (
+                    <span className="text-[10px] text-slate-500 mb-1 ml-1">
+                      {displayName}
+                    </span>
+                  )}
+
+                  {/* Bubble */}
+                  <div className={`px-4 py-2 rounded-2xl text-sm shadow-sm ${isMe
+                      ? "bg-blue-600 text-white rounded-tr-none"
+                      : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                    }`}>
+                    {message.content}
+                  </div>
+
+                  {/* Time & Actions */}
+                  <div className="flex items-center gap-2 mt-1 px-1">
+                    <span className="text-[10px] text-slate-400">
+                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {!isMe && <ReportUI kind="room_message" targetId={message.id} />}
+                  </div>
+                </div>
               </div>
             </div>
-            <div>{message.content ?? ''}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <form className="mt-4 flex" onSubmit={handleSubmit}>
-        <input
-          className="border flex-1 p-2 mr-2"
-          placeholder="Type a message..."
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          disabled={sending}
-        />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={sending}>
-          Send
-        </button>
-      </form>
-    </main>
+
+      {/* Input Area */}
+      <div className="p-4 bg-white border-t border-slate-200">
+        <form className="flex gap-2 items-center" onSubmit={handleSubmit}>
+          <input
+            className="flex-1 bg-slate-100 border-0 rounded-full px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder:text-slate-400"
+            placeholder="Type a message..."
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            disabled={sending || disconnected}
+          />
+          <button
+            className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            type="submit"
+            disabled={sending || !input.trim() || disconnected}
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

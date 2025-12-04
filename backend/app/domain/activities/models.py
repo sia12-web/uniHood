@@ -14,7 +14,7 @@ RoundState = str
 
 ACTIVITY_KINDS: tuple[ActivityKind, ...] = (
 	"typing_duel",
-	"story_alt",
+	"story_builder",
 	"trivia",
 	"rps",
 )

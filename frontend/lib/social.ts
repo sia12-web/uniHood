@@ -110,3 +110,23 @@ export async function removeFriend(
 	await request(`/friends/${targetId}/remove`, userId, campusId, { method: "POST" });
 }
 
+export type Notification = {
+	id: string;
+	user_id: string;
+	title: string;
+	body: string;
+	kind: string;
+	link?: string;
+	read_at?: string;
+	created_at: string;
+};
+
+export async function fetchNotifications(userId: string, campusId: string | null): Promise<Notification[]> {
+	return request<Notification[]>("/notifications", userId, campusId);
+}
+
+export async function markNotificationRead(userId: string, campusId: string | null, notificationId: string): Promise<void> {
+	await request(`/notifications/${notificationId}/read`, userId, campusId, { method: "POST" });
+}
+
+

@@ -18,6 +18,7 @@ class RoomCreateRequest(BaseModel):
     preset: str = Field(..., pattern="^(2-4|4-6|12\+)$")
     visibility: str = Field(..., pattern="^(private|link)$")
     campus_id: Optional[str] = Field(default=None, description="Explicit campus override")
+    capacity: Optional[int] = Field(default=None, ge=2, le=100)
 
 
 class RoomSummary(BaseModel):

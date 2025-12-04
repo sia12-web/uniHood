@@ -530,6 +530,23 @@ class LeaderboardService:
 			scores["popularity"] = live_score.popularity
 			scores["overall"] = live_score.overall
 
+		# CUSTOM: Override social score for dashboard display
+		# Formula: (total_friends + total_meetups) / 2
+		async with pool.acquire() as conn:
+			friend_count_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM friendships WHERE user_id = $1 AND status = 'accepted'",
+				str(user_id)
+			)
+			meetup_count_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM meetup_participants WHERE user_id = $1 AND status = 'JOINED'",
+				user_id
+			)
+			f_count = friend_count_row["count"] if friend_count_row else 0
+			m_count = meetup_count_row["count"] if meetup_count_row else 0
+			# Calculate average
+			custom_social = (f_count + m_count) / 2.0
+			scores["social"] = custom_social
+
 		streak = StreakSummarySchema(
 			current=current_streak,
 			best=best_streak,

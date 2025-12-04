@@ -120,6 +120,7 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       withCredentials: true,
       autoConnect: false,
       forceNew: false,
+      reconnection: false,
     });
     originalEmit = socket.emit.bind(socket);
     socket.emit = ((event: string, ...args: unknown[]) => {

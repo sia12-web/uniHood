@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Divan",
   description: "Phase 1 proximity core UI",
   icons: {
-    icon: "data:image/x-icon;base64,",
+    icon: [{ url: "data:," }],
   },
 };
 
@@ -16,7 +16,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="data:," />
         <Script id="boot-flags" strategy="beforeInteractive">
           {`
             (function() {

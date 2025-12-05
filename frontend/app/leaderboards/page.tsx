@@ -116,7 +116,7 @@ export default function LeaderboardsPage() {
             </div>
             <div>
               <p className="font-semibold text-slate-900">Friends</p>
-              <p className="text-xs text-slate-500">+50 per new friend, +20 per message</p>
+              <p className="text-xs text-slate-500">+50 per new friend, +2 per message</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -128,7 +128,7 @@ export default function LeaderboardsPage() {
             </div>
             <div>
               <p className="font-semibold text-slate-900">Meetups</p>
-              <p className="text-xs text-slate-500">+100 per meetup, +30 per room join</p>
+              <p className="text-xs text-slate-500">+100 per meetup created, +30 per join</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -143,6 +143,9 @@ export default function LeaderboardsPage() {
             </div>
           </div>
         </div>
+        <p className="mt-4 text-xs text-slate-400 text-center">
+          Daily limits apply to prevent abuse. Points are capped per opponent/recipient.
+        </p>
       </div>
     </main>
   );

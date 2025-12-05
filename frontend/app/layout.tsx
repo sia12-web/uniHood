@@ -7,7 +7,7 @@ import AppChrome from "@/components/AppChrome";
 export const metadata: Metadata = {
   title: "Divan",
   description: "Phase 1 proximity core UI",
-
+  icons: [],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

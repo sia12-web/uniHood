@@ -18,11 +18,13 @@ export interface GameState {
     roundIndex: number;
     lastRoundWinner?: string | null;
     matchWinner?: string | null;
+    leaveReason?: 'opponent_left' | 'forfeit' | null;
 }
 
 const sessions: Record<string, GameState> = {};
 const connections: Record<string, Set<any>> = {};
 const countdowns: Record<string, NodeJS.Timeout> = {};
+const userSockets: Record<string, Map<string, any>> = {}; // sessionId -> userId -> socket
 const ROUND_WIN_TARGET = 3;
 
 // Exported session management functions for REST API integration
@@ -169,16 +171,22 @@ export function joinSession(sessionId: string, userId: string, preferredRole?: '
     broadcastState(sessionId);
 }
 
-// Leave a session
-export function leaveSession(sessionId: string, userId: string): void {
+// Leave a session with forfeit logic
+export function leaveSession(sessionId: string, userId: string): { sessionEnded: boolean; winnerUserId?: string } {
     const session = sessions[sessionId];
     if (!session) {
         throw new Error('session_not_found');
     }
 
-    if (session.players.X === userId) {
+    // Remove user from socket tracking
+    userSockets[sessionId]?.delete(userId);
+
+    const wasPlayerX = session.players.X === userId;
+    const wasPlayerO = session.players.O === userId;
+
+    if (wasPlayerX) {
         session.players.X = undefined;
-    } else if (session.players.O === userId) {
+    } else if (wasPlayerO) {
         session.players.O = undefined;
     } else {
         session.spectators = session.spectators.filter(s => s !== userId);
@@ -187,7 +195,34 @@ export function leaveSession(sessionId: string, userId: string): void {
     // Reset ready state for the leaving user
     delete session.ready[userId];
 
+    // If game was in progress (countdown or playing), forfeit
+    if ((wasPlayerX || wasPlayerO) && (session.status === 'playing' || session.status === 'countdown')) {
+        const remainingPlayerId = wasPlayerX ? session.players.O : session.players.X;
+        
+        if (remainingPlayerId) {
+            // Award win to remaining player
+            session.matchWinner = remainingPlayerId;
+            session.scores[remainingPlayerId] = (session.scores[remainingPlayerId] || 0) + 300; // Forfeit win bonus
+            session.status = 'finished';
+            session.leaveReason = 'opponent_left';
+
+            // Record stats
+            recordGameResult(remainingPlayerId, 'tictactoe', 'win', session.scores[remainingPlayerId]);
+            recordGameResult(userId, 'tictactoe', 'loss', 0);
+
+            // Clear countdown if running
+            if (countdowns[sessionId]) {
+                clearInterval(countdowns[sessionId]);
+                delete countdowns[sessionId];
+            }
+
+            broadcastState(sessionId);
+            return { sessionEnded: true, winnerUserId: remainingPlayerId };
+        }
+    }
+
     broadcastState(sessionId);
+    return { sessionEnded: false };
 }
 
 // Set ready status for a user
@@ -232,6 +267,25 @@ export function startSession(sessionId: string): void {
     startCountdown(sessionId);
 }
 
+// Handle disconnect
+function handleDisconnect(sessionId: string, socket: any) {
+    const userMap = userSockets[sessionId];
+    if (!userMap) return;
+
+    let disconnectedUserId: string | null = null;
+    for (const [userId, sock] of userMap.entries()) {
+        if (sock === socket) {
+            disconnectedUserId = userId;
+            break;
+        }
+    }
+
+    if (disconnectedUserId) {
+        console.log(`[TicTacToe] User ${disconnectedUserId} disconnected from session ${sessionId}`);
+        leaveSession(sessionId, disconnectedUserId);
+    }
+}
+
 export function handleTicTacToeConnection(connection: SocketStream, _req: FastifyRequest, sessionId: string) {
     const socket = connection.socket;
     console.log(`New connection to session ${sessionId}`);
@@ -254,10 +308,19 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
     }
 
     connections[sessionId].add(socket);
+    
+    // Track connected user (will be set on join message)
+    let connectedUserId: string | null = null;
 
     socket.on('message', (message: Buffer) => {
         try {
             const data = JSON.parse(message.toString());
+            // Capture userId from join message for disconnect tracking
+            if (data.type === 'join' && data.payload?.userId) {
+                connectedUserId = data.payload.userId;
+                if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
+                userSockets[sessionId].set(connectedUserId, socket);
+            }
             handleMessage(socket, sessionId, data);
         } catch (e) {
             console.error('Failed to parse message', e);
@@ -266,7 +329,10 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
 
     socket.on('close', () => {
         connections[sessionId].delete(socket);
-        // Handle disconnect (remove player?)
+        // Handle disconnect for forfeit logic
+        if (connectedUserId) {
+            handleDisconnect(sessionId, socket);
+        }
     });
 
     // Send initial state

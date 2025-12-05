@@ -2,21 +2,24 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { TicTacToeState } from '../hooks/useTicTacToeSession';
-import { Copy, Check, RotateCcw } from 'lucide-react';
+import { Copy, Check, RotateCcw, LogOut, AlertTriangle } from 'lucide-react';
+import { MyPointsBadge } from './MyPointsBadge';
 
 interface BoardProps {
     state: TicTacToeState;
     onMove: (index: number) => void;
     onRestart: () => void;
     onToggleReady: () => void;
+    onLeave?: () => void;
     playerNames?: Record<string, string>;
 }
 
-export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex } = state;
+export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, onLeave, playerNames }) => {
+    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex, leaveReason } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
     const [copied, setCopied] = useState(false);
+    const opponentLeft = leaveReason === 'opponent_left';
 
     const copyInvite = () => {
         if (typeof window !== 'undefined') {
@@ -107,6 +110,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                             className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10"
                         >
                             <div className="bg-slate-900/90 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center gap-6 max-w-md text-center backdrop-blur-md">
+                                <MyPointsBadge />
                                 <h2 className="text-3xl font-bold text-white">Waiting for Players</h2>
                                 <p className="text-slate-400 text-base">Invite a friend to play or wait for someone to join.</p>
                                 {lastWinnerId && roundNumber !== null && roundNumber > 0 && (
@@ -138,6 +142,15 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                 >
                     {myRole && myRole !== 'spectator' && ready[players[myRole] || ''] ? "Ready!" : "I'm Ready"}
                 </button>
+                                {onLeave && (
+                                    <button
+                                        onClick={onLeave}
+                                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-400 transition-colors mt-2"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        Leave Game
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     )}
@@ -164,8 +177,14 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                             className="absolute inset-0 flex items-center justify-center z-10"
                         >
                             <div className="bg-slate-900/95 p-8 rounded-2xl border border-slate-700 shadow-2xl flex flex-col items-center gap-6 text-center backdrop-blur-md">
+                                {opponentLeft && (
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-500/50 rounded-xl text-amber-300 text-sm">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        Opponent left the game
+                                    </div>
+                                )}
                                 <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                                    {winner === 'draw' ? "It's a Draw!" : `${playerNames?.[players[winner as 'X' | 'O'] || ''] || `Player ${winner}`} Wins!`}
+                                    {opponentLeft ? "You Win!" : (winner === 'draw' ? "It's a Draw!" : `${playerNames?.[players[winner as 'X' | 'O'] || ''] || `Player ${winner}`} Wins!`)}
                                 </h2>
                                 <div className="flex gap-4">
                                     <button

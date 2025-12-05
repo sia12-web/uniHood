@@ -17,6 +17,7 @@ type TriviaSession = {
     lobbyReady: boolean;
     startedAt?: number;
     roundStartedAt?: number;
+    leaveReason?: 'opponent_left' | 'forfeit' | null;
 };
 
 const QUESTION_TIME_MS = 7_000;
@@ -27,6 +28,7 @@ const ROUND_COUNT = 5;
 const sockets: Record<string, Set<WebSocket>> = {};
 const sessions: Record<string, TriviaSession> = {};
 const roundTimers: Record<string, NodeJS.Timeout | null> = {};
+const userSockets: Record<string, Map<string, WebSocket>> = {}; // sessionId -> userId -> socket
 const questionBank: TriviaQuestion[] = [
     { question: 'Capital of France?', options: ['Paris', 'Berlin', 'Rome', 'Madrid'], correctIndex: 0 },
     { question: 'Result of 7 x 8?', options: ['54', '56', '64', '48'], correctIndex: 1 },
@@ -125,6 +127,89 @@ export function setQuickTriviaReady(sessionId: string, userId: string, ready: bo
     return session;
 }
 
+// Leave/forfeit handler
+export function leaveQuickTrivia(sessionId: string, userId: string): { sessionEnded: boolean; winnerUserId?: string } {
+    const session = sessions[sessionId];
+    if (!session) throw new Error('session_not_found');
+
+    // Remove user from socket tracking
+    userSockets[sessionId]?.delete(userId);
+
+    // Remove from participants
+    const idx = session.participants.findIndex(p => p.userId === userId);
+    if (idx !== -1) {
+        session.participants.splice(idx, 1);
+    }
+
+    // If game was running, forfeit - remaining player wins
+    if (session.status === 'running' || session.status === 'pending') {
+        const remaining = session.participants.filter(p => p.joined);
+        if (remaining.length === 1 && session.status === 'running') {
+            // Award win to remaining player
+            const winner = remaining[0];
+            const winnerScore = session.scores[winner.userId] || 0;
+            session.scores[winner.userId] = Math.max(winnerScore, 100); // Ensure minimum score
+            session.status = 'ended';
+            session.leaveReason = 'opponent_left';
+
+            // Record stats
+            recordGameResult(winner.userId, 'quick_trivia', 'win', session.scores[winner.userId]);
+            recordGameResult(userId, 'quick_trivia', 'loss', 0);
+
+            // Clear round timer
+            if (roundTimers[sessionId]) {
+                clearTimeout(roundTimers[sessionId] as NodeJS.Timeout);
+                roundTimers[sessionId] = null;
+            }
+
+            // Broadcast ended event
+            const scores = Object.entries(session.scores).map(([id, score]) => ({ userId: id, score }));
+            sendToSession(sessionId, {
+                type: 'activity.session.ended',
+                payload: { 
+                    sessionId, 
+                    winnerUserId: winner.userId, 
+                    finalScoreboard: { participants: scores },
+                    reason: 'opponent_left'
+                },
+            });
+
+            return { sessionEnded: true, winnerUserId: winner.userId };
+        } else if (remaining.length === 0) {
+            session.status = 'ended';
+            session.leaveReason = 'opponent_left';
+            if (roundTimers[sessionId]) {
+                clearTimeout(roundTimers[sessionId] as NodeJS.Timeout);
+                roundTimers[sessionId] = null;
+            }
+            return { sessionEnded: true };
+        }
+    }
+
+    session.lobbyReady = session.participants.filter(p => p.ready).length >= 2;
+    broadcastPresence(sessionId);
+    return { sessionEnded: false };
+}
+
+// Handle disconnect
+function handleDisconnect(sessionId: string, socket: WebSocket) {
+    const userMap = userSockets[sessionId];
+    if (!userMap) return;
+
+    let disconnectedUserId: string | null = null;
+    for (const [userId, sock] of userMap.entries()) {
+        if (sock === socket) {
+            disconnectedUserId = userId;
+            break;
+        }
+    }
+
+    if (disconnectedUserId) {
+        console.log(`[QuickTrivia] User ${disconnectedUserId} disconnected from session ${sessionId}`);
+        leaveQuickTrivia(sessionId, disconnectedUserId);
+    }
+}
+
 export function handleQuickTriviaConnection(connection: SocketStream, _req: FastifyRequest, sessionId: string) {
     const socket = connection.socket as unknown as WebSocket;
     if (!sessions[sessionId]) {
@@ -136,16 +221,31 @@ export function handleQuickTriviaConnection(connection: SocketStream, _req: Fast
     }
     sockets[sessionId].add(socket);
 
+    // Track connected user (will be set on join message)
+    let connectedUserId: string | null = null;
+
     // initial snapshot
     sendSnapshot(sessionId, socket);
 
     socket.addEventListener('message', (evt) => {
         try {
             const msg = JSON.parse(evt.data.toString());
+            // Track user from join message
+            if (msg?.type === 'join' && msg.payload?.userId) {
+                connectedUserId = msg.payload.userId;
+                if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
+                userSockets[sessionId].set(connectedUserId, socket);
+            }
             if (msg?.type === 'submit') {
                 const choice = msg.payload?.choiceIndex;
                 const userId = msg.payload?.userId;
                 if (typeof choice === 'number' && typeof userId === 'string') {
+                    // Track userId from submit if not tracked yet
+                    if (!connectedUserId) {
+                        connectedUserId = userId;
+                        if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
+                        userSockets[sessionId].set(connectedUserId, socket);
+                    }
                     handleAnswer(sessionId, userId, choice);
                 }
             }
@@ -156,6 +256,10 @@ export function handleQuickTriviaConnection(connection: SocketStream, _req: Fast
 
     socket.addEventListener('close', () => {
         sockets[sessionId]?.delete(socket);
+        // Handle disconnect for forfeit logic
+        if (connectedUserId) {
+            handleDisconnect(sessionId, socket);
+        }
     });
 }
 

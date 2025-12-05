@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
 
@@ -16,7 +17,7 @@ export async function connectDb() {
     } catch (e) {
         console.error('Failed to connect to Redis', e);
     }
-    
+
     try {
         await prisma.$connect();
         console.log('Connected to Postgres');

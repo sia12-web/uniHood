@@ -69,7 +69,7 @@ async def test_typing_duel_full_flow():
 
 
 @pytest.mark.asyncio
-async def test_story_alternation_completes_after_turns():
+async def test_story_builder_completes_after_turns():
 	service = ActivitiesService()
 	user_a = UserFactory("alice").to_user()
 	user_b = UserFactory("bob").to_user()
@@ -89,7 +89,7 @@ async def test_story_alternation_completes_after_turns():
 	detail = await service.get_activity(user_a, summary.id)
 	assert detail.state == "completed"
 	story_meta = detail.meta.get("story", {})
-	assert story_meta.get("next_turn") == 5
+	assert story_meta.get("next_turn") == 4
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { SocketConnectionStatus } from '@/app/lib/socket/base';
 import { ReportUI } from '@/app/features/moderation/ReportButton';
 import { RoomMessageDTO } from '../lib/rooms';
-import { Send, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
 type Props = {
   messages: RoomMessageDTO[];

@@ -1,0 +1,89 @@
+﻿node.exe : [33mThe CJS 
+build of Vite's Node API is 
+deprecated. See https://vite
+.dev/guide/troubleshooting.h
+tml#vite-cjs-node-api-deprec
+ated for more details.[39m
+At C:\Program 
+Files\nodejs\npx.ps1:29 
+char:3
++   & $NODE_EXE $NPX_CLI_JS 
+$args
++   ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo          
+    : NotSpecified: ([33m  
+  The CJS bu...e details.   
+ [39m:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/shahb/OneDrive/Desktop/Divan/frontend[39m
+
+[90mstdout[2m | app\features\activities\api\client.ts:11:11[22m[39m
+[activities-core] resolved CORE_BASE = http://localhost:8000 (raw: http://localhost:8000 )
+
+[90mstdout[2m | __tests__/story-builder-flow.spec.ts[2m > [22m[2mStory Builder Flow[2m > [22m[2mcreateStoryBuilderSession calls backend first then activities-core[22m[39m
+[coreRequest] to: http://localhost:8000/activities/session /activities/session POST {
+  authorization: [32m'Bearer bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'[39m,
+  xUserId: [32m'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'[39m
+}
+
+ [33mΓ¥»[39m __tests__/story-builder-flow.spec.ts [2m ([22m[2m1 test[22m [2m|[22m [31m1 failed[39m[2m)[22m[90m 39[2mms[22m[39m
+[31m   [33mΓ¥»[31m __tests__/story-builder-flow.spec.ts[2m > [22mStory Builder Flow[2m > [22mcreateStoryBuilderSession calls backend first then activities-core[39m
+[31m     ΓåÆ Request failed: 404[39m
+
+[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[
+1m[7m Failed Tests 1 [27m
+[22mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[3
+9m
+
+[31m[1m[7m FAIL 
+[27m[22m[39m __tests__/st
+ory-builder-flow.spec.ts[2m
+ > [22mStory Builder 
+Flow[2m > [22mcreateStoryB
+uilderSession calls backend 
+first then activities-core
+[31m[1mError[22m: 
+Request failed: 404[39m
+[36m [2mΓ¥»[22m 
+coreRequestRaw app/features/
+activities/api/client.ts:[2
+m263:11[22m[39m
+    [90m261| [39m      
+[90m// fall through to 
+generic error[39m
+    [90m262| [39m    }
+    [90m263| [39m    
+[35mthrow[39m 
+[35mnew[39m 
+[33mError[39m(text 
+[33m||[39m [32m`Request 
+failed: [39m[36m${[39mres
+ponse[33m.[39mstatus[36m}
+[39m[32m`[39m)[33m;[39m
+    [90m   | [39m         
+ [31m^[39m
+    [90m264| [39m  }
+    [90m265| [39m
+[90m [2mΓ¥»[22m 
+coreRequest app/features/act
+ivities/api/client.ts:[2m27
+0:20[22m[39m
+[90m [2mΓ¥»[22m __tests__
+/story-builder-flow.spec.ts:
+[2m50:24[22m[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»Γ
+Ä»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ
+»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/
+1]ΓÄ»[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 14:01:57
+[2m   Duration [22m 27.84s[2m (transform 2.32s, setup 920ms, collect 557ms, tests 39ms, environment 9.81s, prepare 5.52s)[22m
+

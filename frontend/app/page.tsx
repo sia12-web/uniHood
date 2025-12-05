@@ -219,19 +219,12 @@ export default function HomePage() {
   }, []);
 
   const [cardIndex, setCardIndex] = useState(0);
-  const [goLiveActive, setGoLiveActive] = useState(false);
-
-
 
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
   const [friendCount, setFriendCount] = useState(0);
   const [recentMeetups, setRecentMeetups] = useState<MeetupResponse[]>([]);
   const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
   const [meetupsLoading, setMeetupsLoading] = useState(true);
-
-  const handleToggleLive = () => {
-    setGoLiveActive((prev) => !prev);
-  };
 
   const { inboundPending } = useInviteInboxCount();
   const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
@@ -368,7 +361,7 @@ export default function HomePage() {
           };
         });
         if (!cancelled) {
-          setDiscoverPeople(mapped);
+          setDiscoverPeople(mapped.filter((p) => !!p.imageUrl));
         }
       } catch (err) {
         if (!cancelled) {
@@ -455,7 +448,7 @@ export default function HomePage() {
       }
       try {
         const data = await listMeetups(authUser.campusId);
-        
+
         // For Recent Activity: joined meetups
         const joined = data.filter(m => m.is_joined);
         setJoinedMeetups(joined);
@@ -673,7 +666,18 @@ export default function HomePage() {
               {/* Network Score Stat */}
               <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Social Score</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Social Score</p>
+                    <Link
+                      href="/leaderboards"
+                      className="flex items-center justify-center h-6 w-6 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      title="View Leaderboard"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
+                      </svg>
+                    </Link>
+                  </div>
                   <p className="mt-2 text-3xl font-bold text-slate-900">{activitySnapshot.socialScore}</p>
                   <p className="mt-1 text-xs text-slate-500">Top 15% on campus</p>
                 </div>
@@ -707,37 +711,6 @@ export default function HomePage() {
                 </Link>
               </div>
               <div className="relative z-10 flex gap-4 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
-                {/* Go Live Toggle */}
-                <button
-                  onClick={handleToggleLive}
-                  className="group flex flex-col items-center gap-2 min-w-[72px]"
-                >
-                  <div className={`relative h-16 w-16 rounded-full p-[3px] transition-all duration-500 ${goLiveActive ? "bg-gradient-to-tr from-emerald-400 to-teal-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" : "bg-slate-100 hover:bg-slate-200"}`}>
-                    <div className="h-full w-full rounded-full bg-white p-1">
-                      <div className="h-full w-full rounded-full bg-slate-50 flex items-center justify-center overflow-hidden">
-                        {authUser?.photoURL ? (
-                          <img src={authUser.photoURL} alt="Me" className="h-full w-full object-cover opacity-90" />
-                        ) : (
-                          <span className="text-xs font-bold text-slate-400">You</span>
-                        )}
-                      </div>
-                    </div>
-                    {goLiveActive && (
-                      <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
-                    )}
-                    {!goLiveActive && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6 text-slate-600">
-                          <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-xs font-medium transition-colors ${goLiveActive ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
-                    {goLiveActive ? "Live" : "Go Live"}
-                  </span>
-                </button>
-
                 {/* Live Peers */}
                 {discoveryPreviewList.map((person) => (
                   <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px] cursor-pointer group">
@@ -745,7 +718,7 @@ export default function HomePage() {
                       <div className="h-full w-full rounded-full bg-white p-1">
                         <div className="h-full w-full rounded-full bg-slate-100 overflow-hidden">
                           <img
-                            src={person.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${person.name}`}
+                            src={person.imageUrl || ""}
                             alt={person.name}
                             className="h-full w-full object-cover transition group-hover:scale-110"
                           />
@@ -1067,6 +1040,12 @@ export default function HomePage() {
 
                 {/* Stats Grid */}
                 <div className="flex flex-1 justify-end gap-4 sm:gap-8">
+                  <div className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 px-6 py-4 backdrop-blur-sm border border-amber-400/30 min-w-[100px]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-400">Game Points</p>
+                    <p className="mt-1 text-2xl font-bold text-white">
+                      {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
+                    </p>
+                  </div>
                   <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Games</p>
                     <p className="mt-1 text-2xl font-bold text-white">

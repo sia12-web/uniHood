@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 import asyncpg
 
@@ -91,22 +91,68 @@ class LeaderboardAccrual:
 		await self._touch(to_user_id, day=day)
 		await self._sadd(_uniq_accept_key(day, to_user_id), from_user_id)
 
-	async def record_friendship_accepted(self, *, user_a: str, user_b: str, when: Optional[datetime] = None) -> None:
+	async def record_friendship_accepted(self, *, user_a: str, user_b: str, when: Optional[datetime] = None) -> bool:
+		"""
+		Record new friendship for both users.
+		Returns True if points were awarded, False if blocked by anti-cheat.
+		"""
 		day = _day_stamp(when)
-		await self._hincr(_hash_key(day, user_a), "friends_new", 1)
-		await self._hincr(_hash_key(day, user_b), "friends_new", 1)
+		
+		# Check daily friend limits for both users
+		a_allowed = await policy.check_daily_friend_limit(user_a, day)
+		b_allowed = await policy.check_daily_friend_limit(user_b, day)
+		
+		if not a_allowed and not b_allowed:
+			# Both at limit, just touch for activity tracking
+			await self._touch(user_a, day=day)
+			await self._touch(user_b, day=day)
+			return False
+		
+		# Award points only to those under limit
+		if a_allowed:
+			await self._hincr(_hash_key(day, user_a), "friends_new", 1)
+			await policy.increment_daily_friend_count(user_a, day)
+		if b_allowed:
+			await self._hincr(_hash_key(day, user_b), "friends_new", 1)
+			await policy.increment_daily_friend_count(user_b, day)
+		
 		await self._touch(user_a, day=day)
 		await self._touch(user_b, day=day)
+		return True
 
-	async def record_dm_sent(self, *, from_user_id: str, to_user_id: str, when: Optional[datetime] = None) -> None:
+	async def record_dm_sent(self, *, from_user_id: str, to_user_id: str, when: Optional[datetime] = None) -> bool:
+		"""
+		Record DM sent for scoring.
+		Returns True if points were awarded, False if blocked by anti-cheat.
+		"""
 		when = when or _now()
 		day = _day_stamp(when)
+		
+		# Check burst rate limiting
 		if await policy.register_burst_and_mute(from_user_id, "dm", now=when):
-			return
+			return False
+		
+		# Check per-recipient daily limit
+		if not await policy.check_dm_recipient_limit(from_user_id, to_user_id, day):
+			await self._touch(from_user_id, day=day)
+			return False
+		
+		# Check cooldown between DMs to same person
+		if not await policy.check_dm_recipient_cooldown(from_user_id, to_user_id):
+			await self._touch(from_user_id, day=day)
+			return False
+		
+		# All checks passed - award points
 		await self._hincr_float(_hash_key(day, from_user_id), "dm_sent", 1.0)
 		await self._sadd(_uniq_sender_key(day, to_user_id), from_user_id)
 		await self._touch(from_user_id, day=day)
 		await self._touch(to_user_id, day=day)
+		
+		# Update tracking
+		await policy.increment_dm_recipient_count(from_user_id, to_user_id, day)
+		await policy.set_dm_recipient_cooldown(from_user_id, to_user_id)
+		
+		return True
 
 	async def record_room_message(self, *, user_id: str, when: Optional[datetime] = None) -> None:
 		day = _day_stamp(when)
@@ -115,29 +161,158 @@ class LeaderboardAccrual:
 		await self._hincr_float(_hash_key(day, user_id), "room_sent", 1.0)
 		await self._touch(user_id, day=day)
 
-	async def record_room_created(self, *, user_id: str, when: Optional[datetime] = None) -> None:
+	async def record_room_created(self, *, user_id: str, room_id: Optional[str] = None, when: Optional[datetime] = None) -> None:
+		"""
+		Record meetup/room creation.
+		Points are provisional - they only finalize if meetup completes successfully.
+		"""
+		when = when or _now()
 		day = _day_stamp(when)
+		
+		# Record creation for cancel tracking
+		if room_id:
+			await policy.record_meetup_creation(user_id, room_id, now=when)
+		
 		await self._hincr(_hash_key(day, user_id), "rooms_created", 1)
 		await self._touch(user_id, day=day)
 
-	async def record_room_joined(self, *, user_id: str, when: Optional[datetime] = None) -> None:
+	async def record_room_cancelled(self, *, user_id: str, room_id: str, when: Optional[datetime] = None) -> None:
+		"""
+		Record meetup/room cancellation - removes creation points if cancelled too quickly.
+		"""
+		when = when or _now()
 		day = _day_stamp(when)
+		
+		# Check if cancelled within penalty window
+		if await policy.check_meetup_cancel_penalty(room_id, now=when):
+			# Remove the creation point (decrement)
+			await self._hincr(_hash_key(day, user_id), "rooms_created", -1)
+
+	async def record_room_joined(self, *, user_id: str, room_id: Optional[str] = None, when: Optional[datetime] = None) -> bool:
+		"""
+		Record when user joins a meetup/room.
+		Points are NOT awarded immediately - awarded when user leaves after staying long enough.
+		Returns True if join was recorded, False if blocked by cooldown.
+		"""
+		when = when or _now()
+		day = _day_stamp(when)
+		
+		# Check if user has suspicious join-leave pattern
+		if room_id and await policy.is_suspicious_join_leave(user_id, room_id, day):
+			await self._touch(user_id, day=day)
+			return False
+		
+		# Check cooldown for rejoining same room
+		if room_id and not await policy.check_meetup_join_cooldown(user_id, room_id):
+			await self._touch(user_id, day=day)
+			return False
+		
+		# Record join time for duration tracking (points awarded on leave)
+		if room_id:
+			await policy.record_meetup_join_time(user_id, room_id, now=when)
+			await policy.set_meetup_join_cooldown(user_id, room_id)
+		
+		await self._touch(user_id, day=day)
+		return True
+
+	async def record_room_left(
+		self,
+		*,
+		user_id: str,
+		room_id: str,
+		attendee_count: int = 0,
+		when: Optional[datetime] = None,
+	) -> bool:
+		"""
+		Record when user leaves a meetup/room.
+		Awards join points ONLY if:
+		- User stayed long enough (MEETUP_STAY_DURATION_MINUTES)
+		- Room has minimum attendees (MEETUP_MIN_ATTENDEES)
+		Returns True if points were awarded, False otherwise.
+		"""
+		when = when or _now()
+		day = _day_stamp(when)
+		
+		# Check minimum attendees
+		if attendee_count < policy.MEETUP_MIN_ATTENDEES:
+			await policy.track_rapid_join_leave(user_id, room_id, day)
+			return False
+		
+		# Check if stayed long enough
+		if not await policy.check_meetup_stay_duration(user_id, room_id, now=when):
+			await policy.track_rapid_join_leave(user_id, room_id, day)
+			return False
+		
+		# All checks passed - award join points
 		await self._hincr(_hash_key(day, user_id), "rooms_joined", 1)
 		await self._touch(user_id, day=day)
+		return True
 
 	async def record_activity_ended(
 		self,
 		*,
 		user_ids: Iterable[str],
 		winner_id: Optional[str] = None,
+		duration_seconds: int = 0,
+		move_count: int = 0,
 		when: Optional[datetime] = None,
-	) -> None:
+	) -> List[str]:
+		"""
+		Record game/activity completion with anti-cheat validation.
+		Returns list of user IDs that received points.
+		"""
+		when = when or _now()
 		day = _day_stamp(when)
-		for uid in user_ids:
+		user_list = list(user_ids)
+		awarded_users: List[str] = []
+		
+		# Validate game duration
+		if not policy.validate_game_duration(duration_seconds):
+			# Game too short - just mark activity but no points
+			for uid in user_list:
+				await self._touch(uid, day=day)
+			return awarded_users
+		
+		# Validate game had enough moves/actions
+		if not policy.validate_game_moves(move_count):
+			# Not enough engagement - no points
+			for uid in user_list:
+				await self._touch(uid, day=day)
+			return awarded_users
+		
+		# For 2-player games, check per-opponent limits
+		if len(user_list) == 2:
+			user_a, user_b = user_list[0], user_list[1]
+			
+			# Check daily opponent limit
+			if not await policy.check_game_opponent_limit(user_a, user_b, day):
+				# Daily limit reached - no points
+				for uid in user_list:
+					await self._touch(uid, day=day)
+				return awarded_users
+			
+			# Check cooldown between games
+			if not await policy.check_game_opponent_cooldown(user_a, user_b):
+				# Too soon since last game - no points
+				for uid in user_list:
+					await self._touch(uid, day=day)
+				return awarded_users
+			
+			# Update opponent tracking
+			await policy.increment_game_opponent_count(user_a, user_b, day)
+			await policy.set_game_opponent_cooldown(user_a, user_b)
+		
+		# Award points to all participants
+		for uid in user_list:
 			await self._hincr(_hash_key(day, uid), "acts_played", 1)
 			await self._touch(uid, day=day)
-		if winner_id:
+			awarded_users.append(uid)
+		
+		# Award win bonus
+		if winner_id and winner_id in user_list:
 			await self._hincr(_hash_key(day, winner_id), "acts_won", 1)
+		
+		return awarded_users
 
 	async def mark_presence_heartbeat(self, *, user_id: str, when: Optional[datetime] = None) -> None:
 		day = _day_stamp(when)

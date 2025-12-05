@@ -14,7 +14,6 @@ import {
   Shield,
   Loader2,
   UserMinus,
-  UserMinus,
   Ban,
   Bell
 } from "lucide-react";
@@ -33,7 +32,6 @@ import {
   fetchFriends,
   fetchInviteInbox,
   fetchInviteOutbox,
-  removeFriend,
   removeFriend,
   unblockUser,
   fetchNotifications,
@@ -254,12 +252,9 @@ function FriendsPageInner() {
     } finally {
       setPendingLoading(false);
     }
-  } finally {
-    setPendingLoading(false);
-  }
-}, [currentCampusId, currentUserId]);
+  }, [currentCampusId, currentUserId]);
 
-const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async () => {
   try {
     const items = await fetchNotifications(currentUserId, currentCampusId);
     setNotifications(items);

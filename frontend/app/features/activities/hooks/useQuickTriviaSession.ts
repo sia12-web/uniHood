@@ -27,6 +27,7 @@ export interface TriviaState {
   };
   tally?: Record<string, { correct: number; wrong: number }>;
   error?: string;
+  leaveReason?: string;
 }
 
 const CORE_BASE = (process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || "/api").replace(/\/$/, "");
@@ -301,6 +302,7 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
               const directWinner = msg.payload?.winnerUserId;
               const tieBreakWinnerUserId = msg.payload?.tieBreak?.winnerUserId || msg.payload?.tieBreakWinnerUserId;
               const resolvedWinner = tieBreakWinnerUserId || directWinner || winnerFromBoard;
+              const leaveReason = msg.payload?.reason === 'opponent_left' ? 'opponent_left' : undefined;
               const shouldShowExpiredMessage = (() => {
                 const snapshot = stateRef.current;
                 return snapshot.phase === "idle" || snapshot.phase === "lobby" || (snapshot.phase as string) === "countdown";
@@ -316,6 +318,7 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
                 tieBreakWinnerUserId,
                 tally: msg.payload?.tally || s.tally,
                 scoreboard: Array.isArray(finalBoard) && finalBoard.length > 0 ? mergeSnapshot(s.scoreboard, finalBoard) : s.scoreboard,
+                leaveReason,
               }));
               return;
             }
@@ -429,7 +432,29 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
   const progress = state.timeLimitMs ? 1 - remainingMs / state.timeLimitMs : 0;
   const countdownRemainingMs = state.countdown ? Math.max(state.countdown.endsAt - Date.now(), 0) : 0;
 
-  return { state, selectOption, toggleReady, progress, countdownRemainingMs, questionMsRemaining: remainingMs, self: selfRef.current };
+  const leave = useCallback(async () => {
+    const sessionId = state.sessionId;
+    const self = selfRef.current;
+    if (!sessionId || !self) return;
+    
+    // Send leave via WebSocket first for immediate feedback
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'leave',
+        payload: { userId: self }
+      }));
+    }
+    
+    // Also call REST API as backup
+    try {
+      await leaveSession(sessionId, self);
+    } catch {
+      // Ignore errors, websocket should handle it
+    }
+  }, [state.sessionId]);
+
+  return { state, selectOption, toggleReady, leave, progress, countdownRemainingMs, questionMsRemaining: remainingMs, self: selfRef.current };
 }
 
 function mergeScore(list: Array<{ userId: string; score: number }>, userId: string, score: number) {

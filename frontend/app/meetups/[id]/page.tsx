@@ -229,6 +229,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                 <div key={p.user_id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
                     {p.avatar_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={p.avatar_url} alt={p.display_name || "User"} className="h-10 w-10 rounded-full object-cover border border-slate-100" />
                     ) : (
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">

@@ -62,7 +62,7 @@ export function ActivityAcceptanceProvider({ children }: ProviderProps) {
           knownActivitiesRef.current.set(activity.id, activity.state);
 
           // Check for transition to active/running
-          const isNowActive = activity.state === "active" || (activity.kind === "story_alt" && activity.state === "running");
+          const isNowActive = activity.state === "active" || (activity.kind === "story_builder" && activity.state === "running");
 
           if (isNowActive && !notifiedRef.current.has(activity.id)) {
             if (prevState === "lobby") {
@@ -71,7 +71,7 @@ export function ActivityAcceptanceProvider({ children }: ProviderProps) {
               let title = "Activity Started";
               let description = "Your friend has joined the game!";
 
-              if (activity.kind === "story_alt") {
+              if (activity.kind === "story_builder") {
                 title = "Story Started";
                 description = "Your friend joined the story. It's time to write!";
               } else if (activity.kind === "typing_duel") {

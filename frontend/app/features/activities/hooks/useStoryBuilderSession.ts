@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { getSelf, resolveActivitiesCoreUrl } from "../api/client";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
 
 export interface StoryParagraph {
     userId: string;
@@ -23,8 +23,11 @@ export interface StoryBuilderState {
     turnOrder: string[];
     turnIndex: number;
     winnerUserId?: string | null;
+    storyPrompt?: { title: string; opening: string };
+    leaveReason?: 'opponent_left' | 'forfeit' | null;
     connected: boolean;
     error?: string;
+    debugUrl?: string;
 }
 
 function resolveSocketUrl(sessionId: string): string | null {
@@ -75,21 +78,32 @@ export function useStoryBuilderSession(sessionId: string) {
 
     useEffect(() => {
         if (!sessionId) return;
+        
         const socketUrl = resolveSocketUrl(sessionId);
         if (!socketUrl) {
             setState((s) => ({ ...s, error: "unresolved_socket" }));
             return;
         }
+        
+        setState(s => ({ ...s, debugUrl: socketUrl }));
         const ws = new WebSocket(socketUrl);
         wsRef.current = ws;
-        setState((s) => ({ ...s, error: undefined }));
 
         ws.onopen = () => {
-            setState((s) => ({ ...s, connected: true }));
+            setState(s => ({ ...s, connected: true, error: undefined }));
+            // Join the story session
             ws.send(JSON.stringify({
                 type: 'join',
                 payload: { userId: selfRef.current }
             }));
+        };
+
+        ws.onerror = () => {
+            setState(s => ({ ...s, error: 'Connection failed' }));
+        };
+
+        ws.onclose = () => {
+            setState(s => ({ ...s, connected: false }));
         };
 
         ws.onmessage = (event) => {
@@ -97,14 +111,12 @@ export function useStoryBuilderSession(sessionId: string) {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'state') {
                     setState(s => ({ ...s, ...msg.payload }));
+                } else if (msg.type === 'story:append') {
+                    console.log('[StoryBuilder] Story appended:', msg.payload);
                 }
             } catch (e) {
                 console.error('Failed to parse message', e);
             }
-        };
-
-        ws.onclose = () => {
-            setState((s) => ({ ...s, connected: false }));
         };
 
         return () => {
@@ -136,11 +148,32 @@ export function useStoryBuilderSession(sessionId: string) {
         }));
     };
 
+    const leave = useCallback(async () => {
+        const selfId = selfRef.current;
+        if (!sessionId || !selfId) return;
+        
+        // Send leave via WebSocket first for immediate feedback
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'leave',
+                payload: { userId: selfId }
+            }));
+        }
+        
+        // Also call REST API as backup
+        try {
+            await leaveSession(sessionId, selfId);
+        } catch {
+            // Ignore errors, websocket should handle it
+        }
+    }, [sessionId]);
+
     return {
         state,
         toggleReady,
         submitParagraph,
         voteParagraph,
+        leave,
         selfId: selfRef.current
     };
 }

@@ -3,12 +3,14 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuickTriviaSession, type TriviaState } from "../hooks/useQuickTriviaSession";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
-import { Trophy, Timer, Zap, Users, CheckCircle2, XCircle, AlertCircle, Clock, Lock } from "lucide-react";
+import { Trophy, Timer, Zap, Users, CheckCircle2, XCircle, AlertCircle, Clock, Lock, LogOut, AlertTriangle } from "lucide-react";
+import { MyPointsBadge } from "./MyPointsBadge";
 
 type QuickTriviaController = {
   state: TriviaState;
   selectOption: (idx: number) => void;
   toggleReady?: (ready: boolean) => void;
+  leave?: () => void;
   progress: number;
   countdownRemainingMs?: number;
   questionMsRemaining?: number;
@@ -21,7 +23,7 @@ type QuickTriviaPanelViewProps = {
 };
 
 export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ controller, onExpired }) => {
-  const { state, selectOption, progress, toggleReady, countdownRemainingMs, questionMsRemaining, self } = controller;
+  const { state, selectOption, progress, toggleReady, leave, countdownRemainingMs, questionMsRemaining, self } = controller;
   const { map: friendIdentities, authUser } = useFriendIdentities();
 
   const countdownSeconds = countdownRemainingMs ? Math.ceil(countdownRemainingMs / 1000) : null;
@@ -97,6 +99,9 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
 
   const renderLobby = () => (
     <div className="space-y-8">
+      <div className="flex justify-center mb-4">
+        <MyPointsBadge />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {scoreCards.map((p) => (
           <div 
@@ -177,6 +182,16 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
               : `Waiting for ${totalParticipants - readyCount} player(s) to ready up`
           }
         </div>
+        
+        {leave && (
+          <button
+            onClick={leave}
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-500 transition-colors mt-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Leave Game
+          </button>
+        )}
       </div>
     </div>
   );
@@ -319,15 +334,30 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
     </div>
   );
 
+  const opponentLeft = state.leaveReason === 'opponent_left';
+
   const renderResults = () => (
     <div className="text-center">
+      {/* Opponent Left Banner */}
+      {opponentLeft && (
+        <div className="mb-6 mx-auto max-w-md flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <div className="text-left">
+            <p className="font-semibold">Your opponent left the game</p>
+            <p className="text-sm text-amber-600">You win by forfeit!</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-amber-600 ring-8 ring-amber-50">
         <Trophy className="h-10 w-10" />
       </div>
       
-      <h2 className="text-3xl font-bold text-slate-900">Trivia Complete!</h2>
+      <h2 className="text-3xl font-bold text-slate-900">
+        {opponentLeft ? "You Win!" : "Trivia Complete!"}
+      </h2>
       
-      {state.tieBreakWinnerUserId ? (
+      {!opponentLeft && state.tieBreakWinnerUserId ? (
         <div className="mt-2 text-lg text-slate-600">
           <span className="font-bold text-amber-600">{resolveName(state.tieBreakWinnerUserId)}</span> won by speed!
           <p className="sr-only">Winner by time advantage: {resolveName(state.tieBreakWinnerUserId)}</p>

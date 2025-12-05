@@ -1,7 +1,7 @@
 import { apiFetch as httpFetch, type ApiFetchOptions } from "@/app/lib/http/client";
 import { io, Socket } from "socket.io-client";
 
-export type ActivityKind = "typing_duel" | "story_alt" | "trivia" | "rps" | "tictactoe";
+export type ActivityKind = "typing_duel" | "story_builder" | "trivia" | "rps" | "tictactoe";
 export type ActivityState = "lobby" | "active" | "running" | "completed" | "cancelled" | "expired";
 export type RoundState = "pending" | "open" | "closed" | "scored";
 

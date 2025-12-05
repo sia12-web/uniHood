@@ -54,6 +54,10 @@ class ActivitiesNamespace(socketio.AsyncNamespace):
 		if not activity_id:
 			return
 		await self.enter_room(sid, self.activity_room(activity_id))
+		
+		# Trigger join logic to send initial state
+		from app.domain.activities.story_builder import manager as story_builder_manager
+		await story_builder_manager.handle_socketio_action(activity_id, user.id, "join", {})
 
 	async def on_activity_leave(self, sid: str, payload: dict) -> None:
 		obs_metrics.socket_event(self.namespace, "activity_leave")
@@ -64,6 +68,22 @@ class ActivitiesNamespace(socketio.AsyncNamespace):
 		if not activity_id:
 			return
 		await self.leave_room(sid, self.activity_room(activity_id))
+
+	async def on_activity_action(self, sid: str, payload: dict) -> None:
+		obs_metrics.socket_event(self.namespace, "activity_action")
+		user = self._sessions.get(sid)
+		if not user:
+			raise ConnectionRefusedError("unauthenticated")
+		
+		activity_id = str(payload.get("activity_id"))
+		action_type = payload.get("type")
+		action_payload = payload.get("payload", {})
+		
+		if not activity_id or not action_type:
+			return
+
+		from app.domain.activities.story_builder import manager as story_builder_manager
+		await story_builder_manager.handle_socketio_action(activity_id, user.id, action_type, action_payload)
 
 	@staticmethod
 	def user_room(user_id: str) -> str:

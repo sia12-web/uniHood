@@ -4,7 +4,7 @@ import axios from 'axios';
 const BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
 
 // Resolve activities-core base URL. Add explicit dev-time debug so we can see when env var is missing.
-const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || '/api';
+const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || 'http://localhost:8000';
 const CORE_BASE = CORE_BASE_RAW.replace(/\/$/, '');
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   // eslint-disable-next-line no-console
@@ -183,7 +183,12 @@ function resolveCore(path: string): string {
 }
 
 export function resolveActivitiesCoreUrl(path: string): string {
-	return resolveCore(path);
+  // If path is for a websocket (starts with /activities/session/), we might need to prepend /api
+  // if CORE_BASE is just a relative path like '/api'
+  if (path.includes('/activities/session/') && CORE_BASE === '/api') {
+    return `/api${path.startsWith('/') ? path : '/' + path}`;
+  }
+  return resolveCore(path);
 }
 
 function buildRequestAuthHeaders(): Record<string, string> {
@@ -323,7 +328,7 @@ export async function createTicTacToeSession(opponentId?: string): Promise<strin
 }
 
 export interface ActivitySummary {
-  id: string; kind: 'typing_duel' | 'story_alt' | 'trivia' | 'rps'; state: string;
+  id: string; kind: 'typing_duel' | 'story_builder' | 'trivia' | 'rps'; state: string;
   user_a: string; user_b: string; meta: Record<string, unknown>; started_at?: string; ended_at?: string;
 }
 
@@ -474,6 +479,45 @@ export async function createRockPaperScissorsSession(peerUserId: string): Promis
       creatorUserId: self,
       participants,
       userId: self,
+    }),
+  });
+}
+
+export async function createStoryBuilderSession(peerUserId: string): Promise<{ sessionId: string }> {
+  const self = getSelf();
+  const peer = (peerUserId || '').trim();
+  if (!peer) {
+    throw new Error('Peer id required');
+  }
+  if (peer === self) {
+    throw new Error('Invite a different user id');
+  }
+  const participants = Array.from(new Set([self, peer]));
+  if (participants.length !== 2) {
+    throw new Error('Two unique participants required');
+  }
+
+  // 1. Create activity on Python backend to generate invite/notification
+  // We use 'story_builder' kind which matches what the backend expects for this flow
+  const backendRes = await api.post(`/activities/with/${peer}`, {
+    kind: 'story_builder',
+    options: {}
+  });
+  const backendId = backendRes.data?.id;
+
+  if (!backendId) {
+    throw new Error('Failed to create backend activity');
+  }
+
+  // 2. Initialize session on activities-core with the same ID
+  return coreRequest<{ sessionId: string }>('/activities/session', {
+    method: 'POST',
+    body: JSON.stringify({
+      activityKey: 'story_builder',
+      creatorUserId: self,
+      participants,
+      userId: self,
+      sessionId: backendId // Pass the backend ID to sync them
     }),
   });
 }

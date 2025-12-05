@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Copy, Check, Heart } from "lucide-react";
 
-import { createActivity } from "@/lib/activities";
+import { createStoryBuilderSession } from "@/app/features/activities/api/client";
 import { fetchFriends } from "@/lib/social";
 import { readAuthUser } from "@/lib/auth-storage";
 import { getDemoUserId, getDemoCampusId } from "@/lib/env";
@@ -61,11 +61,8 @@ function StoryActivityContent() {
     setCreating(true);
     setCreateError(null);
     try {
-      const summary = await createActivity(friendId, {
-        kind: "story_builder",
-        options: {}
-      });
-      router.push(`/activities/story?id=${summary.id}`);
+      const { sessionId } = await createStoryBuilderSession(friendId);
+      router.push(`/activities/story?id=${sessionId}`);
     } catch (err) {
       console.error("Failed to create story", err);
       setCreateError(err instanceof Error ? err.message : "Failed to create story");
@@ -116,10 +113,10 @@ function StoryActivityContent() {
             <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white" />
           </svg>
         </div>
-        
+
         <div className="relative mx-auto max-w-5xl px-6">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -132,11 +129,11 @@ function StoryActivityContent() {
                 <PenTool className="h-4 w-4" />
                 <span>Co-op Writing</span>
               </div>
-              
+
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
                 Story <span className="text-violet-400">Builder</span>
               </h1>
-              
+
               <p className="text-lg leading-8 text-slate-300">
                 Create a unique romantic story together. Take turns writing parts of the narrative and see where your imagination leads.
               </p>
@@ -185,7 +182,7 @@ function StoryActivityContent() {
                       <h2 className="text-sm font-semibold text-slate-900">Active Story</h2>
                       <div className="flex items-center gap-2">
                         <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{activityId}</code>
-                        <button 
+                        <button
                           onClick={copySessionId}
                           className="text-slate-400 hover:text-slate-600"
                           title="Copy Session ID"
@@ -195,7 +192,7 @@ function StoryActivityContent() {
                       </div>
                     </div>
                   </div>
-                  <Link 
+                  <Link
                     href="/activities/story"
                     className="text-xs font-medium text-slate-500 hover:text-slate-800"
                   >
@@ -203,7 +200,7 @@ function StoryActivityContent() {
                   </Link>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <StoryBuilderPanel sessionId={activityId} />
               </div>
@@ -220,7 +217,7 @@ function StoryActivityContent() {
                 <h2 className="text-2xl font-bold">Start a Story</h2>
                 <p className="mt-2 text-violet-100">Begin a new collaborative tale.</p>
               </div>
-              
+
               <div className="p-6">
                 <form onSubmit={handleStartGame} className="space-y-6">
                   <div className="space-y-3">
@@ -306,9 +303,8 @@ function StoryActivityContent() {
             {/* Invite Inbox Card */}
             <div
               ref={inviteCardRef}
-              className={`overflow-hidden rounded-2xl bg-white shadow-lg transition-all hover:shadow-xl ${
-                inviteFocusPulse || invite ? "ring-2 ring-violet-300" : "ring-1 ring-slate-200"
-              }`}
+              className={`overflow-hidden rounded-2xl bg-white shadow-lg transition-all hover:shadow-xl ${inviteFocusPulse || invite ? "ring-2 ring-violet-300" : "ring-1 ring-slate-200"
+                }`}
             >
               <div className="bg-slate-800 px-6 py-8 text-white">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
@@ -317,14 +313,14 @@ function StoryActivityContent() {
                 <h2 className="text-2xl font-bold">Invites</h2>
                 <p className="mt-2 text-slate-400">Join a story in progress.</p>
               </div>
-              
+
               <div className="p-6">
                 {invite ? (
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-6 text-white shadow-lg">
                     <div className="relative z-10">
                       <h3 className="text-lg font-bold">New Story Invite!</h3>
                       <p className="mt-1 text-violet-100">A friend has invited you to write.</p>
-                      
+
                       <div className="mt-6 flex items-center justify-between gap-4">
                         <div className="font-mono text-xs text-violet-200/80">
                           ID: {invite.id.slice(0, 8)}...
@@ -345,7 +341,7 @@ function StoryActivityContent() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Decorative circles */}
                     <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
                     <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />

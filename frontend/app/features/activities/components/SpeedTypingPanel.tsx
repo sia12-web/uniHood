@@ -4,7 +4,8 @@ import { useSpeedTypingSession, type LobbyParticipant } from "../hooks/useSpeedT
 import { attachTypingBoxGuards } from "../guards/typingBoxGuards";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
 import { readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { Trophy, Timer, Users, CheckCircle2, XCircle, Play, AlertCircle } from "lucide-react";
+import { Trophy, Timer, Users, CheckCircle2, XCircle, Play, AlertCircle, LogOut, AlertTriangle } from "lucide-react";
+import { MyPointsBadge } from "./MyPointsBadge";
 
 export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const {
@@ -20,6 +21,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
     toast: sessionToast,
     readyUp,
     unready,
+    leave,
     startCountdown,
     countdown,
     selfUserId,
@@ -163,6 +165,9 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
 
   const renderLobby = () => (
     <div className="space-y-8">
+      <div className="flex justify-center mb-4">
+        <MyPointsBadge />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {participantCards.map((p) => (
           <div 
@@ -253,6 +258,14 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
               : `Waiting for ${totalParticipants - readyCount} player(s) to ready up`
           }
         </div>
+        
+        <button
+          onClick={leave}
+          className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-500 transition-colors mt-2"
+        >
+          <LogOut className="h-4 w-4" />
+          Leave Game
+        </button>
       </div>
     </div>
   );
@@ -400,15 +413,30 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
     </div>
   );
 
+  const opponentLeft = state.leaveReason === 'opponent_left';
+
   const renderResults = () => (
     <div className="text-center">
+      {/* Opponent Left Banner */}
+      {opponentLeft && (
+        <div className="mb-6 mx-auto max-w-md flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <div className="text-left">
+            <p className="font-semibold">Your opponent left the game</p>
+            <p className="text-sm text-amber-600">You win by forfeit!</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
         <Trophy className="h-10 w-10" />
       </div>
       
-      <h2 className="text-3xl font-bold text-slate-900">Duel Complete!</h2>
+      <h2 className="text-3xl font-bold text-slate-900">
+        {opponentLeft ? "You Win!" : "Duel Complete!"}
+      </h2>
       
-      {winnerEntry ? (
+      {!opponentLeft && winnerEntry ? (
         <div className="mt-2 text-lg text-slate-600">
           <span className="font-bold text-emerald-600">{resolveDisplayName(winnerEntry.userId, winnerEntry)}</span> won the match!
         </div>

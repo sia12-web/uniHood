@@ -1,9 +1,11 @@
+import 'dotenv/config';
+console.log('DEBUG: POSTGRES_URL is', process.env.POSTGRES_URL ? 'SET' : 'UNSET');
 import fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import cors from '@fastify/cors';
 import { handleTicTacToeConnection, createTicTacToeSession, getSession, joinSession, leaveSession, setReady, startSession, listSessions as listTicTacToeSessions } from './ws/tictactoe';
-import { handleQuickTriviaConnection, createQuickTriviaSession, listQuickTriviaSessions, getQuickTriviaSession, joinQuickTrivia, setQuickTriviaReady } from './ws/quickTrivia';
-import { handleStoryBuilderConnection, createStoryBuilderSession, listStoryBuilderSessions, getStoryBuilderSession, joinStoryBuilder, setStoryBuilderReady } from './ws/storyBuilder';
+import { handleQuickTriviaConnection, createQuickTriviaSession, listQuickTriviaSessions, getQuickTriviaSession, joinQuickTrivia, setQuickTriviaReady, leaveQuickTrivia } from './ws/quickTrivia';
+import { handleStoryBuilderConnection, createStoryBuilderSession, listStoryBuilderSessions, getStoryBuilderSession, joinStoryBuilder, setStoryBuilderReady, leaveStoryBuilder } from './ws/storyBuilder';
 import { connectDb } from './lib/db';
 import { recordGameResult } from './services/stats';
 
@@ -58,10 +60,12 @@ type GenericSession = {
     scores: Record<string, number>;
     winnerUserId?: string | null;
     moves?: Record<string, string>;
+    leaveReason?: 'opponent_left' | 'forfeit' | null;
 };
 
 const genericSessions: Record<string, GenericSession> = {};
 const genericSockets: Record<string, Set<WebSocket>> = {};
+const genericUserSockets: Record<string, Map<string, WebSocket>> = {}; // sessionId -> userId -> socket
 const GENERIC_COUNTDOWN_MS = 3000;
 const GENERIC_ROUND_DURATION_MS = 30000;
 const GENERIC_SAMPLES: string[] = [
@@ -147,7 +151,7 @@ function broadcastGenericEnded(sessionId: string) {
     if (!session) return;
     const scores = Object.entries(session.scores).map(([userId, score]) => ({ userId, score }));
     const winner = session.winnerUserId || (scores.sort((a, b) => b.score - a.score)[0]?.userId ?? null);
-    
+
     // Record stats
     scores.forEach(({ userId, score }) => {
         const isWinner = userId === winner;
@@ -161,6 +165,7 @@ function broadcastGenericEnded(sessionId: string) {
             sessionId,
             winnerUserId: winner,
             finalScoreboard: { participants: scores },
+            reason: session.leaveReason || undefined,
         },
     };
     const message = JSON.stringify(payload);
@@ -244,6 +249,41 @@ server.register(async function (fastify) {
         socket.addEventListener('message', (evt) => {
             try {
                 const msg = JSON.parse(evt.data.toString());
+                
+                // Handle join to track user-socket mapping
+                if (msg?.type === 'join') {
+                    const userId = msg.payload?.userId;
+                    if (typeof userId === 'string') {
+                        if (!genericUserSockets[sessionId]) genericUserSockets[sessionId] = new Map();
+                        genericUserSockets[sessionId].set(userId, socket);
+                    }
+                }
+                
+                // Handle leave message
+                if (msg?.type === 'leave') {
+                    const userId = msg.payload?.userId;
+                    if (typeof userId === 'string') {
+                        genericUserSockets[sessionId]?.delete(userId);
+                        session.participants = session.participants.filter((p) => p.userId !== userId);
+                        session.lobbyReady = session.participants.every((p) => p.ready);
+                        
+                        if (session.participants.length === 1 && (session.status === 'running' || session.status === 'countdown')) {
+                            session.winnerUserId = session.participants[0].userId;
+                            session.status = 'ended';
+                            session.phase = 'ended';
+                            session.leaveReason = 'opponent_left';
+                            session.scores[session.winnerUserId] = (session.scores[session.winnerUserId] || 0) + 100;
+                            broadcastGenericEnded(sessionId);
+                        } else if (session.participants.length === 0) {
+                            session.status = 'ended';
+                            session.phase = 'ended';
+                            session.leaveReason = 'opponent_left';
+                        } else {
+                            broadcastGenericPresence(sessionId);
+                        }
+                    }
+                }
+                
                 if (msg?.type === 'submit') {
                     const userId = msg.payload?.userId;
                     if (typeof userId === 'string') {
@@ -299,7 +339,7 @@ server.register(async function (fastify) {
                                 session.winnerUserId = userId;
                                 session.status = 'ended';
                                 session.phase = 'ended';
-                                
+
                                 // Calculate Score: WPM + 50 Bonus
                                 const now = Date.now();
                                 const startTime = session.roundStartedAt || session.createdAt;
@@ -322,6 +362,42 @@ server.register(async function (fastify) {
 
         socket.addEventListener('close', () => {
             genericSockets[sessionId]?.delete(socket);
+            
+            // Handle disconnect - find which user this socket belonged to
+            const userMap = genericUserSockets[sessionId];
+            if (userMap) {
+                let disconnectedUserId: string | null = null;
+                for (const [userId, sock] of userMap.entries()) {
+                    if (sock === socket) {
+                        disconnectedUserId = userId;
+                        break;
+                    }
+                }
+                
+                if (disconnectedUserId && session.status !== 'ended') {
+                    console.log(`[Generic] User ${disconnectedUserId} disconnected from session ${sessionId}`);
+                    userMap.delete(disconnectedUserId);
+                    
+                    session.participants = session.participants.filter((p) => p.userId !== disconnectedUserId);
+                    session.lobbyReady = session.participants.every((p) => p.ready);
+                    
+                    // Forfeit if game was in progress
+                    if (session.participants.length === 1 && (session.status === 'running' || session.status === 'countdown')) {
+                        session.winnerUserId = session.participants[0].userId;
+                        session.status = 'ended';
+                        session.phase = 'ended';
+                        session.leaveReason = 'opponent_left';
+                        session.scores[session.winnerUserId] = (session.scores[session.winnerUserId] || 0) + 100;
+                        broadcastGenericEnded(sessionId);
+                    } else if (session.participants.length === 0) {
+                        session.status = 'ended';
+                        session.phase = 'ended';
+                        session.leaveReason = 'opponent_left';
+                    } else {
+                        broadcastGenericPresence(sessionId);
+                    }
+                }
+            }
         });
     });
 
@@ -360,7 +436,7 @@ server.register(async function (fastify) {
         }
 
         if (activityKey === 'story_builder') {
-            const sessionId = createStoryBuilderSession(creatorUserId, participants);
+            const sessionId = createStoryBuilderSession(creatorUserId, participants, (body as any).sessionId);
             return { sessionId };
         }
 
@@ -397,7 +473,7 @@ server.register(async function (fastify) {
         sessions = sessions.concat(listQuickTriviaSessions() as any);
         sessions = sessions.concat(listStoryBuilderSessions() as any);
         sessions = sessions.concat(Object.values(genericSessions));
-        
+
         if (status && status !== 'all') {
             // Map frontend status to internal status
             const statusMap: Record<string, string[]> = {
@@ -408,7 +484,7 @@ server.register(async function (fastify) {
             const allowedStatuses = statusMap[status] || [status];
             sessions = sessions.filter(s => allowedStatuses.includes((s as any).status));
         }
-        
+
         return {
             sessions: sessions.map((s) => {
                 if ((s as any).activityKey === 'tictactoe') {
@@ -530,24 +606,57 @@ server.register(async function (fastify) {
         const userId = body?.userId || 'anonymous';
 
         try {
-            leaveSession(sessionId, userId);
+            // Check TicTacToe first
+            const ttt = getSession(sessionId);
+            if (ttt) {
+                const result = leaveSession(sessionId, userId);
+                return { success: true, sessionEnded: result.sessionEnded, winnerUserId: result.winnerUserId };
+            }
+
+            // Check Quick Trivia
+            const qt = getQuickTriviaSession(sessionId);
+            if (qt) {
+                const result = leaveQuickTrivia(sessionId, userId);
+                return { success: true, sessionEnded: result.sessionEnded, winnerUserId: result.winnerUserId };
+            }
+
+            // Check Story Builder
+            const sb = getStoryBuilderSession(sessionId);
+            if (sb) {
+                const result = leaveStoryBuilder(sessionId, userId);
+                return { success: true, sessionEnded: result.sessionEnded, winnerUserId: result.winnerUserId };
+            }
+
+            // Check generic sessions
             const generic = genericSessions[sessionId];
             if (generic) {
+                // Remove from user-socket tracking
+                genericUserSockets[sessionId]?.delete(userId);
+                
                 generic.participants = generic.participants.filter((p) => p.userId !== userId);
                 generic.lobbyReady = generic.participants.every((p) => p.ready);
-                // If only one participant remains, declare them winner
-                if (generic.participants.length === 1 && generic.status !== 'ended') {
+                
+                // If game was in progress and only one participant remains, declare them winner by forfeit
+                if (generic.participants.length === 1 && (generic.status === 'running' || generic.status === 'countdown')) {
                     generic.winnerUserId = generic.participants[0].userId;
                     generic.status = 'ended';
                     generic.phase = 'ended';
-                    generic.scores[generic.winnerUserId] = generic.scores[generic.winnerUserId] || 1;
+                    generic.leaveReason = 'opponent_left';
+                    generic.scores[generic.winnerUserId] = (generic.scores[generic.winnerUserId] || 0) + 100; // Forfeit bonus
                     broadcastGenericEnded(sessionId);
+                    return { success: true, sessionEnded: true, winnerUserId: generic.winnerUserId };
+                } else if (generic.participants.length === 0) {
+                    generic.status = 'ended';
+                    generic.phase = 'ended';
+                    generic.leaveReason = 'opponent_left';
+                    return { success: true, sessionEnded: true };
                 } else {
                     broadcastGenericPresence(sessionId);
                 }
-                return { success: true };
+                return { success: true, sessionEnded: false };
             }
-            return { success: true };
+
+            return reply.status(404).send({ error: 'session_not_found' });
         } catch (e) {
             const message = e instanceof Error ? e.message : 'leave_failed';
             return reply.status(400).send({ error: message });

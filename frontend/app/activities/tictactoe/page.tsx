@@ -46,7 +46,7 @@ export default function TicTacToeEntryPage() {
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
 
   const { invite, acknowledge } = useTicTacToeInvite();
-  const { state, makeMove, restartGame, toggleReady } = useTicTacToeSession(sessionId ?? "");
+  const { state, makeMove, restartGame, toggleReady, leave } = useTicTacToeSession(sessionId ?? "");
 
   useEffect(() => {
     const auth = readAuthUser();
@@ -203,7 +203,7 @@ export default function TicTacToeEntryPage() {
                   <span className="font-mono text-xs text-slate-400">ID: {sessionId}</span>
                 </div>
                 <div className="p-4 sm:p-6">
-                  <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} playerNames={playerNames} />
+                  <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} onLeave={leave} playerNames={playerNames} />
                 </div>
               </div>
             ) : (

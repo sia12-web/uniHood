@@ -22,7 +22,7 @@ const DEMO_CAMPUS_ID = getDemoCampusId();
 
 const DEFAULT_OPTIONS: Record<ActivityKind, ActivityOptions> = {
   typing_duel: { typing: { duration_s: 60 } },
-  story_alt: { story: { turns: 4, turn_seconds: 45, max_chars_per_turn: 320 } },
+  story_builder: { story: { turns: 4, turn_seconds: 45, max_chars_per_turn: 320 } },
   trivia: { trivia: { questions: 3, per_question_s: 12 } },
   rps: { rps: { best_of: 3 } },
   tictactoe: { tictactoe: { time_limit_s: 300 } },
@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS: Record<ActivityKind, ActivityOptions> = {
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   typing_duel: "Typing Duel",
-  story_alt: "Story Tag",
+  story_builder: "Story Tag",
   trivia: "Trivia",
   rps: "Rock · Paper · Scissors",
   tictactoe: "Tic-Tac-Toe",
@@ -40,8 +40,8 @@ function resolveMatchPath(activity: ActivitySummary): string {
   switch (activity.kind) {
     case "typing_duel":
       return `/activities/typing/${activity.id}`;
-    case "story_alt":
-      return `/activities/story/${activity.id}`;
+    case "story_builder":
+      return `/activities/story?id=${activity.id}`;
     case "trivia":
       return `/activities/trivia/${activity.id}`;
     case "rps":
@@ -139,7 +139,7 @@ export default function PeerActivityPage({ params }: Props) {
   );
 
   const creationButtons = useMemo(() => {
-    const kinds: ActivityKind[] = ["typing_duel", "story_alt", "trivia", "rps", "tictactoe"];
+    const kinds: ActivityKind[] = ["typing_duel", "story_builder", "trivia", "rps", "tictactoe"];
     return kinds.map((kind) => (
       <button
         key={kind}

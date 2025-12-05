@@ -25,6 +25,7 @@ from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
 from app.api.pagination import encode_cursor
+from app.domain.leaderboards.service import LeaderboardService
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
 	from app.moderation.middleware.write_gate_v2 import WriteContext
@@ -443,6 +444,12 @@ class ChatService:
 				"source": "send",
 			},
 		)
+		# Track DM for leaderboard (non-blocking, anti-cheat validated)
+		try:
+			lb_service = LeaderboardService()
+			await lb_service.record_dm_sent(str(auth_user.id), str(payload.to_user_id))
+		except Exception:
+			pass  # Non-critical, don't block message send
 		return response
 
 	async def get_message(self, auth_user: AuthenticatedUser, message_id: str) -> MessageResponse:

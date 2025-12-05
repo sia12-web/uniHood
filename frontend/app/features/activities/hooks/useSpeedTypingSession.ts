@@ -66,6 +66,7 @@ export type SessionState = {
 	rttMs?: number;
 	connectionQuality?: ConnectionQuality;
 	error?: string;
+	leaveReason?: 'opponent_left' | 'forfeit' | null;
 };
 
 export type UseSpeedTypingOptions = {
@@ -125,6 +126,7 @@ type SessionEndedPayload = {
 		winnerUserId?: string;
 	};
 	winnerUserId?: string;
+	reason?: 'opponent_left' | 'forfeit';
 };
 
 type PresenceEventPayload = {
@@ -421,6 +423,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 			scoreboard: payload.finalScoreboard
 				? mergeScoreboard(prev.scoreboard, payload.finalScoreboard.participants)
 				: prev.scoreboard,
+			leaveReason: payload.reason === 'opponent_left' ? 'opponent_left' : undefined,
 		}));
 	}, []);
 
@@ -965,6 +968,28 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		await markReady(false);
 	}, [markReady]);
 
+	const leave = useCallback(async () => {
+		const id = sessionIdRef.current;
+		const selfId = selfUserIdRef.current;
+		if (!id || !selfId) return;
+		
+		// Send leave via WebSocket first for immediate feedback
+		const ws = wsRef.current;
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({
+				type: 'leave',
+				payload: { userId: selfId }
+			}));
+		}
+		
+		// Also call REST API as backup
+		try {
+			await leaveSession(id, selfId);
+		} catch {
+			// Ignore errors, websocket should handle it
+		}
+	}, []);
+
 	const startCountdown = useCallback(async () => {
 		const id = sessionIdRef.current;
 		if (!id) {
@@ -1047,6 +1072,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		markPasteDetected,
 		readyUp,
 		unready,
+		leave,
 		startCountdown,
 		textSample,
 		timeLimitMs,

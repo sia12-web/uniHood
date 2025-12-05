@@ -22,7 +22,7 @@ export default function ActivitiesPage() {
         }
     }, []);
 
-    const { state, makeMove, restartGame, toggleReady } = useTicTacToeSession(matchId);
+    const { state, makeMove, restartGame, toggleReady, leave } = useTicTacToeSession(matchId);
 
     if (!matchId) {
         return (
@@ -35,7 +35,7 @@ export default function ActivitiesPage() {
     return (
         <main className="min-h-screen bg-[#0c0b16] flex items-center justify-center p-4 relative overflow-hidden">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,211,238,0.1),transparent_50%)]" />
-            <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} />
+            <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} onLeave={leave} />
         </main>
     );
 }

@@ -13,6 +13,7 @@ from app.domain.rooms import service as room_service
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.domain.social import notifications
+from app.domain.leaderboards.service import LeaderboardService
 
 
 
@@ -122,6 +123,13 @@ class MeetupService:
                     schemas.MeetupRole.HOST,
                     schemas.MeetupParticipantStatus.JOINED
                 )
+        
+        # Track meetup creation for leaderboard (non-blocking, anti-cheat validated)
+        try:
+            lb_service = LeaderboardService()
+            await lb_service.record_room_created(user_id=auth_user.id, room_id=str(room.id))
+        except Exception:
+            pass  # Non-critical, don't block meetup creation
                 
         return self._map_row_to_response(row, auth_user.id, is_joined=True, my_role=schemas.MeetupRole.HOST)
 
@@ -324,6 +332,13 @@ class MeetupService:
                     joined_at=datetime.now(timezone.utc)
                 )
                 await self._room_service.add_member(room, member)
+            
+            # Track meetup join for leaderboard (non-blocking, anti-cheat validated)
+            try:
+                lb_service = LeaderboardService()
+                await lb_service.record_room_joined(user_id=auth_user.id, room_id=room_id)
+            except Exception:
+                pass  # Non-critical, don't block meetup join
 
         # Notify host
         creator_id = str(meetup["creator_user_id"])
@@ -339,11 +354,21 @@ class MeetupService:
 
     async def leave_meetup(self, meetup_id: UUID, auth_user: AuthenticatedUser) -> None:
         pool = await self._get_pool()
+        attendee_count = 0
+        room_id = None
         
         async with pool.acquire() as conn:
             meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
             if not meetup:
                 raise HTTPException(status_code=404, detail="Meetup not found")
+            
+            room_id = str(meetup["room_id"]) if meetup["room_id"] else None
+            
+            # Get current attendee count before leaving
+            attendee_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM meetup_participants WHERE meetup_id = $1 AND status = 'JOINED'",
+                meetup_id
+            )
                 
             async with conn.transaction():
                 await conn.execute(
@@ -356,14 +381,25 @@ class MeetupService:
                 )
                 
         # Remove from room
-        if meetup["room_id"]:
-            room_id = str(meetup["room_id"])
+        if room_id:
             room = await self._room_service.get_room(room_id)
             if room:
                 await self._room_service.remove_member(room, str(auth_user.id))
+            
+            # Track meetup leave for leaderboard (awards points if stayed long enough)
+            try:
+                lb_service = LeaderboardService()
+                await lb_service.record_room_left(
+                    user_id=auth_user.id,
+                    room_id=room_id,
+                    attendee_count=attendee_count,
+                )
+            except Exception:
+                pass  # Non-critical, don't block meetup leave
 
     async def cancel_meetup(self, meetup_id: UUID, reason: str, auth_user: AuthenticatedUser) -> None:
         pool = await self._get_pool()
+        room_id = None
         
         async with pool.acquire() as conn:
             meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
@@ -372,6 +408,8 @@ class MeetupService:
                 
             if str(meetup["creator_user_id"]) != str(auth_user.id):
                 raise HTTPException(status_code=403, detail="Only host can cancel meetup")
+            
+            room_id = str(meetup["room_id"]) if meetup["room_id"] else None
                 
             await conn.execute(
                 """
@@ -381,6 +419,17 @@ class MeetupService:
                 """,
                 meetup_id, reason
             )
+        
+        # Track meetup cancellation for leaderboard (may remove points if cancelled too quickly)
+        if room_id:
+            try:
+                lb_service = LeaderboardService()
+                await lb_service.record_room_cancelled(
+                    user_id=auth_user.id,
+                    room_id=room_id,
+                )
+            except Exception:
+                pass  # Non-critical, don't block cancellation
 
     def _map_row_to_response(
         self, row: dict, current_user_id: UUID, is_joined: bool, my_role: Optional[str]

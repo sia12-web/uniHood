@@ -1,0 +1,34 @@
+﻿node.exe : [33mThe CJS 
+build of Vite's Node API is 
+deprecated. See https://vite
+.dev/guide/troubleshooting.h
+tml#vite-cjs-node-api-deprec
+ated for more details.[39m
+At C:\Program 
+Files\nodejs\npx.ps1:29 
+char:3
++   & $NODE_EXE $NPX_CLI_JS 
+$args
++   ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo          
+    : NotSpecified: ([33m  
+  The CJS bu...e details.   
+ [39m:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/shahb/OneDrive/Desktop/Divan/frontend[39m
+
+[90mstdout[2m | app\features\activities\api\client.ts:11:11[22m[39m
+[activities-core] resolved CORE_BASE = http://localhost:8000 (raw: http://localhost:8000 )
+
+ [32mΓ£ô[39m __tests__/activities.api.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 32[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 14:06:06
+[2m   Duration [22m 25.83s[2m (transform 7.43s, setup 5.50s, collect 4.55s, tests 32ms, environment 7.55s, prepare 1.51s)[22m
+

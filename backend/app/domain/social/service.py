@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Sequence
 from uuid import UUID, uuid4
@@ -18,6 +19,10 @@ from app.domain.social.exceptions import (
 from app.domain.social.models import INVITE_EXPIRES_DAYS, InvitationStatus
 from app.domain.social.schemas import FriendRow, FriendUpdatePayload, InviteSummary, InviteUpdatePayload
 from app.infra.auth import AuthenticatedUser
+from app.domain.leaderboards.service import LeaderboardService
+
+logger = logging.getLogger(__name__)
+_leaderboards = LeaderboardService()
 from app.infra.postgres import get_pool
 from datetime import datetime
 from typing import Tuple, Optional
@@ -254,6 +259,16 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 			)
 		# Summarize while the connection is still held to avoid using a released connection
 		summary = await _summarize_invite(conn, updated["id"])
+	
+	# Record friendship for leaderboard scoring (with anti-cheat)
+	try:
+		await _leaderboards.record_friendship_accepted(
+			user_a=str(summary.from_user_id),
+			user_b=str(summary.to_user_id),
+		)
+	except Exception:
+		logger.exception("Failed to record friendship for leaderboards")
+	
 	audit.inc_invite_accept()
 	await audit.log_invite_event(
 		"accepted",

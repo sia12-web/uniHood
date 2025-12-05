@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { getSelf, resolveActivitiesCoreUrl } from "../api/client";
+import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
 
 export interface TicTacToeState {
     board: (string | null)[];
@@ -18,6 +18,7 @@ export interface TicTacToeState {
     roundIndex?: number;
     lastRoundWinner?: string | null;
     matchWinner?: string | null;
+    leaveReason?: string;
 }
 
 function resolveSocketUrl(sessionId: string): string | null {
@@ -139,5 +140,25 @@ export function useTicTacToeSession(sessionId: string) {
         }
     }, []);
 
-    return { state, makeMove, restartGame, toggleReady, self: selfRef.current };
+    const leave = useCallback(async () => {
+        const selfId = selfRef.current;
+        if (!sessionId || !selfId) return;
+        
+        // Send leave via WebSocket first for immediate feedback
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'leave',
+                payload: { userId: selfId }
+            }));
+        }
+        
+        // Also call REST API as backup
+        try {
+            await leaveSession(sessionId, selfId);
+        } catch {
+            // Ignore errors, websocket should handle it
+        }
+    }, [sessionId]);
+
+    return { state, makeMove, restartGame, toggleReady, leave, self: selfRef.current };
 }

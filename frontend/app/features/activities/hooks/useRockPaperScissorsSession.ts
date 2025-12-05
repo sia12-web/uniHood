@@ -24,6 +24,7 @@ export interface RockPaperScissorsState {
   lastRoundReason?: string;
   submittedMove?: RpsChoice | null;
   error?: string;
+  leaveReason?: 'opponent_left' | 'forfeit' | null;
 }
 
 const CORE_BASE = (process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || "/api").replace(/\/$/, "");
@@ -285,6 +286,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                 scoreboard: payload.payload?.finalScoreboard?.participants
                   ? payload.payload.finalScoreboard.participants.map((entry: ScoreEntry) => ({ userId: entry.userId, score: entry.score })).sort(compareScoreDesc)
                   : prev.scoreboard,
+                leaveReason: payload.payload?.leaveReason ?? null,
               }));
               return;
             }
@@ -382,13 +384,36 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     [],
   );
 
+  const leave = useCallback(async () => {
+    const sessionId = sessionIdRef.current;
+    const selfId = selfIdRef.current;
+    if (!sessionId || !selfId) return;
+    
+    // Send leave via WebSocket first for immediate feedback
+    const socket = wsRef.current;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'leave',
+        payload: { userId: selfId }
+      }));
+    }
+    
+    // Also call REST API as backup
+    try {
+      await leaveSession(sessionId, selfId);
+    } catch {
+      // Ignore errors, websocket should handle it
+    }
+  }, []);
+
   return useMemo(
     () => ({
       state,
       readyUp,
       unready,
       submitMove,
+      leave,
     }),
-    [state, readyUp, unready, submitMove],
+    [state, readyUp, unready, submitMove, leave],
   );
 }

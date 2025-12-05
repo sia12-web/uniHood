@@ -670,14 +670,63 @@ class ActivitiesService:
 		if winner_id is None and scoreboard is not None:
 			winner_id = _winner_from_scoreboard(scoreboard)
 		campus_map = activity.meta.get("campus_map") or {}
+		
+		# Calculate game duration for anti-cheat validation
+		duration_seconds = 60  # Default
+		if activity.started_at and activity.ended_at:
+			duration_seconds = int((activity.ended_at - activity.started_at).total_seconds())
+		
+		# Calculate move count from activity rounds/submissions
+		move_count = await self._get_activity_move_count(activity)
+		
 		try:
 			await self._leaderboards.record_activity_outcome(
 				user_ids=user_ids,
 				winner_id=winner_id,
 				campus_map=campus_map,
+				duration_seconds=duration_seconds,
+				move_count=move_count,
 			)
 		except Exception:
 			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})
+
+	async def _get_activity_move_count(self, activity: models.Activity) -> int:
+		"""Calculate the number of meaningful moves/actions in an activity."""
+		kind = activity.kind
+		
+		if kind == models.ActivityKind.TICTACTOE:
+			# Count board moves from meta
+			board = activity.meta.get("board", [])
+			return sum(1 for cell in board if cell is not None and cell != "")
+		
+		elif kind == models.ActivityKind.TYPING_DUEL:
+			# Count typing submissions
+			rounds = await self._store.list_rounds(activity.id)
+			if not rounds:
+				return 0
+			submissions = await self._store.list_typing_submissions(rounds[-1].id)
+			return len(submissions)
+		
+		elif kind == models.ActivityKind.STORY_BUILDER:
+			# Count story lines
+			lines = await self._store.list_story_lines(activity.id)
+			return len(lines)
+		
+		elif kind == models.ActivityKind.QUICK_TRIVIA:
+			# Count trivia answers
+			rounds = await self._store.list_rounds(activity.id)
+			total_answers = 0
+			for r in rounds:
+				answers = await self._store.list_trivia_answers(r.id)
+				total_answers += len(answers)
+			return total_answers
+		
+		elif kind == models.ActivityKind.RPS:
+			# Count RPS rounds played
+			rounds = await self._store.list_rounds(activity.id)
+			return len(rounds)
+		
+		return 10  # Default fallback
 
 	def _normalize_meta(
 		self,
@@ -940,7 +989,7 @@ class ActivitiesService:
 		rounds: List[models.ActivityRound]
 		if activity.kind == "typing_duel":
 			rounds = await self._start_typing(activity)
-		elif activity.kind == "story_alt":
+		elif activity.kind == "story_builder":
 			rounds = await self._start_story(activity)
 		elif activity.kind == "trivia":
 			rounds = await self._start_trivia(activity)
@@ -968,7 +1017,7 @@ class ActivitiesService:
 		activity = await self._require_activity(activity_id)
 		self._ensure_participant(activity, auth_user.id)
 		rounds = await self._repo.list_rounds(activity.id)
-		if activity.kind == "story_alt":
+		if activity.kind == "story_builder":
 			lines = await self._repo.list_story_lines(activity.id)
 			activity.meta.setdefault("story", {})["lines"] = [
 				{
@@ -1034,6 +1083,86 @@ class ActivitiesService:
 			)
 			await self._record_leaderboard_outcome(activity, scoreboard)
 			return scoreboard
+		enriched = _scoreboard_from_activity(activity)
+		await self._populate_scoreboard_participants(activity, enriched)
+		return enriched
+
+	async def submit_trivia(self, auth_user: AuthenticatedUser, payload: schemas.TriviaAnswerRequest) -> models.ScoreBoard:
+		await policy.enforce_action_limit(auth_user.id)
+		activity = await self._require_activity(payload.activity_id)
+		self._ensure_participant(activity, auth_user.id)
+		policy.ensure_state(activity, "active")
+		round_obj = await self._repo.get_round(activity.id, payload.round_idx)
+		if round_obj is None:
+			raise policy.ActivityPolicyError("round_not_found", status_code=404)
+		policy.ensure_round_state(round_obj, "open")
+		
+		answer = models.TriviaAnswer(
+			round_id=round_obj.id,
+			user_id=auth_user.id,
+			choice_idx=payload.choice_idx,
+			latency_ms=0,
+			created_at=_now(),
+		)
+		await self._repo.upsert_trivia_answer(answer)
+		
+		answers = await self._repo.list_trivia_answers(round_obj.id)
+		participants = set(activity.participants())
+		
+		if {ans.user_id for ans in answers} == participants:
+			scoreboard = _scoreboard_from_activity(activity)
+			correct_idx = int(round_obj.meta.get("correct_idx", -1))
+			
+			for ans in answers:
+				score = 10.0 if ans.choice_idx == correct_idx else 0.0
+				scoreboard.add_score(round_obj.idx, ans.user_id, score)
+				
+			await self._populate_scoreboard_participants(activity, scoreboard)
+			_store_scoreboard(activity, scoreboard)
+			
+			round_obj.state = "scored"
+			round_obj.closed_at = _now()
+			await self._persist_round(round_obj)
+			
+			questions = activity.meta.get("trivia", {}).get("questions", [])
+			if round_obj.idx >= len(questions):
+				activity.state = "completed"
+				activity.ended_at = _now()
+				await self._persist(activity)
+				payload_score = scoreboard.to_payload()
+				await sockets.emit_score_update(activity.id, payload_score)
+				await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
+				await outbox.append_score_event(activity_id=activity.id, kind=activity.kind, result=payload_score)
+				await outbox.append_activity_event(
+					"activity_completed",
+					activity_id=activity.id,
+					kind=activity.kind,
+					user_id=auth_user.id,
+				)
+				await self._record_leaderboard_outcome(activity, scoreboard)
+			else:
+				next_idx = round_obj.idx + 1
+				next_round = await self._repo.get_round(activity.id, next_idx)
+				if next_round:
+					next_round.state = "open"
+					next_round.opened_at = _now()
+					await self._persist_round(next_round)
+					per_question = int(activity.meta.get("trivia", {}).get("per_question_s", 10))
+					await timers.set_round_timer(activity.id, next_idx, per_question)
+					await sockets.emit_round_open(
+						activity.id,
+						{
+							"activity_id": activity.id,
+							"round_idx": next_idx,
+							"prompt": next_round.meta.get("prompt"),
+							"options": next_round.meta.get("options"),
+							"close_at_ms": int((_now().timestamp() + per_question) * 1000),
+						},
+					)
+				payload_score = scoreboard.to_payload()
+				await sockets.emit_score_update(activity.id, payload_score)
+			return scoreboard
+			
 		enriched = _scoreboard_from_activity(activity)
 		await self._populate_scoreboard_participants(activity, enriched)
 		return enriched

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { Swords, Trophy, Users, Scissors, FileText, Circle, Check, AlertCircle } from "lucide-react";
+import { Swords, Trophy, Users, Scissors, FileText, Circle, Check, AlertCircle, LogOut } from "lucide-react";
 
 import { getSelf } from "@/app/features/activities/api/client";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
 import { useRockPaperScissorsSession, type RpsChoice } from "../hooks/useRockPaperScissorsSession";
+import { MyPointsBadge } from "./MyPointsBadge";
 
 type Props = {
   sessionId?: string;
@@ -33,7 +34,7 @@ const MOVES: Record<RpsChoice, { label: string; icon: React.ElementType; color: 
 };
 
 export function RockPaperScissorsPanel({ sessionId }: Props) {
-  const { state, readyUp, unready, submitMove } = useRockPaperScissorsSession({ sessionId });
+  const { state, readyUp, unready, submitMove, leave } = useRockPaperScissorsSession({ sessionId });
   const { map: friendIdentities, authUser } = useFriendIdentities();
   const selfId = useMemo(() => getSelf(), []);
   
@@ -55,6 +56,9 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   // Render Helpers
   const renderLobby = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="mb-6">
+        <MyPointsBadge />
+      </div>
       <div className="mb-6 flex items-center justify-center gap-8">
         {/* Self */}
         <div className="flex flex-col items-center gap-3">
@@ -126,6 +130,14 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
         }`}
       >
         {isReady ? "Cancel Ready" : "Ready Up"}
+      </button>
+
+      <button
+        onClick={leave}
+        className="mt-4 flex items-center gap-2 rounded-full bg-slate-100 px-6 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-200"
+      >
+        <LogOut className="h-4 w-4" />
+        Leave Session
       </button>
     </div>
   );
@@ -212,9 +224,17 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     
     const isWinner = state.winnerUserId === selfId;
     const isDraw = !state.winnerUserId;
+    const opponentLeft = state.leaveReason === "opponent_left";
     
     return (
       <div className="py-8 text-center">
+        {opponentLeft && (
+          <div className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-amber-50 p-4 text-amber-700">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Your opponent left the game. You win!</span>
+          </div>
+        )}
+
         <div className="mb-8">
           {isWinner ? (
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">

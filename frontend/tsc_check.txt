@@ -1,0 +1,8 @@
+﻿.next/types/app/(identity)/settings/profile/page.ts(28,13): error TS2344: Type 'OmitWithTag<{ embedded?: boolean | undefined; }, keyof PageProps, "default">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'embedded' is incompatible with index signature.
+    Type 'boolean' is not assignable to type 'never'.
+.next/types/app/(identity)/settings/profile/page.ts(28,29): error TS2559: Type '{ embedded?: boolean | undefined; }' has no properties in common with type 'PageProps'.
+app/(social)/friends/page.tsx(128,76): error TS2345: Argument of type 'FriendFilter' is not assignable to parameter of type '"pending" | "accepted" | "blocked" | undefined'.
+  Type '"notifications"' is not assignable to type '"pending" | "accepted" | "blocked" | undefined'.
+app/features/activities/components/TicTacToeBoard.tsx(114,59): error TS7053: Element implicitly has an 'any' type because expression of type '"" | "X" | "O" | "spectator"' can't be used to index type '{ X?: string | undefined; O?: string | undefined; }'.
+  Property '' does not exist on type '{ X?: string | undefined; O?: string | undefined; }'.

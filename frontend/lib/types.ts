@@ -54,7 +54,7 @@ export type FriendRow = {
   friend_display_name?: string | null;
 };
 
-export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity" | "tictactoe" | "typing_duel" | "trivia" | "rps" | "story_alt";
+export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity" | "tictactoe" | "typing_duel" | "trivia" | "rps" | "story_builder";
 
 export type LeaderboardPeriod = "daily" | "weekly" | "monthly";
 

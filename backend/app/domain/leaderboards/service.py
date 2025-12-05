@@ -100,6 +100,128 @@ class LeaderboardService:
 			overall=overall,
 		)
 
+	# =========================================================================
+	# ANTI-CHEAT AWARE RECORDING METHODS
+	# =========================================================================
+
+	async def record_activity_outcome(
+		self,
+		*,
+		user_ids: List[str],
+		winner_id: Optional[str] = None,
+		campus_map: Optional[Dict[str, str]] = None,
+		duration_seconds: int = 60,  # Default to 60s if not provided
+		move_count: int = 10,        # Default to 10 moves if not provided
+	) -> List[str]:
+		"""
+		Record game/activity outcome with anti-cheat validation.
+		Returns list of user IDs that actually received points.
+		"""
+		# Cache campus mappings for users
+		campus_map = campus_map or {}
+		for uid in user_ids:
+			cid = campus_map.get(uid)
+			if cid:
+				await cache_user_campus(uid, cid)
+		
+		# Delegate to accrual with anti-cheat checks
+		return await self._accrual.record_activity_ended(
+			user_ids=user_ids,
+			winner_id=winner_id,
+			duration_seconds=duration_seconds,
+			move_count=move_count,
+		)
+
+	async def record_dm_sent(
+		self,
+		*,
+		from_user_id: str,
+		to_user_id: str,
+	) -> bool:
+		"""
+		Record DM sent with anti-cheat validation.
+		Returns True if points were awarded, False if blocked.
+		"""
+		return await self._accrual.record_dm_sent(
+			from_user_id=from_user_id,
+			to_user_id=to_user_id,
+		)
+
+	async def record_friendship_accepted(
+		self,
+		*,
+		user_a: str,
+		user_b: str,
+	) -> bool:
+		"""
+		Record new friendship with anti-cheat validation.
+		Returns True if points were awarded, False if blocked.
+		"""
+		return await self._accrual.record_friendship_accepted(
+			user_a=user_a,
+			user_b=user_b,
+		)
+
+	async def record_room_created(
+		self,
+		*,
+		user_id: str,
+		room_id: str,
+	) -> None:
+		"""Record meetup/room creation for tracking."""
+		await self._accrual.record_room_created(
+			user_id=user_id,
+			room_id=room_id,
+		)
+
+	async def record_room_cancelled(
+		self,
+		*,
+		user_id: str,
+		room_id: str,
+	) -> None:
+		"""Record meetup/room cancellation - may remove points."""
+		await self._accrual.record_room_cancelled(
+			user_id=user_id,
+			room_id=room_id,
+		)
+
+	async def record_room_joined(
+		self,
+		*,
+		user_id: str,
+		room_id: str,
+	) -> bool:
+		"""
+		Record when user joins a meetup/room.
+		Points are awarded when user leaves (if they stayed long enough).
+		Returns True if join was recorded, False if blocked.
+		"""
+		return await self._accrual.record_room_joined(
+			user_id=user_id,
+			room_id=room_id,
+		)
+
+	async def record_room_left(
+		self,
+		*,
+		user_id: str,
+		room_id: str,
+		attendee_count: int = 0,
+	) -> bool:
+		"""
+		Record when user leaves a meetup/room.
+		Awards join points only if user stayed long enough and room had enough attendees.
+		Returns True if points were awarded, False otherwise.
+		"""
+		return await self._accrual.record_room_left(
+			user_id=user_id,
+			room_id=room_id,
+			attendee_count=attendee_count,
+		)
+
+	# =========================================================================
+
 	async def _update_streak(
 		self,
 		conn: asyncpg.Connection,

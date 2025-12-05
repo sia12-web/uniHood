@@ -620,7 +620,7 @@ export default function HomePage() {
             </header>
 
             {/* Stats Overview Row */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* Friends Stat */}
               <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="flex items-center justify-between">
@@ -662,29 +662,6 @@ export default function HomePage() {
                   {inboundPending > 0 ? "Review requests →" : "All caught up"}
                 </div>
               </button>
-
-              {/* Network Score Stat */}
-              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Social Score</p>
-                    <Link
-                      href="/leaderboards"
-                      className="flex items-center justify-center h-6 w-6 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                      title="View Leaderboard"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
-                      </svg>
-                    </Link>
-                  </div>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{activitySnapshot.socialScore}</p>
-                  <p className="mt-1 text-xs text-slate-500">Top 15% on campus</p>
-                </div>
-                <div className="h-20 w-20">
-                  <NetworkProgressCircle score={activitySnapshot.socialScore} size={80} strokeWidth={6} />
-                </div>
-              </div>
             </div>
 
             {/* Compact Live Discovery */}

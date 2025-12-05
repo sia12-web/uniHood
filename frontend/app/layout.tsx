@@ -7,13 +7,16 @@ import AppChrome from "@/components/AppChrome";
 export const metadata: Metadata = {
   title: "Divan",
   description: "Phase 1 proximity core UI",
-  icons: [],
+  icons: {
+    icon: "data:image/x-icon;base64,",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="data:," />
         <Script id="boot-flags" strategy="beforeInteractive">
           {`
             (function() {

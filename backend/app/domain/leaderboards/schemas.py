@@ -14,6 +14,8 @@ class LeaderboardRowSchema(BaseModel):
 	rank: int = Field(..., ge=1)
 	user_id: UUID
 	score: float
+	display_name: Optional[str] = None
+	handle: Optional[str] = None
 
 
 class LeaderboardResponseSchema(BaseModel):

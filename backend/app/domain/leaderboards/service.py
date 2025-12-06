@@ -504,7 +504,21 @@ class LeaderboardService:
 		items = await self._redis.zrevrange(key, 0, limit - 1, withscores=True)
 		if not items:
 			items = await self._fallback_query(scope, period, campus_id, ymd, limit)
-		rows = [LeaderboardRowSchema(rank=idx + 1, user_id=UUID(user_id), score=float(score)) for idx, (user_id, score) in enumerate(items)]
+		
+		# Fetch display names for all users
+		user_ids = [user_id for user_id, _ in items]
+		user_info = await self._fetch_user_display_names(user_ids)
+		
+		rows = [
+			LeaderboardRowSchema(
+				rank=idx + 1, 
+				user_id=UUID(user_id), 
+				score=float(score),
+				display_name=user_info.get(user_id, {}).get("display_name"),
+				handle=user_info.get(user_id, {}).get("handle"),
+			) 
+			for idx, (user_id, score) in enumerate(items)
+		]
 		return LeaderboardResponseSchema(
 			scope=scope,
 			period=period,
@@ -512,6 +526,28 @@ class LeaderboardService:
 			campus_id=campus_id,
 			items=rows,
 		)
+
+	async def _fetch_user_display_names(self, user_ids: List[str]) -> Dict[str, Dict[str, str]]:
+		"""Fetch display names and handles for a list of user IDs."""
+		if not user_ids:
+			return {}
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			rows = await conn.fetch(
+				"""
+				SELECT id, display_name, handle
+				FROM users
+				WHERE id = ANY($1::uuid[])
+				""",
+				[uuid.UUID(uid) for uid in user_ids],
+			)
+		return {
+			str(row["id"]): {
+				"display_name": row.get("display_name") or row.get("handle", ""),
+				"handle": row.get("handle", ""),
+			}
+			for row in rows
+		}
 
 	async def _fallback_query(
 		self,

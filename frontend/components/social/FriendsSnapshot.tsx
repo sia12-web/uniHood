@@ -77,36 +77,36 @@ export function FriendsSnapshot() {
   const hasOverflow = friends.length > MAX_PREVIEW;
 
   return (
-    <aside className="flex flex-col rounded-2xl border border-warm-sand bg-glass p-5 shadow-soft">
+    <aside className="flex flex-col rounded-2xl border border-warm-sand dark:border-slate-700 bg-glass p-5 shadow-soft">
       <header className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60">Friends</p>
-        <h2 className="text-lg font-semibold text-navy">Quick roster</h2>
-        <p className="text-xs text-navy/60">Peek at your accepted friends without leaving the hub.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60 dark:text-slate-400">Friends</p>
+        <h2 className="text-lg font-semibold text-navy dark:text-slate-100">Quick roster</h2>
+        <p className="text-xs text-navy/60 dark:text-slate-400">Peek at your accepted friends without leaving the hub.</p>
       </header>
       {loading ? (
-        <p className="text-sm text-navy/60">Loading friends…</p>
+        <p className="text-sm text-navy/60 dark:text-slate-400">Loading friends…</p>
       ) : error ? (
-        <p className="text-sm text-rose-600">{error}</p>
+        <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>
       ) : visibleFriends.length === 0 ? (
-        <p className="text-sm text-navy/60">No accepted friends yet.</p>
+        <p className="text-sm text-navy/60 dark:text-slate-400">No accepted friends yet.</p>
       ) : (
         <ul className="mb-4 space-y-2">
           {visibleFriends.map((friend) => (
-            <li key={friend.friend_id} className="rounded-lg border border-transparent bg-white/70 px-3 py-2 shadow-sm transition hover:border-warm-sand">
-              <p className="text-sm font-medium text-navy">{friendPrimaryLabel(friend)}</p>
-              <p className="text-xs text-navy/60">{friendSecondaryLabel(friend)}</p>
+            <li key={friend.friend_id} className="rounded-lg border border-transparent bg-white/70 dark:bg-slate-800/70 px-3 py-2 shadow-sm transition hover:border-warm-sand dark:hover:border-slate-600">
+              <p className="text-sm font-medium text-navy dark:text-slate-200">{friendPrimaryLabel(friend)}</p>
+              <p className="text-xs text-navy/60 dark:text-slate-400">{friendSecondaryLabel(friend)}</p>
             </li>
           ))}
         </ul>
       )}
       <div className="mt-auto flex items-center justify-between text-sm">
-        <span className="text-navy/60">{friends.length} total</span>
-        <Link href="/friends" className="font-medium text-midnight hover:underline">
+        <span className="text-navy/60 dark:text-slate-400">{friends.length} total</span>
+        <Link href="/friends" className="font-medium text-midnight dark:text-indigo-400 hover:underline">
           Manage friends →
         </Link>
       </div>
       {hasOverflow ? (
-        <p className="mt-2 text-xs text-navy/50">Showing first {MAX_PREVIEW} friends.</p>
+        <p className="mt-2 text-xs text-navy/50 dark:text-slate-500">Showing first {MAX_PREVIEW} friends.</p>
       ) : null}
     </aside>
   );

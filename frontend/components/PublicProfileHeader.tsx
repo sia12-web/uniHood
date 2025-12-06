@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { ReportUI } from "@/app/features/moderation/ReportButton";
 import type { PublicProfile } from "@/lib/types";
 
@@ -8,6 +10,19 @@ type PublicProfileHeaderProps = {
 };
 
 export default function PublicProfileHeader({ profile }: PublicProfileHeaderProps) {
+	const [campusName, setCampusName] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!profile.campus_id) return;
+		// Fetch campus name from API instead of showing raw UUID
+		fetch(`/api/campus/${profile.campus_id}`)
+			.then((res) => res.ok ? res.json() : null)
+			.then((data) => {
+				if (data?.name) setCampusName(data.name);
+			})
+			.catch(() => {});
+	}, [profile.campus_id]);
+
 	return (
 		<header className="flex flex-col gap-4 rounded border border-slate-200 bg-white px-4 py-4 md:flex-row md:items-center">
 			<div className="flex items-center gap-4">
@@ -26,13 +41,14 @@ export default function PublicProfileHeader({ profile }: PublicProfileHeaderProp
 				<div>
 					<h1 className="text-xl font-semibold text-slate-900">{profile.display_name}</h1>
 					<p className="text-sm text-slate-500">@{profile.handle}</p>
-					{profile.campus_id ? (
-						<p className="text-sm text-slate-500">Campus: {profile.campus_id}</p>
+					{campusName ? (
+						<p className="text-sm text-slate-500">{campusName}</p>
 					) : null}
 				</div>
 			</div>
 			<div className="flex items-start justify-end gap-2 md:ml-auto">
-				<ReportUI kind="profile" targetId={profile.user_id} />
+				{/* Use handle for reporting instead of exposing internal user_id */}
+				<ReportUI kind="profile" targetId={profile.handle} />
 			</div>
 			{profile.bio ? <p className="text-sm text-slate-600 md:flex-1">{profile.bio}</p> : null}
 		</header>

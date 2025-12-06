@@ -274,7 +274,7 @@ export default function ChatConversationView({ peerId }: Props) {
 
   if (!validPeer) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-8 py-10 text-center text-sm text-navy/60">
+      <div className="flex h-full flex-col items-center justify-center px-8 py-10 text-center text-sm text-navy/60 dark:text-slate-400">
         <p>Select a friend on the left to start chatting.</p>
       </div>
     );
@@ -284,15 +284,15 @@ export default function ChatConversationView({ peerId }: Props) {
 
   return (
     <div className="w-full px-3 py-4 sm:px-4">
-      <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-warm-sand bg-gradient-to-b from-white via-cream to-white p-3.5 shadow-lg">
-        <header className="flex items-center gap-3 rounded-lg border border-warm-sand/70 bg-white/85 px-3 py-2.5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-midnight/10 text-base font-semibold text-midnight">
+      <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-warm-sand dark:border-slate-700 bg-gradient-to-b from-white via-cream to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 p-3.5 shadow-lg">
+        <header className="flex items-center gap-3 rounded-lg border border-warm-sand/70 dark:border-slate-600 bg-white/85 dark:bg-slate-800/85 px-3 py-2.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-midnight/10 dark:bg-indigo-500/20 text-base font-semibold text-midnight dark:text-indigo-300">
             {peerEntry?.displayName?.charAt(0).toUpperCase() ?? validPeer.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xl font-semibold text-midnight">{headerTitle}</p>
+            <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100">{headerTitle}</p>
           </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+          <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             {socketStatusLabel}
           </span>
         </header>
@@ -311,12 +311,12 @@ export default function ChatConversationView({ peerId }: Props) {
           />
         </div>
 
-        <footer className="mt-2 flex items-center justify-between rounded-lg border border-warm-sand/70 bg-white/85 px-3.5 py-2 text-[10px] text-slate-500">
+        <footer className="mt-2 flex items-center justify-between rounded-lg border border-warm-sand/70 dark:border-slate-600 bg-white/85 dark:bg-slate-800/85 px-3.5 py-2 text-[10px] text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
             <span>Live delivery enabled</span>
           </div>
-          <Link href="/friends" className="font-semibold text-midnight underline-offset-4 hover:underline">
+          <Link href="/friends" className="font-semibold text-midnight dark:text-indigo-400 underline-offset-4 hover:underline">
             Add more friends
           </Link>
         </footer>

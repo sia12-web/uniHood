@@ -15,7 +15,7 @@ import {
   Loader2,
   UserMinus,
   Ban,
-  Bell
+  ArrowLeft,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -34,14 +34,11 @@ import {
   fetchInviteOutbox,
   removeFriend,
   unblockUser,
-  fetchNotifications,
-  markNotificationRead,
-  type Notification,
 } from "@/lib/social";
 import { emitFriendshipFormed } from "@/lib/friends-events";
 import type { FriendRow, InviteSummary, PublicProfile } from "@/lib/types";
 
-type FriendFilter = "accepted" | "blocked" | "pending" | "notifications";
+type FriendFilter = "accepted" | "blocked" | "pending";
 
 type FriendProfileState = {
   profile: PublicProfile | null;
@@ -65,7 +62,6 @@ function FriendsPageInner() {
 
   const [inbox, setInbox] = useState<InviteSummary[]>([]);
   const [outbox, setOutbox] = useState<InviteSummary[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -123,6 +119,7 @@ function FriendsPageInner() {
 
   const loadFriends = useCallback(
     async (scope: FriendFilter) => {
+
       setFriendsLoading(true);
       try {
         const records = await fetchFriends(currentUserId, currentCampusId, scope);
@@ -253,21 +250,6 @@ function FriendsPageInner() {
       setPendingLoading(false);
     }
   }, [currentCampusId, currentUserId]);
-
-  const loadNotifications = useCallback(async () => {
-  try {
-    const items = await fetchNotifications(currentUserId, currentCampusId);
-    setNotifications(items);
-  } catch (err) {
-    console.error("Failed to load notifications", err);
-  }
-}, [currentCampusId, currentUserId]);
-
-useEffect(() => {
-  if (filter === "notifications") {
-    void loadNotifications();
-  }
-}, [filter, loadNotifications]);
 
 useEffect(() => {
   if (filter === "pending") {
@@ -472,7 +454,15 @@ return (
     {/* Header */}
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur-xl">
       <div className="mx-auto flex max-w-2xl items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Social</h1>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="text-2xl font-bold text-slate-900">Social</h1>
+        </div>
         <Link
           href="/discovery"
           className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
@@ -522,23 +512,6 @@ return (
         >
           Blocked
           {filter === "blocked" && (
-            <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-slate-900" />
-          )}
-        </button>
-        <button
-          onClick={() => setFilter("notifications")}
-          className={cn(
-            "relative pb-3 text-sm font-medium transition-colors",
-            filter === "notifications" ? "text-slate-900" : "text-slate-500 hover:text-slate-700"
-          )}
-        >
-          Notifications
-          {notifications.filter(n => !n.read_at).length > 0 && (
-            <span className="ml-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              {notifications.filter(n => !n.read_at).length}
-            </span>
-          )}
-          {filter === "notifications" && (
             <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-slate-900" />
           )}
         </button>
@@ -759,54 +732,6 @@ return (
                 >
                   Unblock
                 </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-      {/* Notifications Tab */}
-      {filter === "notifications" && (
-        <div className="space-y-4">
-          {notifications.length === 0 ? (
-            <div className="py-12 text-center text-slate-500">
-              <Bell className="mx-auto mb-3 h-8 w-8 opacity-20" />
-              <p>No notifications.</p>
-            </div>
-          ) : (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={cn(
-                  "flex items-start gap-4 rounded-xl border p-4 transition",
-                  notif.read_at ? "border-slate-200 bg-white" : "border-blue-200 bg-blue-50"
-                )}
-              >
-                <div className="rounded-full bg-slate-100 p-2 text-slate-500">
-                  <Bell size={20} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-slate-900">{notif.title}</h4>
-                  <p className="text-sm text-slate-600">{notif.body}</p>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-slate-400">
-                    <span>{new Date(notif.created_at).toLocaleDateString()}</span>
-                    {notif.link && (
-                      <Link href={notif.link} className="font-semibold text-blue-600 hover:underline">
-                        View
-                      </Link>
-                    )}
-                    {!notif.read_at && (
-                      <button
-                        onClick={async () => {
-                          await markNotificationRead(currentUserId, currentCampusId, notif.id);
-                          loadNotifications();
-                        }}
-                        className="text-slate-500 hover:text-slate-900"
-                      >
-                        Mark as read
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
             ))
           )}

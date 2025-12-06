@@ -32,10 +32,16 @@ type DiscoveryFeedProps = {
   variant?: "full" | "mini";
 };
 
-const RADIUS_PRESETS = [
-  { label: "Room", value: 100, emoji: "🏠", scope: "global" as const },
-  { label: "Campus", value: 5000, emoji: "🎓", scope: "campus" as const },
-  { label: "City", value: 10000, emoji: "🏙️", scope: "global" as const },
+// Discovery modes:
+// - room: Live proximity within 100m (requires geolocation)
+// - campus: All users with same campus_id (directory mode)
+// - city: All users in the system (directory mode)
+type DiscoveryMode = "room" | "campus" | "city";
+
+const DISCOVERY_MODES: Array<{ label: string; mode: DiscoveryMode; emoji: string; description: string }> = [
+  { label: "Room", mode: "room", emoji: "🏠", description: "Live nearby (100m)" },
+  { label: "Campus", mode: "campus", emoji: "🎓", description: "Same university" },
+  { label: "City", mode: "city", emoji: "🏙️", description: "Everyone" },
 ];
 
 const POPULAR_MAJORS = [
@@ -84,17 +90,44 @@ function getYearLabel(gradYear: number): string {
 
 
 
-async function fetchNearby(userId: string, campusId: string, radius: number, scope: "campus" | "global" = "campus") {
-  const url = new URL("/proximity/nearby", BACKEND_URL);
-  url.searchParams.set("campus_id", campusId);
-  url.searchParams.set("radius_m", String(radius));
-  url.searchParams.set("scope", scope);
-  const response = await fetch(url.toString(), {
-    headers: {
-      "X-User-Id": userId,
-      "X-Campus-Id": campusId,
-    },
+async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode) {
+  // Build the URL safely
+  const baseUrl = BACKEND_URL.replace(/\/$/, '');
+  const params = new URLSearchParams({
+    campus_id: campusId,
   });
+  
+  // Mode-based configuration
+  if (mode === "room") {
+    // Room mode: live proximity within 100m
+    params.set("radius_m", "100");
+    params.set("scope", "global");
+  } else if (mode === "campus") {
+    // Campus mode: directory of same campus users (large radius to get directory mode)
+    params.set("radius_m", "50000");
+    params.set("scope", "campus");
+  } else if (mode === "city") {
+    // City mode: all users across all campuses (global scope)
+    params.set("radius_m", "50000");
+    params.set("scope", "global");
+  }
+  
+  const url = `${baseUrl}/proximity/nearby?${params.toString()}`;
+  
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        "X-User-Id": userId,
+        "X-Campus-Id": campusId,
+      },
+    });
+  } catch (err) {
+    // Network error - backend might not be running
+    console.error("Discovery fetch network error:", err);
+    throw new Error("Unable to connect to server. Please check your connection.");
+  }
+  
   if (!response.ok) {
     let detail: string | null = null;
     try {
@@ -102,6 +135,7 @@ async function fetchNearby(userId: string, campusId: string, radius: number, sco
       detail = typeof body?.detail === "string" ? body.detail : null;
     } catch { }
     if (response.status === 400 && detail === "presence not found") {
+      // No presence data yet - return empty array (will be populated after heartbeat)
       return [];
     }
     throw new Error(`Nearby request failed (${response.status})${detail ? ` - ${detail}` : ""}`);
@@ -111,8 +145,7 @@ async function fetchNearby(userId: string, campusId: string, radius: number, sco
 }
 
 export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) {
-  const [radius, setRadius] = useState<number>(2000); // Default to wider range
-  const [scope, setScope] = useState<"campus" | "global">("campus");
+  const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("campus"); // Default to campus
   const [users, setUsers] = useState<NearbyUser[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid');
   const [swipeIndex, setSwipeIndex] = useState(0);
@@ -126,7 +159,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [showProximityPrompt, setShowProximityPrompt] = useState(false);
-  const [pendingRadius, setPendingRadius] = useState<number | null>(null);
   const [showInfo, setShowInfo] = useState(false);
 
   // Filters
@@ -214,7 +246,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   useEffect(() => {
     nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
     usersRef.current = [];
-  }, [radius, currentCampusId]);
+  }, [discoveryMode, currentCampusId]);
 
   // Socket lifecycle
   const socket = useMemo(() => {
@@ -229,12 +261,15 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   useEffect(() => {
     if (!socket) return;
 
+    // Only use socket for real-time updates in Room mode
+    if (discoveryMode !== "room") return;
+
     nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
       items: usersRef.current,
     });
     const handleUpdate = (payload: NearbyDiff) => {
       setUsers((prev) => {
-        const next = applyDiff(prev, payload, radius);
+        const next = applyDiff(prev, payload, 100); // Room mode is always 100m
         const patched = withFriendStatus(next);
         nearbyStateRef.current = applyNearbyEvent(initialiseNearbyAccumulator<NearbyUser>(), {
           items: patched,
@@ -254,13 +289,13 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     };
     socket.on("nearby:update", handleUpdate);
     socket.on("presence:nearby", handleNearby);
-    socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: radius });
+    socket.emit("nearby:subscribe", { campus_id: currentCampusId, radius_m: 100 });
     return () => {
       socket.off("nearby:update", handleUpdate);
       socket.off("presence:nearby", handleNearby);
-      socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: radius });
+      socket.emit("nearby:unsubscribe", { campus_id: currentCampusId, radius_m: 100 });
     };
-  }, [socket, radius, currentCampusId, withFriendStatus]);
+  }, [socket, discoveryMode, currentCampusId, withFriendStatus]);
 
   useEffect(() => () => disconnectPresenceSocket(), []);
 
@@ -271,7 +306,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
     setLoading(true);
     try {
-      const items = await fetchNearby(currentUserId, currentCampusId, radius, scope);
+      const items = await fetchNearby(currentUserId, currentCampusId, discoveryMode);
       const patched = withFriendStatus(items);
       setUsers(patched);
       usersRef.current = patched;
@@ -283,14 +318,14 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       const message = err instanceof Error ? err.message : "Unable to load nearby classmates.";
       // If presence not found, it means we haven't sent a heartbeat yet. 
       // We'll ignore this error as the auto-heartbeat will fix it shortly.
-      // In Directory Mode (>50m), we don't expect presence errors anyway.
+      // In Directory Mode (campus/city), we don't expect presence errors anyway.
       if (!message.includes("presence not found")) {
         setError(message);
       }
     } finally {
       setLoading(false);
     }
-  }, [authEvaluated, currentCampusId, currentUserId, radius, scope, withFriendStatus]);
+  }, [authEvaluated, currentCampusId, currentUserId, discoveryMode, withFriendStatus]);
 
   // Initial nearby fetch
   useEffect(() => {
@@ -299,12 +334,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
   }, [authEvaluated, refreshNearby]);
 
-  // Auto-Heartbeat Logic
+  // Auto-Heartbeat Logic (only for Room mode - live proximity)
   const sendHeartbeatSafe = useCallback(async () => {
     if (!authEvaluated || !goLiveAllowed || !currentUserId || !currentCampusId) return;
 
-    // Only send heartbeat if radius is small (Proximity Mode)
-    if (radius > 50) return;
+    // Only send heartbeat in Room mode (live proximity)
+    if (discoveryMode !== "room") return;
 
     if (!positionRef.current) {
       try {
@@ -318,7 +353,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
 
     try {
-      await sendHeartbeat(positionRef.current, currentUserId, currentCampusId, radius);
+      await sendHeartbeat(positionRef.current, currentUserId, currentCampusId, 100); // Room mode is always 100m
       sentInitialHeartbeat.current = true;
       // If this was the first heartbeat, refresh nearby to get results
       if (users.length === 0) {
@@ -327,7 +362,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     } catch (err) {
       console.error("Heartbeat failed", err);
     }
-  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, radius, users.length, refreshNearby]);
+  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, discoveryMode, users.length, refreshNearby]);
 
   // Trigger heartbeat on mount and interval
   useEffect(() => {
@@ -351,12 +386,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     };
   }, [sendHeartbeatSafe]);
 
-  // Permanent Location Logic (Directory Mode)
+  // Permanent Location Logic (Directory Mode - Campus and City)
   const updatePermanentLocationSafe = useCallback(async () => {
     if (!authEvaluated || !goLiveAllowed || !currentUserId || !currentCampusId) return;
 
-    // Only update permanent location if radius > 50 (Directory Mode)
-    if (radius <= 50) return;
+    // Only update permanent location in Directory Mode (Campus or City)
+    if (discoveryMode === "room") return;
 
     if (!positionRef.current) {
       try {
@@ -376,14 +411,14 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     } catch (err) {
       console.error("Failed to update permanent location", err);
     }
-  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, radius, refreshNearby]);
+  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, discoveryMode, refreshNearby]);
 
   // Trigger permanent location update when switching to Directory Mode
   useEffect(() => {
-    if (radius > 50) {
+    if (discoveryMode !== "room") {
       void updatePermanentLocationSafe();
     }
-  }, [radius, updatePermanentLocationSafe]);
+  }, [discoveryMode, updatePermanentLocationSafe]);
 
   const handleInvite = useCallback(
     async (targetUserId: string) => {
@@ -420,33 +455,25 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     [router],
   );
 
-  const handlePresetSelect = (preset: typeof RADIUS_PRESETS[number]) => {
-    if (preset.label === "Room") {
-      setPendingRadius(preset.value);
-      // Room mode implies we want to see everyone physically close, 
-      // but let's keep the scope flexible or default to global to find "gym crush" (anyone)
-      // The preset has scope: "global", so we'll apply that after confirmation.
+  const handleModeSelect = (mode: DiscoveryMode) => {
+    if (mode === "room") {
+      // Room mode requires location permission
       setShowProximityPrompt(true);
     } else {
-      setRadius(preset.value);
-      setScope(preset.scope);
+      setDiscoveryMode(mode);
     }
   };
 
   const confirmProximityMode = async () => {
-    if (!pendingRadius) return;
-
     try {
       const pos = await requestBrowserPosition();
       positionRef.current = pos;
-      setRadius(pendingRadius);
-      // For Room mode, we force global scope to see everyone around
-      setScope("global");
+      setDiscoveryMode("room");
       setShowProximityPrompt(false);
 
       // Trigger immediate heartbeat with new location
       if (currentUserId && currentCampusId) {
-        await sendHeartbeat(pos, currentUserId, currentCampusId, pendingRadius);
+        await sendHeartbeat(pos, currentUserId, currentCampusId, 100); // Room mode is always 100m
         sentInitialHeartbeat.current = true;
         void refreshNearby();
       }
@@ -459,7 +486,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   if (variant === "mini") return null;
 
-  const isDirectoryMode = radius > 100;
+  const isDirectoryMode = discoveryMode !== "room";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-50/50">
@@ -559,19 +586,19 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               )}
 
               <div className="flex justify-between gap-2">
-                {RADIUS_PRESETS.map((preset) => (
+                {DISCOVERY_MODES.map((modeOption) => (
                   <button
-                    key={preset.value}
-                    onClick={() => handlePresetSelect(preset)}
+                    key={modeOption.mode}
+                    onClick={() => handleModeSelect(modeOption.mode)}
                     className={cn(
                       "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-medium transition-all",
-                      radius === preset.value
+                      discoveryMode === modeOption.mode
                         ? "bg-white text-rose-600 shadow-sm ring-1 ring-rose-200"
                         : "text-slate-500 hover:bg-white hover:text-slate-700 hover:shadow-sm"
                     )}
                   >
-                    <span className="text-xl mb-1">{preset.emoji}</span>
-                    {preset.label}
+                    <span className="text-xl mb-1">{modeOption.emoji}</span>
+                    {modeOption.label}
                   </button>
                 ))}
               </div>
@@ -643,8 +670,21 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
         {error && (
           <div className="mb-6 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-            <p className="font-bold">Error</p>
-            {error}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold">Unable to load discovery</p>
+                <p className="mt-1 text-rose-700">{error}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setError(null);
+                  void refreshNearby();
+                }}
+                className="shrink-0 rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-200 transition"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
 

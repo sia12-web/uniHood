@@ -1,0 +1,257 @@
+# Production Docker Compose for Divan Platform
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. Copy .env.example to .env and fill in production values
+#   2. Set up SSL certificates (or use Caddy for automatic HTTPS)
+#   3. Create S3 bucket for backups and media
+#
+# Architecture:
+#   Caddy (reverse proxy + SSL) -> Backend (8000) / Frontend (3000) / Activities (3001)
+#                               -> PostgreSQL (internal)
+#                               -> Redis (internal)
+
+services:
+  # =============================================================================
+  # Reverse Proxy & SSL (Caddy - automatic HTTPS with Let's Encrypt)
+  # =============================================================================
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+
+  # =============================================================================
+  # Database (PostgreSQL)
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-divan}
+      POSTGRES_USER: ${POSTGRES_USER:-divan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-divan} -d ${POSTGRES_DB:-divan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    # Not exposed to host - only accessible via internal network
+
+  # =============================================================================
+  # Cache (Redis)
+  # =============================================================================
+  redis:
+    image: redis:7.2-alpine
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 300M
+    # Not exposed to host - only accessible via internal network
+
+  # =============================================================================
+  # Backend (FastAPI)
+  # =============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      # Database
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-divan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-divan}
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      
+      # Security (REQUIRED - generate with: openssl rand -hex 32)
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      SERVICE_SIGNING_KEY: ${SERVICE_SIGNING_KEY:?SERVICE_SIGNING_KEY is required}
+      REFRESH_PEPPER: ${REFRESH_PEPPER:?REFRESH_PEPPER is required}
+      
+      # Environment
+      ENVIRONMENT: production
+      PYTHONPATH: /app
+      
+      # Cookies & CORS
+      COOKIE_SECURE: "true"
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.${DOMAIN:-localhost}}
+      CORS_ALLOW_ORIGINS: https://${DOMAIN:-localhost}
+      
+      # Intent signing
+      INTENT_SIGNING_REQUIRED: "true"
+      
+      # Email (SMTP)
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?SMTP_PASSWORD is required}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@${DOMAIN:-localhost}}
+      
+      # S3 Storage
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      
+      # Observability
+      OBS_ADMIN_TOKEN: ${OBS_ADMIN_TOKEN:?OBS_ADMIN_TOKEN is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      
+    volumes:
+      - ./scripts:/work/scripts:ro
+      - ./infra/migrations:/work/infra/migrations:ro
+      - backend_uploads:/app/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo 'Running migrations...' &&
+        python /work/scripts/apply_migrations.py &&
+        echo 'Starting production server...' &&
+        gunicorn app.main:socket_app
+          --worker-class uvicorn.workers.UvicornWorker
+          --workers ${BACKEND_WORKERS:-4}
+          --bind 0.0.0.0:8000
+          --timeout 120
+          --keep-alive 5
+          --access-logfile -
+          --error-logfile -
+      "
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================================================
+  # Frontend (Next.js)
+  # =============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN:-localhost}/api
+        NEXT_PUBLIC_WS_URL: wss://${DOMAIN:-localhost}
+        NEXT_PUBLIC_ACTIVITIES_URL: https://${DOMAIN:-localhost}/activities
+    restart: always
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # Backup Service (runs daily)
+  # =============================================================================
+  backup:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-divan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-divan}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-}
+      BACKUP_DIR: /backups
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - ./scripts:/work/scripts:ro
+      - backup_data:/backups
+      - backend_uploads:/data/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - backup  # Only run with: docker compose --profile backup run backup
+    command: python /work/scripts/backup/run_all_backups.py --all --notify
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  pgdata:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backup_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+# =============================================================================
+# Networks (default bridge network is used)
+# =============================================================================

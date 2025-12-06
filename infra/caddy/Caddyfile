@@ -1,0 +1,136 @@
+# Divan Platform - Caddy Reverse Proxy Configuration
+#
+# Caddy automatically handles:
+# - HTTPS with Let's Encrypt certificates
+# - Certificate renewal
+# - HTTP to HTTPS redirect
+# - Modern TLS configuration
+
+{$DOMAIN:localhost} {
+    # ==========================================================================
+    # API Routes -> Backend (FastAPI)
+    # ==========================================================================
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            # Health checks
+            health_uri /health/live
+            health_interval 30s
+            health_timeout 5s
+            
+            # Headers
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # ==========================================================================
+    # WebSocket Routes -> Backend (Socket.IO)
+    # ==========================================================================
+    handle /socket.io/* {
+        reverse_proxy backend:8000 {
+            # WebSocket support
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            # Longer timeouts for WebSocket
+            transport http {
+                read_timeout 300s
+                write_timeout 300s
+            }
+        }
+    }
+
+    # ==========================================================================
+    # Activities Service Routes (if running separately)
+    # ==========================================================================
+    handle /activities/* {
+        reverse_proxy activities:3001 {
+            # WebSocket support for games
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            transport http {
+                read_timeout 300s
+                write_timeout 300s
+            }
+        }
+    }
+
+    # ==========================================================================
+    # Health Check Endpoints (for load balancers)
+    # ==========================================================================
+    handle /health/* {
+        reverse_proxy backend:8000
+    }
+
+    # ==========================================================================
+    # Metrics Endpoint (protected - requires auth header)
+    # ==========================================================================
+    handle /metrics {
+        reverse_proxy backend:8000
+    }
+
+    # ==========================================================================
+    # All Other Routes -> Frontend (Next.js)
+    # ==========================================================================
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    # ==========================================================================
+    # Security Headers
+    # ==========================================================================
+    header {
+        # HSTS - force HTTPS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        
+        # XSS Protection (legacy, but still useful)
+        X-XSS-Protection "1; mode=block"
+        
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Permissions Policy (disable unused features)
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        
+        # Remove server header
+        -Server
+    }
+
+    # ==========================================================================
+    # Logging
+    # ==========================================================================
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+
+    # ==========================================================================
+    # Error Pages
+    # ==========================================================================
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
+}
+
+# =============================================================================
+# HTTP to HTTPS redirect (automatic with Caddy, but explicit for clarity)
+# =============================================================================
+http://{$DOMAIN:localhost} {
+    redir https://{host}{uri} permanent
+}
+
+# =============================================================================
+# www subdomain redirect
+# =============================================================================
+www.{$DOMAIN:localhost} {
+    redir https://{$DOMAIN:localhost}{uri} permanent
+}

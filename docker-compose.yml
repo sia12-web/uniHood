@@ -50,6 +50,12 @@ services:
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
       CORS_ALLOW_ORIGINS: "*"
+      COMMUNITIES_WORKERS_ENABLED: "true"
+      # Performance profiling (set via env vars for debug sessions)
+      PERF_TRACE_LABELS: ${PERF_TRACE_LABELS:-false}
+      PERF_DEBUG_MODE: ${PERF_DEBUG_MODE:-false}
+      RUM_SAMPLE_RATE: ${RUM_SAMPLE_RATE:-0.10}
+      TRACE_SAMPLE_RATE: ${TRACE_SAMPLE_RATE:-0.10}
     ports:
       - "8000:8000"
     depends_on:

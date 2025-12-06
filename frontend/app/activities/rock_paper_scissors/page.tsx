@@ -314,8 +314,9 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                       </div>
                       <div>
                         <p className="text-sm font-medium text-emerald-900">New Challenge!</p>
-                        <p className="text-xs text-emerald-700">A friend has invited you to play.</p>
-                        <p className="mt-1 font-mono text-[10px] text-emerald-600/70">ID: {invite.sessionId}</p>
+                        <p className="text-xs text-emerald-700">
+                          {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "A friend"} has invited you to play.
+                        </p>
                       </div>
                     </div>
                     <button

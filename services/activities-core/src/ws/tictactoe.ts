@@ -25,7 +25,7 @@ const sessions: Record<string, GameState> = {};
 const connections: Record<string, Set<any>> = {};
 const countdowns: Record<string, NodeJS.Timeout> = {};
 const userSockets: Record<string, Map<string, any>> = {}; // sessionId -> userId -> socket
-const ROUND_WIN_TARGET = 3;
+const ROUND_WIN_TARGET = 2; // Best of 3 - first to 2 wins
 
 // Exported session management functions for REST API integration
 export function createSession(sessionId: string, _creatorUserId: string, _participants: string[]): GameState {
@@ -466,10 +466,9 @@ function handleRoundEnd(sessionId: string) {
         const winsO = session.roundWins[pO] || 0;
 
         const calculatePoints = (winnerWins: number, loserWins: number) => {
-            if (loserWins === 0) return 300; // 3-0
-            if (loserWins === 1) return 200; // 3-1
-            if (loserWins === 2) return 150; // 3-2
-            return 100;
+            if (loserWins === 0) return 300; // 2-0
+            if (loserWins === 1) return 200; // 2-1
+            return 150; // fallback
         };
 
         if (session.matchWinner === pX) {

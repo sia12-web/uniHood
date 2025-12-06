@@ -61,13 +61,21 @@ type GenericSession = {
     winnerUserId?: string | null;
     moves?: Record<string, string>;
     leaveReason?: 'opponent_left' | 'forfeit' | null;
+    // RPS best-of-3 fields
+    roundWins?: Record<string, number>;
+    currentRound?: number;
+    lastRoundWinner?: string | null;
+    lastRoundMoves?: Record<string, string>;
+    countdownValue?: number;
 };
 
 const genericSessions: Record<string, GenericSession> = {};
 const genericSockets: Record<string, Set<WebSocket>> = {};
 const genericUserSockets: Record<string, Map<string, WebSocket>> = {}; // sessionId -> userId -> socket
+const genericCountdowns: Record<string, NodeJS.Timeout> = {}; // Server-side countdown timers
 const GENERIC_COUNTDOWN_MS = 3000;
 const GENERIC_ROUND_DURATION_MS = 30000;
+const RPS_ROUND_WIN_TARGET = 2; // Best of 3 - first to 2 wins
 const GENERIC_SAMPLES: string[] = [
     "Why don’t skeletons fight? They don’t have the guts.",
     "Parallel lines have so much in common. It’s a shame they’ll never meet.",
@@ -100,11 +108,94 @@ function snapshotFromGeneric(session: GenericSession) {
         participants: session.participants.map((p) => ({ userId: p.userId, score: 0 })),
         presence: session.participants.map((p) => ({ userId: p.userId, joined: p.joined, ready: p.ready })),
         lobbyReady: session.lobbyReady,
-        countdown: null,
-        currentRoundIndex: 0,
+        countdown: session.countdownValue ?? null,
+        currentRoundIndex: session.currentRound ?? 0,
+        roundWins: session.roundWins ?? {},
         scoreboard: { participants: Object.entries(session.scores).map(([userId, score]) => ({ userId, score })) },
         winnerUserId: session.winnerUserId ?? null,
     };
+}
+
+// Server-side countdown timer for RPS (broadcasts state every second like TicTacToe)
+function startGenericCountdown(sessionId: string, onComplete: () => void) {
+    const session = genericSessions[sessionId];
+    if (!session) return;
+    
+    session.status = 'countdown';
+    session.phase = 'countdown';
+    session.countdownValue = 3; // Start at 3 seconds
+    
+    // Clear any existing countdown
+    if (genericCountdowns[sessionId]) {
+        clearInterval(genericCountdowns[sessionId]);
+    }
+    
+    // Broadcast initial state
+    broadcastGenericState(sessionId);
+    
+    genericCountdowns[sessionId] = setInterval(() => {
+        const s = genericSessions[sessionId];
+        if (!s || s.status === 'ended') {
+            clearInterval(genericCountdowns[sessionId]);
+            return;
+        }
+        
+        if (s.countdownValue && s.countdownValue > 0) {
+            s.countdownValue--;
+            broadcastGenericState(sessionId);
+        } else {
+            clearInterval(genericCountdowns[sessionId]);
+            delete genericCountdowns[sessionId];
+            onComplete();
+        }
+    }, 1000);
+}
+
+// Broadcast full state to all connected clients
+function broadcastGenericState(sessionId: string) {
+    const session = genericSessions[sessionId];
+    const sockets = genericSockets[sessionId];
+    if (!session || !sockets) return;
+    
+    const payload = {
+        type: 'session.snapshot',
+        payload: snapshotFromGeneric(session),
+    };
+    const message = JSON.stringify(payload);
+    sockets.forEach((socket) => {
+        try {
+            socket.send(message);
+        } catch {
+            /* ignore */
+        }
+    });
+}
+
+// Broadcast round ended for RPS
+function broadcastRpsRoundEnded(sessionId: string, roundWinnerId: string | null, moves: Record<string, string>, reason?: string) {
+    const session = genericSessions[sessionId];
+    const sockets = genericSockets[sessionId];
+    if (!session || !sockets) return;
+    
+    const payload = {
+        type: 'activity.round.ended',
+        payload: {
+            sessionId,
+            round: session.currentRound,
+            winnerUserId: roundWinnerId,
+            moves: Object.entries(moves).map(([userId, move]) => ({ userId, move })),
+            reason: reason,
+            scoreboard: { participants: Object.entries(session.roundWins || {}).map(([userId, wins]) => ({ userId, score: wins })) },
+        },
+    };
+    const message = JSON.stringify(payload);
+    sockets.forEach((socket) => {
+        try {
+            socket.send(message);
+        } catch {
+            /* ignore */
+        }
+    });
 }
 
 function broadcastGenericPresence(sessionId: string) {
@@ -297,37 +388,87 @@ server.register(async function (fastify) {
                                 const allMoved = activeParticipants.every(p => session.moves![p.userId]);
 
                                 if (allMoved && activeParticipants.length >= 2) {
-                                    const moves = session.moves;
-                                    const scores: Record<string, number> = {};
-                                    activeParticipants.forEach(p => scores[p.userId] = 0);
-
-                                    for (let i = 0; i < activeParticipants.length; i++) {
-                                        for (let j = i + 1; j < activeParticipants.length; j++) {
-                                            const p1 = activeParticipants[i].userId;
-                                            const p2 = activeParticipants[j].userId;
-                                            const m1 = moves[p1];
-                                            const m2 = moves[p2];
-
-                                            if (m1 === m2) {
-                                                scores[p1] += 50;
-                                                scores[p2] += 50;
-                                            } else if (
-                                                (m1 === 'rock' && m2 === 'scissors') ||
-                                                (m1 === 'scissors' && m2 === 'paper') ||
-                                                (m1 === 'paper' && m2 === 'rock')
-                                            ) {
-                                                scores[p1] += 100;
-                                            } else {
-                                                scores[p2] += 100;
-                                            }
-                                        }
+                                    const moves = { ...session.moves };
+                                    
+                                    // Initialize round tracking if not present
+                                    if (!session.roundWins) session.roundWins = {};
+                                    if (session.currentRound === undefined) session.currentRound = 1;
+                                    
+                                    // Determine round winner (for 2 players)
+                                    const p1 = activeParticipants[0].userId;
+                                    const p2 = activeParticipants[1].userId;
+                                    const m1 = moves[p1];
+                                    const m2 = moves[p2];
+                                    
+                                    let roundWinnerId: string | null = null;
+                                    let roundReason: string | undefined;
+                                    
+                                    if (m1 === m2) {
+                                        roundReason = 'draw';
+                                    } else if (
+                                        (m1 === 'rock' && m2 === 'scissors') ||
+                                        (m1 === 'scissors' && m2 === 'paper') ||
+                                        (m1 === 'paper' && m2 === 'rock')
+                                    ) {
+                                        roundWinnerId = p1;
+                                        session.roundWins[p1] = (session.roundWins[p1] || 0) + 1;
+                                    } else {
+                                        roundWinnerId = p2;
+                                        session.roundWins[p2] = (session.roundWins[p2] || 0) + 1;
                                     }
-                                    session.scores = scores;
-                                    session.status = 'ended';
-                                    session.phase = 'ended';
-                                    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-                                    session.winnerUserId = sorted[0][0];
-                                    broadcastGenericEnded(sessionId);
+                                    
+                                    session.lastRoundWinner = roundWinnerId;
+                                    session.lastRoundMoves = moves;
+                                    
+                                    // Check if match is over (best of 3 - first to 2)
+                                    const wins1 = session.roundWins[p1] || 0;
+                                    const wins2 = session.roundWins[p2] || 0;
+                                    const matchOver = wins1 >= RPS_ROUND_WIN_TARGET || wins2 >= RPS_ROUND_WIN_TARGET;
+                                    
+                                    // Broadcast round ended
+                                    broadcastRpsRoundEnded(sessionId, roundWinnerId, moves, roundReason);
+                                    
+                                    if (matchOver) {
+                                        // Calculate final scores (same as TicTacToe)
+                                        const calculatePoints = (winnerWins: number, loserWins: number) => {
+                                            if (loserWins === 0) return 300; // 2-0
+                                            if (loserWins === 1) return 200; // 2-1
+                                            return 150; // fallback
+                                        };
+                                        
+                                        if (wins1 >= RPS_ROUND_WIN_TARGET) {
+                                            session.winnerUserId = p1;
+                                            session.scores[p1] = calculatePoints(wins1, wins2);
+                                            session.scores[p2] = wins2 * 50;
+                                        } else {
+                                            session.winnerUserId = p2;
+                                            session.scores[p2] = calculatePoints(wins2, wins1);
+                                            session.scores[p1] = wins1 * 50;
+                                        }
+                                        
+                                        session.status = 'ended';
+                                        session.phase = 'ended';
+                                        broadcastGenericEnded(sessionId);
+                                    } else {
+                                        // Start next round after a short delay
+                                        session.currentRound++;
+                                        session.moves = {}; // Clear moves for next round
+                                        
+                                        // Brief delay then start next round countdown
+                                        setTimeout(() => {
+                                            const s = genericSessions[sessionId];
+                                            if (!s || s.status === 'ended') return;
+                                            
+                                            startGenericCountdown(sessionId, () => {
+                                                const sess = genericSessions[sessionId];
+                                                if (!sess || sess.status === 'ended') return;
+                                                sess.status = 'running';
+                                                sess.phase = 'running';
+                                                sess.countdownValue = undefined;
+                                                broadcastGenericState(sessionId);
+                                            });
+                                        }, 2000); // 2 second delay between rounds
+                                    }
                                 }
                             }
                         } else {
@@ -699,19 +840,40 @@ server.register(async function (fastify) {
             generic.lobbyReady = generic.participants.every((p) => p.ready);
             // Auto-start generic sessions (e.g., speed_typing stub) when everyone is ready
             if (generic.lobbyReady && generic.status === 'pending' && generic.participants.length >= 2) {
-                generic.status = 'countdown';
-                generic.phase = 'countdown';
+                // Initialize RPS-specific fields
+                if (generic.activityKey === 'rock_paper_scissors') {
+                    generic.roundWins = {};
+                    generic.currentRound = 1;
+                    generic.moves = {};
+                }
+                
                 broadcastGenericPresence(sessionId);
-                broadcastGenericCountdown(sessionId, GENERIC_COUNTDOWN_MS);
-                setTimeout(() => {
-                    const s = genericSessions[sessionId];
-                    if (!s || s.status === 'ended') return;
-                    s.status = 'running';
-                    s.phase = 'running';
-                    s.roundStartedAt = Date.now();
-                    broadcastGenericStarted(sessionId);
-                    broadcastGenericRoundStarted(sessionId, 0);
-                }, GENERIC_COUNTDOWN_MS);
+                
+                // Use server-side countdown for RPS, old method for others
+                if (generic.activityKey === 'rock_paper_scissors') {
+                    startGenericCountdown(sessionId, () => {
+                        const s = genericSessions[sessionId];
+                        if (!s || s.status === 'ended') return;
+                        s.status = 'running';
+                        s.phase = 'running';
+                        s.roundStartedAt = Date.now();
+                        s.countdownValue = undefined;
+                        broadcastGenericState(sessionId);
+                    });
+                } else {
+                    generic.status = 'countdown';
+                    generic.phase = 'countdown';
+                    broadcastGenericCountdown(sessionId, GENERIC_COUNTDOWN_MS);
+                    setTimeout(() => {
+                        const s = genericSessions[sessionId];
+                        if (!s || s.status === 'ended') return;
+                        s.status = 'running';
+                        s.phase = 'running';
+                        s.roundStartedAt = Date.now();
+                        broadcastGenericStarted(sessionId);
+                        broadcastGenericRoundStarted(sessionId, 0);
+                    }, GENERIC_COUNTDOWN_MS);
+                }
             } else {
                 broadcastGenericPresence(sessionId);
             }
@@ -746,19 +908,41 @@ server.register(async function (fastify) {
             if (!generic) {
                 return reply.status(404).send({ error: 'session_not_found' });
             }
-            generic.status = 'countdown';
-            generic.phase = 'countdown';
+            
+            // Initialize RPS-specific fields
+            if (generic.activityKey === 'rock_paper_scissors') {
+                generic.roundWins = {};
+                generic.currentRound = 1;
+                generic.moves = {};
+            }
+            
             broadcastGenericPresence(sessionId);
-            broadcastGenericCountdown(sessionId, GENERIC_COUNTDOWN_MS);
-            setTimeout(() => {
-                const s = genericSessions[sessionId];
-                if (!s || s.status === 'ended') return;
-                s.status = 'running';
-                s.phase = 'running';
-                s.roundStartedAt = Date.now();
-                broadcastGenericStarted(sessionId);
-                broadcastGenericRoundStarted(sessionId, 0);
-            }, GENERIC_COUNTDOWN_MS);
+            
+            // Use server-side countdown for RPS, old method for others
+            if (generic.activityKey === 'rock_paper_scissors') {
+                startGenericCountdown(sessionId, () => {
+                    const s = genericSessions[sessionId];
+                    if (!s || s.status === 'ended') return;
+                    s.status = 'running';
+                    s.phase = 'running';
+                    s.roundStartedAt = Date.now();
+                    s.countdownValue = undefined;
+                    broadcastGenericState(sessionId);
+                });
+            } else {
+                generic.status = 'countdown';
+                generic.phase = 'countdown';
+                broadcastGenericCountdown(sessionId, GENERIC_COUNTDOWN_MS);
+                setTimeout(() => {
+                    const s = genericSessions[sessionId];
+                    if (!s || s.status === 'ended') return;
+                    s.status = 'running';
+                    s.phase = 'running';
+                    s.roundStartedAt = Date.now();
+                    broadcastGenericStarted(sessionId);
+                    broadcastGenericRoundStarted(sessionId, 0);
+                }, GENERIC_COUNTDOWN_MS);
+            }
             return generic;
         } catch (e) {
             const message = e instanceof Error ? e.message : 'start_failed';

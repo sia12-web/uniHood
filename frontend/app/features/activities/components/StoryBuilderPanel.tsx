@@ -112,11 +112,11 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                     <div className="w-full p-6 rounded-2xl bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 text-left">
                         <div className="flex items-center gap-2 mb-3">
                             <Heart className="h-4 w-4 text-rose-500" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today's Theme</span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today&apos;s Theme</span>
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{storyPrompt.title}</h3>
                         <p className="text-sm font-serif text-slate-600 italic leading-relaxed">
-                            "{storyPrompt.opening}"
+                            &ldquo;{storyPrompt.opening}&rdquo;
                         </p>
                     </div>
                 )}
@@ -211,7 +211,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                                 <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Story Prompt</span>
                             </div>
                             <p className="text-lg font-serif text-slate-800 leading-relaxed italic">
-                                "{storyPrompt.opening}"
+                                &ldquo;{storyPrompt.opening}&rdquo;
                             </p>
                             <p className="mt-3 text-xs text-slate-500">Continue the story from here...</p>
                         </div>

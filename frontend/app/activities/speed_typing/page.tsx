@@ -168,7 +168,7 @@ function SpeedTypingEntryPageContent() {
         {sessionId ? (
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5">
             <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center">
                 <div className="flex items-center gap-3">
                   <span className="flex h-2 w-2">
                     <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-400 opacity-75"></span>
@@ -176,7 +176,6 @@ function SpeedTypingEntryPageContent() {
                   </span>
                   <span className="text-sm font-medium text-slate-600">Session Active</span>
                 </div>
-                <span className="font-mono text-xs text-slate-400">ID: {sessionId}</span>
               </div>
             </div>
             <div className="p-6">
@@ -309,12 +308,11 @@ function SpeedTypingEntryPageContent() {
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg">
                     <div className="relative z-10">
                       <h3 className="text-lg font-bold">New Challenger!</h3>
-                      <p className="mt-1 text-emerald-100">A friend has invited you to a duel.</p>
+                      <p className="mt-1 text-emerald-100">
+                        {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "A friend"} has invited you to a duel.
+                      </p>
                       
-                      <div className="mt-6 flex items-center justify-between gap-4">
-                        <div className="font-mono text-xs text-emerald-200/80">
-                          ID: {invite.sessionId.slice(0, 8)}...
-                        </div>
+                      <div className="mt-6 flex items-center justify-end">
                         <button
                           onClick={handleAcceptInvite}
                           className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-emerald-600 shadow-sm transition hover:bg-emerald-50"

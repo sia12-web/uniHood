@@ -56,6 +56,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   // Render Helpers
   const renderLobby = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3 • First to 2 Wins</div>
       <div className="mb-6">
         <MyPointsBadge />
       </div>
@@ -159,10 +160,12 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
 
   const renderRunning = () => {
     const hasSubmitted = Boolean(state.submittedMove);
+    const currentRound = state.currentRound ?? 0;
     
     return (
       <div className="py-8">
         <div className="mb-8 text-center">
+          <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3 • Round {currentRound + 1} of 3</span>
           <h3 className="text-2xl font-bold text-slate-900">Choose Your Weapon</h3>
           <p className="text-slate-500">Opponent is {opponent?.ready ? "thinking..." : "waiting"}</p>
         </div>
@@ -256,6 +259,13 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
           <p className="mt-2 text-slate-600">
             {state.lastRoundReason || (isWinner ? "You won this round!" : "Better luck next time.")}
           </p>
+          {state.scoreboard.length >= 2 && (
+            <div className="mt-4 flex justify-center gap-4 text-slate-600">
+              <span className="font-semibold">You: {state.scoreboard.find(s => s.userId === selfId)?.score || 0}</span>
+              <span>—</span>
+              <span className="font-semibold">{opponentName}: {state.scoreboard.find(s => s.userId !== selfId)?.score || 0}</span>
+            </div>
+          )}
         </div>
 
         <div className="mb-12 flex items-center justify-center gap-12">
@@ -290,7 +300,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
           onClick={readyUp}
           className="rounded-full bg-rose-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-xl"
         >
-          Play Again
+          {state.scoreboard.some(s => s.score >= 2) ? "New Match" : "Next Round"}
         </button>
       </div>
     );

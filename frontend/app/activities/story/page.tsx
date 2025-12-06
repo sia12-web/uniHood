@@ -319,26 +319,23 @@ function StoryActivityContent() {
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-6 text-white shadow-lg">
                     <div className="relative z-10">
                       <h3 className="text-lg font-bold">New Story Invite!</h3>
-                      <p className="mt-1 text-violet-100">A friend has invited you to write.</p>
+                      <p className="mt-1 text-violet-100">
+                        {friends.find(f => f.friend_id === invite.from)?.friend_display_name || friends.find(f => f.friend_id === invite.from)?.friend_handle || "A friend"} has invited you to write.
+                      </p>
 
-                      <div className="mt-6 flex items-center justify-between gap-4">
-                        <div className="font-mono text-xs text-violet-200/80">
-                          ID: {invite.id.slice(0, 8)}...
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleDismissInvite}
-                            className="rounded-xl bg-white/20 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-white/30"
-                          >
-                            Dismiss
-                          </button>
-                          <button
-                            onClick={handleAcceptInvite}
-                            className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-600 shadow-sm transition hover:bg-violet-50"
-                          >
-                            Accept & Join
-                          </button>
-                        </div>
+                      <div className="mt-6 flex items-center justify-end gap-2">
+                        <button
+                          onClick={handleDismissInvite}
+                          className="rounded-xl bg-white/20 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-white/30"
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          onClick={handleAcceptInvite}
+                          className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-600 shadow-sm transition hover:bg-violet-50"
+                        >
+                          Accept & Join
+                        </button>
                       </div>
                     </div>
 

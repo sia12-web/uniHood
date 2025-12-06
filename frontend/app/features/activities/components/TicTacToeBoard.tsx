@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { TicTacToeState } from '../hooks/useTicTacToeSession';
-import { Copy, Check, RotateCcw, LogOut, AlertTriangle } from 'lucide-react';
+import { Check, RotateCcw, LogOut, AlertTriangle } from 'lucide-react';
 import { MyPointsBadge } from './MyPointsBadge';
 
 interface BoardProps {
@@ -15,20 +15,10 @@ interface BoardProps {
 }
 
 export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, onLeave, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex, leaveReason } = state;
+    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex, matchWinner, leaveReason } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
-    const [copied, setCopied] = useState(false);
     const opponentLeft = leaveReason === 'opponent_left';
-
-    const copyInvite = () => {
-        if (typeof window !== 'undefined') {
-            const url = `${window.location.origin}/activities?matchId=${new URLSearchParams(window.location.search).get('matchId')}`;
-            navigator.clipboard.writeText(url);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        }
-    };
 
     const roundNumber = typeof roundIndex === 'number' ? roundIndex : null;
     const lastWinnerId = lastRoundWinner || null;
@@ -40,6 +30,14 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-10 w-full max-w-4xl mx-auto">
+            {/* Round Indicator */}
+            {status === 'playing' && roundNumber !== null && (
+                <div className="text-center">
+                    <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3</span>
+                    <div className="text-slate-300 text-sm">Round {roundNumber + 1} of 3</div>
+                </div>
+            )}
+
             {/* Header / Scoreboard */}
             <div className="flex items-center justify-between w-full px-6 py-4 bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-slate-700/50 shadow-lg">
                 <div className={clsx("flex items-center gap-4 px-6 py-3 rounded-xl transition-colors", turn === 'X' && status === 'playing' ? "bg-cyan-500/20 border border-cyan-500/50" : "")}>
@@ -47,19 +45,22 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                     <div className="flex flex-col">
                         <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Player X</span>
                         <span className="text-white font-mono text-lg">
-                            {status === 'finished' ? (scores[players.X || ''] || 0) : (roundWins?.[players.X || ''] || 0)}
+                            {roundWins?.[players.X || ''] || 0} wins
                         </span>
                     </div>
                     {players.X && ready[players.X] && status === 'lobby' && <Check className="w-5 h-5 text-green-400" />}
                 </div>
 
-                <div className="text-slate-600 font-mono text-lg font-bold">VS</div>
+                <div className="flex flex-col items-center">
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">First to 2</span>
+                    <div className="text-slate-600 font-mono text-lg font-bold">VS</div>
+                </div>
 
                 <div className={clsx("flex items-center gap-4 px-6 py-3 rounded-xl transition-colors", turn === 'O' && status === 'playing' ? "bg-pink-500/20 border border-pink-500/50" : "")}>
                     <div className="flex flex-col items-end">
                         <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Player O</span>
                         <span className="text-white font-mono text-lg">
-                            {status === 'finished' ? (scores[players.O || ''] || 0) : (roundWins?.[players.O || ''] || 0)}
+                            {roundWins?.[players.O || ''] || 0} wins
                         </span>
                     </div>
                     <div className="text-pink-400 font-bold text-2xl">O</div>
@@ -115,21 +116,11 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                                 <p className="text-slate-400 text-base">Invite a friend to play or wait for someone to join.</p>
                                 {lastWinnerId && roundNumber !== null && roundNumber > 0 && (
                                     <div className="w-full rounded-xl border border-slate-700 bg-slate-800/70 p-4 text-sm text-slate-200">
-                                        {lastWinnerId === players[myRole || '']
+                                        {lastWinnerId === (myRole === 'X' || myRole === 'O' ? players[myRole] : undefined)
                                             ? `You won round ${roundNumber}!`
                                             : `${resolveName(lastWinnerId)} won round ${roundNumber}.`}
                                     </div>
                                 )}
-
-                                <button
-                                    onClick={copyInvite}
-                                    className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-colors text-base w-full justify-center border border-slate-700"
-                                >
-                                    {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
-                                    {copied ? "Link Copied!" : "Copy Invite Link"}
-                                </button>
-
-                                <div className="w-full h-px bg-slate-700 my-2" />
 
                                 <button
                     onClick={onToggleReady}
@@ -186,6 +177,16 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                                 <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
                                     {opponentLeft ? "You Win!" : (winner === 'draw' ? "It's a Draw!" : `${playerNames?.[players[winner as 'X' | 'O'] || ''] || `Player ${winner}`} Wins!`)}
                                 </h2>
+                                {matchWinner && (
+                                    <div className="text-slate-300 text-sm">
+                                        <span className="font-semibold">{resolveName(matchWinner)}</span> wins the match!
+                                        <div className="mt-2 flex justify-center gap-4 text-slate-400">
+                                            <span>X: {roundWins?.[players.X || ''] || 0}</span>
+                                            <span>—</span>
+                                            <span>O: {roundWins?.[players.O || ''] || 0}</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex gap-4">
                                     <button
                                         onClick={onRestart}

@@ -192,7 +192,7 @@ export default function TicTacToeEntryPage() {
 
             {sessionId ? (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner ring-1 ring-slate-900/5">
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+                <div className="flex items-center justify-center border-b border-slate-100 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex h-2 w-2">
                       <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -200,7 +200,6 @@ export default function TicTacToeEntryPage() {
                     </span>
                     Session active
                   </div>
-                  <span className="font-mono text-xs text-slate-400">ID: {sessionId}</span>
                 </div>
                 <div className="p-4 sm:p-6">
                   <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} onLeave={leave} playerNames={playerNames} />
@@ -320,7 +319,7 @@ export default function TicTacToeEntryPage() {
                     <Gamepad2 className="h-6 w-6 text-indigo-600" />
                   </div>
                   <p className="mt-3 text-sm font-medium text-indigo-900">
-                    Duel request from {invite.opponentUserId}
+                    Duel request from {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "a friend"}
                   </p>
                   <button
                     onClick={handleAcceptInvite}

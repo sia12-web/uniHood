@@ -152,3 +152,195 @@ jobs:
             frontend/test-results/**/*.zip
           if-no-files-found: ignore
           retention-days: 7
+
+  # ===== LIGHTHOUSE CI =====
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    needs: frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build for production
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.13.x
+
+      - name: Run Lighthouse CI
+        run: |
+          lhci autorun --config=./lighthouserc.js || true
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: frontend/.lighthouseci/
+          retention-days: 14
+
+      - name: Comment PR with Lighthouse Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const lhciDir = './frontend/.lighthouseci';
+            if (!fs.existsSync(lhciDir)) {
+              console.log('No Lighthouse results found');
+              return;
+            }
+            
+            const manifestPath = path.join(lhciDir, 'manifest.json');
+            if (!fs.existsSync(manifestPath)) {
+              console.log('No manifest.json found');
+              return;
+            }
+            
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            
+            let comment = '## 🚦 Lighthouse Performance Report\n\n';
+            comment += '| URL | Performance | Accessibility | Best Practices | SEO |\n';
+            comment += '|-----|-------------|---------------|----------------|-----|\n';
+            
+            for (const entry of manifest) {
+              const summary = entry.summary;
+              const getEmoji = (score) => {
+                if (score >= 0.9) return '🟢';
+                if (score >= 0.5) return '🟡';
+                return '🔴';
+              };
+              
+              const formatScore = (score) => `${getEmoji(score)} ${Math.round(score * 100)}`;
+              
+              comment += `| ${entry.url} | ${formatScore(summary.performance)} | ${formatScore(summary.accessibility)} | ${formatScore(summary['best-practices'])} | ${formatScore(summary.seo)} |\n`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ===== BUNDLE SIZE CHECK =====
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    needs: frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Analyze bundle
+        run: |
+          echo "## 📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d ".next" ]; then
+            echo "### JavaScript Chunks (Top 20)" >> $GITHUB_STEP_SUMMARY
+            echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+            
+            find .next/static/chunks -name "*.js" -type f -exec du -h {} \; | sort -rh | head -20 | while read size file; do
+              echo "| \`$(basename $file)\` | $size |" >> $GITHUB_STEP_SUMMARY
+            done
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Budget Check" >> $GITHUB_STEP_SUMMARY
+            
+            LARGE_CHUNKS=$(find .next/static/chunks -name "*.js" -type f -size +500k 2>/dev/null || true)
+            if [ -n "$LARGE_CHUNKS" ]; then
+              echo "⚠️ **Warning**: Large JS chunks detected (>500KB):" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$LARGE_CHUNKS" | xargs -I {} basename {} >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ All chunks within budget (<500KB)" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+  # ===== PERFORMANCE REGRESSION CHECK =====
+  perf-regression:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for performance impacts
+        run: |
+          echo "## 📊 Performance Impact Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for large files being added
+          echo "### Large File Check" >> $GITHUB_STEP_SUMMARY
+          LARGE_FILES=""
+          for file in $(git diff --name-only --diff-filter=A origin/main...HEAD); do
+            if [ -f "$file" ]; then
+              size=$(wc -c < "$file" 2>/dev/null || echo "0")
+              if [ "$size" -gt 102400 ]; then
+                LARGE_FILES="$LARGE_FILES\n$file ($(numfmt --to=iec $size 2>/dev/null || echo "${size}B"))"
+              fi
+            fi
+          done
+          
+          if [ -n "$LARGE_FILES" ]; then
+            echo "⚠️ Large files added (>100KB):" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$LARGE_FILES" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No large files added" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for new dependencies
+          echo "### Dependency Changes" >> $GITHUB_STEP_SUMMARY
+          if git diff origin/main...HEAD -- '**/package.json' | grep -q '"dependencies"\|"devDependencies"'; then
+            echo "📦 Package.json changes detected - review for bundle impact" >> $GITHUB_STEP_SUMMARY
+            git diff origin/main...HEAD -- '**/package.json' | head -50 >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No dependency changes" >> $GITHUB_STEP_SUMMARY
+          fi

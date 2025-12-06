@@ -48,3 +48,9 @@ infra/docker/pgdata/
 # ---- Misc build artifacts ----
 dist/
 build/
+
+# ---- Performance profiling artifacts ----
+perf-results/
+infra/perf/perf-results/
+*.lhr.json
+*.lhr.html

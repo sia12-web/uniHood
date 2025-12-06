@@ -68,7 +68,7 @@ export default function SelectUniversityPage() {
 
 
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
-                        Select your University
+                        Select Your University
                     </h2>
                     <p className="mt-2 text-center text-sm text-slate-600">
                         Join your campus community to see what&apos;s happening nearby.

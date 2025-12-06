@@ -153,7 +153,7 @@ export default function PhotosPage() {
 				{/* Header Section */}
 				<div className="flex flex-col items-center text-center">
 					<h2 className="text-3xl font-bold tracking-tight text-slate-900">
-						Choose your look
+						Choose Your Look
 					</h2>
 					<p className="mt-2 text-lg text-slate-600">
 						Be yourself or go incognito. You can change this anytime.

@@ -169,12 +169,9 @@ export default function LoginPage() {
                 />
               </label>
 
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-start text-sm">
                 <Link href="/forgot-password" className="font-medium text-[#b7222d] hover:underline">
                   Forgot password?
-                </Link>
-                <Link href="/forgot-username" className="font-medium text-[#b7222d] hover:underline">
-                  Forgot username?
                 </Link>
               </div>
 
@@ -195,6 +192,14 @@ export default function LoginPage() {
                 </Link>
                 .
               </span>
+              <div className="mt-2 flex gap-4 text-xs text-slate-500">
+                <Link href="/terms" className="hover:text-[#d64045] hover:underline">
+                  Terms of Service
+                </Link>
+                <Link href="/privacy" className="hover:text-[#d64045] hover:underline">
+                  Privacy Policy
+                </Link>
+              </div>
             </footer>
           </div>
         </section>

@@ -242,6 +242,18 @@ export default function OnboardingPage() {
                 Sign in
               </Link>
             </p>
+
+            <p className="mt-6 text-xs text-slate-500">
+              By joining, you agree to our{" "}
+              <Link href="/terms" className="underline hover:text-[#d64045]">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="underline hover:text-[#d64045]">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </div>
         </section>
       </div>

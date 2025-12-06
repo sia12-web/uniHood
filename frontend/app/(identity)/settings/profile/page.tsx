@@ -328,7 +328,7 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 	});
 }
 
-export default function ProfileSettingsPage({ embedded = false }: { embedded?: boolean }) {
+export default function ProfileSettingsPage() {
 	const toast = useContext(ToastContext);
 	const [activeTab, setActiveTab] = useState<"general" | "gallery" | "courses" | "settings">("general");
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -1055,20 +1055,16 @@ export default function ProfileSettingsPage({ embedded = false }: { embedded?: b
 	};
 
 	return (
-		<main className={`relative min-h-screen ${embedded ? "bg-transparent" : "bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900"}`}>
-			{!embedded && (
-				<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
-			)}
-			<div className={`mx-auto flex w-full ${embedded ? "" : "max-w-5xl px-6 py-12"} flex-col gap-6`}>
-				{!embedded && (
-					<header className="flex flex-col gap-2">
-						<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
-						<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
-						<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
-							Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
-						</p>
-					</header>
-				)}
+		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
+			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
+			<div className="mx-auto flex w-full max-w-5xl px-6 py-12 flex-col gap-6">
+				<header className="flex flex-col gap-2">
+					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
+					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
+					<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
+						Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
+					</p>
+				</header>
 				{!isDraftMode && error ? (
 					<div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 shadow-sm">
 						<p className="font-semibold">Something went wrong</p>

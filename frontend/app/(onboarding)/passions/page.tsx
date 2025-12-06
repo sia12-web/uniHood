@@ -113,7 +113,7 @@ export default function PassionsPage() {
 			<div className="w-full max-w-2xl space-y-8">
 				<div className="flex flex-col items-center">
 					<h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
-						Pick your passions
+						Pick Your Passions
 					</h2>
 					<p className="mt-2 text-center text-sm text-slate-600">
 						Choose up to {PASSION_LIMIT}. We use these to tailor recommendations.

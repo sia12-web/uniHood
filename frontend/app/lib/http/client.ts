@@ -3,7 +3,7 @@ import { readAuthSnapshot, resolveAuthHeaders } from "@/lib/auth-storage";
 import { AuthError, ForbiddenError, GoneError, HttpError, IdemConflictError, NetworkError, type ErrorDetail } from "./errors";
 import { DEFAULT_RETRY_POLICY, computeDelayMs, shouldRetryError, shouldRetryResponse, sleep, type RetryPolicy } from "./retry";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export type ApiFetchOptions = Omit<RequestInit, "body" | "headers"> & {
 	body?: unknown;

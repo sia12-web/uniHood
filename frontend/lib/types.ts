@@ -62,6 +62,8 @@ export type LeaderboardRow = {
   rank: number;
   user_id: string;
   score: number;
+  display_name?: string | null;
+  handle?: string | null;
 };
 
 export type LeaderboardResponse = {

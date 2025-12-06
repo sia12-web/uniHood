@@ -17,29 +17,45 @@ const CATEGORIES: { label: string; value: MeetupCategory; color: string }[] = [
 ];
 
 
-function MeetupCard({ meetup }: { meetup: MeetupResponse }) {
+function MeetupCard({ meetup, isOwner }: { meetup: MeetupResponse; isOwner: boolean }) {
   const category = CATEGORIES.find((c) => c.value === meetup.category) || CATEGORIES[4];
   const startDate = new Date(meetup.start_at);
   const isToday = startDate.toDateString() === new Date().toDateString();
 
   return (
-    <Link href={`/meetups/${meetup.id}`} className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${category.color}`}>
-          {category.label}
-        </span>
-        {meetup.status === "ACTIVE" && (
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            Active
+    <Link 
+      href={`/meetups/${meetup.id}`} 
+      className={`group relative flex flex-col overflow-hidden rounded-3xl border p-5 shadow-sm transition hover:shadow-md ${
+        isOwner 
+          ? "border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white ring-1 ring-indigo-100 hover:border-indigo-300" 
+          : "border-slate-200 bg-white"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {isOwner && (
+            <span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              HOST
+            </span>
+          )}
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${category.color}`}>
+            {category.label}
           </span>
-        )}
-        {meetup.visibility === "PRIVATE" && (
-          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-            <Lock className="h-3 w-3" />
-            Private
-          </span>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          {meetup.status === "ACTIVE" && (
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              Active
+            </span>
+          )}
+          {meetup.visibility === "PRIVATE" && (
+            <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+              <Lock className="h-3 w-3" />
+              Private
+            </span>
+          )}
+        </div>
       </div>
 
       <h3 className="mt-3 text-lg font-bold text-slate-900 group-hover:text-rose-600">{meetup.title}</h3>
@@ -197,7 +213,7 @@ export default function MeetupsPage() {
               <p className="text-slate-500">No meetups found. Be the first to create one!</p>
             </div>
           ) : (
-            meetups?.map((meetup) => <MeetupCard key={meetup.id} meetup={meetup} />)
+            meetups?.map((meetup) => <MeetupCard key={meetup.id} meetup={meetup} isOwner={meetup.creator_user_id === authUser?.userId} />)
           )}
         </div>
       </div>

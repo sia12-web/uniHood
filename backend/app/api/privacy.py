@@ -30,6 +30,8 @@ def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
 		return HTTPException(status.HTTP_400_BAD_REQUEST, detail=reason)
 	if reason in {"delete_token_invalid"}:
 		return HTTPException(status.HTTP_409_CONFLICT, detail=reason)
+	if reason in {"user_under_legal_hold"}:
+		return HTTPException(status.HTTP_403_FORBIDDEN, detail=reason)
 	return HTTPException(status.HTTP_400_BAD_REQUEST, detail=reason)
 
 

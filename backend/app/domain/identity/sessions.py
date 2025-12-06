@@ -39,6 +39,11 @@ def _h(token: str) -> str:
 	return hashlib.sha256((REFRESH_PEPPER + token).encode()).hexdigest()
 
 
+def _hash_fingerprint(fingerprint: str) -> str:
+	"""Hash device fingerprint for storage. Uses SHA-256 without pepper since fingerprint is already random."""
+	return hashlib.sha256(fingerprint.encode()).hexdigest()
+
+
 def _refresh_store_key(session_id: UUID | str) -> str:
 	return f"session:refresh:{session_id}"
 
@@ -90,17 +95,19 @@ async def _insert_session(
 	ip: Optional[str],
 	user_agent: Optional[str],
 	device_label: str,
+	fingerprint_hash: Optional[str] = None,
 ) -> None:
 	await conn.execute(
 		"""
-		INSERT INTO sessions (id, user_id, ip, user_agent, device_label)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO sessions (id, user_id, ip, user_agent, device_label, fingerprint_hash)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		""",
 		session_id,
 		user_id,
 		ip,
 		user_agent,
 		device_label,
+		fingerprint_hash,
 	)
 
 
@@ -116,6 +123,7 @@ async def issue_session_tokens(
 	ip: Optional[str],
 	user_agent: Optional[str],
 	device_label: str = "",
+	fingerprint: Optional[str] = None,
  	risk_geo: Optional[Mapping[str, object]] = None,
 ) -> schemas.LoginResponse:
 	"""Create a session row and issue access/refresh tokens."""
@@ -132,9 +140,12 @@ async def issue_session_tokens(
 	pair.twofa_required = False
 	pair.challenge_id = None
 
+	# Hash fingerprint for storage if provided
+	fingerprint_hash = _hash_fingerprint(fingerprint) if fingerprint else None
+
 	pool = await get_pool()
 	async with pool.acquire() as conn:
-		await _insert_session(conn, session_id, user.id, ip, user_agent, device_label.strip()[:100])
+		await _insert_session(conn, session_id, user.id, ip, user_agent, device_label.strip()[:100], fingerprint_hash)
 	await _store_refresh_token(session_id, refresh_token)
 	audit.inc_session_created()
 	await audit.log_event(
@@ -169,11 +180,42 @@ async def refresh_session(
 	refresh_token: str,
 	ip: Optional[str],
 	user_agent: Optional[str],
+	fingerprint: Optional[str] = None,
 ) -> schemas.LoginResponse:
-	"""Rotate a refresh token for an existing session."""
+	"""Rotate a refresh token for an existing session.
+	
+	Validates device fingerprint if session has one stored (S1-backend-01 compliance).
+	"""
 	persisted_hash = await _fetch_refresh_token(session_id)
 	if not persisted_hash:
 		raise policy.IdentityPolicyError("refresh_invalid")
+	
+	# Validate fingerprint if session has one stored
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		stored_fp_hash = await conn.fetchval(
+			"SELECT fingerprint_hash FROM sessions WHERE id = $1",
+			session_id,
+		)
+	if stored_fp_hash:
+		if not fingerprint:
+			# Session requires fingerprint but none provided
+			await audit.log_event(
+				"refresh_fingerprint_missing",
+				user_id=str(user.id),
+				meta={"session_id": str(session_id)},
+			)
+			raise policy.IdentityPolicyError("refresh_invalid")
+		presented_fp_hash = _hash_fingerprint(fingerprint)
+		if not hmac.compare_digest(stored_fp_hash, presented_fp_hash):
+			# Fingerprint mismatch - potential token theft
+			await audit.log_event(
+				"refresh_fingerprint_mismatch",
+				user_id=str(user.id),
+				meta={"session_id": str(session_id)},
+			)
+			raise policy.IdentityPolicyError("refresh_invalid")
+	
 	presented_hash = _h(refresh_token)
 	if not hmac.compare_digest(persisted_hash, presented_hash):
 		# Check reuse detection: has this hash been seen (rotated) already?

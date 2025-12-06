@@ -134,7 +134,7 @@ async def test_auth_verify_issues_session(fake_redis, monkeypatch):
         recorded_counter["ensure"] = (user_id, ip, user_agent, label)
         return None
 
-    async def fake_issue_session(user_obj, *, ip, user_agent, device_label):
+    async def fake_issue_session(user_obj, *, ip, user_agent, device_label, fingerprint=None):
         return schemas.LoginResponse(
             user_id=user_obj.id,
             access_token="access",

@@ -164,3 +164,45 @@ async def send_username_reminder(email: str, handle: str, *, user_id: str | None
         user_id=user_id,
         meta={"email_hash": mask},
     )
+
+
+async def send_friend_invite_notification(
+    to_email: str,
+    from_display_name: str,
+    from_handle: str | None = None,
+    *,
+    recipient_user_id: str | None = None,
+) -> None:
+    """Send email notification when someone receives a friend invitation."""
+    sender_label = from_display_name
+    if from_handle:
+        sender_label = f"{from_display_name} (@{from_handle})"
+    
+    subject = f"{from_display_name} wants to be your friend on Divan"
+    body = f"""
+    <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f1a38;">
+            <div style="max-width: 500px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #2d2a8d; margin-bottom: 16px;">You have a new friend request!</h2>
+                <p><strong>{sender_label}</strong> would like to connect with you on Divan.</p>
+                <p style="margin: 24px 0;">
+                    <a href="http://localhost:3000/friends?tab=invites" 
+                       style="display: inline-block; background-color: #3b2e7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                        View Invitation
+                    </a>
+                </p>
+                <p style="color: #666; font-size: 14px;">
+                    Log in to accept or decline this friend request.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    await _send_email(to_email, subject, body)
+    
+    mask = _hash_email(to_email)
+    await audit.log_event(
+        "friend_invite_email_sent",
+        user_id=recipient_user_id,
+        meta={"email_hash": mask, "from_display": from_display_name[:20] if from_display_name else None},
+    )

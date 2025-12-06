@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.domain.identity import devices, models, policy, schemas, webauthn
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.infra.postgres import get_pool
+from app.api.auth import set_refresh_cookies
 
 router = APIRouter(prefix="/passkeys", tags=["passkeys"])
 
@@ -112,18 +114,24 @@ async def passkey_auth_options(payload: Optional[schemas.PasskeyAuthOptionsReque
 @router.post("/auth/verify", response_model=schemas.LoginResponse)
 async def passkey_auth_verify(
     request: Request,
+    response: Response,
     payload: schemas.PasskeyAuthVerifyRequest,
 ) -> schemas.LoginResponse:
     ip = _client_ip(request)
     user_agent = request.headers.get("User-Agent")
     device_label = request.headers.get("X-Device-Label", "")
+    rf_fp = secrets.token_urlsafe(24)
     try:
-        return await webauthn.auth_verify(
+        result = await webauthn.auth_verify(
             payload,
             ip=ip,
             user_agent=user_agent,
             device_label=device_label,
+            fingerprint=rf_fp,
         )
+        set_refresh_cookies(response, refresh_token=result.refresh_token, rf_fp=rf_fp)
+        result.refresh_token = ""  # don't echo in body
+        return result
     except policy.IdentityPolicyError as exc:
         raise _map_policy_error(exc) from None
 

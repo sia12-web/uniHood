@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
 import asyncpg
-from argon2 import PasswordHasher
 
 from app.domain.identity import audit, mailer, policy, sessions
+from app.infra.password import PASSWORD_HASHER
 from app.infra.postgres import get_pool
 
-_PASSWORD_HASHER = PasswordHasher()
+_PASSWORD_HASHER = PASSWORD_HASHER
+_FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 
 def _now() -> datetime:
@@ -59,7 +61,7 @@ async def request_password_reset(email: str) -> None:
 			)
 	audit.inc_pwreset_request()
 	await audit.log_event("pwreset_request", user_id=str(user_id), meta={"reset_id": str(reset_id)})
-	link = f"https://divan.app/reset-password?token={token}"
+	link = f"{_FRONTEND_URL}/reset-password?token={token}"
 	await mailer.send_password_reset(normalised, link, user_id=str(user_id))
 
 

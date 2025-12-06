@@ -211,6 +211,7 @@ async def auth_verify(
     ip: Optional[str],
     user_agent: Optional[str],
     device_label: str = "",
+    fingerprint: Optional[str] = None,
 ) -> schemas.LoginResponse:
     assertion = request.assertion_response
     challenge_id: Optional[str] = assertion.get("challengeId") or assertion.get("challenge")
@@ -253,6 +254,7 @@ async def auth_verify(
         ip=ip,
         user_agent=user_agent,
         device_label=device_label,
+        fingerprint=fingerprint,
     )
     if not response.reauth_token:
         reauth_token = secrets.token_urlsafe(32)

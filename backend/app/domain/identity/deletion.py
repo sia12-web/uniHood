@@ -5,6 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import UUID
 
 import asyncpg
 
@@ -79,12 +80,28 @@ async def confirm_deletion(auth_user: AuthenticatedUser, token: str) -> schemas.
 	stored = await redis_client.get(_token_key(auth_user.id))
 	if not stored or stored != token:
 		raise policy.IdentityPolicyError("delete_token_invalid")
+	# Check for legal hold before deletion
+	await _check_legal_hold(auth_user.id)
 	return await _apply_deletion(auth_user, mark_requested=True)
 
 
 async def force_delete(auth_user: AuthenticatedUser) -> schemas.DeletionStatus:
 	"""Immediate deletion without email token (useful for internal/dev)."""
+	# Check for legal hold before deletion
+	await _check_legal_hold(auth_user.id)
 	return await _apply_deletion(auth_user, mark_requested=True, force=True)
+
+
+async def _check_legal_hold(user_id: str) -> None:
+	"""Check if user is under legal hold and raise error if so."""
+	try:
+		from app.domain.legal import holds
+		is_held = await holds.is_user_under_hold(UUID(user_id))
+		if is_held:
+			raise policy.IdentityPolicyError("user_under_legal_hold")
+	except ImportError:
+		# Legal module not available, skip check
+		pass
 
 
 async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, force: bool = False) -> schemas.DeletionStatus:

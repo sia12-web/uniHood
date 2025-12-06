@@ -6,6 +6,8 @@ and refresh/logout endpoints (Phase A hardening).
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 import secrets
 
@@ -78,13 +80,14 @@ async def login(payload: schemas.LoginRequest, request: Request, response: Respo
 		_raise("rate_limited_id", status.HTTP_429_TOO_MANY_REQUESTS)
 	try:
 		device_label = payload.device_label or request.headers.get("X-Device-Label", "")
+		rf_fp = secrets.token_urlsafe(24)
 		pair = await service.login(
 			payload,
 			ip=ip,
 			user_agent=request.headers.get("User-Agent"),
 			device_label=device_label,
+			fingerprint=rf_fp,
 		)
-		rf_fp = secrets.token_urlsafe(24)
 		set_refresh_cookies(response, refresh_token=pair.refresh_token, rf_fp=rf_fp)
 		pair.refresh_token = ""  # avoid echoing refresh token back in body
 		rid = get_request_id(request)
@@ -104,14 +107,15 @@ async def login(payload: schemas.LoginRequest, request: Request, response: Respo
 async def verify_email(payload: schemas.VerifyRequest, request: Request, response: Response) -> schemas.VerificationStatus:
 	ip = _client_ip(request)
 	try:
+		rf_fp = secrets.token_urlsafe(24)
 		res = await service.verify_email(
 			payload,
 			ip=ip,
 			user_agent=request.headers.get("User-Agent"),
 			device_label=request.headers.get("X-Device-Label", ""),
+			fingerprint=rf_fp,
 		)
 		if res.refresh_token:
-			rf_fp = secrets.token_urlsafe(24)
 			set_refresh_cookies(response, refresh_token=res.refresh_token, rf_fp=rf_fp)
 			res.refresh_token = ""
 		response.headers["X-Request-Id"] = get_request_id()
@@ -180,6 +184,16 @@ async def logout(request: Request, response: Response, payload: schemas.LogoutRe
 @router.get("/auth/campuses", response_model=list[schemas.CampusOut])
 async def list_campuses() -> list[schemas.CampusOut]:
 	return await service.list_campuses()
+
+
+@router.get("/api/campus/{campus_id}", response_model=schemas.CampusOut)
+async def get_campus(campus_id: UUID) -> schemas.CampusOut:
+	"""Get a single campus by ID. Public endpoint for UI display."""
+	try:
+		return await service.get_campus_by_id(campus_id)
+	except service.CampusNotFound:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campus_not_found") from None
+
 
 @router.post("/auth/forgot-password", status_code=status.HTTP_202_ACCEPTED)
 async def forgot_password(payload: schemas.ForgotPasswordRequest, request: Request):

@@ -22,6 +22,14 @@ class RecordingConnection:
             return "DELETE 1"
         return "OK"
 
+    async def fetchval(self, query: str, *params: Any) -> Any:
+        """Mock fetchval for single value queries."""
+        self.executed.append((query, params))
+        # Return None for fingerprint_hash queries (no stored fingerprint in test)
+        if "fingerprint_hash" in query:
+            return None
+        return None
+
 
 class _AcquireWrapper:
     def __init__(self, conn: RecordingConnection) -> None:

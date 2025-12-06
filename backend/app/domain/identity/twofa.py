@@ -12,9 +12,10 @@ from typing import Optional
 import asyncpg
 import pyotp
 import qrcode
-from argon2 import PasswordHasher, exceptions as argon_exc
+from argon2 import exceptions as argon_exc
 
 from app.domain.identity import audit, models, policy, schemas, sessions
+from app.infra.password import PASSWORD_HASHER
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 
@@ -24,7 +25,7 @@ RECOVERY_LEN = policy.RECOVERY_CODE_LEN
 CHALLENGE_TTL_SECONDS = 300
 ISSUER_NAME = "Divan"
 
-_PASSWORD_HASHER = PasswordHasher()
+_PASSWORD_HASHER = PASSWORD_HASHER
 
 
 def _now() -> datetime:
@@ -192,6 +193,7 @@ async def create_challenge(
 	ip: Optional[str],
 	user_agent: Optional[str],
 	device_label: str = "",
+	fingerprint: Optional[str] = None,
 ) -> str:
 	challenge_id = secrets.token_urlsafe(24)
 	payload = {
@@ -199,6 +201,7 @@ async def create_challenge(
 		"ip": ip,
 		"ua": user_agent,
 		"label": device_label,
+		"fp": fingerprint,
 	}
 	await redis_client.set(_challenge_key(challenge_id), json.dumps(payload), ex=CHALLENGE_TTL_SECONDS)
 	await audit.log_event("2fa_challenge", user_id=str(user.id), meta={"challenge_id": challenge_id})
@@ -253,6 +256,7 @@ async def verify_challenge(challenge_id: str, *, code: str | None, recovery_code
 		ip=data.get("ip"),
 		user_agent=data.get("ua"),
 		device_label=data.get("label", ""),
+		fingerprint=data.get("fp"),
 	)
 	await redis_client.delete(_challenge_key(challenge_id))
 	audit.inc_twofa_verify("ok")

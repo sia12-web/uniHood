@@ -8,15 +8,16 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 import asyncpg
-from argon2 import PasswordHasher, exceptions as argon_exc
+from argon2 import exceptions as argon_exc
 
 from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer
+from app.infra.password import PASSWORD_HASHER, check_needs_rehash
 from app.infra.postgres import get_pool
 from app.settings import settings
 from app.obs import metrics as obs_metrics
 
 VERIFICATION_TTL_SECONDS = 24 * 3600
-_PASSWORD_HASHER = PasswordHasher()
+_PASSWORD_HASHER = PASSWORD_HASHER
 
 
 class IdentityServiceError(Exception):
@@ -193,6 +194,7 @@ async def verify_email(
 	ip: Optional[str] = None,
 	user_agent: Optional[str] = None,
 	device_label: str = "",
+	fingerprint: Optional[str] = None,
 ) -> schemas.VerificationStatus:
 	token = payload.token.strip()
 	if not token:
@@ -224,6 +226,7 @@ async def verify_email(
 		ip=ip,
 		user_agent=user_agent,
 		device_label=device_label,
+		fingerprint=fingerprint,
 	)
 	return schemas.VerificationStatus(
 		verified=True,
@@ -257,6 +260,7 @@ async def login(
 	ip: Optional[str],
 	user_agent: Optional[str],
 	device_label: str = "",
+	fingerprint: Optional[str] = None,
 ) -> schemas.LoginResponse:
 	email = policy.normalise_email(payload.email)
 	await policy.enforce_login_rate(email)
@@ -285,6 +289,7 @@ async def login(
 			ip=ip,
 			user_agent=user_agent,
 			device_label=device_label,
+			fingerprint=fingerprint,
 		)
 		return schemas.LoginResponse(user_id=user.id, twofa_required=True, challenge_id=challenge_id)
 	response = await sessions.issue_session_tokens(
@@ -292,6 +297,7 @@ async def login(
 		ip=ip,
 		user_agent=user_agent,
 		device_label=device_label,
+		fingerprint=fingerprint,
 	)
 	obs_metrics.inc_identity_login()
 	return response
@@ -302,6 +308,14 @@ async def list_campuses() -> list[schemas.CampusOut]:
 	async with pool.acquire() as conn:
 		rows = await conn.fetch("SELECT id, name, domain, logo_url FROM campuses ORDER BY name ASC")
 	return [schemas.CampusOut(id=row["id"], name=row["name"], domain=row.get("domain"), logo_url=row.get("logo_url")) for row in rows]
+
+
+async def get_campus_by_id(campus_id: UUID) -> schemas.CampusOut:
+	"""Fetch a single campus by ID."""
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		campus = await _fetch_campus(conn, campus_id)
+	return schemas.CampusOut(id=campus.id, name=campus.name, domain=campus.domain, logo_url=campus.logo_url)
 
 
 async def request_password_reset(payload: schemas.PasswordResetRequest) -> None:
@@ -344,6 +358,7 @@ async def refresh(
 		refresh_token=refresh_cookie,
 		ip=ip,
 		user_agent=user_agent,
+		fingerprint=fingerprint,
 	)
 		# Ensure expires_in reflects current access TTL setting if available
 		try:

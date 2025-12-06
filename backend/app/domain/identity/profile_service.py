@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 MAX_GALLERY_ITEMS = 6
 HANDLE_ALLOWED_RE = re.compile(r"[^a-z0-9_]+")
 
+# Profile cache settings
+_PROFILE_CACHE_TTL = 60  # seconds
+
+
+async def _invalidate_profile_cache(user_id: str) -> None:
+	"""Invalidate cached profile for a user."""
+	from app.infra.redis import redis_client
+	cache_key = f"profile:{user_id}"
+	await redis_client.delete(cache_key)
+
 
 def _now_iso() -> str:
 	return datetime.now(timezone.utc).isoformat()
@@ -173,11 +183,37 @@ async def _load_user(
 
 
 async def get_profile(user_id: str, *, auth_user: Optional[AuthenticatedUser] = None) -> schemas.ProfileOut:
+	"""Get profile with Redis caching for performance."""
+	from app.infra.redis import redis_client
+	
+	cache_key = f"profile:{user_id}"
+	
+	# Try cache first
+	cached = await redis_client.get(cache_key)
+	if cached:
+		try:
+			data = json.loads(cached)
+			return schemas.ProfileOut(**data)
+		except (json.JSONDecodeError, Exception):
+			# Invalid cache, continue to fetch from DB
+			pass
+	
+	# Fetch from database
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		user = await _load_user(conn, user_id, auth_user=auth_user)
 	courses = await courses_service.get_user_courses(user.id)
-	return _to_profile(user, [schemas.Course(code=course.code, name=course.code) for course in courses])
+	profile = _to_profile(user, [schemas.Course(code=course.code, name=course.code) for course in courses])
+	
+	# Cache the result
+	try:
+		cache_data = profile.model_dump_json()
+		await redis_client.setex(cache_key, _PROFILE_CACHE_TTL, cache_data)
+	except Exception:
+		# Cache write failures shouldn't break the endpoint
+		pass
+	
+	return profile
 
 
 async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePatch) -> schemas.ProfileOut:
@@ -300,6 +336,10 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 			# Persist courses after the user row update (default visibility: everyone)
 			if courses_to_set is not None:
 				await courses_service.set_user_courses(user.id, courses_to_set, "everyone")
+	
+	# Invalidate profile cache after update
+	await _invalidate_profile_cache(str(auth_user.id))
+	
 	courses_for_profile = await courses_service.get_user_courses(user.id)
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	try:
@@ -340,6 +380,10 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 			)
 			user.avatar_key = key
 			user.avatar_url = url
+	
+	# Invalidate profile cache after avatar change
+	await _invalidate_profile_cache(str(auth_user.id))
+	
 	courses_for_profile = await courses_service.get_user_courses(user.id)
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_avatar_upload()
@@ -379,6 +423,10 @@ async def commit_gallery(auth_user: AuthenticatedUser, request: schemas.GalleryC
 				auth_user.id,
 			)
 			user.profile_gallery = trimmed
+	
+	# Invalidate profile cache after gallery change
+	await _invalidate_profile_cache(str(auth_user.id))
+	
 	courses_for_profile = await courses_service.get_user_courses(user.id)
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
@@ -406,6 +454,10 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 				auth_user.id,
 			)
 			user.profile_gallery = gallery
+	
+	# Invalidate profile cache after gallery removal
+	await _invalidate_profile_cache(str(auth_user.id))
+	
 	courses_for_profile = await courses_service.get_user_courses(user.id)
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()

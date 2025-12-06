@@ -1,0 +1,42 @@
+# Kubernetes patch to restore normal sampling on staging
+#
+# Apply with:
+#   kubectl patch deployment divan-backend --patch-file patch-staging-normal.yaml
+#
+# Use this to revert after a profiling session
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: divan-backend
+  labels:
+    app.kubernetes.io/name: divan-backend
+    app.kubernetes.io/component: api
+spec:
+  template:
+    metadata:
+      annotations:
+        perf-profiling/enabled: "false"
+    spec:
+      containers:
+      - name: backend
+        env:
+        # Disable trace correlation in Prometheus metrics
+        - name: PERF_TRACE_LABELS
+          value: "false"
+        
+        # Disable verbose performance logging
+        - name: PERF_DEBUG_MODE
+          value: "false"
+        
+        # Normal RUM sampling rate (10%)
+        - name: RUM_SAMPLE_RATE
+          value: "0.10"
+        
+        # Normal backend trace sampling rate (10%)
+        - name: TRACE_SAMPLE_RATE
+          value: "0.10"
+        
+        # Normal log level
+        - name: LOG_LEVEL
+          value: "INFO"

@@ -1,0 +1,59 @@
+# Prometheus Configuration for Divan Profiling
+# Scrapes metrics from backend service during load tests
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'local'
+    app: 'divan'
+
+# Alert rules
+rule_files:
+  - 'rules-phase8.yml'
+
+# Scrape configuration
+scrape_configs:
+  # Backend service metrics
+  - job_name: 'divan-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'backend'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Backend health endpoint (for availability tracking)
+  - job_name: 'divan-backend-health'
+    metrics_path: '/api/health'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'backend'
+          check: 'health'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Optional: Node exporter for host metrics
+  # Uncomment if you have node_exporter running
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9100']
+
+  # Optional: Redis metrics
+  # Uncomment if you have redis_exporter running
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Optional: PostgreSQL metrics
+  # Uncomment if you have postgres_exporter running
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']

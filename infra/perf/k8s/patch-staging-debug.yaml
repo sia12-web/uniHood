@@ -1,0 +1,49 @@
+# Kubernetes patch to enable debug profiling on staging
+# 
+# Apply with: 
+#   kubectl patch deployment divan-backend --patch-file patch-staging-debug.yaml
+#   
+# Or using kustomize:
+#   kubectl apply -k .
+#
+# WARNING: Only use for profiling sessions (30-90 minutes max).
+# High cardinality metrics will be generated.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: divan-backend
+  labels:
+    app.kubernetes.io/name: divan-backend
+    app.kubernetes.io/component: api
+spec:
+  template:
+    metadata:
+      annotations:
+        # Force pod restart
+        perf-profiling/enabled: "true"
+        perf-profiling/timestamp: ""  # Will be set by script
+    spec:
+      containers:
+      - name: backend
+        env:
+        # Enable trace correlation in Prometheus metrics
+        # WARNING: High cardinality - only for debug sessions
+        - name: PERF_TRACE_LABELS
+          value: "true"
+        
+        # Enable verbose performance logging
+        - name: PERF_DEBUG_MODE
+          value: "true"
+        
+        # Sample 100% of RUM events during profiling
+        - name: RUM_SAMPLE_RATE
+          value: "1.0"
+        
+        # Sample 100% of backend traces during profiling
+        - name: TRACE_SAMPLE_RATE
+          value: "1.0"
+        
+        # Optional: Increase log level
+        - name: LOG_LEVEL
+          value: "DEBUG"

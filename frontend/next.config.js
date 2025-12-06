@@ -32,6 +32,8 @@ const nextConfig = (() => {
 	});
 
 	return {
+		// Enable standalone output for Docker deployment
+		output: process.env.NODE_ENV === "production" ? "standalone" : undefined,
 		eslint: {
 			ignoreDuringBuilds: true,
 		},
@@ -40,6 +42,17 @@ const nextConfig = (() => {
 		},
 		images: {
 			remotePatterns,
+		},
+		// Performance optimizations
+		experimental: {
+			// Enable optimistic client cache for faster navigations
+			optimisticClientCache: true,
+		},
+		// Modularize imports for common icon libraries to reduce bundle size
+		modularizeImports: {
+			"lucide-react": {
+				transform: "lucide-react/dist/esm/icons/{{kebabCase member}}",
+			},
 		},
 	};
 })();

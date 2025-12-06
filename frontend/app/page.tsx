@@ -10,10 +10,7 @@ import { CheckCircle2, Loader2, Calendar } from "lucide-react";
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
 import { useTypingDuelInviteState } from "@/components/providers/typing-duel-invite-provider";
-import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
-import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
-import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
-import { useChatRoster } from "@/hooks/chat/use-chat-roster";
+import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { fetchMySummary } from "@/lib/leaderboards";
@@ -68,18 +65,8 @@ const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
   ),
 });
 
-const NetworkProgressCircle = dynamic(
-  () => import("@/components/NetworkProgressCircle").then((mod) => mod.NetworkProgressCircle),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="mb-6 h-32 w-32 animate-pulse rounded-full border border-slate-200" aria-label="Loading network score" />
-    ),
-  },
-);
-
 const ProfileSettingsInline = dynamic(
-  () => import("@/app/(identity)/settings/profile/page").then((mod) => mod.default),
+  () => import("@/components/ProfileSettingsEmbed"),
   {
     ssr: false,
     loading: () => (
@@ -226,10 +213,15 @@ export default function HomePage() {
   const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
   const [meetupsLoading, setMeetupsLoading] = useState(true);
 
-  const { inboundPending } = useInviteInboxCount();
-  const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
-  const { totalUnread: chatUnreadCount } = useChatUnreadIndicator();
-  const { entries: chatRosterEntries, loading: chatRosterLoading } = useChatRoster();
+  // Use deferred features for heavy hooks (chat, social) to reduce TBT
+  const {
+    inboundPending,
+    hasFriendAcceptanceNotification,
+    chatUnreadCount,
+    chatRosterEntries,
+    chatRosterLoading,
+  } = useDeferredFeatures();
+  
   const { hasPending: hasStoryInvite } = useStoryInviteState();
   const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
 
@@ -442,7 +434,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const loadMeetups = async () => {
-      if (!authUser?.campusId) {
+      if (!authUser?.campusId || !authUser?.userId) {
         setMeetupsLoading(false);
         return;
       }
@@ -453,12 +445,12 @@ export default function HomePage() {
         const joined = data.filter(m => m.is_joined);
         setJoinedMeetups(joined);
 
-        // Filter for upcoming/active and sort by start_at
-        const upcoming = data
-          .filter(m => m.status === "ACTIVE" || m.status === "UPCOMING")
+        // Filter for user's own meetups (created by them) - upcoming/active
+        const myMeetups = data
+          .filter(m => m.creator_user_id === authUser.userId && (m.status === "ACTIVE" || m.status === "UPCOMING"))
           .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
           .slice(0, 3);
-        setRecentMeetups(upcoming);
+        setRecentMeetups(myMeetups);
       } catch (err) {
         console.error("Failed to load meetups", err);
       } finally {
@@ -619,8 +611,41 @@ export default function HomePage() {
               </div>
             </header>
 
+            {/* Social Score Hero Card */}
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600 p-8 shadow-xl">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMi0yLTR6bS0xMiAwYzAtMiAyLTQgMi00czIgMiAyIDQtMiA0LTIgNC0yLTItMi00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+              <div className="absolute top-0 right-0 -mt-8 -mr-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+              
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex items-center gap-6">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg ring-2 ring-white/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-10 w-10 text-white">
+                      <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-rose-100 uppercase tracking-wider">Your Social Score</p>
+                    <p className="mt-1 text-5xl font-black text-white tracking-tight">
+                      {activitySnapshot.loading ? "..." : activitySnapshot.socialScore}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-start sm:items-end gap-2">
+                  <div className="flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-bold text-white shadow-lg">
+                    <span className="text-lg">⭐</span>
+                    <span>{activitySnapshot.socialScore >= 100 ? "Campus Star!" : activitySnapshot.socialScore >= 50 ? "Rising Star" : "New Explorer"}</span>
+                  </div>
+                  <p className="text-xs text-rose-200">
+                    Earn points by playing, connecting & attending meetups
+                  </p>
+                </div>
+              </div>
+            </section>
+
             {/* Stats Overview Row */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* Friends Stat */}
               <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="flex items-center justify-between">
@@ -662,6 +687,32 @@ export default function HomePage() {
                   {inboundPending > 0 ? "Review requests →" : "All caught up"}
                 </div>
               </button>
+
+              {/* Games Played Stat */}
+              <Link
+                href="/activities"
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md group"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Games Played</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">
+                      {activitySnapshot.loading ? "..." : activitySnapshot.totalGames}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                    <ActivityIcon />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-indigo-600">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100">
+                    🎮
+                  </span>
+                  <span className="group-hover:text-indigo-700 transition-colors">
+                    {activitySnapshot.wins > 0 ? `${activitySnapshot.wins} wins` : "Play to earn points"}
+                  </span>
+                </div>
+              </Link>
             </div>
 
             {/* Compact Live Discovery */}
@@ -889,8 +940,8 @@ export default function HomePage() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Campus Meetups</h3>
-                      <p className="text-xs text-slate-500">Upcoming events & study groups</p>
+                      <h3 className="text-lg font-bold text-slate-900">My Meetups</h3>
+                      <p className="text-xs text-slate-500">Events you&apos;re hosting</p>
                     </div>
                   </div>
                   <Link href="/meetups" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
@@ -917,17 +968,22 @@ export default function HomePage() {
                           <Link
                             key={meetup.id}
                             href={`/meetups/${meetup.id}`}
-                            className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-white hover:shadow-md hover:border-indigo-100"
+                            className="group flex flex-col justify-between rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white p-4 transition hover:shadow-md hover:border-indigo-300 ring-1 ring-indigo-100"
                           >
                             <div>
                               <div className="flex items-start justify-between">
-                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meetup.category === 'study' ? 'bg-blue-100 text-blue-700' :
-                                  meetup.category === 'social' ? 'bg-rose-100 text-rose-700' :
-                                    meetup.category === 'game' ? 'bg-purple-100 text-purple-700' :
-                                      'bg-slate-100 text-slate-700'
-                                  }`}>
-                                  {meetup.category}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                    HOST
+                                  </span>
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meetup.category === 'study' ? 'bg-blue-100 text-blue-700' :
+                                    meetup.category === 'social' ? 'bg-rose-100 text-rose-700' :
+                                      meetup.category === 'game' ? 'bg-purple-100 text-purple-700' :
+                                        'bg-slate-100 text-slate-700'
+                                    }`}>
+                                    {meetup.category}
+                                  </span>
+                                </div>
                                 {meetup.status === "ACTIVE" && (
                                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                                 )}
@@ -960,9 +1016,9 @@ export default function HomePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                         </svg>
                       </div>
-                      <h3 className="text-sm font-bold text-slate-900">No upcoming meetups</h3>
+                      <h3 className="text-sm font-bold text-slate-900">No meetups yet</h3>
                       <p className="mt-1 text-xs text-slate-500 max-w-xs">
-                        Be the first to host a study group or hangout on campus.
+                        You haven&apos;t created any meetups. Host a study group or hangout!
                       </p>
                       <Link
                         href="/meetups"
@@ -981,42 +1037,15 @@ export default function HomePage() {
 
         return (
           <div className="space-y-8">
-            {/* Stats & Rank Card */}
+            {/* Stats Card */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1c2e] via-[#1f2336] to-[#0f111a] p-8 text-white shadow-2xl">
               <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
               <div className="absolute right-0 top-0 -mt-20 -mr-20 h-80 w-80 rounded-full bg-rose-500/20 blur-3xl" />
               <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
 
-              <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-                {/* Rank Section */}
-                <div className="flex items-center gap-6">
-                  <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 shadow-lg shadow-orange-500/20">
-                    <div className="absolute inset-0.5 rounded-[14px] bg-[#1a1c2e] flex items-center justify-center">
-                      <div className="text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Rank</p>
-                        <p className="text-4xl font-black text-white">
-                          {activitySnapshot.loading ? "-" : activitySnapshot.rank ? `#${activitySnapshot.rank}` : "-"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">Your Standing</h2>
-                    <p className="text-slate-400">Global Leaderboard</p>
-                    <Link
-                      href="/leaderboards"
-                      className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-400 hover:text-amber-300"
-                    >
-                      Open Leaderboard
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                        <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-
+              <div className="relative z-10">
                 {/* Stats Grid */}
-                <div className="flex flex-1 justify-end gap-4 sm:gap-8">
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-8">
                   <div className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 px-6 py-4 backdrop-blur-sm border border-amber-400/30 min-w-[100px]">
                     <p className="text-xs font-bold uppercase tracking-wider text-amber-400">Game Points</p>
                     <p className="mt-1 text-2xl font-bold text-white">
@@ -1116,7 +1145,7 @@ export default function HomePage() {
       case "profile":
         return (
           <div className="rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-xl">
-            <ProfileSettingsInline embedded={true} />
+            <ProfileSettingsInline />
           </div>
         );
       case "discovery":

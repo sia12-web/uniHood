@@ -20,13 +20,14 @@ from app.domain.social.models import INVITE_EXPIRES_DAYS, InvitationStatus
 from app.domain.social.schemas import FriendRow, FriendUpdatePayload, InviteSummary, InviteUpdatePayload
 from app.infra.auth import AuthenticatedUser
 from app.domain.leaderboards.service import LeaderboardService
+from app.domain.identity import mailer as identity_mailer
+from app.domain.identity import notifications as identity_notifications
 
 logger = logging.getLogger(__name__)
 _leaderboards = LeaderboardService()
 from app.infra.postgres import get_pool
 from datetime import datetime
 from typing import Tuple, Optional
-
 
 def _record_to_summary(record: asyncpg.Record) -> InviteSummary:
 	return InviteSummary(
@@ -97,6 +98,39 @@ async def _cancel_other_invites(
 async def _emit_invite_new(invite: InviteSummary) -> None:
 	payload = invite.model_dump(mode="json")
 	await sockets.emit_invite_new(str(invite.to_user_id), payload)
+
+
+async def _send_invite_email_notification(invite: InviteSummary) -> None:
+	"""Send email notification to recipient if they have invites notifications enabled."""
+	try:
+		recipient_id = str(invite.to_user_id)
+		# Check notification preferences
+		prefs = await identity_notifications.get_preferences(recipient_id)
+		if not prefs.invites:
+			logger.debug("User %s has invite notifications disabled", recipient_id[:8])
+			return
+		
+		# Fetch recipient's email
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			row = await conn.fetchrow("SELECT email FROM users WHERE id = $1", recipient_id)
+			if not row or not row["email"]:
+				logger.warning("No email found for user %s, skipping invite notification", recipient_id[:8])
+				return
+			
+			recipient_email = row["email"]
+		
+		# Send the email
+		await identity_mailer.send_friend_invite_notification(
+			to_email=recipient_email,
+			from_display_name=invite.from_display_name or "Someone",
+			from_handle=invite.from_handle,
+			recipient_user_id=recipient_id,
+		)
+		logger.info("Sent friend invite email to user %s", recipient_id[:8])
+	except Exception as e:
+		# Don't let email errors break the invite flow
+		logger.error("Failed to send invite email notification: %s", str(e))
 
 
 async def _emit_invite_update(invite: InviteSummary) -> None:
@@ -210,6 +244,8 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 			},
 		)
 		await _emit_invite_new(summary)
+		# Send email notification to recipient (non-blocking)
+		await _send_invite_email_notification(summary)
 		return summary
 
 
@@ -289,6 +325,9 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 	)
 	await _emit_invite_update(summary)
 	await _emit_friend_update_pair(str(summary.from_user_id), str(summary.to_user_id), "accepted")
+	# Invalidate friends cache for both users
+	await _invalidate_friends_cache(str(summary.from_user_id))
+	await _invalidate_friends_cache(str(summary.to_user_id))
 	return summary
 
 
@@ -477,10 +516,44 @@ async def list_outbox_paginated(
 	return items, next_dt, next_id
 
 
+# Cache TTL for friends list (30 seconds - short enough to stay fresh, long enough to help)
+_FRIENDS_CACHE_TTL = 30
+
+
+def _friends_cache_key(user_id: str, status: str) -> str:
+	"""Generate cache key for friends list."""
+	return f"friends:list:{user_id}:{status}"
+
+
+async def _invalidate_friends_cache(user_id: str) -> None:
+	"""Invalidate all friends list caches for a user."""
+	from app.infra.redis import redis_client
+	for status in ("accepted", "blocked", "pending"):
+		key = _friends_cache_key(user_id, status)
+		await redis_client.delete(key)
+
+
 async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List[FriendRow]:
+	import json
+	from app.infra.redis import redis_client
+	
 	allowed = {"accepted", "blocked", "pending"}
 	if status_filter not in allowed:
 		status_filter = "accepted"
+	
+	user_id = str(auth_user.id)
+	cache_key = _friends_cache_key(user_id, status_filter)
+	
+	# Try cache first
+	cached = await redis_client.get(cache_key)
+	if cached:
+		try:
+			data = json.loads(cached)
+			return [FriendRow(**item) for item in data]
+		except (json.JSONDecodeError, TypeError):
+			pass  # Cache miss or invalid data
+	
+	# Query database
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		rows = await conn.fetch(
@@ -491,10 +564,20 @@ async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List
 			WHERE f.user_id = $1 AND f.status = $2
 			ORDER BY f.created_at DESC
 			""",
-			str(auth_user.id),
+			user_id,
 			status_filter,
 		)
-	return [_record_to_friend_row(row) for row in rows]
+	
+	result = [_record_to_friend_row(row) for row in rows]
+	
+	# Cache the result
+	try:
+		cache_data = json.dumps([r.model_dump(mode="json") for r in result])
+		await redis_client.setex(cache_key, _FRIENDS_CACHE_TTL, cache_data)
+	except Exception:
+		pass  # Non-critical - don't fail request if cache write fails
+	
+	return result
 
 
 async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> FriendRow:
@@ -532,6 +615,9 @@ async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> Frie
 		{"user_id": blocker_id, "friend_id": target_id, "status": "blocked"},
 	)
 	await _emit_friend_update_pair(blocker_id, target_id, "blocked")
+	# Invalidate friends cache for both users
+	await _invalidate_friends_cache(blocker_id)
+	await _invalidate_friends_cache(target_id)
 	return _record_to_friend_row(row)
 
 
@@ -548,6 +634,9 @@ async def unblock_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> No
 		{"user_id": blocker_id, "friend_id": target_id, "status": "none"},
 	)
 	await _emit_friend_update_pair(blocker_id, target_id, "none")
+	# Invalidate friends cache for both users
+	await _invalidate_friends_cache(blocker_id)
+	await _invalidate_friends_cache(target_id)
 
 
 async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> None:
@@ -564,4 +653,7 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 		{"user_id": user_id, "friend_id": target_id, "status": "none"},
 	)
 	await _emit_friend_update_pair(user_id, target_id, "none")
+	# Invalidate friends cache for both users
+	await _invalidate_friends_cache(user_id)
+	await _invalidate_friends_cache(target_id)
 

@@ -10,10 +10,9 @@ import argparse
 import asyncio
 from datetime import datetime, timezone
 
-from argon2 import PasswordHasher
-
 from app.domain.identity import policy
 from app.domain.identity.policy import IdentityPolicyError
+from app.infra.password import PASSWORD_HASHER
 from app.infra.postgres import get_pool
 
 
@@ -30,7 +29,7 @@ async def verify_account(email: str, password: str) -> None:
 		policy.guard_password(password)
 	except IdentityPolicyError as exc:
 		raise SystemExit(f"Password failed policy checks: {exc.reason}") from exc
-	password_hash = PasswordHasher().hash(password)
+	password_hash = PASSWORD_HASHER.hash(password)
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		row = await conn.fetchrow(

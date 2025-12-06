@@ -29,6 +29,7 @@ from app.api import (
 	flags as flags_api,
 	interests,
 	leaderboards,
+	legal as legal_api,
 	meetups,
 	ops,
 	passkeys as passkeys_api,
@@ -57,6 +58,7 @@ from app.communities.workers.unread_sync import UnreadSyncWorker
 from app.communities.jobs.invite_gc import InviteGarbageCollector
 from app.communities.jobs.membership_integrity import MembershipIntegrityJob
 from app.communities.jobs.anti_gaming import AntiGamingAnomalyJob
+from app.domain.leaderboards import jobs as leaderboard_jobs
 from app.infra.redis import redis_client
 from app.maintenance.retention import purge_soft_deleted
 from app.moderation import configure_postgres as configure_moderation
@@ -180,6 +182,10 @@ async def lifespan(app: FastAPI):
 		scheduler.schedule_hourly("communities-membership-integrity", membership_job.run_once, hours=1)
 		scheduler.schedule_hourly("communities-anti-gaming", anti_gaming_job.run_once, hours=1)
 		scheduler.schedule_hourly("retention-purge", purge_soft_deleted, hours=24)
+		# Leaderboard computation - runs every 5 minutes for near-real-time updates
+		scheduler.schedule_minutes("leaderboard-snapshot", leaderboard_jobs.finalize_daily_leaderboards, minutes=5)
+		# Run leaderboard snapshot once at startup
+		asyncio.create_task(leaderboard_jobs.finalize_daily_leaderboards(), name="leaderboard-startup")
 		app.state.communities_scheduler = scheduler
 	app.state.communities_workers = worker_instances
 	worker_tasks.append(
@@ -324,6 +330,7 @@ app.include_router(rbac_api.router)
 app.include_router(flags_api.router)
 app.include_router(consent_api.router)
 app.include_router(passkeys_api.router)
+app.include_router(legal_api.router)
 app.include_router(account_link.router)
 app.include_router(account_updates.router)
 app.include_router(contact_discovery.router)

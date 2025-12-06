@@ -9,6 +9,7 @@ from typing import Any, Mapping, Optional, Protocol, Sequence
 from uuid import UUID
 
 from app.infra.redis import RedisProxy
+from app.infra.postgres import get_pool
 from app.communities.domain.notifications_service import NotificationService
 from app.moderation.domain.enforcement import (
     ModerationAppeal,
@@ -86,6 +87,25 @@ class CaseService:
     escalation_threshold: int = 4
     max_open_reports: int = 3
 
+    async def _resolve_user_handle_to_id(self, handle_or_id: str) -> str:
+        """Resolve a handle to user_id. If it looks like a UUID, return as-is."""
+        # Check if it's already a valid UUID
+        try:
+            UUID(handle_or_id)
+            return handle_or_id
+        except ValueError:
+            pass
+        # Otherwise treat as handle and resolve to user_id
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id FROM users WHERE handle = $1 AND deleted_at IS NULL",
+                handle_or_id.lower(),
+            )
+        if not row:
+            raise ValueError(f"User not found: {handle_or_id}")
+        return str(row["id"])
+
     async def submit_report(
         self,
         *,
@@ -97,12 +117,18 @@ class CaseService:
     ) -> ModerationCase:
         if not reporter_id:
             raise ValueError("reporter_id_required")
+        
+        # For user/profile reports, resolve handle to user_id for security
+        resolved_subject_id = subject_id
+        if subject_type == "user":
+            resolved_subject_id = await self._resolve_user_handle_to_id(subject_id)
+        
         if await self.repository.count_active_reports(reporter_id) >= self.max_open_reports:
             raise ReportLimitExceeded("report_limit_exceeded")
         start = time.perf_counter()
         case = await self.repository.upsert_case(
             subject_type=subject_type,
-            subject_id=subject_id,
+            subject_id=resolved_subject_id,
             reason="report",
             severity=0,
             policy_id=None,

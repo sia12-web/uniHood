@@ -440,6 +440,23 @@ CONSENT_ACCEPT = Counter(
 	["slug", "version"],
 )
 
+# Legal compliance metrics
+LEGAL_HOLDS_CREATED = Counter(
+	"divan_legal_holds_created_total",
+	"Legal preservation holds created",
+)
+
+LEGAL_HOLDS_RELEASED = Counter(
+	"divan_legal_holds_released_total",
+	"Legal preservation holds released",
+)
+
+RETENTION_PURGED = Counter(
+	"divan_retention_purged_total",
+	"Records purged by retention job",
+	["table"],
+)
+
 ACL_CACHE_HITS = Counter(
 	"divan_acl_cache_hits_total",
 	"ACL cache hits",

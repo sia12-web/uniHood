@@ -1,0 +1,101 @@
+# Performance Sampling Configuration
+# 
+# Controls trace sampling rates for different contexts.
+# All values can be overridden via environment variables.
+#
+# IMPORTANT: Changes require service restart unless using live reload.
+
+# ===== Global Sampling Rates =====
+
+sampling:
+  # Real User Monitoring (frontend) sample rate
+  # Environment override: RUM_SAMPLE_RATE
+  rum_sample_rate: ${RUM_SAMPLE_RATE:-0.1}  # 10% default
+  
+  # Backend trace sample rate (for distributed tracing)
+  # Environment override: TRACE_SAMPLE_RATE
+  trace_sample_rate: ${TRACE_SAMPLE_RATE:-0.1}  # 10% default
+  
+  # Debug mode sample rate (used when PERF_DEBUG_MODE=true)
+  # Environment override: DEBUG_SAMPLE_RATE
+  debug_sample_rate: ${DEBUG_SAMPLE_RATE:-1.0}  # 100% during debug
+  
+  # K6 load test sample rate (usually 100% for correlation)
+  # Environment override: K6_SAMPLE_RATE
+  k6_sample_rate: ${K6_SAMPLE_RATE:-1.0}
+
+# ===== Endpoint-Specific Rules =====
+# Override sampling for specific endpoints
+
+endpoint_rules:
+  # Health checks - never sample (noise)
+  - pattern: "^/health"
+    sample_rate: 0.0
+    
+  # Metrics endpoint - never sample
+  - pattern: "^/metrics"
+    sample_rate: 0.0
+    
+  # Static assets - minimal sampling
+  - pattern: "^/static/"
+    sample_rate: 0.01  # 1%
+    
+  # High-value endpoints - always sample for debugging
+  - pattern: "^/auth/"
+    sample_rate: 0.5  # 50%
+    
+  # Chat messages - moderate sampling
+  - pattern: "^/chat/messages"
+    sample_rate: 0.2  # 20%
+
+# ===== Privacy & Retention =====
+
+privacy:
+  # Whether to include trace_id in Prometheus labels
+  # WARNING: High cardinality - only enable for profiling sessions
+  # Environment override: PERF_TRACE_LABELS
+  enable_trace_labels: ${PERF_TRACE_LABELS:-false}
+  
+  # Truncate trace IDs in metrics to limit cardinality
+  trace_id_truncate_length: 16
+  
+  # Scrub these header names from logs
+  scrub_headers:
+    - authorization
+    - cookie
+    - x-api-key
+    
+  # Scrub URL parameters containing these patterns
+  scrub_url_params:
+    - token
+    - password
+    - secret
+    - key
+
+# ===== Retention =====
+
+retention:
+  # How long to keep detailed trace data (hours)
+  trace_retention_hours: 24
+  
+  # How long to keep aggregated metrics (days)
+  metrics_retention_days: 30
+
+# ===== Load Testing Profiles =====
+
+profiles:
+  smoke:
+    sample_rate: 1.0
+    description: "Quick validation, full sampling"
+    
+  load:
+    sample_rate: 0.1
+    description: "Standard load test, 10% sampling"
+    
+  stress:
+    sample_rate: 0.05
+    description: "Stress test, reduced sampling to limit overhead"
+    
+  soak:
+    sample_rate: 0.01
+    description: "Long-running soak test, minimal sampling"

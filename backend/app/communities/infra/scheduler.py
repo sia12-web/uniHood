@@ -29,5 +29,10 @@ class FeedScheduler:
         trigger = IntervalTrigger(hours=hours)
         self._scheduler.add_job(func, trigger=trigger, id=job_id, replace_existing=True)
 
+    def schedule_minutes(self, job_id: str, func: Callable[[], object], *, minutes: int = 5) -> None:
+        """Schedule a job to run every N minutes."""
+        trigger = IntervalTrigger(minutes=minutes)
+        self._scheduler.add_job(func, trigger=trigger, id=job_id, replace_existing=True)
+
 
 __all__ = ["FeedScheduler"]

@@ -60,7 +60,7 @@ export default function BrandLogo({
     <>
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-2xl p-2 transition-shadow duration-200",
+          "flex shrink-0 items-center justify-center transition-shadow duration-200",
           asLink && "group",
           emblemBackdropClasses,
         )}

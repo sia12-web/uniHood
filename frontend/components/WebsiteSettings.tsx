@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchNotificationPreferences, updateNotificationPreferences } from "@/lib/identity";
 
 type WebsiteSettingsState = {
-    theme: "light" | "dark" | "system";
+    theme: "system" | "dark";
     notifications: boolean;
 };
 
@@ -23,7 +23,10 @@ export default function WebsiteSettings() {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
-                setSettings(prev => ({ ...prev, theme: parsed.theme ?? "system" }));
+                // Map old "light" to "system", and ensure valid theme
+                const storedTheme = parsed.theme;
+                const validTheme: "system" | "dark" = storedTheme === "dark" ? "dark" : "system";
+                setSettings(prev => ({ ...prev, theme: validTheme }));
             } catch (e) {
                 console.error("Failed to parse settings", e);
             }
@@ -74,26 +77,26 @@ export default function WebsiteSettings() {
     if (!mounted) return null;
 
     return (
-        <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <section className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 p-6 shadow-sm backdrop-blur">
             <header className="mb-6">
-                <h2 className="text-xl font-semibold text-slate-900">Website Settings</h2>
-                <p className="text-sm text-slate-600">Customize your experience on Divan.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Website Settings</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Customize your experience on Divan.</p>
             </header>
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium text-slate-900">Appearance</p>
-                        <p className="text-sm text-slate-500">Choose your preferred theme.</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">Appearance</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Choose your preferred theme.</p>
                     </div>
-                    <div className="flex rounded-lg bg-slate-100 p-1">
-                        {(["light", "system", "dark"] as const).map((t) => (
+                    <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
+                        {(["system", "dark"] as const).map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setTheme(t)}
                                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${settings.theme === t
-                                        ? "bg-white text-slate-900 shadow-sm"
-                                        : "text-slate-500 hover:text-slate-700"
+                                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                                     }`}
                             >
                                 {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -104,12 +107,13 @@ export default function WebsiteSettings() {
 
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium text-slate-900">Notifications</p>
-                        <p className="text-sm text-slate-500">Enable push notifications.</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">Notifications</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Enable push notifications.</p>
                     </div>
                     <button
                         onClick={toggleNotifications}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.notifications ? "bg-rose-500" : "bg-slate-200"
+                        aria-label={settings.notifications ? "Disable notifications" : "Enable notifications"}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.notifications ? "bg-rose-500" : "bg-slate-200 dark:bg-slate-600"
                             }`}
                     >
                         <span

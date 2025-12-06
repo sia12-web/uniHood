@@ -42,7 +42,7 @@ function ReportButtonBase({ kind, targetId, prefilledReason, className, onOpen }
       className={buttonClasses}
       onClick={handleClick}
       data-kind={kind}
-      data-target-id={targetId}
+      /* Removed data-target-id to avoid exposing internal IDs in DOM */
     >
       <ShieldIcon className="h-4 w-4" />
     </button>

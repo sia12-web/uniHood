@@ -8,14 +8,35 @@ export const metadata: Metadata = {
   title: "Divan",
   description: "Phase 1 proximity core UI",
   icons: {
-    icon: [{ url: "data:," }],
+    icon: [
+      { url: "/brand/logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/logo.png", sizes: "192x192", type: "image/png" },
+      { url: "/brand/logo.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/brand/logo.png", sizes: "180x180", type: "image/png" },
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`
+            (function() {
+              try {
+                var stored = localStorage.getItem('divan.website.settings');
+                var theme = stored ? JSON.parse(stored).theme : 'system';
+                // Map old 'light' to 'system' for backwards compatibility
+                if (theme === 'light') theme = 'system';
+                var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (e) {}
+            })();
+          `}
+        </Script>
         <Script id="boot-flags" strategy="beforeInteractive">
           {`
             (function() {

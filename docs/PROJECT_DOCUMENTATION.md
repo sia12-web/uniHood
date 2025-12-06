@@ -36,7 +36,7 @@
 - **Communities** — Campus groups with posts and discussions
 - **Mini-Games** — Speed Typing Duel, Quick Trivia, Rock Paper Scissors, Tic-Tac-Toe, Story Builder
 - **Meetups** — Campus event scheduling
-- **Leaderboards** — Streaks, rankings, and achievements
+- **Leaderboards** — Streaks, rankings, achievements, and anti-cheat scoring system (see [Anti-Cheat System](./leaderboards/anti-cheat-system.md))
 
 ### Key Files
 

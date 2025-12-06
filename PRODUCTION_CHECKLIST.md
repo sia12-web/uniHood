@@ -5,20 +5,21 @@ This document outlines the necessary steps and configurations to prepare the **D
 ## 1. Infrastructure & Architecture
 
 ### Containerization
-- [ ] **Frontend**: Create a multi-stage Dockerfile for `frontend` to build the Next.js app and serve it (using `next start` or a standalone node server).
+- [x] **Frontend**: Create a multi-stage Dockerfile for `frontend` to build the Next.js app and serve it (using `next start` or a standalone node server). ✅ `frontend/Dockerfile`
 - [ ] **Activities Core**: Create a Dockerfile for `services/activities-core`.
-- [ ] **Orchestration**: Update `docker-compose.yml` (or create `docker-compose.prod.yml`) to include all services with `restart: always` policies.
+- [x] **Orchestration**: Update `docker-compose.yml` (or create `docker-compose.prod.yml`) to include all services with `restart: always` policies. ✅ `docker-compose.prod.yml`
 
 ### Reverse Proxy & SSL
-- [ ] **Reverse Proxy**: Set up **Nginx**, **Caddy**, or **Traefik** to sit in front of all services.
+- [x] **Reverse Proxy**: Set up **Caddy** to sit in front of all services. ✅ `infra/caddy/Caddyfile`
     - Route `/api/*` -> Backend (`8000`)
     - Route `/activities/session/*` -> Activities Core (`3001`)
     - Route `/*` -> Frontend (`3000`)
-- [ ] **SSL/TLS**: Configure **Let's Encrypt** for HTTPS. **Never run production without HTTPS.**
+- [x] **SSL/TLS**: Configure **Let's Encrypt** for HTTPS (automatic with Caddy). ✅
 
 ## 2. Environment Configuration
 
 ### Security Secrets
+- [x] Environment template created: `.env.production.example` ✅
 Ensure the following environment variables are set securely (do NOT commit them to git):
 - `SECRET_KEY`: High-entropy random string for backend crypto.
 - `SERVICE_SIGNING_KEY`: For inter-service communication signing.

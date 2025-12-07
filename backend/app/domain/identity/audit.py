@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
@@ -75,7 +76,7 @@ async def append_db_event(user_id: str, event: str, meta: Optional[Dict[str, Any
 			""",
 			user_id,
 			event,
-			meta or {},
+			json.dumps(meta or {}),
 		)
 
 
@@ -120,5 +121,5 @@ async def bulk_append_db_events(events: Iterable[tuple[str, str, Dict[str, Any]]
 					""",
 					user_id,
 					event,
-					meta,
+					json.dumps(meta),
 				)

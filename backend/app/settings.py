@@ -86,7 +86,7 @@ class Settings(BaseSettings):
 
     # Security/cross-origin and auth cookie knobs
     cors_allow_origins: Any = _env_field((), "CORS_ALLOW_ORIGINS")
-    access_ttl_minutes: int = _env_field(15, "ACCESS_TTL_MINUTES")
+    access_ttl_minutes: int = _env_field(60, "ACCESS_TTL_MINUTES")
     refresh_ttl_days: int = _env_field(30, "REFRESH_TTL_DAYS")
     refresh_pepper: str = _env_field(..., "REFRESH_PEPPER")
     cookie_secure: bool = _env_field(False, "COOKIE_SECURE")

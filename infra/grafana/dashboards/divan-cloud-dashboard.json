@@ -1,0 +1,351 @@
+{
+    "title": "Divan Backend Overview",
+    "uid": "divan-cloud-backend",
+    "schemaVersion": 39,
+    "version": 1,
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "templating": {
+        "list": []
+    },
+    "panels": [
+        {
+            "id": 1,
+            "type": "stat",
+            "title": "Redis Status",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "divan_redis_up",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                }
+                            }
+                        },
+                        {
+                            "type": "value",
+                            "options": {
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": null,
+                                "color": "red"
+                            },
+                            {
+                                "value": 1,
+                                "color": "green"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Postgres Status",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "divan_postgres_up",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                }
+                            }
+                        },
+                        {
+                            "type": "value",
+                            "options": {
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": null,
+                                "color": "red"
+                            },
+                            {
+                                "value": 1,
+                                "color": "green"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Active WebSocket Connections",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(divan_socketio_clients)",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": null,
+                                "color": "blue"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 4,
+            "type": "stat",
+            "title": "Request Rate",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(divan_http_requests_total[5m]))",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": null,
+                                "color": "purple"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 5,
+            "type": "timeseries",
+            "title": "HTTP Requests / second",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(divan_http_requests_total[5m]))",
+                    "legendFormat": "Total",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    }
+                }
+            }
+        },
+        {
+            "id": 6,
+            "type": "timeseries",
+            "title": "HTTP Error Rate %",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum(rate(divan_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(divan_http_requests_total[5m])) * 100",
+                    "legendFormat": "Error %",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "min": 0,
+                    "max": 100,
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": null,
+                                "color": "green"
+                            },
+                            {
+                                "value": 1,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 5,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 7,
+            "type": "timeseries",
+            "title": "HTTP Latency p95",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.95, sum by (le)(rate(divan_http_request_duration_seconds_bucket[5m])))",
+                    "legendFormat": "p95",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    }
+                }
+            }
+        },
+        {
+            "id": 8,
+            "type": "timeseries",
+            "title": "Redis & Postgres Health",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "divan_redis_up",
+                    "legendFormat": "Redis",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                },
+                {
+                    "refId": "B",
+                    "expr": "divan_postgres_up",
+                    "legendFormat": "Postgres",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bool",
+                    "min": 0,
+                    "max": 1
+                }
+            }
+        }
+    ]
+}

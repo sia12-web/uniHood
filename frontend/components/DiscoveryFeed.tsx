@@ -96,7 +96,7 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
   const params = new URLSearchParams({
     campus_id: campusId,
   });
-  
+
   // Mode-based configuration
   if (mode === "room") {
     // Room mode: live proximity within 100m
@@ -111,9 +111,9 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
     params.set("radius_m", "50000");
     params.set("scope", "global");
   }
-  
+
   const url = `${baseUrl}/proximity/nearby?${params.toString()}`;
-  
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -127,7 +127,7 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
     console.error("Discovery fetch network error:", err);
     throw new Error("Unable to connect to server. Please check your connection.");
   }
-  
+
   if (!response.ok) {
     let detail: string | null = null;
     try {
@@ -705,7 +705,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
             <h3 className="text-lg font-bold text-slate-900">No students found</h3>
             <p className="mt-1 max-w-xs text-sm text-slate-500">
-              Try increasing your search radius to <button onClick={() => setRadius(2000)} className="font-medium text-rose-600 hover:underline">2km</button> or clearing your filters.
+              Try clearing your filters or check back later.
             </p>
           </div>
         ) : viewMode === 'grid' ? (

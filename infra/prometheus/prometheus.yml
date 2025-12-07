@@ -1,5 +1,5 @@
-# Prometheus Configuration for Divan Profiling
-# Scrapes metrics from backend service during load tests
+# Prometheus Configuration for Divan
+# Sends metrics to Grafana Cloud + local scraping
 
 global:
   scrape_interval: 15s
@@ -7,6 +7,13 @@ global:
   external_labels:
     environment: 'local'
     app: 'divan'
+
+# Remote write to Grafana Cloud
+remote_write:
+  - url: https://prometheus-prod-32-prod-ca-east-0.grafana.net/api/prom/push
+    basic_auth:
+      username: "2848563"
+      password: "glc_eyJvIjoiMTYxMTEyMyIsIm4iOiJzdGFjay0xNDYyMTY1LWFsbG95LWRpdmFuLXByb21ldGhldXMiLCJrIjoiSFkxaWFlTzc4Q0w3WkczQTM0TG1BODIwIiwibSI6eyJyIjoicHJvZC1jYS1lYXN0LTAifX0="
 
 # Alert rules
 rule_files:
@@ -40,20 +47,3 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Optional: Node exporter for host metrics
-  # Uncomment if you have node_exporter running
-  # - job_name: 'node'
-  #   static_configs:
-  #     - targets: ['host.docker.internal:9100']
-
-  # Optional: Redis metrics
-  # Uncomment if you have redis_exporter running
-  # - job_name: 'redis'
-  #   static_configs:
-  #     - targets: ['redis-exporter:9121']
-
-  # Optional: PostgreSQL metrics
-  # Uncomment if you have postgres_exporter running
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']

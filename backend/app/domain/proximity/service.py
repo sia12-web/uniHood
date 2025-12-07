@@ -120,8 +120,18 @@ async def _fetch_directory_candidates(
 	lat: Optional[float], 
 	lon: Optional[float], 
 	limit: int, 
-	offset: int = 0
+	offset: int = 0,
+	exclude_campus_id: Optional[str] = None
 ) -> List[PresenceTuple]:
+	"""Fetch directory candidates from DB.
+	
+	Args:
+		campus_id: If set, only return users from this campus. If None, return from all campuses.
+		auth_user_id: The requesting user's ID (excluded from results).
+		lat, lon: User's location for distance calculation.
+		limit, offset: Pagination parameters.
+		exclude_campus_id: If set, exclude users from this campus (used for City mode to show only other campuses).
+	"""
 	pool = await get_pool()
 	
 	if lat is None or lon is None:
@@ -131,12 +141,6 @@ async def _fetch_directory_candidates(
 				"""
 				SELECT id FROM users u
 				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
-				AND EXISTS (
-					SELECT 1 FROM sessions s
-					WHERE s.user_id = u.id
-					AND s.revoked = FALSE
-					AND s.last_used_at > NOW() - INTERVAL '24 hours'
-				)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",
@@ -145,17 +149,26 @@ async def _fetch_directory_candidates(
 				limit,
 				offset,
 			)
+		elif exclude_campus_id:
+			# City mode: exclude users from the viewer's own campus
+			rows = await pool.fetch(
+				"""
+				SELECT id FROM users u
+				WHERE id != $1 AND deleted_at IS NULL
+				AND (campus_id IS NULL OR campus_id != $2)
+				ORDER BY created_at DESC
+				LIMIT $3 OFFSET $4
+				""",
+				auth_user_id,
+				exclude_campus_id,
+				limit,
+				offset,
+			)
 		else:
 			rows = await pool.fetch(
 				"""
 				SELECT id FROM users u
 				WHERE id != $1 AND deleted_at IS NULL
-				AND EXISTS (
-					SELECT 1 FROM sessions s
-					WHERE s.user_id = u.id
-					AND s.revoked = FALSE
-					AND s.last_used_at > NOW() - INTERVAL '24 hours'
-				)
 				ORDER BY created_at DESC
 				LIMIT $2 OFFSET $3
 				""",
@@ -177,12 +190,6 @@ async def _fetch_directory_candidates(
 				)))) AS distance
 			FROM users u
 			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
-			AND EXISTS (
-				SELECT 1 FROM sessions s
-				WHERE s.user_id = u.id
-				AND s.revoked = FALSE
-				AND s.last_used_at > NOW() - INTERVAL '24 hours'
-			)
 			ORDER BY distance ASC
 			LIMIT $5 OFFSET $6
 			""",
@@ -190,6 +197,28 @@ async def _fetch_directory_candidates(
 			auth_user_id,
 			lat,
 			lon,
+			limit,
+			offset,
+		)
+	elif exclude_campus_id:
+		# City mode: exclude users from the viewer's own campus, with distance calculation
+		rows = await pool.fetch(
+			"""
+			SELECT id, 
+				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+					cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
+					sin(radians($2)) * sin(radians(lat))
+				)))) AS distance
+			FROM users u
+			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			AND (campus_id IS NULL OR campus_id != $4)
+			ORDER BY distance ASC
+			LIMIT $5 OFFSET $6
+			""",
+			auth_user_id,
+			lat,
+			lon,
+			exclude_campus_id,
 			limit,
 			offset,
 		)
@@ -203,12 +232,6 @@ async def _fetch_directory_candidates(
 				)))) AS distance
 			FROM users u
 			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
-			AND EXISTS (
-				SELECT 1 FROM sessions s
-				WHERE s.user_id = u.id
-				AND s.revoked = FALSE
-				AND s.last_used_at > NOW() - INTERVAL '24 hours'
-			)
 			ORDER BY distance ASC
 			LIMIT $4 OFFSET $5
 			""",
@@ -227,6 +250,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		raise RateLimitExceeded("nearby")
 
 	campus_id = str(query.campus_id or auth_user.campus_id)
+	# For City mode (global scope), show all users from all campuses
+	# For Campus mode, filter to same campus only
 	if query.scope == "global":
 		campus_id = None
 

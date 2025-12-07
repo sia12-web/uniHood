@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Calendar, Clock, Users, Lock } from "lucide-react";
+import { Plus, Calendar, Clock, Users, Lock, ArrowLeft } from "lucide-react";
 import { listMeetups, createMeetup, MeetupCategory, MeetupResponse, MeetupVisibility } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { useRouter } from "next/navigation";
@@ -23,13 +23,12 @@ function MeetupCard({ meetup, isOwner }: { meetup: MeetupResponse; isOwner: bool
   const isToday = startDate.toDateString() === new Date().toDateString();
 
   return (
-    <Link 
-      href={`/meetups/${meetup.id}`} 
-      className={`group relative flex flex-col overflow-hidden rounded-3xl border p-5 shadow-sm transition hover:shadow-md ${
-        isOwner 
-          ? "border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white ring-1 ring-indigo-100 hover:border-indigo-300" 
+    <Link
+      href={`/meetups/${meetup.id}`}
+      className={`group relative flex flex-col overflow-hidden rounded-3xl border p-5 shadow-sm transition hover:shadow-md ${isOwner
+          ? "border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white ring-1 ring-indigo-100 hover:border-indigo-300"
           : "border-slate-200 bg-white"
-      }`}
+        }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -171,6 +170,14 @@ export default function MeetupsPage() {
       <div className="mx-auto max-w-5xl">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
+            {/* Back Button */}
+            <button
+              onClick={() => router.back()}
+              className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
             <h1 className="text-3xl font-bold text-slate-900">Meetups</h1>
             <p className="mt-1 text-slate-600">Find study groups, games, and hangouts on campus.</p>
           </div>

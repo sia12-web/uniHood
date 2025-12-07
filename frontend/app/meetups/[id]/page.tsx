@@ -14,7 +14,8 @@ import {
   sendRoomMessage,
 } from "@/lib/rooms";
 import { useSocketStatus } from "@/app/lib/socket/useStatus";
-import { Calendar, Clock, Users, LogOut, XCircle } from "lucide-react";
+import { Calendar, Clock, Users, LogOut, XCircle, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Helper to upsert messages (copied from RoomPage)
 function upsertMessage(prev: RoomMessageDTO[], incoming: RoomMessageDTO): RoomMessageDTO[] {
@@ -31,7 +32,7 @@ function upsertMessage(prev: RoomMessageDTO[], incoming: RoomMessageDTO): RoomMe
 
 export default function MeetupDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  // const router = useRouter();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: meetup, isLoading, error } = useQuery({
@@ -149,6 +150,14 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
         <div className="flex flex-col h-full gap-4 overflow-hidden">
           {/* Header Card */}
           <div className="flex-shrink-0 rounded-3xl bg-white p-6 shadow-sm">
+            {/* Back Button */}
+            <button
+              onClick={() => router.back()}
+              className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
             <div className="flex items-start justify-between">
               <div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">

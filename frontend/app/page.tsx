@@ -1212,6 +1212,7 @@ export default function HomePage() {
               backgroundTone="transparent"
               logoWidth={120}
               logoHeight={120}
+              asLink={false}
             />
             <span className="h-10 w-px flex-shrink-0 bg-rose-200" aria-hidden />
             <div className="flex flex-shrink-0 items-center">

@@ -48,6 +48,7 @@ async def request_deletion(auth_user: AuthenticatedUser) -> schemas.DeletionStat
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
+			await _ensure_table(conn)
 			user_row = await _load_user(conn, auth_user.id)
 			await conn.execute(
 				"""
@@ -104,10 +105,24 @@ async def _check_legal_hold(user_id: str) -> None:
 		pass
 
 
+
+async def _ensure_table(conn: asyncpg.Connection) -> None:
+	"""Ensure account_deletions table exists."""
+	await conn.execute("""
+		CREATE TABLE IF NOT EXISTS account_deletions (
+			user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			confirmed_at TIMESTAMPTZ,
+			purged_at TIMESTAMPTZ
+		)
+	""")
+
+
 async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, force: bool = False) -> schemas.DeletionStatus:
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		async with conn.transaction():
+			await _ensure_table(conn)
 			await _load_user(conn, auth_user.id)
 			new_handle = await _generate_deleted_handle(conn)
 			await conn.execute(
@@ -151,6 +166,7 @@ async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, fo
 async def get_status(user_id: str) -> schemas.DeletionStatus:
 	p_pool = await get_pool()
 	async with p_pool.acquire() as conn:
+		await _ensure_table(conn)
 		row = await conn.fetchrow(
 			"""
 			SELECT requested_at, confirmed_at, purged_at

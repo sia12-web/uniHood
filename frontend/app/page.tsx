@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { CheckCircle2, Loader2, Calendar } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, Trophy, Gamepad2, Crown, Flame } from "lucide-react";
 
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
@@ -1058,39 +1058,62 @@ export default function HomePage() {
 
         return (
           <div className="space-y-8">
-            {/* Stats Card */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1c2e] via-[#1f2336] to-[#0f111a] p-8 text-white shadow-2xl">
-              <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
-              <div className="absolute right-0 top-0 -mt-20 -mr-20 h-80 w-80 rounded-full bg-rose-500/20 blur-3xl" />
-              <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
+            {/* Header */}
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Play Games</h1>
+              <p className="text-slate-600">Play games and challenge yourself with friends.</p>
+            </div>
 
-              <div className="relative z-10">
-                {/* Stats Grid */}
-                <div className="flex flex-wrap justify-center gap-4 sm:gap-8">
-                  <div className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 px-6 py-4 backdrop-blur-sm border border-amber-400/30 min-w-[100px]">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-400">Game Points</p>
-                    <p className="mt-1 text-2xl font-bold text-white">
-                      {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
-                    </p>
+            {/* Stats Card */}
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900 p-8 text-white shadow-xl ring-1 ring-slate-900/5">
+              {/* Background Effects */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-rose-500/10" />
+              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-rose-500/20 blur-3xl" />
+
+              <div className="relative z-10 grid grid-cols-2 gap-8 md:grid-cols-4">
+                {/* Game Points */}
+                <div className="flex flex-col gap-1">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40">
+                    <Trophy className="h-5 w-5" />
                   </div>
-                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Games</p>
-                    <p className="mt-1 text-2xl font-bold text-white">
-                      {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
-                    </p>
+                  <span className="text-sm font-medium text-slate-400">Game Points</span>
+                  <span className="text-3xl font-bold tracking-tight text-white">
+                    {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
+                  </span>
+                </div>
+
+                {/* Games Played */}
+                <div className="flex flex-col gap-1">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40">
+                    <Gamepad2 className="h-5 w-5" />
                   </div>
-                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
-                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Wins</p>
-                    <p className="mt-1 text-2xl font-bold text-white">
-                      {activitySnapshot.loading ? "-" : activitySnapshot.wins}
-                    </p>
+                  <span className="text-sm font-medium text-slate-400">Games Played</span>
+                  <span className="text-3xl font-bold tracking-tight text-white">
+                    {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
+                  </span>
+                </div>
+
+                {/* Wins */}
+                <div className="flex flex-col gap-1">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40">
+                    <Crown className="h-5 w-5" />
                   </div>
-                  <div className="flex flex-col items-center rounded-2xl bg-white/5 px-6 py-4 backdrop-blur-sm border border-white/10 min-w-[100px]">
-                    <p className="text-xs font-bold uppercase tracking-wider text-rose-400">Streak</p>
-                    <p className="mt-1 text-2xl font-bold text-white">
-                      {activitySnapshot.loading ? "-" : activitySnapshot.streak}
-                    </p>
+                  <span className="text-sm font-medium text-slate-400">Wins</span>
+                  <span className="text-3xl font-bold tracking-tight text-white">
+                    {activitySnapshot.loading ? "-" : activitySnapshot.wins}
+                  </span>
+                </div>
+
+                {/* Streak */}
+                <div className="flex flex-col gap-1">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/40">
+                    <Flame className="h-5 w-5" />
                   </div>
+                  <span className="text-sm font-medium text-slate-400">Streak</span>
+                  <span className="text-3xl font-bold tracking-tight text-white">
+                    {activitySnapshot.loading ? "-" : activitySnapshot.streak}
+                  </span>
                 </div>
               </div>
             </div>

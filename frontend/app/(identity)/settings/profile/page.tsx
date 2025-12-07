@@ -22,7 +22,8 @@ import {
 	type ProfilePatchPayload,
 	type ProfileCourseInput,
 } from "@/lib/identity";
-import { requestDeletion } from "@/lib/privacy";
+import { forceDeleteAccount } from "@/lib/privacy";
+import { useRouter } from "next/navigation";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { onAuthChange, readAuthUser, readAuthSnapshot, storeAuthSnapshot, type AuthUser } from "@/lib/auth-storage";
 import type { ProfileCourse, ProfileRecord } from "@/lib/types";
@@ -748,6 +749,8 @@ export default function ProfileSettingsPage() {
 		setReloadToken((prev) => prev + 1);
 	}, []);
 
+	const router = useRouter();
+
 	const handleRequestDeletion = useCallback(async () => {
 		if (!profile || isDraftMode || deleteLoading || !authUser) {
 			if (isDraftMode) {
@@ -759,7 +762,7 @@ export default function ProfileSettingsPage() {
 			return;
 		}
 		const confirmed = window.confirm(
-			"Deleting will revoke sessions, anonymize activity, and require email confirmation. Continue?",
+			"Are you sure you want to delete your account? You will lose all your data including friends, messages, game history, and social score. This action cannot be undone. Continue?",
 		);
 		if (!confirmed) {
 			return;
@@ -767,15 +770,23 @@ export default function ProfileSettingsPage() {
 		setDeleteLoading(true);
 		setDeleteNotice(null);
 		try {
-			await requestDeletion(authUser.userId, authUser.campusId ?? null);
-			setDeleteNotice("Deletion request sent. Check your inbox for the confirmation link.");
+			await forceDeleteAccount(authUser.userId, authUser.campusId ?? null);
+			// Clear all auth data
+			if (typeof window !== "undefined") {
+				window.localStorage.removeItem("divan.auth.snapshot");
+				window.localStorage.removeItem("divan.auth.token");
+				window.localStorage.removeItem("divan.auth.refreshToken");
+				window.localStorage.clear();
+			}
+			// Redirect to login
+			router.push("/login");
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Unable to request deletion";
+			const message = err instanceof Error ? err.message : "Unable to delete account";
 			setError(message);
 		} finally {
 			setDeleteLoading(false);
 		}
-	}, [profile, isDraftMode, deleteLoading, authUser]);
+	}, [profile, isDraftMode, deleteLoading, authUser, router]);
 
 	const formSubmit = isDraftMode ? handleDraftSubmit : handleSubmit;
 	const avatarUpload = isDraftMode ? handleDraftAvatarUpload : handleAvatarUpload;

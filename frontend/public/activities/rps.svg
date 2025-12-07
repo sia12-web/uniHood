@@ -17,7 +17,7 @@
     <path d="M340 70c30 30 30 70 0 100" />
     <path d="M460 120c40-20 80-10 120 30" />
   </g>
-  <text x="40" y="200" fill="#ffffff" font-size="28" font-family="Inter, system-ui" font-weight="600" opacity="0.85">
+  <text x="320" y="200" fill="#ffffff" font-size="28" font-family="Inter, system-ui" font-weight="600" opacity="0.85" text-anchor="middle">
     Rock · Paper · Scissors
   </text>
 </svg>

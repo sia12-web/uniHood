@@ -166,9 +166,9 @@ export function leaveQuickTrivia(sessionId: string, userId: string): { sessionEn
             const scores = Object.entries(session.scores).map(([id, score]) => ({ userId: id, score }));
             sendToSession(sessionId, {
                 type: 'activity.session.ended',
-                payload: { 
-                    sessionId, 
-                    winnerUserId: winner.userId, 
+                payload: {
+                    sessionId,
+                    winnerUserId: winner.userId,
                     finalScoreboard: { participants: scores },
                     reason: 'opponent_left'
                 },
@@ -234,7 +234,7 @@ export function handleQuickTriviaConnection(connection: SocketStream, _req: Fast
             if (msg?.type === 'join' && msg.payload?.userId) {
                 connectedUserId = msg.payload.userId;
                 if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
-                userSockets[sessionId].set(connectedUserId, socket);
+                userSockets[sessionId].set(connectedUserId!, socket);
             }
             if (msg?.type === 'submit') {
                 const choice = msg.payload?.choiceIndex;
@@ -244,7 +244,7 @@ export function handleQuickTriviaConnection(connection: SocketStream, _req: Fast
                     if (!connectedUserId) {
                         connectedUserId = userId;
                         if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
-                        userSockets[sessionId].set(connectedUserId, socket);
+                        userSockets[sessionId].set(connectedUserId!, socket);
                     }
                     handleAnswer(sessionId, userId, choice);
                 }

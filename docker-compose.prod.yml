@@ -32,6 +32,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - activities
     deploy:
       resources:
         limits:
@@ -52,7 +53,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-divan} -d ${POSTGRES_DB:-divan}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-divan} -d ${POSTGRES_DB:-divan}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,22 +64,18 @@ services:
           memory: 1G
     # Not exposed to host - only accessible via internal network
 
-  # =============================================================================
-  # Cache (Redis)
-  # =============================================================================
+    # =============================================================================
+    # Cache (Redis)
+    # =============================================================================
   redis:
     image: redis:7.2-alpine
     restart: always
     command: >
-      redis-server
-      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --appendonly yes
+      redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -89,9 +86,9 @@ services:
           memory: 300M
     # Not exposed to host - only accessible via internal network
 
-  # =============================================================================
-  # Backend (FastAPI)
-  # =============================================================================
+    # =============================================================================
+    # Backend (FastAPI)
+    # =============================================================================
   backend:
     build:
       context: ./backend
@@ -100,44 +97,44 @@ services:
     environment:
       # Database
       POSTGRES_URL: postgresql://${POSTGRES_USER:-divan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-divan}
-      
+
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      
+
       # Security (REQUIRED - generate with: openssl rand -hex 32)
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       SERVICE_SIGNING_KEY: ${SERVICE_SIGNING_KEY:?SERVICE_SIGNING_KEY is required}
       REFRESH_PEPPER: ${REFRESH_PEPPER:?REFRESH_PEPPER is required}
-      
+
       # Environment
       ENVIRONMENT: production
       PYTHONPATH: /app
-      
+
       # Cookies & CORS
       COOKIE_SECURE: "true"
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.${DOMAIN:-localhost}}
       CORS_ALLOW_ORIGINS: https://${DOMAIN:-localhost}
-      
+
       # Intent signing
       INTENT_SIGNING_REQUIRED: "true"
-      
+
       # Email (SMTP)
       SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
       SMTP_PASSWORD: ${SMTP_PASSWORD:?SMTP_PASSWORD is required}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@${DOMAIN:-localhost}}
-      
+
       # S3 Storage
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-}
-      
+
       # Observability
       OBS_ADMIN_TOKEN: ${OBS_ADMIN_TOKEN:?OBS_ADMIN_TOKEN is required}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      
+
     volumes:
       - ./scripts:/work/scripts:ro
       - ./infra/migrations:/work/infra/migrations:ro
@@ -167,11 +164,35 @@ services:
           cpus: '2.0'
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health/live" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # =============================================================================
+  # Activities Service (Node.js)
+  # =============================================================================
+  activities:
+    build:
+      context: ./services/activities-core
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-divan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-divan}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
 
   # =============================================================================
   # Frontend (Next.js)
@@ -195,7 +216,7 @@ services:
           cpus: '1.0'
           memory: 512M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:3000" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -232,7 +253,7 @@ services:
       redis:
         condition: service_healthy
     profiles:
-      - backup  # Only run with: docker compose --profile backup run backup
+      - backup # Only run with: docker compose --profile backup run backup
     command: python /work/scripts/backup/run_all_backups.py --all --notify
 
 # =============================================================================

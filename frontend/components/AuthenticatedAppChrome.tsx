@@ -2,6 +2,7 @@
 
 import { type ReactNode } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { StoryInviteProvider } from "@/components/providers/story-invite-provider";
 import { TypingDuelInviteProvider } from "@/components/providers/typing-duel-invite-provider";
 import { ActivityAcceptanceProvider } from "@/components/providers/activity-acceptance-provider";
@@ -21,12 +22,7 @@ export default function AuthenticatedAppChrome({ children }: { children: ReactNo
                                     <div className="relative h-full w-full">{children}</div>
                                 </div>
                             </main>
-                            <footer className="border-t border-warm-sand dark:border-slate-700 bg-warm-sand/60 dark:bg-slate-900/80">
-                                <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-navy dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-                                    <p>© {new Date().getFullYear()} Campus. Designed for on-campus proximity.</p>
-                                    <p className="text-xs opacity-70">Build v1 scaffolding preview.</p>
-                                </div>
-                            </footer>
+                            <SiteFooter />
                         </div>
                     </ActivityAcceptanceProvider>
                 </TypingDuelInviteProvider>

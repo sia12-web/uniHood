@@ -198,7 +198,7 @@ export function leaveSession(sessionId: string, userId: string): { sessionEnded:
     // If game was in progress (countdown or playing), forfeit
     if ((wasPlayerX || wasPlayerO) && (session.status === 'playing' || session.status === 'countdown')) {
         const remainingPlayerId = wasPlayerX ? session.players.O : session.players.X;
-        
+
         if (remainingPlayerId) {
             // Award win to remaining player
             session.matchWinner = remainingPlayerId;
@@ -308,7 +308,7 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
     }
 
     connections[sessionId].add(socket);
-    
+
     // Track connected user (will be set on join message)
     let connectedUserId: string | null = null;
 
@@ -319,7 +319,7 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
             if (data.type === 'join' && data.payload?.userId) {
                 connectedUserId = data.payload.userId;
                 if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
-                userSockets[sessionId].set(connectedUserId, socket);
+                userSockets[sessionId].set(connectedUserId!, socket);
             }
             handleMessage(socket, sessionId, data);
         } catch (e) {

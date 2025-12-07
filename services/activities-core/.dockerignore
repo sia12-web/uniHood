@@ -1,0 +1,8 @@
+*
+!package.json
+!package-lock.json
+!Dockerfile
+!tsconfig.json
+!prisma
+!src
+!scripts

@@ -321,8 +321,8 @@ class MeetupService:
         # Add to room
         if meetup["room_id"]:
             room_id = str(meetup["room_id"])
-            # We need to fetch the room object to pass to add_member
-            room = await self._room_service.get_room(room_id)
+            # Use the repository directly to get room and add member
+            room = await self._room_service._repo.get_room(room_id)
             if room:
                 member = room_models.RoomMember(
                     room_id=room_id,
@@ -331,7 +331,7 @@ class MeetupService:
                     muted=False,
                     joined_at=datetime.now(timezone.utc)
                 )
-                await self._room_service.add_member(room, member)
+                await self._room_service._repo.add_member(room, member)
             
             # Track meetup join for leaderboard (non-blocking, anti-cheat validated)
             try:
@@ -382,9 +382,9 @@ class MeetupService:
                 
         # Remove from room
         if room_id:
-            room = await self._room_service.get_room(room_id)
+            room = await self._room_service._repo.get_room(room_id)
             if room:
-                await self._room_service.remove_member(room, str(auth_user.id))
+                await self._room_service._repo.remove_member(room, str(auth_user.id))
             
             # Track meetup leave for leaderboard (awards points if stayed long enough)
             try:

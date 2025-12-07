@@ -240,7 +240,7 @@ export function handleStoryBuilderConnection(connection: SocketStream, _req: Fas
             if (data.type === 'join' && data.payload?.userId) {
                 connectedUserId = data.payload.userId;
                 if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
-                userSockets[sessionId].set(connectedUserId, socket);
+                userSockets[sessionId].set(connectedUserId!, socket);
             }
             handleMessage(sessionId, data, socket);
         } catch (e) {

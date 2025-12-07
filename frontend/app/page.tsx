@@ -166,6 +166,14 @@ const CHAT_ACCENTS = [
   "from-emerald-200 via-teal-100 to-white",
 ];
 
+const HERO_GRADIENTS = [
+  "bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600",
+  "bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600",
+  "bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600",
+  "bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600",
+  "bg-gradient-to-r from-amber-500 via-orange-600 to-rose-600",
+];
+
 function formatChatTime(iso: string | null | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);
@@ -186,6 +194,19 @@ export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [activeSection, setActiveSection] = useState<NavKey>("dashboard");
+  const [heroGradientIndex, setHeroGradientIndex] = useState(0);
+
+  useEffect(() => {
+    const updateGradient = () => {
+      const minutes = Math.floor(Date.now() / 1000 / 60);
+      const index = Math.floor(minutes / 5) % HERO_GRADIENTS.length;
+      setHeroGradientIndex(index);
+    };
+
+    updateGradient();
+    const interval = setInterval(updateGradient, 10000); // Check every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   // Restore active section from localStorage after hydration
   useEffect(() => {
@@ -221,7 +242,7 @@ export default function HomePage() {
     chatRosterEntries,
     chatRosterLoading,
   } = useDeferredFeatures();
-  
+
   const { hasPending: hasStoryInvite } = useStoryInviteState();
   const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
 
@@ -612,11 +633,11 @@ export default function HomePage() {
             </header>
 
             {/* Social Score Hero Card */}
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600 p-8 shadow-xl">
+            <section className={`relative overflow-hidden rounded-3xl ${HERO_GRADIENTS[heroGradientIndex]} p-8 shadow-xl transition-colors duration-1000`}>
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMi0yLTR6bS0xMiAwYzAtMiAyLTQgMi00czIgMiAyIDQtMiA0LTIgNC0yLTItMi00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
               <div className="absolute top-0 right-0 -mt-8 -mr-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
               <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-              
+
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div className="flex items-center gap-6">
                   <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg ring-2 ring-white/30">
@@ -631,7 +652,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col items-start sm:items-end gap-2">
                   <div className="flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-bold text-white shadow-lg">
                     <span className="text-lg">⭐</span>

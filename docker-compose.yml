@@ -73,6 +73,27 @@ services:
           cpus: '1.0'
           memory: 512M
 
+  activities:
+    build:
+      context: ./services/activities-core
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./services/activities-core:/app
+      - /app/node_modules
+    environment:
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/divan
+      REDIS_URL: redis://redis:6379/0
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    command: npm run dev
+
   mailhog:
     image: mailhog/mailhog
     ports:

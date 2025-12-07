@@ -89,16 +89,6 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       return;
     }
 
-    // Join room
-    if (socket.connected) {
-      socket.emit("room:join", { room_id: roomId });
-    } else {
-      socket.connect();
-    }
-
-    // Fetch history
-    fetchHistory(roomId).then((res) => setMessages(res.items)).catch(console.error);
-
     const handleMessage = (msg: RoomMessageDTO) => {
       if (msg.room_id === roomId) {
         setMessages((prev) => upsertMessage(prev, msg));
@@ -110,8 +100,20 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       socket?.emit("room:join", { room_id: roomId });
     };
 
+    // Register listeners first
     socket.on("room:msg:new", handleMessage);
     socket.on("connect", handleConnect);
+
+    // If already connected, emit room:join immediately
+    // Otherwise connect and handleConnect will fire
+    if (socket.connected) {
+      socket.emit("room:join", { room_id: roomId });
+    } else {
+      socket.connect();
+    }
+
+    // Fetch history
+    fetchHistory(roomId).then((res) => setMessages(res.items)).catch(console.error);
 
     return () => {
       socket?.off("room:msg:new", handleMessage);

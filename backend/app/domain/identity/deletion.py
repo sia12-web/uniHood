@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import secrets
 from datetime import datetime, timezone
 from typing import Optional
@@ -15,7 +16,7 @@ from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 
-DEFAULT_PRIVACY = schemas.PrivacySettings().model_dump()
+DEFAULT_PRIVACY = json.dumps(schemas.PrivacySettings().model_dump())
 
 
 def _now() -> datetime:

@@ -103,6 +103,9 @@ async def _check_legal_hold(user_id: str) -> None:
 	except ImportError:
 		# Legal module not available, skip check
 		pass
+	except Exception:
+		# Legal module or table not available, skip check
+		pass
 
 
 

@@ -1,0 +1,26 @@
+﻿
+Running 1 test using 1 worker
+
+  Γ£ÿ  1 e2e\meetups.spec.ts:4:9 ΓÇ║ Meetups E2E ΓÇ║ should create a meetup, join, and chat (1.1m)
+
+
+  1) e2e\meetups.spec.ts:4:9 ΓÇ║ Meetups E2E ΓÇ║ should create a meetup, join, and chat ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    [31mTest timeout of 60000ms exceeded.[39m
+
+    Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
+    Call log:
+    [2m  - navigating to "http://localhost:3000/login", waiting until "load"[22m
+
+
+      4 |     test("should create a meetup, join, and chat", async ({ page }) => {
+      5 |         // 1. Login
+    > 6 |         await page.goto("/login");
+        |                    ^
+      7 |         await page.getByLabel("Email").fill("sammyb@mcgill.ca");
+      8 |         await page.getByLabel("Password").fill("password123");
+      9 |         await page.getByRole("button", { name: "Sign In" }).click();
+        at C:\Users\shahb\OneDrive\Desktop\Divan\frontend\e2e\meetups.spec.ts:6:20
+
+  1 failed
+    e2e\meetups.spec.ts:4:9 ΓÇ║ Meetups E2E ΓÇ║ should create a meetup, join, and chat ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ

@@ -9,11 +9,12 @@ export const metadata: Metadata = {
   description: "Phase 1 proximity core UI",
   icons: {
     icon: [
-      { url: "/brand/logo.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/logo.png", sizes: "192x192", type: "image/png" },
-      { url: "/brand/logo.png", sizes: "512x512", type: "image/png" },
+      { url: "/brand/favicon.png", sizes: "48x48", type: "image/png" },
+      { url: "/brand/favicon.png", sizes: "96x96", type: "image/png" },
+      { url: "/brand/favicon.png", sizes: "192x192", type: "image/png" },
+      { url: "/brand/favicon.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: { url: "/brand/logo.png", sizes: "180x180", type: "image/png" },
+    apple: { url: "/brand/favicon.png", sizes: "180x180", type: "image/png" },
   },
 };
 

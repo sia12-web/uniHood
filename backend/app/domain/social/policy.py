@@ -70,7 +70,7 @@ async def _ensure_users_exist_conn(conn: asyncpg.Connection, user_ids: Iterable[
 	unique_ids = list({str(uid) for uid in user_ids})
 	if not unique_ids:
 		raise InviteNotFound("no_users")
-	rows = await conn.fetch("SELECT id FROM users WHERE id = ANY($1::uuid[])", unique_ids)
+	rows = await conn.fetch("SELECT id FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL", unique_ids)
 	found = {str(row["id"]) for row in rows}
 	if len(found) != len(unique_ids):
 		raise InviteNotFound("user_missing")
@@ -198,7 +198,7 @@ async def delete_friendship(conn: asyncpg.Connection, user_id: str, friend_id: s
 
 
 async def ensure_user_exists(conn: asyncpg.Connection, user_id: str) -> None:
-	row = await conn.fetchrow("SELECT 1 FROM users WHERE id = $1", user_id)
+	row = await conn.fetchrow("SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NULL", user_id)
 	if not row:
 		raise InviteNotFound("user_missing")
 

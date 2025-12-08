@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { CheckCircle2, Loader2, Calendar, Trophy, Gamepad2, Crown, Flame } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, Trophy, Gamepad2, Crown } from "lucide-react";
 
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
@@ -391,7 +391,6 @@ export default function HomePage() {
   const [activitySnapshot, setActivitySnapshot] = useState<{
     totalGames: number;
     wins: number;
-    streak: number;
     socialScore: number;
     rank: number | null;
     loading: boolean;
@@ -399,7 +398,6 @@ export default function HomePage() {
   }>({
     totalGames: 0,
     wins: 0,
-    streak: 0,
     socialScore: 0,
     rank: null,
     loading: true,
@@ -419,10 +417,9 @@ export default function HomePage() {
         // Use raw counts if available, otherwise fallback to scores (which are weighted)
         const totalGames = summary.counts?.games_played ?? Math.max(0, Math.round(summary.scores.engagement ?? 0));
         const wins = summary.counts?.wins ?? Math.max(0, Math.round(summary.scores.overall ?? 0));
-        const streak = Math.max(0, summary.streak?.current ?? 0);
         const socialScore = Math.max(0, Math.round(summary.scores.social ?? 0));
         const rank = summary.ranks.overall ?? null;
-        setActivitySnapshot({ totalGames, wins, streak, socialScore, rank, loading: false, error: null });
+        setActivitySnapshot({ totalGames, wins, socialScore, rank, loading: false, error: null });
       } catch (err) {
         if (controller.signal.aborted) return;
         const message = err instanceof Error ? err.message : "Unable to load activity snapshot";
@@ -1102,17 +1099,6 @@ export default function HomePage() {
                   <span className="text-sm font-medium text-slate-400">Wins</span>
                   <span className="text-3xl font-bold tracking-tight text-white">
                     {activitySnapshot.loading ? "-" : activitySnapshot.wins}
-                  </span>
-                </div>
-
-                {/* Streak */}
-                <div className="flex flex-col gap-1">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 ring-1 ring-rose-500/40">
-                    <Flame className="h-5 w-5" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-400">Streak</span>
-                  <span className="text-3xl font-bold tracking-tight text-white">
-                    {activitySnapshot.loading ? "-" : activitySnapshot.streak}
                   </span>
                 </div>
               </div>

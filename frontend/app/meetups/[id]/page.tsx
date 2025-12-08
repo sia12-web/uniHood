@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMeetup, joinMeetup, leaveMeetup, cancelMeetup } from "@/lib/meetups";
 import RoomChat from "@/components/RoomChat";
@@ -74,9 +74,10 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   }, {} as Record<string, string>);
 
 
+  // Track which room's history has been fetched to avoid repeated fetches
+  const historyFetchedRef = useRef<string | null>(null);
 
-
-  // Room logic
+  // Room socket connection logic
   useEffect(() => {
     if (!meetup?.room_id || !meetup.is_joined) return;
 
@@ -113,9 +114,6 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       socket.connect();
     }
 
-    // Fetch history
-    fetchHistory(roomId).then((res) => setMessages(res.items)).catch(console.error);
-
     return () => {
       socket?.off("room:msg:new", handleMessage);
       socket?.off("connect", handleConnect);
@@ -123,18 +121,57 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     };
   }, [meetup?.room_id, meetup?.is_joined]);
 
+  // Fetch history separately - only once per room to avoid overwriting optimistic messages
+  useEffect(() => {
+    const roomId = meetup?.room_id;
+    if (!roomId || !meetup?.is_joined) return;
+
+    // Only fetch if we haven't fetched for this room yet
+    if (historyFetchedRef.current === roomId) return;
+    historyFetchedRef.current = roomId;
+
+    fetchHistory(roomId).then((res) => {
+      setMessages((prev) => {
+        // Merge history with existing messages, upsert handles deduplication
+        let merged = [...prev];
+        for (const msg of res.items) {
+          merged = upsertMessage(merged, msg);
+        }
+        return merged;
+      });
+    }).catch(console.error);
+  }, [meetup?.room_id, meetup?.is_joined]);
+
 
 
 
   const handleSendMessage = useCallback(async (payload: RoomMessageSend) => {
-    if (!meetup?.room_id) return;
+    if (!meetup?.room_id || !meetup?.current_user_id) return;
+
+    // Optimistic update: add message to UI immediately
+    const optimisticMessage: RoomMessageDTO = {
+      id: `optimistic-${payload.client_msg_id}`,
+      room_id: meetup.room_id,
+      seq: Date.now(), // Temporary high seq to appear at bottom
+      sender_id: meetup.current_user_id,
+      client_msg_id: payload.client_msg_id,
+      kind: payload.kind,
+      content: payload.content,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => upsertMessage(prev, optimisticMessage));
+
     try {
+      // Send to server and update with confirmed message
       const msg = await sendRoomMessage(meetup.room_id, payload);
       setMessages((prev) => upsertMessage(prev, msg));
     } catch (err) {
       console.error("Failed to send message", err);
+      // Remove the optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.client_msg_id !== payload.client_msg_id));
     }
-  }, [meetup?.room_id]);
+  }, [meetup?.room_id, meetup?.current_user_id]);
 
   if (isLoading) return <div className="p-8 text-center">Loading...</div>;
   if (error || !meetup) return <div className="p-8 text-center text-red-500">Meetup not found</div>;

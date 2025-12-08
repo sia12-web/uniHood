@@ -60,6 +60,10 @@ async def heartbeat(
     await redis_client.geoadd(
         f"geo:presence:{campus_id}", {auth_user.id: (payload.lon, payload.lat)}
     )
+    # Also add to global geo set for Room mode (cross-campus discovery)
+    await redis_client.geoadd(
+        "geo:presence:global", {auth_user.id: (payload.lon, payload.lat)}
+    )
     await redis_client.hset(
         f"presence:{auth_user.id}",
         mapping={
@@ -110,6 +114,11 @@ async def go_offline(auth_user: AuthenticatedUser = Depends(get_current_user)):
         except Exception:
             # Best-effort removal; continue
             pass
+    # Also remove from global geo set
+    try:
+        await redis_client.zrem("geo:presence:global", auth_user.id)
+    except Exception:
+        pass
     # Remove presence + online markers
     await redis_client.delete(presence_key)
     await redis_client.delete(f"online:user:{auth_user.id}")
@@ -166,6 +175,7 @@ async def _build_nearby_query(
     filter: str = Query(default="all"),
     include: Optional[List[str]] = Query(default=None),
     scope: str = Query(default="campus", pattern="^(campus|global)$"),
+    mode: str = Query(default="campus", pattern="^(room|campus|city)$"),
 ) -> NearbyQuery:
     include_list = list(include) if include else None
     return NearbyQuery(
@@ -176,6 +186,7 @@ async def _build_nearby_query(
         filter=filter,
         include=include_list,
         scope=scope,
+        mode=mode,
     )
 
 

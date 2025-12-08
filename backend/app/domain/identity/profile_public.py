@@ -332,7 +332,7 @@ async def get_public_profile(handle: str, *, viewer_id: Optional[str] = None) ->
 	handle_normalised = handle.lower()
 	pool = await get_pool()
 	async with pool.acquire() as conn:
-		user_row = await conn.fetchrow("SELECT id FROM users WHERE handle = $1", handle_normalised)
+		user_row = await conn.fetchrow("SELECT id FROM users WHERE handle = $1 AND deleted_at IS NULL", handle_normalised)
 		if not user_row:
 			raise PublicProfileNotFound(handle)
 		user_id = str(user_row["id"])

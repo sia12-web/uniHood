@@ -54,7 +54,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
-		WHERE u.id = ANY($1::uuid[])
+		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL
 		""",
 		list({uid for uid in user_ids}),
 	)
@@ -250,27 +250,99 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		raise RateLimitExceeded("nearby")
 
 	campus_id = str(query.campus_id or auth_user.campus_id)
-	# For City mode (global scope), show all users from all campuses
-	# For Campus mode, filter to same campus only
-	if query.scope == "global":
-		campus_id = None
 
-	# If radius > 50m or global scope, switch to Directory Mode (DB query)
-	if query.radius_m > 50 or query.scope == "global":
-		# Fetch user location from DB
+	# Handle the three discovery modes explicitly
+	# Room mode: Live proximity via Redis, 100m radius, ALL campuses (cross-campus)
+	if query.mode == "room":
+		# Room mode uses the global geo key for cross-campus discovery
+		presence_key = f"presence:{auth_user.id}"
+		user_presence = await redis_client.hgetall(presence_key)
+		if not user_presence:
+			raise LookupError("presence_not_found")
+		
+		lon_user = float(user_presence.get("lon"))
+		lat_user = float(user_presence.get("lat"))
+		
+		# Use global geo key for cross-campus Room mode
+		geo_key = "geo:presence:global"
+		effective_radius = min(query.radius_m, 100)  # Room mode capped at 100m
+		
+		live = await _fetch_live_candidates(
+			geo_key, auth_user.id, radius=effective_radius, center=(lon_user, lat_user)
+		)
+		
+		logger.warning(
+			"room mode query radius=%s effective_radius=%s center=(%s,%s) candidates=%s",
+			query.radius_m,
+			effective_radius,
+			lon_user,
+			lat_user,
+			len(live),
+		)
+		
+		# Process results same as existing proximity mode
+		user_ids = [uid for uid, _ in live]
+		privacy_map = await load_privacy(user_ids)
+		friends_map = await load_friendship_flags(auth_user.id, user_ids)
+		blocks_map = await load_blocks(auth_user.id, user_ids)
+
+		filtered: List[Tuple[str, float, PrivacySettings, bool]] = []
+		for uid, distance_m in live:
+			if blocks_map.get(uid):
+				continue
+			privacy_settings = privacy_map.get(uid, PrivacySettings())
+			is_friend = bool(friends_map.get(uid))
+			if query.filter == "friends" and not is_friend:
+				continue
+			if not privacy_settings.allows_visibility(is_friend):
+				continue
+			filtered.append((uid, distance_m, privacy_settings, is_friend))
+
+		page = filtered[: query.limit]
+		profiles = await _load_user_lite([uid for uid, *_ in page])
+		include_distance = not query.include or "distance" in query.include
+
+		items: List[NearbyUser] = []
+		for uid, distance_m, privacy_settings, is_friend in page:
+			profile = profiles.get(uid)
+			if not profile:
+				continue
+			if profile.get("display_name") == "Deleted User" or str(profile.get("handle", "")).startswith("deleted-"):
+				continue
+			distance_value = None
+			if include_distance:
+				blur = max(int(privacy_settings.blur_distance_m or 0), 10)
+				distance_value = round_up_to_bucket(distance_m, blur)
+			items.append(
+				NearbyUser(
+					user_id=UUID(uid),
+					display_name=profile["display_name"],
+					handle=profile["handle"],
+					avatar_url=profile.get("avatar_url"),
+					major=profile.get("major"),
+					distance_m=distance_value,
+					is_friend=is_friend,
+					bio=profile.get("bio") or None,
+					graduation_year=profile.get("graduation_year"),
+					gallery=profile.get("gallery", []),
+					passions=profile.get("passions", []),
+					courses=profile.get("courses") or [],
+				)
+			)
+
+		return NearbyResponse(items=items, cursor=None)
+
+	# Campus mode: Directory from DB, same campus only
+	elif query.mode == "campus":
 		pool = await get_pool()
 		user_row = await pool.fetchrow("SELECT lat, lon FROM users WHERE id = $1", auth_user.id)
 		lat = user_row["lat"] if user_row else None
 		lon = user_row["lon"] if user_row else None
 
-		# Simple pagination using cursor as offset if needed, or just limit
-		# For now, we'll just fetch the top N users
 		live = await _fetch_directory_candidates(campus_id, auth_user.id, lat, lon, limit=query.limit)
 		
-		# Load profile data
 		profiles = await _load_user_lite([uid for uid, _ in live])
 		
-		# Build response
 		items = []
 		for uid, distance in live:
 			profile = profiles.get(uid)
@@ -286,11 +358,82 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					bio=str(profile["bio"]) if profile["bio"] else None,
 					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
 					distance_m=int(distance) if distance > 0 else None,
-					gallery=profile["gallery"], # type: ignore
-					passions=profile["passions"], # type: ignore
+					gallery=profile["gallery"],
+					passions=profile["passions"],
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
+
+	# City mode: Directory from DB, all campuses
+	elif query.mode == "city":
+		pool = await get_pool()
+		user_row = await pool.fetchrow("SELECT lat, lon FROM users WHERE id = $1", auth_user.id)
+		lat = user_row["lat"] if user_row else None
+		lon = user_row["lon"] if user_row else None
+
+		# Pass None for campus_id to get all users
+		live = await _fetch_directory_candidates(None, auth_user.id, lat, lon, limit=query.limit)
+		
+		profiles = await _load_user_lite([uid for uid, _ in live])
+		
+		items = []
+		for uid, distance in live:
+			profile = profiles.get(uid)
+			if not profile:
+				continue
+			items.append(
+				NearbyUser(
+					user_id=UUID(uid),
+					display_name=str(profile["display_name"]),
+					handle=str(profile["handle"]),
+					avatar_url=str(profile["avatar_url"]) if profile["avatar_url"] else None,
+					major=str(profile["major"]) if profile["major"] else None,
+					bio=str(profile["bio"]) if profile["bio"] else None,
+					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
+					distance_m=int(distance) if distance > 0 else None,
+					gallery=profile["gallery"],
+					passions=profile["passions"],
+				)
+			)
+		return NearbyResponse(items=items, cursor=None)
+
+	# Fallback: legacy behavior (shouldn't reach here with new mode param)
+	# For City mode (global scope), show all users from all campuses
+	if query.scope == "global":
+		campus_id = None
+
+	# If radius > 50m or global scope, switch to Directory Mode (DB query)
+	if query.radius_m > 50 or query.scope == "global":
+		pool = await get_pool()
+		user_row = await pool.fetchrow("SELECT lat, lon FROM users WHERE id = $1", auth_user.id)
+		lat = user_row["lat"] if user_row else None
+		lon = user_row["lon"] if user_row else None
+
+		live = await _fetch_directory_candidates(campus_id, auth_user.id, lat, lon, limit=query.limit)
+		
+		profiles = await _load_user_lite([uid for uid, _ in live])
+		
+		items = []
+		for uid, distance in live:
+			profile = profiles.get(uid)
+			if not profile:
+				continue
+			items.append(
+				NearbyUser(
+					user_id=UUID(uid),
+					display_name=str(profile["display_name"]),
+					handle=str(profile["handle"]),
+					avatar_url=str(profile["avatar_url"]) if profile["avatar_url"] else None,
+					major=str(profile["major"]) if profile["major"] else None,
+					bio=str(profile["bio"]) if profile["bio"] else None,
+					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
+					distance_m=int(distance) if distance > 0 else None,
+					gallery=profile["gallery"],
+					passions=profile["passions"],
+				)
+			)
+		return NearbyResponse(items=items, cursor=None)
+
 
 	# Otherwise, use existing Proximity Mode (Redis)
 	presence_key = f"presence:{auth_user.id}"

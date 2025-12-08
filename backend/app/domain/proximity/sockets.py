@@ -76,6 +76,8 @@ async def _set_presence(
     await redis_client.hset(key, mapping=mapping)
     await redis_client.expire(key, KEEPALIVE_EX)
     await redis_client.geoadd(_campus_geo_key(campus_id), {str(user_id): (float(lon), float(lat))})
+    # Also add to global geo set for Room mode (cross-campus discovery)
+    await redis_client.geoadd("geo:presence:global", {str(user_id): (float(lon), float(lat))})
     await _update_online_gauge(campus_id)
 
 
@@ -205,6 +207,8 @@ class PresenceNamespace(socketio.AsyncNamespace):
         key = _presence_key(ctx["user_id"])
         await redis_client.delete(key)
         await redis_client.zrem(_campus_geo_key(ctx["campus_id"]), ctx["user_id"])
+        # Also remove from global geo set
+        await redis_client.zrem("geo:presence:global", ctx["user_id"])
         await _update_online_gauge(str(ctx["campus_id"]))
         await self.emit("presence.ack", {"ok": True}, room=sid)
 

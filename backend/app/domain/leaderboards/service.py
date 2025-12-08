@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -439,7 +440,7 @@ class LeaderboardService:
 			user_id,
 			kind,
 			earned_ymd,
-			meta or {},
+			json.dumps(meta or {}),
 		)
 		if result and result.split()[-1] == "1":
 			await outbox.record_badge_awarded(kind)

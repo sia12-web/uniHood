@@ -99,17 +99,17 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
 
   // Mode-based configuration
   if (mode === "room") {
-    // Room mode: live proximity within 100m
+    // Room mode: live proximity within 100m (uses Redis geosearch, all campuses)
     params.set("radius_m", "100");
-    params.set("scope", "global");
+    params.set("mode", "room");
   } else if (mode === "campus") {
-    // Campus mode: directory of same campus users (large radius to get directory mode)
+    // Campus mode: directory of same campus users
     params.set("radius_m", "50000");
-    params.set("scope", "campus");
+    params.set("mode", "campus");
   } else if (mode === "city") {
-    // City mode: all users across all campuses (global scope)
+    // City mode: all users across all campuses
     params.set("radius_m", "50000");
-    params.set("scope", "global");
+    params.set("mode", "city");
   }
 
   const url = `${baseUrl}/proximity/nearby?${params.toString()}`;

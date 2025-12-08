@@ -51,7 +51,14 @@ export function createQuickTriviaSession(creatorUserId: string, participants?: s
     const initialParticipants: Participant[] = [];
     const unique = Array.from(new Set([creatorUserId, ...(participants || [])]));
     for (const userId of unique) {
-        initialParticipants.push({ userId, joined: true, ready: true });
+        // Only the creator is marked as joined and ready initially
+        // Invited participants must explicitly join
+        const isCreator = userId === creatorUserId;
+        initialParticipants.push({
+            userId,
+            joined: isCreator,
+            ready: isCreator
+        });
     }
     sessions[sessionId] = {
         id: sessionId,
@@ -60,7 +67,7 @@ export function createQuickTriviaSession(creatorUserId: string, participants?: s
         scores: {},
         currentRound: -1,
         status: 'pending',
-        lobbyReady: initialParticipants.length >= 2,
+        lobbyReady: false, // Will be set to true when enough players join and are ready
     };
     questionDeck[sessionId] = pickQuestions(ROUND_COUNT);
     return sessionId;

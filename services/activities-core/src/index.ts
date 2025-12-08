@@ -75,7 +75,8 @@ const genericUserSockets: Record<string, Map<string, WebSocket>> = {}; // sessio
 const genericCountdowns: Record<string, NodeJS.Timeout> = {}; // Server-side countdown timers
 const GENERIC_COUNTDOWN_MS = 3000;
 const GENERIC_ROUND_DURATION_MS = 30000;
-const RPS_ROUND_WIN_TARGET = 2; // Best of 3 - first to 2 wins
+const RPS_MAX_ROUNDS = 5; // Best of 5 - play all 5 rounds or until someone gets 3 wins
+const RPS_ROUND_WIN_TARGET = 3; // First to 3 wins
 const GENERIC_SAMPLES: string[] = [
     "Why don’t skeletons fight? They don’t have the guts.",
     "Parallel lines have so much in common. It’s a shame they’ll never meet.",
@@ -120,26 +121,26 @@ function snapshotFromGeneric(session: GenericSession) {
 function startGenericCountdown(sessionId: string, onComplete: () => void) {
     const session = genericSessions[sessionId];
     if (!session) return;
-    
+
     session.status = 'countdown';
     session.phase = 'countdown';
     session.countdownValue = 3; // Start at 3 seconds
-    
+
     // Clear any existing countdown
     if (genericCountdowns[sessionId]) {
         clearInterval(genericCountdowns[sessionId]);
     }
-    
+
     // Broadcast initial state
     broadcastGenericState(sessionId);
-    
+
     genericCountdowns[sessionId] = setInterval(() => {
         const s = genericSessions[sessionId];
         if (!s || s.status === 'ended') {
             clearInterval(genericCountdowns[sessionId]);
             return;
         }
-        
+
         if (s.countdownValue && s.countdownValue > 0) {
             s.countdownValue--;
             broadcastGenericState(sessionId);
@@ -156,7 +157,7 @@ function broadcastGenericState(sessionId: string) {
     const session = genericSessions[sessionId];
     const sockets = genericSockets[sessionId];
     if (!session || !sockets) return;
-    
+
     const payload = {
         type: 'session.snapshot',
         payload: snapshotFromGeneric(session),
@@ -176,7 +177,7 @@ function broadcastRpsRoundEnded(sessionId: string, roundWinnerId: string | null,
     const session = genericSessions[sessionId];
     const sockets = genericSockets[sessionId];
     if (!session || !sockets) return;
-    
+
     const payload = {
         type: 'activity.round.ended',
         payload: {
@@ -340,7 +341,7 @@ server.register(async function (fastify) {
         socket.addEventListener('message', (evt) => {
             try {
                 const msg = JSON.parse(evt.data.toString());
-                
+
                 // Handle join to track user-socket mapping
                 if (msg?.type === 'join') {
                     const userId = msg.payload?.userId;
@@ -349,7 +350,7 @@ server.register(async function (fastify) {
                         genericUserSockets[sessionId].set(userId, socket);
                     }
                 }
-                
+
                 // Handle leave message
                 if (msg?.type === 'leave') {
                     const userId = msg.payload?.userId;
@@ -357,7 +358,7 @@ server.register(async function (fastify) {
                         genericUserSockets[sessionId]?.delete(userId);
                         session.participants = session.participants.filter((p) => p.userId !== userId);
                         session.lobbyReady = session.participants.every((p) => p.ready);
-                        
+
                         if (session.participants.length === 1 && (session.status === 'running' || session.status === 'countdown')) {
                             session.winnerUserId = session.participants[0].userId;
                             session.status = 'ended';
@@ -374,7 +375,7 @@ server.register(async function (fastify) {
                         }
                     }
                 }
-                
+
                 if (msg?.type === 'submit') {
                     const userId = msg.payload?.userId;
                     if (typeof userId === 'string') {
@@ -389,20 +390,20 @@ server.register(async function (fastify) {
 
                                 if (allMoved && activeParticipants.length >= 2) {
                                     const moves = { ...session.moves };
-                                    
+
                                     // Initialize round tracking if not present
                                     if (!session.roundWins) session.roundWins = {};
                                     if (session.currentRound === undefined) session.currentRound = 1;
-                                    
+
                                     // Determine round winner (for 2 players)
                                     const p1 = activeParticipants[0].userId;
                                     const p2 = activeParticipants[1].userId;
                                     const m1 = moves[p1];
                                     const m2 = moves[p2];
-                                    
+
                                     let roundWinnerId: string | null = null;
                                     let roundReason: string | undefined;
-                                    
+
                                     if (m1 === m2) {
                                         roundReason = 'draw';
                                     } else if (
@@ -416,36 +417,47 @@ server.register(async function (fastify) {
                                         roundWinnerId = p2;
                                         session.roundWins[p2] = (session.roundWins[p2] || 0) + 1;
                                     }
-                                    
+
                                     session.lastRoundWinner = roundWinnerId;
                                     session.lastRoundMoves = moves;
-                                    
-                                    // Check if match is over (best of 3 - first to 2)
+
+                                    // Check if match is over (best of 5)
                                     const wins1 = session.roundWins[p1] || 0;
                                     const wins2 = session.roundWins[p2] || 0;
-                                    const matchOver = wins1 >= RPS_ROUND_WIN_TARGET || wins2 >= RPS_ROUND_WIN_TARGET;
-                                    
+                                    const currentRound = session.currentRound || 1;
+
+                                    // Match ends if: someone reaches 3 wins OR all 5 rounds are played
+                                    const matchOver = wins1 >= RPS_ROUND_WIN_TARGET || wins2 >= RPS_ROUND_WIN_TARGET || currentRound >= RPS_MAX_ROUNDS;
+
                                     // Broadcast round ended
                                     broadcastRpsRoundEnded(sessionId, roundWinnerId, moves, roundReason);
-                                    
+
                                     if (matchOver) {
-                                        // Calculate final scores (same as TicTacToe)
+                                        // Calculate final scores for best of 5
                                         const calculatePoints = (winnerWins: number, loserWins: number) => {
-                                            if (loserWins === 0) return 300; // 2-0
-                                            if (loserWins === 1) return 200; // 2-1
-                                            return 150; // fallback
+                                            if (winnerWins === 3 && loserWins === 0) return 300; // 3-0 sweep
+                                            if (winnerWins === 3 && loserWins === 1) return 250; // 3-1
+                                            if (winnerWins === 3 && loserWins === 2) return 200; // 3-2 close match
+                                            if (winnerWins === 2 && loserWins === 2) return 150; // 2-2 draw after 5 rounds
+                                            return 100; // fallback
                                         };
-                                        
-                                        if (wins1 >= RPS_ROUND_WIN_TARGET) {
+
+                                        // Determine winner (if someone has 3 wins, otherwise most wins after 5 rounds)
+                                        if (wins1 > wins2) {
                                             session.winnerUserId = p1;
                                             session.scores[p1] = calculatePoints(wins1, wins2);
                                             session.scores[p2] = wins2 * 50;
-                                        } else {
+                                        } else if (wins2 > wins1) {
                                             session.winnerUserId = p2;
                                             session.scores[p2] = calculatePoints(wins2, wins1);
                                             session.scores[p1] = wins1 * 50;
+                                        } else {
+                                            // It's a draw - both get equal points
+                                            session.winnerUserId = null;
+                                            session.scores[p1] = 150;
+                                            session.scores[p2] = 150;
                                         }
-                                        
+
                                         session.status = 'ended';
                                         session.phase = 'ended';
                                         broadcastGenericEnded(sessionId);
@@ -453,12 +465,12 @@ server.register(async function (fastify) {
                                         // Start next round after a short delay
                                         session.currentRound++;
                                         session.moves = {}; // Clear moves for next round
-                                        
+
                                         // Brief delay then start next round countdown
                                         setTimeout(() => {
                                             const s = genericSessions[sessionId];
                                             if (!s || s.status === 'ended') return;
-                                            
+
                                             startGenericCountdown(sessionId, () => {
                                                 const sess = genericSessions[sessionId];
                                                 if (!sess || sess.status === 'ended') return;
@@ -503,7 +515,7 @@ server.register(async function (fastify) {
 
         socket.addEventListener('close', () => {
             genericSockets[sessionId]?.delete(socket);
-            
+
             // Handle disconnect - find which user this socket belonged to
             const userMap = genericUserSockets[sessionId];
             if (userMap) {
@@ -514,14 +526,14 @@ server.register(async function (fastify) {
                         break;
                     }
                 }
-                
+
                 if (disconnectedUserId && session.status !== 'ended') {
                     console.log(`[Generic] User ${disconnectedUserId} disconnected from session ${sessionId}`);
                     userMap.delete(disconnectedUserId);
-                    
+
                     session.participants = session.participants.filter((p) => p.userId !== disconnectedUserId);
                     session.lobbyReady = session.participants.every((p) => p.ready);
-                    
+
                     // Forfeit if game was in progress
                     if (session.participants.length === 1 && (session.status === 'running' || session.status === 'countdown')) {
                         session.winnerUserId = session.participants[0].userId;
@@ -773,10 +785,10 @@ server.register(async function (fastify) {
             if (generic) {
                 // Remove from user-socket tracking
                 genericUserSockets[sessionId]?.delete(userId);
-                
+
                 generic.participants = generic.participants.filter((p) => p.userId !== userId);
                 generic.lobbyReady = generic.participants.every((p) => p.ready);
-                
+
                 // If game was in progress and only one participant remains, declare them winner by forfeit
                 if (generic.participants.length === 1 && (generic.status === 'running' || generic.status === 'countdown')) {
                     generic.winnerUserId = generic.participants[0].userId;
@@ -846,9 +858,9 @@ server.register(async function (fastify) {
                     generic.currentRound = 1;
                     generic.moves = {};
                 }
-                
+
                 broadcastGenericPresence(sessionId);
-                
+
                 // Use server-side countdown for RPS, old method for others
                 if (generic.activityKey === 'rock_paper_scissors') {
                     startGenericCountdown(sessionId, () => {
@@ -908,16 +920,16 @@ server.register(async function (fastify) {
             if (!generic) {
                 return reply.status(404).send({ error: 'session_not_found' });
             }
-            
+
             // Initialize RPS-specific fields
             if (generic.activityKey === 'rock_paper_scissors') {
                 generic.roundWins = {};
                 generic.currentRound = 1;
                 generic.moves = {};
             }
-            
+
             broadcastGenericPresence(sessionId);
-            
+
             // Use server-side countdown for RPS, old method for others
             if (generic.activityKey === 'rock_paper_scissors') {
                 startGenericCountdown(sessionId, () => {

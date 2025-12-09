@@ -121,7 +121,7 @@ export default function PassionsPage() {
 					<p className="mt-1 text-xs text-slate-500">At least 3 required. {remaining} slots left.</p>
 				</div>
 
-				<form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+				<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
 					{error && (
 						<div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
 							{error}
@@ -160,13 +160,13 @@ export default function PassionsPage() {
 							}}
 							maxLength={40}
 							placeholder={passions.length === 0 ? "e.g., Hackathons" : "Add another passion"}
-							className="grow rounded border border-slate-300 px-3 py-2 text-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045]"
+							className="grow rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045]"
 						/>
 						<button
 							type="button"
 							onClick={() => addPassion(draft)}
 							disabled={draft.trim().length === 0}
-							className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+							className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							Add
 						</button>
@@ -186,11 +186,11 @@ export default function PassionsPage() {
 						))}
 					</div>
 
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between pt-4">
 						<button
 							type="button"
 							onClick={() => router.push("/select-courses")}
-							className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+							className="text-sm font-medium text-slate-600 hover:text-slate-900"
 						>
 							Back
 						</button>

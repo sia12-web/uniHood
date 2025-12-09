@@ -61,7 +61,7 @@ const ProfileIcon = () => (
 // HeartIcon removed (unused)
 const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
   loading: () => (
-    <span className="text-2xl font-black tracking-tight text-[#b7222d]">Divan</span>
+    <span className="text-2xl font-black tracking-tight text-[#b7222d]">Radius</span>
   ),
 });
 
@@ -616,7 +616,7 @@ export default function HomePage() {
             <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                  Welcome back,{" "}
+                  Welcome{" "}
                   <button
                     type="button"
                     onClick={() => handleNavClick("profile")}
@@ -776,6 +776,8 @@ export default function HomePage() {
                 ))}
               </div>
             </section>
+
+
 
             {/* Recent Activity (Full Width) */}
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1061,46 +1063,34 @@ export default function HomePage() {
               <p className="text-slate-600">Play games and challenge yourself with friends.</p>
             </div>
 
-            {/* Stats Card */}
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900 p-8 text-white shadow-xl ring-1 ring-slate-900/5">
-              {/* Background Effects */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-rose-500/10" />
-              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-rose-500/20 blur-3xl" />
+            {/* Minimal Stats Row */}
+            <div className="flex w-full flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-around text-center">
+              {/* Game Points */}
+              <div className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Game Points</span>
+              </div>
 
-              <div className="relative z-10 grid grid-cols-2 gap-8 md:grid-cols-4">
-                {/* Game Points */}
-                <div className="flex flex-col gap-1">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40">
-                    <Trophy className="h-5 w-5" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-400">Game Points</span>
-                  <span className="text-3xl font-bold tracking-tight text-white">
-                    {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
-                  </span>
-                </div>
+              <div className="hidden h-12 w-px bg-slate-100 md:block" />
 
-                {/* Games Played */}
-                <div className="flex flex-col gap-1">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40">
-                    <Gamepad2 className="h-5 w-5" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-400">Games Played</span>
-                  <span className="text-3xl font-bold tracking-tight text-white">
-                    {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
-                  </span>
-                </div>
+              {/* Games Played */}
+              <div className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Played</span>
+              </div>
 
-                {/* Wins */}
-                <div className="flex flex-col gap-1">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40">
-                    <Crown className="h-5 w-5" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-400">Wins</span>
-                  <span className="text-3xl font-bold tracking-tight text-white">
-                    {activitySnapshot.loading ? "-" : activitySnapshot.wins}
-                  </span>
-                </div>
+              <div className="hidden h-12 w-px bg-slate-100 md:block" />
+
+              {/* Wins */}
+              <div className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {activitySnapshot.loading ? "-" : activitySnapshot.wins}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Wins</span>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

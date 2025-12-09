@@ -159,24 +159,24 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen w-full bg-white text-base">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-16">
-        <section className="flex flex-[1.2] flex-col items-center justify-center text-slate-900 lg:items-start lg:-ml-16">
-          <div className="relative flex flex-col">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-8">
+        <section className="flex flex-1 flex-col items-center justify-center text-slate-900 lg:justify-center">
+          <div className="relative flex flex-col items-center">
             <BrandLogo
               asLink={false}
               backgroundTone="transparent"
-              logoWidth={1600}
-              logoHeight={1600}
-              className="w-full max-w-5xl justify-center text-[#b7222d] lg:justify-start"
-              logoClassName="h-screen w-auto sm:h-screen lg:h-screen lg:max-h-[700px]"
+              logoWidth={800}
+              logoHeight={800}
+              className="w-full justify-center text-[#b7222d]"
+              logoClassName="h-48 w-auto sm:h-72 lg:h-[425px]"
             />
           </div>
         </section>
 
-        <section className="flex flex-1">
-          <div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">
+        <section className="flex flex-1 justify-center">
+          <div className="w-full max-w-md rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">
             <header className="flex flex-col gap-2">
-              <h2 className="text-3xl font-semibold text-slate-900">Join Divan</h2>
+              <h2 className="text-3xl font-semibold text-slate-900">Join Radius</h2>
               <p className="text-sm text-slate-600">Create an account to get started.</p>
             </header>
 
@@ -232,7 +232,7 @@ export default function OnboardingPage() {
                 disabled={disabled}
                 className="mt-2 rounded-xl bg-[#d64045] px-4 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Joining..." : "Join Divan"}
+                {submitting ? "Joining..." : "Join Radius"}
               </button>
             </form>
 

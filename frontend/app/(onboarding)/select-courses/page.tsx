@@ -8,13 +8,13 @@ import { fetchProfile, fetchPopularCourses, saveProfileCourses, type Course } fr
 import { readAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SelectCoursesPage() {
-	const [courses, setCourses] = useState<Course[]>([]);
-	const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
-	const [customInput, setCustomInput] = useState("");
-	const [loading, setLoading] = useState(true);
-	const [submitting, setSubmitting] = useState(false);
-	const [campusId, setCampusId] = useState<string | null>(null);
-	const [error, setError] = useState<string | null>(null);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
+    const [customInput, setCustomInput] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [campusId, setCampusId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -43,32 +43,32 @@ export default function SelectCoursesPage() {
         load();
     }, [router]);
 
-	const normaliseCode = (code: string) => code.trim().toUpperCase().replace(/\s+/g, " ");
+    const normaliseCode = (code: string) => code.trim().toUpperCase().replace(/\s+/g, " ");
 
-	const toggleCourse = (code: string) => {
-		const normalized = normaliseCode(code);
-		if (!normalized) return;
-		const next = new Set(selectedCodes);
-		if (next.has(normalized)) {
-			next.delete(normalized);
-		} else {
-			next.add(normalized);
-		}
-		setSelectedCodes(next);
-	};
+    const toggleCourse = (code: string) => {
+        const normalized = normaliseCode(code);
+        if (!normalized) return;
+        const next = new Set(selectedCodes);
+        if (next.has(normalized)) {
+            next.delete(normalized);
+        } else {
+            next.add(normalized);
+        }
+        setSelectedCodes(next);
+    };
 
-	const handleAddCustom = (e?: React.FormEvent) => {
-		if (e) e.preventDefault();
-		const code = normaliseCode(customInput);
-		if (!code) return;
+    const handleAddCustom = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const code = normaliseCode(customInput);
+        if (!code) return;
 
-		// Basic validation: must be alphanumeric
-		if (!/^[A-Z0-9\s-]+$/.test(code)) {
-			setError("Course code contains invalid characters.");
-			return;
-		}
+        // Basic validation: must be alphanumeric
+        if (!/^[A-Z0-9\s-]+$/.test(code)) {
+            setError("Course code contains invalid characters.");
+            return;
+        }
 
-		const next = new Set(selectedCodes);
+        const next = new Set(selectedCodes);
         next.add(code);
         setSelectedCodes(next);
         setCustomInput("");
@@ -76,10 +76,10 @@ export default function SelectCoursesPage() {
     };
 
     const removeCourse = (code: string) => {
-		const next = new Set(selectedCodes);
-		next.delete(normaliseCode(code));
-		setSelectedCodes(next);
-	};
+        const next = new Set(selectedCodes);
+        next.delete(normaliseCode(code));
+        setSelectedCodes(next);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,20 +89,20 @@ export default function SelectCoursesPage() {
             const auth = readAuthSnapshot();
             if (!auth?.user_id || !campusId) return;
 
-			const codes = Array.from(selectedCodes).map(normaliseCode).filter(Boolean);
-			// Deduplicate after normalization
-			const unique = Array.from(new Set(codes));
-			if (unique.length === 0) {
-				setError("Please add at least one course or skip.");
-				setSubmitting(false);
-				return;
-			}
-			await saveProfileCourses(auth.user_id, campusId, unique);
+            const codes = Array.from(selectedCodes).map(normaliseCode).filter(Boolean);
+            // Deduplicate after normalization
+            const unique = Array.from(new Set(codes));
+            if (unique.length === 0) {
+                setError("Please add at least one course or skip.");
+                setSubmitting(false);
+                return;
+            }
+            await saveProfileCourses(auth.user_id, campusId, unique);
 
-			router.push("/passions");
-		} catch (err) {
-			console.error(err);
-			setError("Failed to save courses.");
+            router.push("/passions");
+        } catch (err) {
+            console.error(err);
+            setError("Failed to save courses.");
         } finally {
             setSubmitting(false);
         }
@@ -118,9 +118,8 @@ export default function SelectCoursesPage() {
 
     return (
         <div className="w-full flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-            <div className="w-full max-w-3xl space-y-8 bg-white p-6 md:p-10 rounded-3xl shadow-xl ring-1 ring-slate-100">
+            <div className="w-full max-w-3xl space-y-8">
                 <div className="flex flex-col items-center">
-
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
                         What Are You Studying?
                     </h2>
@@ -147,7 +146,7 @@ export default function SelectCoursesPage() {
                                 <input
                                     type="text"
                                     id="custom-course"
-                                    className="block w-full rounded-xl border-slate-200 pl-10 pr-3 py-3 text-slate-900 placeholder:text-slate-400 focus:border-[#d64045] focus:ring-[#d64045] sm:text-sm bg-slate-50"
+                                    className="block w-full rounded-md border-slate-200 pl-10 pr-3 py-3 text-slate-900 placeholder:text-slate-400 focus:border-[#d64045] focus:ring-[#d64045] sm:text-sm bg-slate-50"
                                     placeholder="Add a course (e.g. MATH 201)"
                                     value={customInput}
                                     onChange={(e) => setCustomInput(e.target.value)}
@@ -164,7 +163,7 @@ export default function SelectCoursesPage() {
                                 onClick={() => handleAddCustom()}
                                 disabled={!customInput.trim()}
                                 aria-label="Add course"
-                                className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 <Plus className="h-5 w-5" />
                             </button>
@@ -230,14 +229,14 @@ export default function SelectCoursesPage() {
                         <button
                             onClick={handleSubmit}
                             disabled={submitting}
-                            className="w-full rounded-xl bg-[#d64045] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#d64045]/20 transition-all hover:bg-[#c7343a] hover:shadow-[#d64045]/40 focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full rounded-md bg-[#d64045] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#d64045]/20 transition-all hover:bg-[#c7343a] hover:shadow-[#d64045]/40 focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {submitting ? "Saving..." : "Continue"}
                         </button>
                         <button
                             type="button"
                             onClick={() => router.push("/passions")}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                            className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
                         >
                             Skip for now
                         </button>

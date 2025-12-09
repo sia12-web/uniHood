@@ -65,8 +65,6 @@ export default function SelectUniversityPage() {
         <div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
             <div className="w-full max-w-2xl space-y-8">
                 <div className="flex flex-col items-center">
-
-
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
                         Select Your University
                     </h2>

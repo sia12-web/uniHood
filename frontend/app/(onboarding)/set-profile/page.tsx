@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -7,8 +9,8 @@ import { fetchProfile, patchProfile } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SetProfilePage() {
-	const [displayName, setDisplayName] = useState("");
-	const [handle, setHandle] = useState("");
+    const [displayName, setDisplayName] = useState("");
+    const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [campusId, setCampusId] = useState<string | null>(null);
@@ -70,9 +72,8 @@ export default function SetProfilePage() {
 
     return (
         <div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
-            <div className="w-full max-w-2xl space-y-8">
+            <div className="w-full max-w-md space-y-8">
                 <div className="flex flex-col items-center">
-
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
                         Set Your Profile
                     </h2>

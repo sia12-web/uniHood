@@ -133,7 +133,7 @@ export default function PhotosPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen w-full flex-col bg-slate-50">
+		<>
 			{/* Modal Overlay for Avatar Creator */}
 			{showAvatarCreator && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -148,131 +148,112 @@ export default function PhotosPage() {
 				</div>
 			)}
 
-			<div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:py-12">
+			<div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+				<div className="w-full max-w-2xl space-y-8">
+					<div className="flex flex-col items-center">
+						<h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
+							Choose Your Look
+						</h2>
+						<p className="mt-2 text-center text-sm text-slate-600">
+							Be yourself or go incognito. You can change this anytime.
+						</p>
+					</div>
 
-				{/* Header Section */}
-				<div className="flex flex-col items-center text-center">
-					<h2 className="text-3xl font-bold tracking-tight text-slate-900">
-						Choose Your Look
-					</h2>
-					<p className="mt-2 text-lg text-slate-600">
-						Be yourself or go incognito. You can change this anytime.
-					</p>
-				</div>
+					<div className="mt-8 flex flex-col items-center">
+						<div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-xl ring-1 ring-slate-100">
+							{avatarUrl ? (
+								// eslint-disable-next-line @next/next/no-img-element
+								<img
+									src={avatarUrl}
+									alt="Current avatar"
+									className="h-full w-full object-cover"
+								/>
+							) : (
+								<div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">
+									No photo
+								</div>
+							)}
 
-				{/* Current Photo Display */}
-				<div className="flex flex-col items-center">
-					<div className="relative h-40 w-40 overflow-hidden rounded-full border-4 border-white shadow-xl ring-1 ring-slate-100">
-						{avatarUrl ? (
-							// eslint-disable-next-line @next/next/no-img-element
-							<img
-								src={avatarUrl}
-								alt="Current avatar"
-								className="h-full w-full object-cover"
+							{uploading && (
+								<div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+									<div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+								</div>
+							)}
+						</div>
+					</div>
+
+					{error && (
+						<div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+							{error}
+						</div>
+					)}
+
+					<div className="mt-8 grid gap-8 sm:grid-cols-2">
+						{/* Option 1: Real Me */}
+						<div className="flex flex-col gap-3">
+							<div className="flex items-center gap-2 px-1">
+								<div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+									<Camera className="h-4 w-4" />
+								</div>
+								<h3 className="text-sm font-bold text-slate-900">Real Me</h3>
+							</div>
+
+							<PhotoAdjuster
+								onConfirm={handlePhotoConfirm}
+								onCancel={() => { }}
+								aspectRatio="square"
+								className="w-full shadow-sm"
 							/>
-						) : (
-							<div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">
-								No photo
-							</div>
-						)}
-
-						{uploading && (
-							<div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-								<div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
-							</div>
-						)}
-					</div>
-					<p className="mt-3 text-sm font-medium text-slate-500 uppercase tracking-wider">Current Photo</p>
-				</div>
-
-				{error && (
-					<div className="mx-auto w-full max-w-md rounded-xl bg-red-50 p-4 text-center text-sm text-red-700 border border-red-100">
-						{error}
-					</div>
-				)}
-
-				{/* Split Layout Options */}
-				<div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-
-					{/* Option 1: Real Me */}
-					<div className="flex flex-col gap-4">
-						<div className="flex items-center gap-3 px-2">
-							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-								<Camera className="h-5 w-5" />
-							</div>
-							<div>
-								<h3 className="text-lg font-bold text-slate-900">Real Me</h3>
-								<p className="text-sm text-slate-500">Upload a photo to get 3x more connections.</p>
-							</div>
 						</div>
 
-						<PhotoAdjuster
-							onConfirm={handlePhotoConfirm}
-							onCancel={() => { }}
-							aspectRatio="square"
-							className="w-full shadow-md"
-						/>
-					</div>
+						{/* Option 2: Ghost Mode */}
+						<div className="flex flex-col gap-3">
+							<div className="flex items-center gap-2 px-1">
+								<div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+									<Ghost className="h-4 w-4" />
+								</div>
+								<h3 className="text-sm font-bold text-slate-900">Ghost Mode</h3>
+							</div>
 
-					{/* Option 2: Ghost Mode */}
-					<div className="flex flex-col gap-4">
-						<div className="flex items-center gap-3 px-2">
-							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-								<Ghost className="h-5 w-5" />
-							</div>
-							<div>
-								<h3 className="text-lg font-bold text-slate-900">Ghost Mode</h3>
-								<p className="text-sm text-slate-500">Create a custom avatar to stay anonymous.</p>
-							</div>
-						</div>
-
-						<div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-md transition-all hover:shadow-lg">
-							<div className="mb-6 rounded-full bg-indigo-50 p-6">
-								<Sparkles className="h-12 w-12 text-indigo-500" />
-							</div>
-							<h4 className="text-xl font-bold text-slate-900">Design Your Avatar</h4>
-							<p className="mt-2 max-w-xs text-slate-600">
-								Mix and match styles to create a unique look that represents you.
-							</p>
 							<button
 								onClick={() => setShowAvatarCreator(true)}
-								className="mt-8 rounded-xl bg-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-transform hover:scale-105 hover:bg-indigo-700 active:scale-95"
+								className="flex w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 py-12 transition-all hover:border-indigo-400 hover:bg-indigo-50"
 							>
-								Open Creator
+								<Sparkles className="h-5 w-5 text-indigo-500" />
+								<span className="font-semibold text-indigo-700">Create Avatar</span>
+							</button>
+						</div>
+					</div>
+
+					<div className="flex items-center justify-between pt-6">
+						<button
+							type="button"
+							onClick={() => router.push("/passions")}
+							className="text-sm font-medium text-slate-600 hover:text-slate-900"
+						>
+							Back
+						</button>
+						<div className="flex items-center gap-3">
+							<button
+								type="button"
+								onClick={() => router.push("/set-profile")}
+								className="text-sm font-medium text-slate-500 hover:text-slate-700"
+							>
+								Skip
+							</button>
+							<button
+								type="button"
+								onClick={handleContinue}
+								disabled={saving || !canContinue}
+								className="group relative flex justify-center rounded-md bg-[#d64045] px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+							>
+								{saving ? "Saving..." : "Continue"}
 							</button>
 						</div>
 					</div>
 				</div>
-
-				{/* Navigation Footer */}
-				<div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-8">
-					<button
-						type="button"
-						onClick={() => router.push("/passions")}
-						className="text-sm font-semibold text-slate-600 hover:text-slate-900"
-					>
-						Back
-					</button>
-					<div className="flex items-center gap-3">
-						<button
-							type="button"
-							onClick={() => router.push("/set-profile")}
-							className="text-sm font-medium text-slate-500 hover:text-slate-700"
-						>
-							Skip
-						</button>
-						<button
-							type="button"
-							onClick={handleContinue}
-							disabled={saving || !canContinue}
-							className="group relative flex justify-center rounded-xl bg-[#d64045] px-8 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#c7343a] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
-						>
-							{saving ? "Saving..." : "Continue"}
-						</button>
-					</div>
-				</div>
 			</div>
-		</div>
+		</>
 	);
 }
 

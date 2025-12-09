@@ -15,13 +15,6 @@ const PUBLIC_PATHS = new Set([
 
 const FAVICON_PATHS = new Set([
 	"/favicon.ico",
-	"/favicon.png",
-	"/favicon.svg",
-	"/favicon-16x16.png",
-	"/favicon-32x32.png",
-	"/favicon-180x180.png",
-	"/favicon-192x192.png",
-	"/favicon-512x512.png",
 ]);
 
 function isPublicPath(pathname: string): boolean {
@@ -37,7 +30,7 @@ function isPublicPath(pathname: string): boolean {
 	if (pathname.startsWith("/brand/")) return true; // Allow brand assets
 	if (pathname.startsWith("/university-logos/")) return true; // Allow university logo assets
 	if (FAVICON_PATHS.has(pathname)) return true;
-	if (pathname === "/robots.txt" || pathname === "/manifest.json") return true;
+	if (pathname === "/robots.txt" || pathname === "/manifest.json" || pathname === "/radius-logo.png") return true;
 	return false;
 }
 

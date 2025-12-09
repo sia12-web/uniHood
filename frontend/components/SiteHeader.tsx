@@ -75,6 +75,11 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-warm-sand dark:border-slate-700 bg-glass shadow-soft">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+        <div className="flex h-16 items-center">
+          <Link href="/" className="mr-8 flex items-center space-x-2">
+            <span className="text-xl font-bold tracking-tight">Radius</span>
+          </Link>
+        </div>
         <nav className="hidden items-center gap-1 md:flex">
           {visibleLinks.map((link) => (
             <Link

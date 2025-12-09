@@ -3,15 +3,13 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-
 export default function WelcomePage() {
     const router = useRouter();
 
     return (
-        <div className="w-full flex flex-col items-center p-4 sm:p-6">
-            <div className="w-full max-w-2xl space-y-8 text-center">
-                <div className="flex flex-col items-center">
-
+        <div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-md space-y-8">
+                <div className="flex flex-col items-center text-center">
                     <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
                         You&apos;re all set!
                     </h2>
@@ -20,7 +18,7 @@ export default function WelcomePage() {
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="mt-8 flex flex-col gap-3">
                     <button
                         onClick={() => router.push("/")}
                         className="inline-flex w-full justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2"

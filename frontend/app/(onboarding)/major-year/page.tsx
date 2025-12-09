@@ -192,7 +192,7 @@ export default function MajorYearPage() {
 	};
 
 	if (loading) {
-		return <div className="flex min-h-[60vh] items-center justify-center text-slate-500">Loading...</div>;
+		return <div className="flex min-h-screen items-center justify-center text-slate-500">Loading...</div>;
 	}
 
 	return (
@@ -233,7 +233,7 @@ export default function MajorYearPage() {
 									}}
 									onFocus={() => setIsMajorOpen(true)}
 									maxLength={120}
-									className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm transition-all focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] sm:text-sm"
+									className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
 									placeholder="Search for your major..."
 									autoComplete="off"
 								/>
@@ -245,7 +245,7 @@ export default function MajorYearPage() {
 							{isMajorOpen && (
 								<ul
 									ref={majorListRef}
-									className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+									className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
 								>
 									{filteredMajors.length === 0 ? (
 										<li className="relative cursor-default select-none px-4 py-2 text-slate-500">
@@ -288,7 +288,7 @@ export default function MajorYearPage() {
 								required
 								value={gradYear}
 								onChange={(e) => setGradYear(e.target.value)}
-								className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm transition-all focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] sm:text-sm"
+								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
 								placeholder={`${YEAR_MIN + 3}`}
 							/>
 							<p className="mt-1 text-xs text-slate-500">{gradYearHelp}</p>
@@ -299,14 +299,14 @@ export default function MajorYearPage() {
 						<button
 							type="button"
 							onClick={() => router.push("/select-university")}
-							className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+							className="text-sm font-medium text-slate-600 hover:text-slate-900"
 						>
 							Back
 						</button>
 						<button
 							type="submit"
 							disabled={submitting}
-							className="group relative flex justify-center rounded-xl border border-transparent bg-[#d64045] px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-[#c7343a] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+							className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
 						>
 							{submitting ? "Saving..." : "Continue"}
 						</button>

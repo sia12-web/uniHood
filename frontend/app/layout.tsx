@@ -5,16 +5,15 @@ import Script from "next/script";
 import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
-  title: "Divan",
-  description: "Phase 1 proximity core UI",
+  title: {
+    default: "Radius",
+    template: "%s | Radius",
+  },
+  description: "Connect with students nearby.",
   icons: {
-    icon: [
-      { url: "/brand/favicon.png", sizes: "48x48", type: "image/png" },
-      { url: "/brand/favicon.png", sizes: "96x96", type: "image/png" },
-      { url: "/brand/favicon.png", sizes: "192x192", type: "image/png" },
-      { url: "/brand/favicon.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: { url: "/brand/favicon.png", sizes: "180x180", type: "image/png" },
+    icon: [],
+    shortcut: [],
+    apple: [],
   },
 };
 

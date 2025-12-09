@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy - Divan",
-	description: "Divan privacy policy and data practices",
+	title: "Privacy Policy - Radius",
+	description: "Radius privacy policy and data practices",
 };
 
 export default function PrivacyPolicyPage() {
@@ -13,12 +13,12 @@ export default function PrivacyPolicyPage() {
 			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 5, 2025</p>
 
 			<p>
-				Divan (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is committed to protecting your privacy. 
+				Radius (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is committed to protecting your privacy.
 				This policy explains how we collect, use, and protect your personal information when you use our platform.
 			</p>
 
 			<h2>1. Information We Collect</h2>
-			
+
 			<h3>Account Information</h3>
 			<p>When you create an account, we collect:</p>
 			<ul>
@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
 
 			<h3>Location Information (Optional)</h3>
 			<p>
-				If you enable proximity features, we collect approximate location data to help you discover 
+				If you enable proximity features, we collect approximate location data to help you discover
 				nearby users. This data is retained for only 7 days and can be disabled at any time.
 			</p>
 
@@ -165,27 +165,27 @@ export default function PrivacyPolicyPage() {
 
 			<h2>7. Children&apos;s Privacy</h2>
 			<p>
-				Divan is intended for users 18 years of age and older. We do not knowingly collect 
-				personal information from children. If you believe a child has provided us personal 
+				Radius is intended for users 18 years of age and older. We do not knowingly collect
+				personal information from children. If you believe a child has provided us personal
 				information, please contact us immediately.
 			</p>
 
 			<h2>8. International Data Transfers</h2>
 			<p>
-				Your data may be processed in Canada and other countries where our service providers 
+				Your data may be processed in Canada and other countries where our service providers
 				operate. We ensure appropriate safeguards are in place for any international transfers.
 			</p>
 
 			<h2>9. Policy Updates</h2>
 			<p>
-				We may update this policy periodically. Material changes will be announced via email 
+				We may update this policy periodically. Material changes will be announced via email
 				and in-app notification at least 30 days before taking effect.
 			</p>
 
 			<h2>10. Contact Us</h2>
 			<p>For privacy questions or to exercise your rights:</p>
 			<ul>
-				<li>Email: <a href="mailto:privacy@divan.app">privacy@divan.app</a></li>
+				<li>Email: <a href="mailto:privacy@radius.app">privacy@radius.app</a></li>
 				<li>Settings: Use the Privacy section in your account settings</li>
 			</ul>
 
@@ -204,7 +204,7 @@ export default function PrivacyPolicyPage() {
 				</Link>
 				{" · "}
 				<Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
-					Back to Divan
+					Back to Radius
 				</Link>
 			</p>
 		</article>

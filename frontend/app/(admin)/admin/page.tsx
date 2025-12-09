@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  ShieldCheck, 
-  Flag, 
-  Users, 
-  FileCheck, 
-  Activity, 
+import {
+  ShieldCheck,
+  Flag,
+  Users,
+  FileCheck,
+  Activity,
   AlertTriangle,
   ArrowRight
 } from "lucide-react";
@@ -48,10 +48,10 @@ const ADMIN_FEATURES = [
 ];
 
 const MOCK_LOGS = [
-  { id: 1, action: "Flag Updated", detail: "Enabled 'ui.moderation.v2' for Campus A", user: "admin@divan.dev", time: "2m ago" },
+  { id: 1, action: "Flag Updated", detail: "Enabled 'ui.moderation.v2' for Campus A", user: "admin@radius.app", time: "2m ago" },
   { id: 2, action: "User Verified", detail: "Approved verification for user_123", user: "mod_sarah", time: "15m ago" },
   { id: 3, action: "Policy Published", detail: "Updated Privacy Policy v1.2", user: "legal_team", time: "1h ago" },
-  { id: 4, action: "Role Assigned", detail: "Granted 'Moderator' role to user_456", user: "admin@divan.dev", time: "3h ago" },
+  { id: 4, action: "Role Assigned", detail: "Granted 'Moderator' role to user_456", user: "admin@radius.app", time: "3h ago" },
 ];
 
 export default function AdminOverviewPage() {

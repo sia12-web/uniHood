@@ -41,7 +41,7 @@ export default function BrandLogo({
   const baseClasses = "inline-flex max-w-full flex-wrap items-center gap-3 text-[#1b2a3a]";
   const mergedClasses = cn(baseClasses, className);
   const mergedLogoClasses = cn(
-    "h-20 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 sm:h-24",
+    "h-10 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 sm:h-12 mix-blend-multiply",
     asLink && "group-hover:scale-[1.02]",
     logoClassName,
   );
@@ -66,8 +66,8 @@ export default function BrandLogo({
         )}
       >
         <Image
-          src="/brand/logo.png"
-          alt="Divan"
+          src="/radius-logo.png"
+          alt="Radius"
           width={logoWidth}
           height={logoHeight}
           className={mergedLogoClasses}
@@ -78,7 +78,7 @@ export default function BrandLogo({
 
       {withWordmark ? (
         <span className={cn("flex min-w-0 flex-col leading-none text-current", wordmarkClassName)}>
-          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>Divan</span>
+          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>Radius</span>
           <span
             className={cn(
               "text-[0.65rem] font-semibold uppercase tracking-[0.4em] opacity-70",
@@ -94,7 +94,7 @@ export default function BrandLogo({
 
   if (asLink) {
     return (
-      <Link href="/" className={mergedClasses} aria-label="Divan home">
+      <Link href="/" className={mergedClasses} aria-label="Radius home">
         {logoContent}
       </Link>
     );

@@ -174,15 +174,18 @@ export async function markRead(roomId: string, upToSeq: number): Promise<void> {
 }
 
 export function roomsSocket(): RoomsSocket {
+	// Always call connectRoomsSocket to ensure the socket manager
+	// has a chance to reconnect if currently disconnected
+	const instance = (connectRoomsSocket() ?? getRoomsSocketInstance()) as RoomsSocket | null;
+	if (instance) {
+		socketInstance = instance;
+		return instance;
+	}
+	// Fall back to cached instance if connect fails but instance exists
 	if (socketInstance) {
 		return socketInstance;
 	}
-	const instance = (connectRoomsSocket() ?? getRoomsSocketInstance()) as RoomsSocket | null;
-	if (!instance) {
-		throw new Error('Rooms socket unavailable');
-	}
-	socketInstance = instance;
-	return instance;
+	throw new Error('Rooms socket unavailable');
 }
 
 export function disconnectRoomsSocket(): void {

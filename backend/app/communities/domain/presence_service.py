@@ -15,7 +15,7 @@ from app.obs import metrics as obs_metrics
 _USER_KEY = "comm:presence:user:{user_id}"
 _GROUP_KEY = "comm:presence:group:{group_id}"
 _ONLINE_SET = "comm:presence:online"
-_TTL_SECONDS = 90
+_TTL_SECONDS = 10800  # 3 hours
 
 
 class PresenceService:

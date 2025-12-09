@@ -301,6 +301,10 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
     instance.on("disconnect", (reason) => {
       clearHeartbeat();
       connecting = false;
+      // Clear cached ticket on disconnect - tickets are one-time-use on the server
+      // so we need a fresh one for reconnection
+      cachedTicket = null;
+      cachedTicketExpiresAt = 0;
       if (!shouldReconnect || reason === "io client disconnect") {
         updateStatus("disconnected");
         return;
@@ -312,6 +316,9 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
     instance.on("connect_error", () => {
       clearHeartbeat();
       connecting = false;
+      // Clear cached ticket - may have been rejected, get a fresh one
+      cachedTicket = null;
+      cachedTicketExpiresAt = 0;
       if (!shouldReconnect) {
         updateStatus("disconnected");
         return;

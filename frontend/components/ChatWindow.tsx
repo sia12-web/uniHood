@@ -4,7 +4,7 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, Smile, X } from "lucide-react";
+import { Send, Mic, Smile, X, Gamepad2 } from "lucide-react";
 
 import type { SocketConnectionStatus } from "@/app/lib/socket/base";
 
@@ -57,7 +57,7 @@ export default function ChatWindow({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -128,7 +128,7 @@ export default function ChatWindow({
         console.log("Audio recorded:", audioBlob);
         // TODO: Implement upload and send logic here
         // For now, we just log it as we don't have an upload endpoint ready
-        
+
         stream.getTracks().forEach(track => track.stop());
         setIsRecording(false);
         setRecordingDuration(0);
@@ -136,7 +136,7 @@ export default function ChatWindow({
 
       recorder.start();
       setIsRecording(true);
-      
+
       const startTime = Date.now();
       timerRef.current = setInterval(() => {
         setRecordingDuration(Math.floor((Date.now() - startTime) / 1000));
@@ -161,10 +161,10 @@ export default function ChatWindow({
   function cancelRecording() {
     if (mediaRecorderRef.current && isRecording) {
       // Stop but don't process
-      mediaRecorderRef.current.onstop = null; 
+      mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      
+
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -192,21 +192,21 @@ export default function ChatWindow({
       const isSelf = msg.senderId === selfUserId;
       // Group if same sender and within 2 minutes
       const msgTime = new Date(msg.createdAt).getTime();
-      const prevTime = currentGroup?.messages[currentGroup.messages.length - 1] 
-        ? new Date(currentGroup.messages[currentGroup.messages.length - 1].createdAt).getTime() 
+      const prevTime = currentGroup?.messages[currentGroup.messages.length - 1]
+        ? new Date(currentGroup.messages[currentGroup.messages.length - 1].createdAt).getTime()
         : 0;
-      
+
       const isRecent = currentGroup && (msgTime - prevTime < 2 * 60 * 1000);
 
       if (currentGroup && currentGroup.isSelf === isSelf && isRecent) {
         currentGroup.messages.push(msg);
       } else {
         if (currentGroup) groups.push(currentGroup);
-        currentGroup = { 
-          isSelf, 
-          senderId: msg.senderId, 
-          messages: [msg], 
-          id: msg.messageId || msg.clientMsgId || `temp-${Date.now()}` 
+        currentGroup = {
+          isSelf,
+          senderId: msg.senderId,
+          messages: [msg],
+          id: msg.messageId || msg.clientMsgId || `temp-${Date.now()}`
         };
       }
     });
@@ -219,11 +219,11 @@ export default function ChatWindow({
       className="relative flex h-full w-full flex-1 min-h-0 flex-col bg-[#f8f9fc] text-sm overflow-hidden"
       aria-label={`Conversation with ${peerName ?? "friend"}${peerStatusText ? ` (${peerStatusText})` : ""}`}
     >
-      
+
       {/* Connection Status */}
       <AnimatePresence>
         {reconnecting && (
-          <motion.div 
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -233,7 +233,7 @@ export default function ChatWindow({
           </motion.div>
         )}
         {disconnected && (
-          <motion.div 
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -274,26 +274,26 @@ export default function ChatWindow({
                     const body = msg.body?.trim() ?? "";
                     const hasBody = body.length > 0;
                     const imageAttachments = msg.attachments.filter(isRenderableImageAttachment);
-                    
+
                     return (
-                      <div 
+                      <div
                         key={msg.messageId || msg.clientMsgId}
                         className={clsx(
                           "relative px-5 py-3 text-[15px] leading-relaxed shadow-sm transition-all hover:shadow-md",
-                          group.isSelf 
-                            ? "bg-indigo-600 text-white" 
+                          group.isSelf
+                            ? "bg-indigo-600 text-white"
                             : "bg-white text-slate-800 border border-slate-100",
                           // Border Radius Logic
                           isFirst && isLast ? "rounded-2xl" :
-                          isFirst && group.isSelf ? "rounded-2xl rounded-br-sm" :
-                          isFirst && !group.isSelf ? "rounded-2xl rounded-bl-sm" :
-                          isLast && group.isSelf ? "rounded-2xl rounded-tr-sm" :
-                          isLast && !group.isSelf ? "rounded-2xl rounded-tl-sm" :
-                          group.isSelf ? "rounded-l-2xl rounded-r-sm" : "rounded-r-2xl rounded-l-sm"
+                            isFirst && group.isSelf ? "rounded-2xl rounded-br-sm" :
+                              isFirst && !group.isSelf ? "rounded-2xl rounded-bl-sm" :
+                                isLast && group.isSelf ? "rounded-2xl rounded-tr-sm" :
+                                  isLast && !group.isSelf ? "rounded-2xl rounded-tl-sm" :
+                                    group.isSelf ? "rounded-l-2xl rounded-r-sm" : "rounded-r-2xl rounded-l-sm"
                         )}
                       >
                         {hasBody && <span className="whitespace-pre-wrap break-words">{body}</span>}
-                        
+
                         {imageAttachments.length > 0 && (
                           <div className={clsx(hasBody ? "mt-3" : "", "space-y-2")}>
                             {imageAttachments.map((attachment) => (
@@ -313,7 +313,7 @@ export default function ChatWindow({
                     );
                   })}
                 </div>
-                
+
                 {/* Meta info for the group (timestamp + status) */}
                 <div className={clsx("mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-400 px-1", group.isSelf ? "justify-end" : "justify-start")}>
                   <span>{timeFormatter.format(new Date(group.messages[group.messages.length - 1].createdAt))}</span>
@@ -321,8 +321,8 @@ export default function ChatWindow({
                     <>
                       <span>•</span>
                       <span>
-                        {group.messages.some(m => m.messageId === m.clientMsgId) ? "Sending..." : 
-                         (deliveredSeq && deliveredSeq >= (group.messages[group.messages.length - 1].seq ?? 0)) ? "Read" : "Sent"}
+                        {group.messages.some(m => m.messageId === m.clientMsgId) ? "Sending..." :
+                          (deliveredSeq && deliveredSeq >= (group.messages[group.messages.length - 1].seq ?? 0)) ? "Read" : "Sent"}
                       </span>
                     </>
                   )}
@@ -339,9 +339,9 @@ export default function ChatWindow({
         {showEmojiPicker && (
           <div className="absolute bottom-full mb-2 left-4 bg-white shadow-xl rounded-2xl p-3 grid grid-cols-6 gap-2 border border-slate-100 z-50 animate-in fade-in slide-in-from-bottom-2">
             {QUICK_EMOJI.map(emoji => (
-              <button 
-                key={emoji} 
-                onClick={() => handleEmojiClick(emoji)} 
+              <button
+                key={emoji}
+                onClick={() => handleEmojiClick(emoji)}
                 className="text-2xl hover:bg-slate-50 p-2 rounded-lg transition-colors"
               >
                 {emoji}
@@ -405,6 +405,16 @@ export default function ChatWindow({
               >
                 <Smile className="h-5 w-5" />
               </button>
+              {!activeSession && (
+                <button
+                  type="button"
+                  onClick={() => setPlayOpen(true)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="Invite to play a game"
+                >
+                  <Gamepad2 className="h-5 w-5" />
+                </button>
+              )}
               {draft.trim() ? (
                 <button
                   type="submit"
@@ -425,17 +435,26 @@ export default function ChatWindow({
             </div>
           </form>
         )}
-        
+
         {!isRecording && (
           <div className="mt-2 flex justify-center">
-             <p className="text-[10px] text-slate-400 font-medium">Press Enter to send • Shift+Enter for new line</p>
+            <p className="text-[10px] text-slate-400 font-medium">Press Enter to send • Shift+Enter for new line</p>
           </div>
         )}
       </div>
 
       {playOpen && !activeSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <ChooseActivityModal peerUserId={peerUserId} onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }} />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setPlayOpen(false); }}
+        >
+          <ChooseActivityModal
+            peerUserId={peerUserId}
+            onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }}
+            onClose={() => setPlayOpen(false)}
+          />
         </div>
       )}
       {activeSession && (

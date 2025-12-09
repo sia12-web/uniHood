@@ -107,12 +107,12 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     socket.on("connect", handleConnect);
 
     // If already connected, emit room:join immediately
-    // Otherwise connect and handleConnect will fire
+    // The socket manager handles connection - don't call socket.connect() directly
     if (socket.connected) {
       socket.emit("room:join", { room_id: roomId });
-    } else {
-      socket.connect();
     }
+    // If not connected, the socket manager will handle reconnection
+    // and the handleConnect listener will fire when connected
 
     return () => {
       socket?.off("room:msg:new", handleMessage);
@@ -148,28 +148,15 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   const handleSendMessage = useCallback(async (payload: RoomMessageSend) => {
     if (!meetup?.room_id || !meetup?.current_user_id) return;
 
-    // Optimistic update: add message to UI immediately
-    const optimisticMessage: RoomMessageDTO = {
-      id: `optimistic-${payload.client_msg_id}`,
-      room_id: meetup.room_id,
-      seq: Date.now(), // Temporary high seq to appear at bottom
-      sender_id: meetup.current_user_id,
-      client_msg_id: payload.client_msg_id,
-      kind: payload.kind,
-      content: payload.content,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => upsertMessage(prev, optimisticMessage));
-
     try {
-      // Send to server and update with confirmed message
+      // Send to server - the socket broadcast will update the UI for everyone
+      // including the sender, ensuring consistent message display
       const msg = await sendRoomMessage(meetup.room_id, payload);
+      // Also update immediately from HTTP response to ensure the message shows
+      // even if socket has issues - upsertMessage handles deduplication
       setMessages((prev) => upsertMessage(prev, msg));
     } catch (err) {
       console.error("Failed to send message", err);
-      // Remove the optimistic message on error
-      setMessages((prev) => prev.filter((m) => m.client_msg_id !== payload.client_msg_id));
     }
   }, [meetup?.room_id, meetup?.current_user_id]);
 

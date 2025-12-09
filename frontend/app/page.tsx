@@ -188,7 +188,7 @@ function formatChatTime(iso: string | null | undefined): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type NavKey = "dashboard" | "network" | "games" | "profile" | "discovery" | "meetups" | "friends";
+type NavKey = "dashboard" | "network" | "messages" | "games" | "profile" | "discovery" | "meetups" | "friends";
 const NAV_SECTIONS: NavKey[] = ["dashboard", "network", "games", "profile", "discovery", "meetups"];
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -580,7 +580,13 @@ export default function HomePage() {
         key: "network" as const,
         label: "Network",
         icon: <UsersIcon />,
-        badge: inboundPending > 0 ? inboundPending : ((hasFriendAcceptanceNotification || chatUnreadCount > 0) ? "New" : null),
+        badge: inboundPending > 0 ? inboundPending : (hasFriendAcceptanceNotification ? "New" : null),
+      },
+      {
+        key: "messages" as const,
+        label: "Messages",
+        icon: <ChatIcon />,
+        badge: chatUnreadCount > 0 ? chatUnreadCount : null,
       },
       {
         key: "games" as const,
@@ -595,7 +601,7 @@ export default function HomePage() {
         badge: null,
       },
     ],
-    [hasFriendsNotification, chatUnreadCount, hasStoryInvite, hasTypingInvite],
+    [inboundPending, hasFriendAcceptanceNotification, chatUnreadCount, hasStoryInvite, hasTypingInvite],
   );
 
   const handleNavClick = (key: NavKey) => {
@@ -605,6 +611,10 @@ export default function HomePage() {
     }
     if (key === "friends") {
       router.push("/friends");
+      return;
+    }
+    if (key === "messages") {
+      router.push("/chat");
       return;
     }
     persistActiveSection(key, authUser?.userId ?? null);

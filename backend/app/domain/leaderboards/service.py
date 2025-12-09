@@ -694,7 +694,7 @@ class LeaderboardService:
 		async with pool.acquire() as conn:
 			friend_count_row = await conn.fetchrow(
 				"SELECT COUNT(*) as count FROM friendships WHERE user_id = $1 AND status = 'accepted'",
-				str(user_id)
+				user_id
 			)
 			meetup_count_row = await conn.fetchrow(
 				"SELECT COUNT(*) as count FROM meetup_participants WHERE user_id = $1 AND status = 'JOINED'",

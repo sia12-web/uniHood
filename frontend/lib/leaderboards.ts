@@ -101,3 +101,45 @@ export async function fetchStreakSummary(userId: string, query: { signal?: Abort
 		signal: query.signal,
 	});
 }
+
+export type RecordGameOutcomeParams = {
+	userIds: string[];
+	winnerId?: string | null;
+	campusId?: string;
+	gameKind?: string;
+	durationSeconds?: number;
+	moveCount?: number;
+};
+
+export type RecordGameOutcomeResponse = {
+	recorded: boolean;
+	awarded_users: string[];
+};
+
+/**
+ * Record a game outcome for leaderboard tracking.
+ * Call this when a game (e.g. TicTacToe) completes.
+ */
+export async function recordGameOutcome(
+	params: RecordGameOutcomeParams,
+	options: { userId?: string; campusId?: string; signal?: AbortSignal } = {}
+): Promise<RecordGameOutcomeResponse> {
+	const userId = options.userId ?? getDemoUserId();
+	const campusId = options.campusId ?? params.campusId ?? getDemoCampusId();
+
+	return request<RecordGameOutcomeResponse>("/leaderboards/record-outcome", {
+		method: "POST",
+		userId,
+		campusId,
+		body: {
+			user_ids: params.userIds,
+			winner_id: params.winnerId ?? null,
+			campus_id: campusId,
+			game_kind: params.gameKind ?? "tictactoe",
+			duration_seconds: params.durationSeconds ?? 60,
+			move_count: params.moveCount ?? 5,
+		},
+		signal: options.signal,
+	});
+}
+

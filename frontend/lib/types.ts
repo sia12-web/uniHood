@@ -16,6 +16,7 @@ export type NearbyUser = {
   is_friend?: boolean;
   is_friend_of_friend?: boolean;
   campus_id?: string | null;
+  campus_name?: string | null;
   interests?: string[];
   gallery?: GalleryImage[];
   passions?: string[];

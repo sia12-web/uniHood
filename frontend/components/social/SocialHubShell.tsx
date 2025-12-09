@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
+import BrandLogo from "@/components/BrandLogo";
+import CampusLogoBadge from "@/components/CampusLogoBadge";
+import { readAuthUser, onAuthChange, type AuthUser } from "@/lib/auth-storage";
 
 const PRIMARY_LINKS = [
   { href: "/social", label: "Overview" },
@@ -27,6 +30,12 @@ function isActive(pathname: string, href: string) {
 export function SocialHubShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setAuthUser(readAuthUser());
+    return onAuthChange(() => setAuthUser(readAuthUser()));
+  }, []);
 
   const activeMap = useMemo(() => {
     return PRIMARY_LINKS.reduce<Record<string, boolean>>((acc, link) => {
@@ -40,11 +49,10 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       key={`mobile-${link.href}`}
       href={link.href}
       onClick={() => setMobileNavOpen(false)}
-      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-        activeMap[link.href]
+      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${activeMap[link.href]
           ? "bg-midnight text-white shadow-soft"
           : "text-navy hover:bg-warm-sand/90 hover:text-midnight"
-      }`}
+        }`}
     >
       {link.label}
     </Link>
@@ -54,11 +62,10 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
     <Link
       key={link.href}
       href={link.href}
-      className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-        activeMap[link.href]
+      className={`rounded-full px-3 py-2 text-sm font-medium transition ${activeMap[link.href]
           ? "bg-midnight text-white shadow-soft"
           : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
-      }`}
+        }`}
     >
       {link.label}
     </Link>
@@ -94,9 +101,17 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       </div>
 
       <aside className="relative hidden w-full max-w-xs shrink-0 flex-col gap-6 rounded-3xl border border-warm-sand bg-glass p-6 shadow-soft md:flex">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60">Social hub</p>
-          <h1 className="text-2xl font-semibold text-navy">Stay close to your campus circle</h1>
+        <header className="flex flex-col items-center gap-4 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <BrandLogo withWordmark={false} className="text-navy" logoClassName="h-12 w-12" />
+            <div className="flex justify-center w-full">
+              <CampusLogoBadge campusId={authUser?.campusId} />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60">Social hub</p>
+            <h1 className="mt-2 text-2xl font-semibold text-navy">Stay close to your campus circle</h1>
+          </div>
           <p className="text-sm text-navy/70">
             Switch between the live radar, friends, and invites without leaving the hub. Each module keeps
             collaboration stress-free.

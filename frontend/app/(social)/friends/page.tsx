@@ -20,7 +20,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
-import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
+import { emitInviteCountRefresh, useInviteInboxCount } from "@/hooks/social/use-invite-count";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { fetchPublicProfile } from "@/lib/profiles";
@@ -56,6 +56,7 @@ function FriendsPageInner() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [filter, setFilter] = useState<FriendFilter>("accepted");
   const { hasNotification, acknowledge, latestFriendPeerId } = useFriendAcceptanceIndicator();
+  const { pendingCount } = useInviteInboxCount();
 
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -510,9 +511,9 @@ function FriendsPageInner() {
             )}
           >
             Requests
-            {inbox.length > 0 && (
+            {pendingCount > 0 && (
               <span className="ml-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {inbox.length}
+                {pendingCount}
               </span>
             )}
             {filter === "pending" && (

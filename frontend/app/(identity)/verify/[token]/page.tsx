@@ -83,6 +83,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 				<section className="flex flex-1 flex-col items-center justify-center text-slate-900 lg:justify-center">
 					<div className="relative flex flex-col items-center">
 						<BrandLogo
+							asLink={false}
 							backgroundTone="transparent"
 							logoWidth={800}
 							logoHeight={800}

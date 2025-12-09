@@ -52,8 +52,10 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	rows = await pool.fetch(
 		"""
 		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions,
+		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
+		LEFT JOIN campuses c ON u.campus_id = c.id
 		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL
 		""",
 		list({uid for uid in user_ids}),
@@ -63,6 +65,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"display_name": row["display_name"],
 			"handle": row["handle"],
 			"avatar_url": row["avatar_url"],
+			"campus_name": row["campus_name"],
 			"major": row.get("major"),
 			"bio": row.get("bio"),
 			"graduation_year": row.get("graduation_year"),
@@ -327,6 +330,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					gallery=profile.get("gallery", []),
 					passions=profile.get("passions", []),
 					courses=profile.get("courses") or [],
+					campus_name=profile.get("campus_name"),
 				)
 			)
 
@@ -360,6 +364,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					distance_m=int(distance) if distance > 0 else None,
 					gallery=profile["gallery"],
 					passions=profile["passions"],
+					courses=profile.get("courses") or [],
+					campus_name=profile.get("campus_name"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -393,6 +399,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					distance_m=int(distance) if distance > 0 else None,
 					gallery=profile["gallery"],
 					passions=profile["passions"],
+					courses=profile.get("courses") or [],
+					campus_name=profile.get("campus_name"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -430,6 +438,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					distance_m=int(distance) if distance > 0 else None,
 					gallery=profile["gallery"],
 					passions=profile["passions"],
+					courses=profile.get("courses") or [],
+					campus_name=profile.get("campus_name"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)

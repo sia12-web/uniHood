@@ -12,6 +12,7 @@ export default function IdentityVerificationPage() {
 				<section className="flex flex-1 flex-col items-center justify-center text-slate-900 lg:justify-center">
 					<div className="relative flex flex-col items-center">
 						<BrandLogo
+							asLink={false}
 							withWordmark={false}
 							backgroundTone="transparent"
 							logoWidth={800}

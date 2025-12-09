@@ -16,7 +16,7 @@ import {
   nearbyAccumulatorToArray,
 } from "@/lib/socket";
 import { getOrCreateIdemKey } from "@/app/api/idempotency";
-import { fetchFriends, sendInvite } from "@/lib/social";
+import { fetchFriends, fetchInviteOutbox, sendInvite } from "@/lib/social";
 import { emitFriendshipFormed } from "@/lib/friends-events";
 import { updateProfileLocation } from "@/lib/profiles";
 import {
@@ -166,6 +166,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [filterYear, setFilterYear] = useState<string>("all");
 
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
   const nearbyStateRef = useRef<NearbyAccumulator<NearbyUser> | null>(null);
   const usersRef = useRef<NearbyUser[]>([]);
   const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
@@ -242,6 +243,24 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   useEffect(() => {
     void loadFriends();
   }, [loadFriends]);
+
+  const loadInvites = useCallback(async () => {
+    if (!authEvaluated || !currentUserId || !currentCampusId) {
+      return;
+    }
+    try {
+      const pending = await fetchInviteOutbox(currentUserId, currentCampusId);
+      // Filter for sent status just to be safe, though outbox usually implies active
+      const ids = new Set(pending.filter((i) => i.status === "sent").map((i) => i.to_user_id));
+      setInvitedIds(ids);
+    } catch {
+      // ignored
+    }
+  }, [authEvaluated, currentCampusId, currentUserId]);
+
+  useEffect(() => {
+    void loadInvites();
+  }, [loadInvites]);
 
   useEffect(() => {
     nearbyStateRef.current = initialiseNearbyAccumulator<NearbyUser>();
@@ -437,6 +456,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           emitFriendshipFormed(targetUserId);
         } else {
           setInviteMessage("Invite sent.");
+          setInvitedIds((prev) => new Set(prev).add(targetUserId));
         }
         emitInviteCountRefresh();
       } catch (err) {
@@ -491,7 +511,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-50/50">
       {/* Header & Controls */}
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 px-4 py-4 backdrop-blur-xl transition-all">
+      <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 px-4 py-4 backdrop-blur-xl transition-all">
         <div className="mx-auto max-w-7xl space-y-4">
           {/* Top Row: Title & Status */}
           <div className="flex items-center justify-between">
@@ -506,6 +526,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               {/* View Toggle */}
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 ring-1 ring-slate-200">
                 <button
+                  type="button"
                   onClick={() => setViewMode('grid')}
                   className={cn(
                     "rounded-md p-1.5 transition-all",
@@ -516,6 +537,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                   <LayoutGrid size={16} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => setViewMode('swipe')}
                   className={cn(
                     "rounded-md p-1.5 transition-all",
@@ -563,6 +585,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                     Search Radius
                   </label>
                   <button
+                    type="button"
                     onClick={() => setShowInfo(!showInfo)}
                     className="rounded-full text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
                     aria-label="More info"
@@ -573,7 +596,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               </div>
 
               {showInfo && (
-                <div className="absolute left-4 top-12 z-30 w-64 rounded-xl bg-slate-800 p-4 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95">
+                <div className="absolute left-4 top-12 z-50 w-64 rounded-xl bg-slate-800 p-4 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95">
                   <div className="absolute -top-1.5 left-24 h-3 w-3 rotate-45 bg-slate-800"></div>
                   <p className="mb-3">
                     Use <span className="font-bold text-white">Room</span> mode to see people within 100m of you. Perfect for spotting your gym crush or classmates! 👀
@@ -588,6 +611,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               <div className="flex justify-between gap-2">
                 {DISCOVERY_MODES.map((modeOption) => (
                   <button
+                    type="button"
                     key={modeOption.mode}
                     onClick={() => handleModeSelect(modeOption.mode)}
                     className={cn(
@@ -715,6 +739,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 key={user.user_id}
                 user={user}
                 isFriend={friendIds.has(user.user_id)}
+                isInvited={invitedIds.has(user.user_id)}
                 onInvite={() => handleInvite(user.user_id)}
                 onChat={() => handleChat(user.user_id)}
                 invitePending={invitePendingId === user.user_id}
@@ -740,6 +765,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                     key={filteredUsers[swipeIndex].user_id}
                     user={filteredUsers[swipeIndex]}
                     isFriend={friendIds.has(filteredUsers[swipeIndex].user_id)}
+                    isInvited={invitedIds.has(filteredUsers[swipeIndex].user_id)}
                     onInvite={async () => {
                       await handleInvite(filteredUsers[swipeIndex].user_id);
                       setSwipeIndex((prev) => prev + 1);
@@ -870,12 +896,14 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 function UserCard({
   user,
   isFriend,
+  isInvited,
   onInvite,
   onChat,
   invitePending
 }: {
   user: NearbyUser;
   isFriend: boolean;
+  isInvited: boolean;
   onInvite: () => void;
   onChat: () => void;
   invitePending: boolean;
@@ -954,7 +982,7 @@ function UserCard({
             e.stopPropagation();
             setShowDetails(!showDetails);
           }}
-          className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
+          className="absolute left-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
         >
           {showDetails ? <X size={18} /> : <Info size={18} />}
         </button>
@@ -1041,7 +1069,7 @@ function UserCard({
               </div>
 
               <p className="text-sm font-medium text-slate-200 drop-shadow-sm">
-                {user.major || "Student"} {user.graduation_year ? `• '${String(user.graduation_year).slice(-2)}` : ""}
+                {user.campus_name ? `${user.campus_name} • ` : ""}{user.major || "Student"} {user.graduation_year ? `• '${String(user.graduation_year).slice(-2)}` : ""}
               </p>
 
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
@@ -1070,15 +1098,24 @@ function UserCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onInvite();
+                      if (!isInvited) onInvite();
                     }}
-                    disabled={invitePending}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 transition hover:bg-rose-500 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={invitePending || isInvited}
+                    className={cn(
+                      "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed",
+                      isInvited
+                        ? "bg-slate-100 text-slate-500 cursor-default"
+                        : "bg-rose-600 text-white shadow-lg shadow-rose-900/20 hover:bg-rose-500"
+                    )}
                   >
                     {invitePending ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Sending...
+                      </>
+                    ) : isInvited ? (
+                      <>
+                        <span className="text-slate-500">Pending</span>
                       </>
                     ) : (
                       <>
@@ -1093,6 +1130,6 @@ function UserCard({
           </>
         )}
       </div>
-    </div>
+    </div >
   );
 }

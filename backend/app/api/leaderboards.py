@@ -8,7 +8,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.domain.leaderboards.models import LeaderboardPeriod, LeaderboardScope
-from app.domain.leaderboards.schemas import LeaderboardResponseSchema, MySummarySchema, StreakSummarySchema
+from app.domain.leaderboards.schemas import (
+	LeaderboardResponseSchema,
+	MySummarySchema,
+	RecordGameOutcomeRequest,
+	RecordGameOutcomeResponse,
+	StreakSummarySchema,
+)
 from app.domain.leaderboards.service import LeaderboardService
 from app.infra.auth import AuthenticatedUser, get_current_user
 
@@ -54,3 +60,45 @@ async def leaderboard_endpoint(
 		)
 	except ValueError as exc:
 		raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/record-outcome", response_model=RecordGameOutcomeResponse)
+async def record_game_outcome_endpoint(
+	payload: RecordGameOutcomeRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> RecordGameOutcomeResponse:
+	"""
+	Record a game outcome for leaderboard tracking.
+	This endpoint is called by external activity services (e.g. activities-core)
+	or by the frontend when a game ends.
+	
+	The authenticated user must be one of the participants.
+	"""
+	# Verify the caller is a participant
+	if auth_user.id not in payload.user_ids:
+		raise HTTPException(
+			status.HTTP_403_FORBIDDEN,
+			detail="caller_not_participant"
+		)
+	
+	try:
+		# Build campus map from request
+		campus_map = {}
+		if payload.campus_id:
+			for uid in payload.user_ids:
+				campus_map[uid] = payload.campus_id
+		elif auth_user.campus_id:
+			for uid in payload.user_ids:
+				campus_map[uid] = auth_user.campus_id
+		
+		awarded = await _service.record_activity_outcome(
+			user_ids=payload.user_ids,
+			winner_id=payload.winner_id,
+			campus_map=campus_map,
+			duration_seconds=payload.duration_seconds,
+			move_count=payload.move_count,
+		)
+		return RecordGameOutcomeResponse(recorded=True, awarded_users=awarded)
+	except Exception as exc:
+		raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+

@@ -51,6 +51,7 @@ class NearbyUser(BaseModel):
 	display_name: str
 	handle: str
 	avatar_url: Optional[str] = None
+	campus_name: Optional[str] = None
 	major: Optional[str] = None
 	graduation_year: Optional[int] = None
 	distance_m: Optional[int] = Field(default=None, ge=0)

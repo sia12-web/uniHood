@@ -46,3 +46,20 @@ class MySummarySchema(BaseModel):
 	counts: Dict[str, int] = Field(default_factory=dict)
 	streak: StreakSummarySchema
 	badges: list[BadgeSummarySchema] = Field(default_factory=list)
+
+
+class RecordGameOutcomeRequest(BaseModel):
+	"""Request to record a game outcome from external services (e.g. activities-core)."""
+	user_ids: list[str] = Field(..., description="List of participant user IDs")
+	winner_id: Optional[str] = Field(default=None, description="User ID of the winner, if any")
+	campus_id: Optional[str] = Field(default=None, description="Campus ID for the game")
+	game_kind: str = Field(default="tictactoe", description="Type of game")
+	duration_seconds: int = Field(default=60, ge=0, description="Game duration in seconds")
+	move_count: int = Field(default=5, ge=0, description="Number of moves in the game")
+
+
+class RecordGameOutcomeResponse(BaseModel):
+	"""Response after recording a game outcome."""
+	recorded: bool
+	awarded_users: list[str] = Field(default_factory=list)
+

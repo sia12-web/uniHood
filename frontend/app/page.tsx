@@ -229,6 +229,7 @@ export default function HomePage() {
   const [cardIndex, setCardIndex] = useState(0);
 
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
+  const [allFriends, setAllFriends] = useState<FriendRow[]>([]);
   const [friendCount, setFriendCount] = useState(0);
   const [recentMeetups, setRecentMeetups] = useState<MeetupResponse[]>([]);
   const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
@@ -292,7 +293,7 @@ export default function HomePage() {
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
   const rosterPeerIds = useMemo(() => chatRosterEntries.map((entry) => entry.peerId), [chatRosterEntries]);
   const discoverPeerIds = useMemo(() => discoverPeople.map((p) => p.userId), [discoverPeople]);
-  const recentFriendPeerIds = useMemo(() => recentFriends.map((row) => row.friend_id), [recentFriends]);
+  const recentFriendPeerIds = useMemo(() => allFriends.map((row) => row.friend_id), [allFriends]);
   const { presence: rosterPresence } = usePresence(rosterPeerIds);
   const { presence: discoverPresence } = usePresence(discoverPeerIds);
   const { presence: recentFriendsPresence } = usePresence(recentFriendPeerIds);
@@ -438,6 +439,7 @@ export default function HomePage() {
       try {
         const friends = await fetchFriends(authUser.userId, authUser.campusId, "accepted");
         setFriendCount(friends.length);
+        setAllFriends(friends);
         // Sort by created_at desc
         const sorted = friends.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setRecentFriends(sorted.slice(0, 5));
@@ -578,7 +580,7 @@ export default function HomePage() {
         key: "network" as const,
         label: "Network",
         icon: <UsersIcon />,
-        badge: (hasFriendsNotification || chatUnreadCount > 0) ? "New" : null,
+        badge: inboundPending > 0 ? inboundPending : ((hasFriendAcceptanceNotification || chatUnreadCount > 0) ? "New" : null),
       },
       {
         key: "games" as const,
@@ -932,7 +934,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
                     <span className="text-sm font-medium text-slate-600">Online Now</span>
                     <span className="text-xl font-bold text-emerald-600">
-                      {recentFriends.filter((f) => recentFriendsPresence[f.friend_id]?.online).length}
+                      {allFriends.filter((f) => recentFriendsPresence[f.friend_id]?.online).length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
@@ -1181,10 +1183,10 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="flex min-h-screen w-full gap-8 px-0">
         <aside className="flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
-          <div className="flex items-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
+          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
             <BrandLogo
               className="flex-shrink-0"
-              logoClassName="!h-24 w-auto"
+              logoClassName="!h-14 w-auto"
               backgroundTone="transparent"
               logoWidth={120}
               logoHeight={120}
@@ -1218,7 +1220,13 @@ export default function HomePage() {
                 </span>
                 {item.badge ? (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${activeSection === item.key ? "bg-white/20 text-white" : "bg-slate-900 text-white"
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${item.key === "network" && inboundPending > 0
+                      ? activeSection === item.key
+                        ? "bg-white text-rose-600 shadow-sm"
+                        : "bg-rose-600 text-white shadow-sm"
+                      : activeSection === item.key
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-900 text-white"
                       }`}
                   >
                     {item.badge}

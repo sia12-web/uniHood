@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
+import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface TicTacToeState {
     board: (string | null)[];
@@ -63,6 +64,7 @@ export function useTicTacToeSession(sessionId: string) {
 
     const wsRef = useRef<WebSocket | null>(null);
     const selfRef = useRef<string>(getSelf());
+    const outcomeRecordedRef = useRef<boolean>(false);
 
     useEffect(() => {
         if (!sessionId) return;
@@ -116,6 +118,38 @@ export function useTicTacToeSession(sessionId: string) {
         };
     }, [sessionId]);
 
+    // Record game outcome when finished
+    useEffect(() => {
+        if (state.status !== 'finished' || outcomeRecordedRef.current) {
+            return;
+        }
+        outcomeRecordedRef.current = true;
+
+        // Get player IDs
+        const players = state.players;
+        const userIds = [players.X, players.O].filter((id): id is string => !!id);
+        if (userIds.length < 2) {
+            return;
+        }
+
+        // Determine winner
+        const winnerId = state.matchWinner ?? state.winner ?? null;
+
+        // Count moves from board
+        const moveCount = state.board.filter(cell => cell !== null).length;
+
+        // Record the outcome
+        recordGameOutcome({
+            userIds,
+            winnerId,
+            gameKind: 'tictactoe',
+            durationSeconds: 60, // Default estimate
+            moveCount,
+        }).catch((err) => {
+            console.error('Failed to record game outcome:', err);
+        });
+    }, [state.status, state.players, state.matchWinner, state.winner, state.board]);
+
     const makeMove = useCallback((index: number) => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
@@ -143,7 +177,7 @@ export function useTicTacToeSession(sessionId: string) {
     const leave = useCallback(async () => {
         const selfId = selfRef.current;
         if (!sessionId || !selfId) return;
-        
+
         // Send leave via WebSocket first for immediate feedback
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
@@ -151,7 +185,7 @@ export function useTicTacToeSession(sessionId: string) {
                 payload: { userId: selfId }
             }));
         }
-        
+
         // Also call REST API as backup
         try {
             await leaveSession(sessionId, selfId);

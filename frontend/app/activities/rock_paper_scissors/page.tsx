@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Swords, Users, Trophy, Check, Zap, Loader2 } from "lucide-react";
+import { ArrowLeft, Swords, Users, Zap, Loader2 } from "lucide-react";
 
 import { createRockPaperScissorsSession } from "@/app/features/activities/api/client";
 import { RockPaperScissorsPanel } from "@/app/features/activities/components/RockPaperScissorsPanel";
@@ -262,7 +262,6 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                   </span>
                 </button>
               </form>
-            </div>
             </div>
 
             {/* Invites Card */}

@@ -535,7 +535,7 @@ export default function HomePage() {
     });
 
     return activities.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
-  }, [recentFriends, joinedMeetups]);
+  }, [recentFriends, joinedMeetups, authUser?.userId, recentMeetups]);
 
   const friendPreviewList = useMemo(() => discoverPeople, [discoverPeople]);
 
@@ -857,7 +857,7 @@ export default function HomePage() {
                       );
                     } else if (item.type === 'meetup') {
                       const meetup = item.data as MeetupResponse;
-                      const isCreated = (item as any).action === 'created';
+                      const isCreated = (item as { action?: string }).action === 'created';
                       return (
                         <div key={item.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition">
                           <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${

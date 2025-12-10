@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Check, Heart, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Loader2 } from "lucide-react";
 
 import { createStoryBuilderSession } from "@/app/features/activities/api/client";
 import { fetchFriends } from "@/lib/social";
@@ -268,13 +268,6 @@ function StoryActivityContent() {
                   </span>
                 </button>
               </form>
-            </div>
-                        <PenTool className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
             </div>
 
             {/* Invites Card */}

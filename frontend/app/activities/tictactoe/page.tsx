@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Gamepad2, Loader2, Trophy, Users, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Gamepad2, Loader2, Users, Check, AlertCircle } from "lucide-react";
 
 import { createTicTacToeSession, getSelf } from "@/app/features/activities/api/client";
 import { useTicTacToeSession } from "@/app/features/activities/hooks/useTicTacToeSession";

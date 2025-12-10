@@ -39,11 +39,18 @@ def main() -> None:
                 )
                 """
             )
+            # Get already applied migrations
+            cur.execute("SELECT version FROM schema_migrations")
+            applied = {row[0] for row in cur.fetchall()}
+            
             for path in paths:
+                version = path.name.split("_", 1)[0]
+                if version in applied:
+                    continue  # Skip already applied migrations
+                    
                 sql = path.read_text()
                 try:
                     cur.execute(sql)
-                    version = path.name.split("_", 1)[0]
                     cur.execute(
                         """
                         INSERT INTO schema_migrations (version)

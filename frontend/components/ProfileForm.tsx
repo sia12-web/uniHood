@@ -45,6 +45,18 @@ export default function ProfileForm({
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [campusName, setCampusName] = useState<string | null>(null);
+
+	// Fetch campus name from API instead of showing raw UUID
+	useEffect(() => {
+		if (!current.campus_id) return;
+		fetch(`/api/campus/${current.campus_id}`)
+			.then((res) => res.ok ? res.json() : null)
+			.then((data) => {
+				if (data?.name) setCampusName(data.name);
+			})
+			.catch(() => {});
+	}, [current.campus_id]);
 
 	const syncProfile = useCallback((next: ProfileRecord) => {
 		setCurrent(next);
@@ -221,7 +233,7 @@ export default function ProfileForm({
 		[addPassion, passionDraft],
 	);
 
-	return (
+		return (
 		<section className="flex flex-col gap-6">
 			<section className="flex flex-col gap-2 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
 				<p>
@@ -231,7 +243,7 @@ export default function ProfileForm({
 					<strong>Verified:</strong> {current.email_verified ? "Yes" : "Pending"}
 				</p>
 				<p>
-					<strong>Campus ID:</strong> {current.campus_id || "Not set"}
+					<strong>Campus:</strong> {campusName || "Not set"}
 				</p>
 			</section>
 			<AvatarUploader

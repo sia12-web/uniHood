@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { Swords, Trophy, Users, Scissors, FileText, Circle, Check, AlertCircle, LogOut } from "lucide-react";
+import { useCallback, useMemo, useEffect, useState } from "react";
+import { Swords, Trophy, Users, Scissors, FileText, Circle, Check, AlertCircle, LogOut, Minus } from "lucide-react";
 
 import { getSelf } from "@/app/features/activities/api/client";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
@@ -38,6 +38,35 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   const { map: friendIdentities, authUser } = useFriendIdentities();
   const selfId = useMemo(() => getSelf(), []);
   
+  // Track when to show round result (after both players move, before next round)
+  const [showingRoundResult, setShowingRoundResult] = useState(false);
+  const [lastSeenMoves, setLastSeenMoves] = useState<string | null>(null);
+  
+  // When lastRoundMoves updates (round ends), show the result
+  useEffect(() => {
+    if (state.lastRoundMoves && state.lastRoundMoves.length >= 2) {
+      // Create a unique key for this set of moves
+      const movesKey = JSON.stringify(state.lastRoundMoves);
+      // Only show if this is a new round result
+      if (lastSeenMoves !== movesKey) {
+        setShowingRoundResult(true);
+        setLastSeenMoves(movesKey);
+        // Auto-hide after 2.5 seconds (before next round countdown)
+        const timer = setTimeout(() => {
+          setShowingRoundResult(false);
+        }, 2500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [state.lastRoundMoves, lastSeenMoves]);
+
+  // Reset when moves are cleared (new round started)
+  useEffect(() => {
+    if (!state.lastRoundMoves) {
+      setShowingRoundResult(false);
+    }
+  }, [state.lastRoundMoves]);
+  
   // Helper to resolve names
   const resolveName = useCallback(
     (userId: string) => {
@@ -56,7 +85,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   // Render Helpers
   const renderLobby = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3 • First to 2 Wins</div>
+      <div className="mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 5 • First to 3 Wins</div>
       <div className="mb-6">
         <MyPointsBadge />
       </div>
@@ -158,14 +187,105 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     );
   };
 
+  const renderRoundResult = () => {
+    if (!state.lastRoundMoves || state.lastRoundMoves.length < 2) return null;
+    
+    const myMoveData = state.lastRoundMoves.find(m => m.userId === selfId);
+    const opponentMoveData = state.lastRoundMoves.find(m => m.userId !== selfId);
+    const myMove = myMoveData?.move as RpsChoice | undefined;
+    const opponentMove = opponentMoveData?.move as RpsChoice | undefined;
+    
+    const iWonRound = state.lastRoundWinner === selfId;
+    const opponentWonRound = state.lastRoundWinner && state.lastRoundWinner !== selfId;
+    const isDraw = state.lastRoundReason === "draw" || !state.lastRoundWinner;
+    
+    // Get round wins from scoreboard (scoreboard shows round wins during game)
+    const myRoundWins = state.scoreboard.find(s => s.userId === selfId)?.score ?? 0;
+    const opponentRoundWins = state.scoreboard.find(s => s.userId !== selfId)?.score ?? 0;
+    
+    // The round that just finished (currentRound is 0-based and incremented after round ends,
+    // so the round we're showing results for is currentRound, display as +1 for human-readable)
+    const completedRound = state.currentRound ?? 0;
+    
+    return (
+      <div className="py-8 animate-in fade-in duration-300">
+        <div className="mb-6 text-center">
+          <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Round {completedRound} Result</span>
+          <h3 className={`text-2xl font-bold mt-2 ${iWonRound ? 'text-emerald-600' : opponentWonRound ? 'text-rose-600' : 'text-slate-600'}`}>
+            {iWonRound ? "You Won This Round! 🎉" : opponentWonRound ? `${opponentName} Won This Round` : "It's a Draw!"}
+          </h3>
+        </div>
+
+        {/* Show both moves */}
+        <div className="flex items-center justify-center gap-8 mb-6">
+          {/* My Move */}
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">You</p>
+            {myMove && MOVES[myMove] ? (
+              <div className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 transition-all ${iWonRound ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                {(() => {
+                  const Icon = MOVES[myMove].icon;
+                  return <Icon className={`h-8 w-8 ${MOVES[myMove].color}`} />;
+                })()}
+              </div>
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <span className="text-2xl">?</span>
+              </div>
+            )}
+            <p className="font-semibold text-slate-900">{myMove ? MOVES[myMove].label : "?"}</p>
+          </div>
+
+          <div className="text-xl font-black text-slate-300">VS</div>
+
+          {/* Opponent Move */}
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{opponentName}</p>
+            {opponentMove && MOVES[opponentMove] ? (
+              <div className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 transition-all ${opponentWonRound ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                {(() => {
+                  const Icon = MOVES[opponentMove].icon;
+                  return <Icon className={`h-8 w-8 ${MOVES[opponentMove].color}`} />;
+                })()}
+              </div>
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <span className="text-2xl">?</span>
+              </div>
+            )}
+            <p className="font-semibold text-slate-900">{opponentMove ? MOVES[opponentMove].label : "?"}</p>
+          </div>
+        </div>
+
+        {/* Score display */}
+        <div className="flex items-center justify-center gap-4 text-sm">
+          <div className={`px-4 py-2 rounded-full ${myRoundWins > opponentRoundWins ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+            <span className="font-bold">You: {myRoundWins}</span>
+          </div>
+          <Minus className="h-4 w-4 text-slate-300" />
+          <div className={`px-4 py-2 rounded-full ${opponentRoundWins > myRoundWins ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+            <span className="font-bold">{opponentName}: {opponentRoundWins}</span>
+          </div>
+        </div>
+
+        <p className="mt-4 text-sm text-slate-500 animate-pulse">Next round starting soon...</p>
+      </div>
+    );
+  };
+
   const renderRunning = () => {
     const hasSubmitted = Boolean(state.submittedMove);
     const currentRound = state.currentRound ?? 0;
     
+    // Show round result if we just finished a round
+    if (showingRoundResult && state.lastRoundMoves && state.lastRoundMoves.length >= 2) {
+      return renderRoundResult();
+    }
+    
     return (
       <div className="py-8">
         <div className="mb-8 text-center">
-          <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3 • Round {currentRound + 1} of 3</span>
+          <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 5 • Round {currentRound + 1} of 5</span>
           <h3 className="text-2xl font-bold text-slate-900">Choose Your Weapon</h3>
           <p className="text-slate-500">Opponent is {opponent?.ready ? "thinking..." : "waiting"}</p>
         </div>
@@ -257,7 +377,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
             {isWinner ? "Victory!" : isDraw ? "It's a Draw!" : "Defeat"}
           </h2>
           <p className="mt-2 text-slate-600">
-            {state.lastRoundReason || (isWinner ? "You won this round!" : "Better luck next time.")}
+            {isWinner ? "You won the game!" : isDraw ? "The match ended in a tie." : "Better luck next time."}
           </p>
           {state.scoreboard.length >= 2 && (
             <div className="mt-4 flex justify-center gap-4 text-slate-600">

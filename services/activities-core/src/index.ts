@@ -393,7 +393,7 @@ server.register(async function (fastify) {
 
                                     // Initialize round tracking if not present
                                     if (!session.roundWins) session.roundWins = {};
-                                    if (session.currentRound === undefined) session.currentRound = 1;
+                                    if (session.currentRound === undefined) session.currentRound = 0;
 
                                     // Determine round winner (for 2 players)
                                     const p1 = activeParticipants[0].userId;
@@ -478,7 +478,7 @@ server.register(async function (fastify) {
                                                 sess.phase = 'running';
                                                 sess.countdownValue = undefined;
                                                 broadcastGenericState(sessionId);
-                                                broadcastGenericRoundStarted(sessionId, sess.currentRound ?? 1);
+                                                broadcastGenericRoundStarted(sessionId, sess.currentRound ?? 0);
                                             });
                                         }, 2000); // 2 second delay between rounds
                                     }
@@ -856,7 +856,7 @@ server.register(async function (fastify) {
                 // Initialize RPS-specific fields
                 if (generic.activityKey === 'rock_paper_scissors') {
                     generic.roundWins = {};
-                    generic.currentRound = 1;
+                    generic.currentRound = 0;
                     generic.moves = {};
                 }
 
@@ -872,7 +872,7 @@ server.register(async function (fastify) {
                         s.roundStartedAt = Date.now();
                         s.countdownValue = undefined;
                         broadcastGenericState(sessionId);
-                        broadcastGenericRoundStarted(sessionId, s.currentRound ?? 1);
+                        broadcastGenericRoundStarted(sessionId, s.currentRound ?? 0);
                     });
                 } else {
                     generic.status = 'countdown';

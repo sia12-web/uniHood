@@ -59,7 +59,7 @@ const GAMES: GameOption[] = [
   {
     key: 'rock_paper_scissors',
     name: 'Rock Paper Scissors',
-    description: 'Best of 3 showdown',
+    description: 'Best of 5 showdown',
     duration: '~1 min',
     icon: <Hand className="h-6 w-6" />,
     color: 'text-rose-600',

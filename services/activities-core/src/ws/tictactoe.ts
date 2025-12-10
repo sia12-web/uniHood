@@ -441,7 +441,8 @@ export function checkWin(session: GameState) {
     }
 }
 
-const TOTAL_ROUNDS = 3;
+const TOTAL_ROUNDS = 5; // Best of 5
+const WIN_TARGET = 3; // First to 3 wins
 
 // Exported for testing logic
 export function handleRoundEnd(sessionId: string) {
@@ -450,6 +451,8 @@ export function handleRoundEnd(sessionId: string) {
 
     // Record round winner
     let roundWinnerId: string | null = null;
+    const isDraw = session.winner === 'draw';
+    
     if (session.winner && session.winner !== 'draw') {
         const winnerId = session.players[session.winner as 'X' | 'O'];
         if (winnerId) {
@@ -458,14 +461,15 @@ export function handleRoundEnd(sessionId: string) {
         }
     }
 
-    // Increment round count (after recording result)
-    // Actually we increment at the end of the function usually, 
-    // but we need to know if this was the last round.
-    // roundIndex is 0-based. So if we just finished round 0, we played 1 round.
+    // Check if match is over (first to 3 wins or all 5 rounds played)
     const roundsPlayed = session.roundIndex + 1;
+    const pX = session.players.X!;
+    const pO = session.players.O!;
+    const winsX = session.roundWins[pX] || 0;
+    const winsO = session.roundWins[pO] || 0;
 
     let matchOver = false;
-    if (roundsPlayed >= TOTAL_ROUNDS) {
+    if (winsX >= WIN_TARGET || winsO >= WIN_TARGET || roundsPlayed >= TOTAL_ROUNDS) {
         matchOver = true;
     }
 

@@ -15,13 +15,14 @@ interface BoardProps {
 }
 
 export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, onLeave, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason } = state;
+    const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason, winner } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
     const opponentLeft = leaveReason === 'opponent_left';
 
     const roundNumber = typeof roundIndex === 'number' ? roundIndex + 1 : 1;
     const lastWinnerId = lastRoundWinner || null;
+    const isRoundDraw = winner === 'draw';
 
     const resolveName = (userId?: string) => {
         if (!userId) return "Opponent";
@@ -175,6 +176,9 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                     "Game Over"
                 )}
             </h2>
+            <p className="text-slate-600 mb-2">
+                {matchWinner === myRole ? "You won the game!" : matchWinner ? "Better luck next time." : "The match ended in a tie."}
+            </p>
             <p className="text-slate-500 mb-8">
                 Final Score: {players.X ? roundWins[players.X] || 0 : 0} - {players.O ? roundWins[players.O] || 0 : 0}
             </p>
@@ -216,7 +220,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                 </div>
 
                 <div className="flex flex-col items-center">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Round {roundNumber}/3</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Best of 5 • Round {roundNumber}</div>
                     <div className="text-xl font-black text-slate-300">VS</div>
                 </div>
 
@@ -294,18 +298,52 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
 
                 {/* Round Result Overlay */}
                 <AnimatePresence>
-                    {lastWinnerId && status === 'lobby' && (
+                    {(lastWinnerId || isRoundDraw) && status === 'lobby' && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl z-10"
+                            className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-3xl z-10"
                         >
-                            <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 text-center animate-in zoom-in-90 fill-mode-forwards">
-                                <h3 className="text-xl font-bold text-slate-900 mb-1">
-                                    {lastWinnerId === myRole ? "You Win Round!" : `${resolveName(lastWinnerId)} Wins Round`}
-                                </h3>
-                                <p className="text-sm text-slate-500">Next round starting soon...</p>
+                            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center animate-in zoom-in-90 fill-mode-forwards max-w-sm">
+                                {isRoundDraw ? (
+                                    <>
+                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                                            <span className="text-2xl font-bold">=</span>
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-slate-700 mb-2">
+                                            It&apos;s a Draw!
+                                        </h3>
+                                    </>
+                                ) : lastWinnerId === myRole ? (
+                                    <>
+                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                                            <Trophy className="h-8 w-8" />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-emerald-600 mb-2">
+                                            You Won This Round! 🎉
+                                        </h3>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                                            <XCircle className="h-8 w-8" />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-rose-600 mb-2">
+                                            {resolveName(lastWinnerId)} Won This Round
+                                        </h3>
+                                    </>
+                                )}
+                                <div className="flex items-center justify-center gap-4 mt-4 text-sm">
+                                    <div className={`px-3 py-1 rounded-full ${(roundWins[players.X || ''] || 0) > (roundWins[players.O || ''] || 0) ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-600'}`}>
+                                        <span className="font-bold">{getPlayerName('X')}: {roundWins[players.X || ''] || 0}</span>
+                                    </div>
+                                    <span className="text-slate-300">—</span>
+                                    <div className={`px-3 py-1 rounded-full ${(roundWins[players.O || ''] || 0) > (roundWins[players.X || ''] || 0) ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-600'}`}>
+                                        <span className="font-bold">{getPlayerName('O')}: {roundWins[players.O || ''] || 0}</span>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-4 animate-pulse">Next round starting soon...</p>
                             </div>
                         </motion.div>
                     )}

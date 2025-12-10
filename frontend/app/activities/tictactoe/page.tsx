@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Gamepad2, Loader2, Trophy, Users, Check, AlertCircle } from "lucide-react";
@@ -147,67 +148,53 @@ export default function TicTacToeEntryPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-[#040617] pb-12 pt-16 text-white shadow-xl lg:pt-24">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#040617]" />
+      {/* Hero Section with Full Image */}
+      <div className="relative overflow-hidden shadow-xl">
+        {/* Full Background Image */}
+        <div className="relative aspect-[21/9] w-full">
+          <Image
+            src="/activities/tictactoe.svg"
+            alt="Tic Tac Toe"
+            fill
+            className="object-cover"
+            priority
+          />
+          {/* Gradient overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+        </div>
 
-        <div className="relative mx-auto max-w-5xl px-6">
+        {/* Back Button */}
+        <div className="absolute left-6 top-6 z-10">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+            className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
+        </div>
 
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            {/* Preview Image Placeholder */}
-            <div className="relative">
-              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-700 p-8 text-white">
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 grid h-16 w-16 grid-cols-3 gap-1 rounded-lg bg-cyan-200/20 p-2">
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                      <div className="rounded bg-cyan-200"></div>
-                    </div>
-                    <div className="text-3xl font-bold">Tic Tac Toe</div>
-                    <div className="mt-2 text-cyan-200">Classic strategy game</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* How to Play Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 ring-1 ring-white/10 backdrop-blur-sm">
-              <div className="relative z-10">
-                <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
-                  <Gamepad2 className="h-5 w-5 text-cyan-400" />
-                  How to Play
-                </h3>
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">1</div>
-                    <p className="text-sm text-slate-300">Select a friend to challenge.</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">2</div>
-                    <p className="text-sm text-slate-300">Play a series of Tic Tac Toe games.</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">3</div>
-                    <p className="text-sm text-slate-300">First to win 2 rounds wins the match!</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
+        {/* How to Play Card - Bottom Right */}
+        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+          <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
+              <Gamepad2 className="h-5 w-5 text-cyan-400" />
+              How to Play
+            </h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">1</div>
+                <p className="text-xs text-slate-200">Select a friend to challenge.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">2</div>
+                <p className="text-xs text-slate-200">Play a series of Tic Tac Toe games.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">3</div>
+                <p className="text-xs text-slate-200">First to win 2 rounds wins the match!</p>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -229,9 +216,8 @@ export default function TicTacToeEntryPage() {
           </div>
         ) : (
           // Lobby / Create View
-          <div className="grid gap-8 lg:grid-cols-[1fr_350px]">
-            <div className="space-y-8">
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
+            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg ring-1 ring-slate-900/5">
                 <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-slate-900">
                   <Users className="h-5 w-5 text-cyan-600" />
                   Invite a Friend
@@ -314,68 +300,54 @@ export default function TicTacToeEntryPage() {
               </div>
             </div>
 
+            {/* Invites Card */}
             <div className="flex flex-col gap-6">
-              {/* Invite Inbox */}
               <div
                 ref={inviteCardRef}
-                className={`rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5 transition-all ${inviteFocusPulse || invite ? "ring-4 ring-cyan-200" : ""
+                className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${inviteFocusPulse || invite ? "border-2 border-cyan-200 ring-cyan-200/40" : "border border-slate-200"
                   }`}
               >
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">Invite Inbox</h2>
-                    <p className="text-xs text-slate-500">Challenges waiting for you.</p>
+                    <h2 className="text-xl font-bold text-slate-900">Invite Inbox</h2>
+                    <p className="text-sm text-slate-500">Challenges waiting for you.</p>
                   </div>
-                  <div className="rounded-full bg-cyan-50 p-2 text-cyan-600">
-                    <Users className="h-5 w-5" />
+                  <div className="rounded-full bg-cyan-50 p-3 text-cyan-600">
+                    <Users className="h-6 w-6" />
                   </div>
                 </div>
 
                 {invite ? (
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-5 text-white shadow-lg">
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-6 text-white shadow-lg">
                     <div className="relative z-10">
-                      <h3 className="font-bold">New Challenger!</h3>
-                      <p className="mt-1 text-xs text-cyan-100">
+                      <h3 className="text-lg font-bold">New Challenger!</h3>
+                      <p className="mt-1 text-cyan-100">
                         {friends.find((f) => f.friend_id === invite.opponentUserId)?.friend_display_name || "A friend"} has invited you.
                       </p>
 
-                      <div className="mt-4 flex items-center justify-end">
+                      <div className="mt-6 flex items-center justify-end">
                         <button
                           onClick={handleAcceptInvite}
-                          className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-cyan-700 shadow-sm transition hover:bg-cyan-50"
+                          className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-cyan-600 shadow-sm transition hover:bg-cyan-50"
                         >
-                          Accept & Play
+                          Accept & Join
                         </button>
                       </div>
                     </div>
+
                     {/* Decorative circles */}
-                    <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10 blur-xl" />
-                    <div className="absolute -bottom-4 -left-4 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+                    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+                    <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-center">
-                    <div className="rounded-full bg-slate-100 p-2">
-                      <Users className="h-5 w-5 text-slate-400" />
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center">
+                    <div className="rounded-full bg-slate-100 p-3">
+                      <Users className="h-6 w-6 text-slate-400" />
                     </div>
-                    <p className="mt-2 text-xs font-medium text-slate-900">No pending invites</p>
+                    <p className="mt-3 text-sm font-medium text-slate-900">No pending invites</p>
+                    <p className="mt-1 text-xs text-slate-500">Challenges will appear here instantly.</p>
                   </div>
                 )}
-              </div>
-              <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-xl">
-                <div className="mb-6 flex items-center gap-2 text-cyan-400">
-                  <Trophy className="h-5 w-5" />
-                  <span className="font-bold uppercase tracking-wider">Your Stats</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm transition-colors hover:bg-white/15">
-                    <div className="text-3xl font-black">0</div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Wins</div>
-                  </div>
-                  <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm transition-colors hover:bg-white/15">
-                    <div className="text-3xl font-black">0</div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Played</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

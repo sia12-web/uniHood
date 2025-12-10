@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Check, Heart } from "lucide-react";
 
 import { createStoryBuilderSession } from "@/app/features/activities/api/client";
@@ -106,62 +107,57 @@ function StoryActivityContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-slate-900 pb-12 pt-16 text-white shadow-xl lg:pt-24">
-        <div className="absolute inset-0 opacity-10">
-          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white" />
-          </svg>
+      {/* Hero Section with Full Image */}
+      <div className="relative overflow-hidden shadow-xl">
+        {/* Full Background Image */}
+        <div className="relative aspect-[21/9] w-full">
+          <Image
+            src="/activities/story.svg"
+            alt="Story Builder"
+            fill
+            className="object-cover"
+            priority
+          />
+          {/* Gradient overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
         </div>
 
-        <div className="relative mx-auto max-w-5xl px-6">
+        {/* Back Button */}
+        <div className="absolute left-6 top-6 z-10">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+            className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
+        </div>
 
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            {/* Preview Image Placeholder */}
-            <div className="relative">
-              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 p-8 text-white">
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <PenTool className="mx-auto mb-4 h-16 w-16 text-violet-200" />
-                    <div className="text-3xl font-bold">Story Builder</div>
-                    <div className="mt-2 text-violet-200">Create together</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* How to Play Card */}
-            <div className="relative rounded-2xl bg-white/5 p-8 ring-1 ring-white/10 backdrop-blur-sm">
-              <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
-                <Sparkles className="h-5 w-5 text-violet-400" />
-                How to Play
-              </h3>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">1</div>
-                  <p className="text-sm text-slate-300">Start a story with a friend.</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">2</div>
-                  <p className="text-sm text-slate-300">Both players click Ready.</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">3</div>
-                  <p className="text-sm text-slate-300">Choose your roles (Boy/Girl).</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold">4</div>
-                  <p className="text-sm text-slate-300">Read the scenario and take turns writing.</p>
-                </li>
-              </ul>
-            </div>
+        {/* How to Play Card - Bottom Right */}
+        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+          <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
+              <Sparkles className="h-5 w-5 text-violet-400" />
+              How to Play
+            </h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">1</div>
+                <p className="text-xs text-slate-200">Start a story with a friend.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">2</div>
+                <p className="text-xs text-slate-200">Both players click Ready.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">3</div>
+                <p className="text-xs text-slate-200">Choose your roles (Boy/Girl).</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">4</div>
+                <p className="text-xs text-slate-200">Read the scenario and take turns writing.</p>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -176,22 +172,23 @@ function StoryActivityContent() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
             {/* Create Session Card */}
-            <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200 transition-all hover:shadow-xl">
-              <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-8 text-white">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                  <PenTool className="h-6 w-6 text-white" />
+            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg ring-1 ring-slate-900/5">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Start a New Story</h2>
+                  <p className="text-sm text-slate-500">Select a friend to write with.</p>
                 </div>
-                <h2 className="text-2xl font-bold">Start a Story</h2>
-                <p className="mt-2 text-violet-100">Begin a new collaborative tale.</p>
+                <div className="rounded-full bg-violet-50 p-3 text-violet-600">
+                  <PenTool className="h-6 w-6" />
+                </div>
               </div>
 
-              <div className="p-6">
-                <form onSubmit={handleStartGame} className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-700">Choose Partner</label>
-                    <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50">
+              <form onSubmit={handleStartGame} className="space-y-6">
+                <div className="space-y-3">
+                  <span className="text-sm font-medium text-slate-700">Select Partner</span>
+                  <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
                       {loadingFriends ? (
                         <div className="flex items-center justify-center p-8 text-sm text-slate-500">
                           <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600"></div>
@@ -269,21 +266,23 @@ function StoryActivityContent() {
               </div>
             </div>
 
-            {/* Invite Inbox Card */}
-            <div
-              ref={inviteCardRef}
-              className={`overflow-hidden rounded-2xl bg-white shadow-lg transition-all hover:shadow-xl ${inviteFocusPulse || invite ? "ring-2 ring-violet-300" : "ring-1 ring-slate-200"
-                }`}
-            >
-              <div className="bg-slate-800 px-6 py-8 text-white">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
-                  <Heart className="h-6 w-6 text-pink-400" />
+            {/* Invites Card */}
+            <div className="flex flex-col gap-6">
+              <div
+                ref={inviteCardRef}
+                className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${inviteFocusPulse || invite ? "border-2 border-violet-200 ring-violet-200/40" : "border border-slate-200"
+                  }`}
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">Invite Inbox</h2>
+                    <p className="text-sm text-slate-500">Story invites waiting for you.</p>
+                  </div>
+                  <div className="rounded-full bg-violet-50 p-3 text-violet-600">
+                    <BookOpen className="h-6 w-6" />
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold">Invites</h2>
-                <p className="mt-2 text-slate-400">Join a story in progress.</p>
-              </div>
 
-              <div className="p-6">
                 {invite ? (
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-6 text-white shadow-lg">
                     <div className="relative z-10">
@@ -313,12 +312,12 @@ function StoryActivityContent() {
                     <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                      <BookOpen className="h-6 w-6" />
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center">
+                    <div className="rounded-full bg-slate-100 p-3">
+                      <BookOpen className="h-6 w-6 text-slate-400" />
                     </div>
-                    <p className="text-sm font-medium text-slate-900">No pending invites</p>
-                    <p className="text-xs text-slate-500">Invites will appear here.</p>
+                    <p className="mt-3 text-sm font-medium text-slate-900">No pending invites</p>
+                    <p className="mt-1 text-xs text-slate-500">Invites will appear here instantly.</p>
                   </div>
                 )}
               </div>

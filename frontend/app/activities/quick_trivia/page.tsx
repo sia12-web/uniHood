@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Loader2, Zap, Trophy, Users, ArrowLeft } from "lucide-react";
 
 import { createQuickTriviaSession, getSelf } from "@/app/features/activities/api/client";
@@ -108,57 +109,53 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-[#0f172a] pb-12 pt-16 text-white shadow-xl lg:pt-24">
-        <div className="absolute inset-0 bg-[url('/activities/trivia.svg')] bg-cover bg-center opacity-40" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f172a]" />
+      {/* Hero Section with Full Image */}
+      <div className="relative overflow-hidden shadow-xl">
+        {/* Full Background Image */}
+        <div className="relative aspect-[21/9] w-full">
+          <Image
+            src="/activities/trivia.svg"
+            alt="Quick Trivia"
+            fill
+            className="object-cover"
+            priority
+          />
+          {/* Gradient overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+        </div>
 
-        <div className="relative mx-auto max-w-5xl px-6">
+        {/* Back Button */}
+        <div className="absolute left-6 top-6 z-10">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+            className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
+        </div>
 
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            {/* Preview Image Placeholder */}
-            <div className="relative">
-              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 p-8 text-white">
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <Zap className="mx-auto mb-4 h-16 w-16 text-amber-200" />
-                    <div className="text-3xl font-bold">Quick Trivia</div>
-                    <div className="mt-2 text-amber-200">Rapid-fire questions</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* How to Play Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 ring-1 ring-white/10 backdrop-blur-sm">
-              <div className="relative z-10">
-                <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
-                  <Zap className="h-5 w-5 text-amber-400" />
-                  How to Play
-                </h3>
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">1</div>
-                    <p className="text-sm text-slate-300">Both players click <span className="font-bold text-white">Ready</span>.</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">2</div>
-                    <p className="text-sm text-slate-300">Answer quickly. <span className="font-bold text-white">Speed matters</span>.</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">3</div>
-                    <p className="text-sm text-slate-300">Most points wins. Tie-breaker: <span className="font-bold text-white">fastest time</span>.</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
+        {/* How to Play Card - Bottom Right */}
+        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+          <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
+              <Zap className="h-5 w-5 text-amber-400" />
+              How to Play
+            </h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">1</div>
+                <p className="text-xs text-slate-200">Both players click <span className="font-bold text-white">Ready</span>.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">2</div>
+                <p className="text-xs text-slate-200">Answer quickly. <span className="font-bold text-white">Speed matters</span>.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">3</div>
+                <p className="text-xs text-slate-200">Most points wins. Tie-breaker: <span className="font-bold text-white">fastest time</span>.</p>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

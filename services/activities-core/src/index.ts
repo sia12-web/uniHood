@@ -51,7 +51,7 @@ type GenericSession = {
     id: string;
     activityKey: 'speed_typing' | 'quick_trivia' | 'rock_paper_scissors' | 'story_builder';
     status: 'pending' | 'countdown' | 'running' | 'ended';
-    phase: 'lobby' | 'countdown' | 'running' | 'ended';
+    phase: 'lobby' | 'countdown' | 'running' | 'round_result' | 'ended';
     lobbyReady: boolean;
     creatorUserId: string;
     participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
@@ -426,10 +426,15 @@ server.register(async function (fastify) {
                                     // Check if match is over (best of 5)
                                     const wins1 = session.roundWins[p1] || 0;
                                     const wins2 = session.roundWins[p2] || 0;
-                                    const currentRound = session.currentRound || 1;
+                                    // currentRound is 0-based, so after round 1 (index 0), it's still 0
+                                    // We need to check how many rounds have been COMPLETED
+                                    const roundsPlayed = (session.currentRound ?? 0) + 1; // +1 because we're completing this round
+
+                                    console.log(`[RPS] Round ${roundsPlayed} complete. Wins: ${p1}=${wins1}, ${p2}=${wins2}`);
 
                                     // Match ends if: someone reaches 3 wins OR all 5 rounds are played
-                                    const matchOver = wins1 >= RPS_ROUND_WIN_TARGET || wins2 >= RPS_ROUND_WIN_TARGET || currentRound >= RPS_MAX_ROUNDS;
+                                    const matchOver = wins1 >= RPS_ROUND_WIN_TARGET || wins2 >= RPS_ROUND_WIN_TARGET || roundsPlayed >= RPS_MAX_ROUNDS;
+                                    console.log(`[RPS] matchOver=${matchOver}, wins1=${wins1}, wins2=${wins2}, roundsPlayed=${roundsPlayed}, target=${RPS_ROUND_WIN_TARGET}, maxRounds=${RPS_MAX_ROUNDS}`);
 
                                     // Broadcast round ended
                                     broadcastRpsRoundEnded(sessionId, roundWinnerId, moves, roundReason);
@@ -469,11 +474,16 @@ server.register(async function (fastify) {
                                         session.currentRound++;
                                         session.moves = {}; // Clear moves for next round
 
+                                        // Set phase to 'round_result' so frontend knows we're between rounds
+                                        session.phase = 'round_result';
+
                                         // 3 second delay between rounds to allow frontend to show result
                                         // Then go directly to running (no countdown between rounds)
+                                        console.log(`[RPS] Round ended for session ${sessionId}, next round ${session.currentRound} starting in 3s`);
                                         setTimeout(() => {
                                             const s = genericSessions[sessionId];
                                             if (!s || s.status === 'ended') return;
+                                            console.log(`[RPS] Starting round ${s.currentRound} for session ${sessionId}`);
 
                                             // Go directly to running state - no countdown between rounds
                                             s.status = 'running';

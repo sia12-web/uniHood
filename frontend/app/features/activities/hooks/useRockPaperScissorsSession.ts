@@ -243,24 +243,31 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
             }
 
             if (type === "activity.round.started") {
-              console.log("[RPS Hook] Round started:", payload.payload?.index ?? payload.payload?.round);
-              setState((prev) => ({
-                ...prev,
-                phase: "running",
-                currentRound: payload.payload?.index ?? payload.payload?.round ?? 0,
-                countdown: payload.payload?.payload?.timeLimitMs
-                  ? {
-                      startedAt: Date.now(),
-                      durationMs: payload.payload.payload.timeLimitMs,
-                      endsAt: Date.now() + payload.payload.payload.timeLimitMs,
-                    }
-                  : undefined,
-                submittedMove: null,
-                // Clear last round data when new round starts
-                lastRoundWinner: undefined,
-                lastRoundMoves: undefined,
-                lastRoundReason: undefined,
-              }));
+              const roundIndex = payload.payload?.index ?? payload.payload?.round ?? 0;
+              console.log("[RPS Hook] Round started:", roundIndex);
+              
+              // Delay clearing round data to give UI time to show the result
+              // The round result was shown when activity.round.ended arrived
+              // We wait 100ms before transitioning to ensure smooth UX
+              setTimeout(() => {
+                setState((prev) => {
+                  // Only clear if we're still on running phase (not ended)
+                  if (prev.phase !== "running" && prev.phase !== "countdown") {
+                    return prev;
+                  }
+                  return {
+                    ...prev,
+                    phase: "running",
+                    currentRound: roundIndex,
+                    countdown: undefined,
+                    submittedMove: null,
+                    // Clear round data so UI shows move selection
+                    lastRoundWinner: undefined,
+                    lastRoundMoves: undefined,
+                    lastRoundReason: undefined,
+                  };
+                });
+              }, 100);
               return;
             }
 
@@ -276,6 +283,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
             }
 
             if (type === "activity.round.ended") {
+              console.log("[RPS Hook] Round ended - winner:", payload.payload?.winnerUserId, "moves:", payload.payload?.moves);
               const scoreboardPayload = payload.payload?.scoreboard?.participants;
               setState((prev) => ({
                 ...prev,
@@ -286,6 +294,8 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                 lastRoundWinner: payload.payload?.winnerUserId ?? undefined,
                 lastRoundMoves: payload.payload?.moves ?? prev.lastRoundMoves,
                 lastRoundReason: payload.payload?.reason ?? prev.lastRoundReason,
+                // Clear submitted move so UI can show round result
+                submittedMove: null,
               }));
               return;
             }

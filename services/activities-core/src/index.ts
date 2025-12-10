@@ -406,8 +406,11 @@ server.register(async function (fastify) {
                                     let roundWinnerId: string | null = null;
                                     let roundReason: string | undefined;
 
+                                    console.log(`[RPS] Move check: p1=${p1.slice(0,8)} has ${m1}, p2=${p2.slice(0,8)} has ${m2}`);
+
                                     if (m1 === m2) {
                                         roundReason = 'draw';
+                                        console.log(`[RPS] Result: DRAW`);
                                     } else if (
                                         (m1 === 'rock' && m2 === 'scissors') ||
                                         (m1 === 'scissors' && m2 === 'paper') ||
@@ -415,9 +418,11 @@ server.register(async function (fastify) {
                                     ) {
                                         roundWinnerId = p1;
                                         session.roundWins[p1] = (session.roundWins[p1] || 0) + 1;
+                                        console.log(`[RPS] Result: p1 (${p1.slice(0,8)}) wins`);
                                     } else {
                                         roundWinnerId = p2;
                                         session.roundWins[p2] = (session.roundWins[p2] || 0) + 1;
+                                        console.log(`[RPS] Result: p2 (${p2.slice(0,8)}) wins`);
                                     }
 
                                     session.lastRoundWinner = roundWinnerId;

@@ -38,35 +38,6 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   const { map: friendIdentities, authUser } = useFriendIdentities();
   const selfId = useMemo(() => getSelf(), []);
   
-  // Track when to show round result (after both players move, before next round)
-  const [showingRoundResult, setShowingRoundResult] = useState(false);
-  const [lastSeenMoves, setLastSeenMoves] = useState<string | null>(null);
-  
-  // When lastRoundMoves updates (round ends), show the result
-  useEffect(() => {
-    if (state.lastRoundMoves && state.lastRoundMoves.length >= 2) {
-      // Create a unique key for this set of moves
-      const movesKey = JSON.stringify(state.lastRoundMoves);
-      // Only show if this is a new round result
-      if (lastSeenMoves !== movesKey) {
-        setShowingRoundResult(true);
-        setLastSeenMoves(movesKey);
-        // Auto-hide after 2.5 seconds (before next round countdown)
-        const timer = setTimeout(() => {
-          setShowingRoundResult(false);
-        }, 2500);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [state.lastRoundMoves, lastSeenMoves]);
-
-  // Reset when moves are cleared (new round started)
-  useEffect(() => {
-    if (!state.lastRoundMoves) {
-      setShowingRoundResult(false);
-    }
-  }, [state.lastRoundMoves]);
-  
   // Helper to resolve names
   const resolveName = useCallback(
     (userId: string) => {
@@ -198,6 +169,13 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     const myMove = myMoveData?.move as RpsChoice | undefined;
     const opponentMove = opponentMoveData?.move as RpsChoice | undefined;
     
+    // Debug logging
+    console.log("[RPS] renderRoundResult - selfId:", selfId);
+    console.log("[RPS] renderRoundResult - lastRoundWinner:", state.lastRoundWinner);
+    console.log("[RPS] renderRoundResult - lastRoundMoves:", state.lastRoundMoves);
+    console.log("[RPS] renderRoundResult - myMoveData:", myMoveData);
+    console.log("[RPS] renderRoundResult - opponentMoveData:", opponentMoveData);
+    
     const iWonRound = state.lastRoundWinner === selfId;
     const opponentWonRound = state.lastRoundWinner && state.lastRoundWinner !== selfId;
     const isDraw = state.lastRoundReason === "draw" || !state.lastRoundWinner;
@@ -280,8 +258,12 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     const hasSubmitted = Boolean(state.submittedMove);
     const currentRound = state.currentRound ?? 0;
     
-    // Show round result if we just finished a round
-    if (showingRoundResult && state.lastRoundMoves && state.lastRoundMoves.length >= 2) {
+    // Simple logic: if we have round moves and haven't submitted for next round yet, show result
+    // submittedMove is cleared when new round starts, so this naturally transitions
+    const hasRoundResult = state.lastRoundMoves && state.lastRoundMoves.length >= 2;
+    const shouldShowResult = hasRoundResult && !hasSubmitted;
+    
+    if (shouldShowResult) {
       return renderRoundResult();
     }
     

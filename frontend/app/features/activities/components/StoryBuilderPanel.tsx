@@ -14,6 +14,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
     const { state, toggleReady, submitParagraph, voteParagraph, leave, selfId } = useStoryBuilderSession(sessionId);
     const [inputText, setInputText] = useState("");
     const [userNames, setUserNames] = useState<Record<string, string>>({});
+    const [showGenderModal, setShowGenderModal] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const {
@@ -26,6 +27,20 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
         error,
         leaveReason
     } = state;
+
+    const handleReadyClick = () => {
+        const me = participants.find(p => p.userId === selfId);
+        if (me?.ready) {
+            toggleReady(); // Un-ready
+        } else {
+            setShowGenderModal(true);
+        }
+    };
+
+    const handleGenderSelect = (gender: 'boy' | 'girl') => {
+        toggleReady(gender);
+        setShowGenderModal(false);
+    };
 
     // Fetch friends to resolve names
     useEffect(() => {
@@ -147,7 +162,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                 ) : (
                     <div className="flex flex-col gap-3 items-center">
                         <button
-                            onClick={toggleReady}
+                            onClick={handleReadyClick}
                             className={clsx(
                                 "rounded-2xl px-8 py-4 text-lg font-bold text-white shadow-lg transition-all transform hover:scale-105 active:scale-95",
                                 me?.ready ? "bg-slate-400 hover:bg-slate-500" : "bg-violet-600 hover:bg-violet-500"
@@ -162,6 +177,45 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                             <LogOut className="h-4 w-4" />
                             Leave Story
                         </button>
+                    </div>
+                )}
+
+                {/* Gender Selection Modal */}
+                {showGenderModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+                            <h3 className="text-2xl font-bold text-slate-900 mb-2 text-center">Choose Your Character</h3>
+                            <p className="text-slate-600 text-center mb-8">This helps us pick the perfect story theme for you!</p>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <button
+                                    onClick={() => handleGenderSelect('boy')}
+                                    className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                                >
+                                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                                        <User className="h-8 w-8" />
+                                    </div>
+                                    <span className="font-bold text-slate-900 group-hover:text-blue-700">Boy</span>
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleGenderSelect('girl')}
+                                    className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-pink-500 hover:bg-pink-50 transition-all group"
+                                >
+                                    <div className="h-16 w-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 group-hover:scale-110 transition-transform">
+                                        <User className="h-8 w-8" />
+                                    </div>
+                                    <span className="font-bold text-slate-900 group-hover:text-pink-700">Girl</span>
+                                </button>
+                            </div>
+                            
+                            <button
+                                onClick={() => setShowGenderModal(false)}
+                                className="w-full py-3 text-slate-500 font-medium hover:text-slate-800 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

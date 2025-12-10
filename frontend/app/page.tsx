@@ -728,9 +728,9 @@ export default function HomePage() {
               </button>
 
               {/* Games Played Stat */}
-              <Link
-                href="/activities"
-                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md group"
+              <button
+                onClick={() => setActiveSection("games")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md group text-left w-full"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -751,7 +751,7 @@ export default function HomePage() {
                     {activitySnapshot.wins > 0 ? `${activitySnapshot.wins} wins` : "Play to earn points"}
                   </span>
                 </div>
-              </Link>
+              </button>
             </div>
 
             {/* Compact Live Discovery */}

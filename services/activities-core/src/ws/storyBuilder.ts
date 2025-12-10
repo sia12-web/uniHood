@@ -8,22 +8,50 @@ export interface StoryParagraph {
     votes: Record<string, number>; // userId -> score (0-10)
 }
 
+type Gender = 'boy' | 'girl';
+
 // Story prompts to give players inspiration
-const STORY_PROMPTS = [
+const GENERIC_PROMPTS = [
+    { title: "The Mystery Box", opening: "The package arrived without a return address. Inside was a single, glowing object..." },
+    { title: "The Time Machine", opening: "It looked like a normal watch, but when they turned the dial, the world around them shifted..." },
+    { title: "The Haunted House", opening: "Everyone said the old mansion was abandoned. But the lights in the attic window told a different story..." },
+];
+
+const ROMANCE_PROMPTS = [
     { title: "Coffee Shop Meet-Cute", opening: "The morning rush at the campus coffee shop was chaos as usual. That's when their eyes met across the crowded counter..." },
-    { title: "Library Whispers", opening: "The library was supposed to be quiet, but someone at the next table kept humming. When they finally looked up to complain..." },
     { title: "Rainy Day Encounter", opening: "The sudden downpour caught everyone off guard. Two strangers found themselves sharing the same tiny awning..." },
     { title: "The Wrong Order", opening: "'I think you grabbed my food by mistake,' they said, holding up an identical takeout bag. Their smile was unexpectedly warm..." },
     { title: "Study Group Sparks", opening: "The study group was supposed to be about calculus. But every time their hands brushed reaching for the same textbook..." },
-    { title: "Late Night Laundry", opening: "Who does laundry at 2 AM? Apparently, they both did. The laundromat was empty except for the two of them..." },
-    { title: "Concert Connection", opening: "They were wearing the same obscure band t-shirt. In a crowd of thousands, somehow they ended up standing next to each other..." },
-    { title: "The Shared Playlist", opening: "The notification said someone had added a song to the collaborative playlist. The song choice was... surprisingly perfect..." },
     { title: "Elevator Stuck", opening: "The elevator lurched to a stop between floors. 'Well,' they said to the only other person inside, 'I guess we have time to talk...'" },
-    { title: "The Dog Park", opening: "Their dogs had tangled their leashes together. Trying to untangle them meant getting very, very close..." },
 ];
 
-function getRandomPrompt() {
-    return STORY_PROMPTS[Math.floor(Math.random() * STORY_PROMPTS.length)];
+const GAY_ROMANCE_PROMPTS = [
+    { title: "Locker Room Confession", opening: "After practice, the locker room was empty. He thought he was alone until he saw him..." },
+    { title: "The Late Night Gamer", opening: "They had been gaming together online for months. When they finally met at the convention, the chemistry was instant..." },
+    { title: "Roommates", opening: "They had been roommates for a year, strictly platonic. But one movie night changed everything..." },
+    { title: "The Rivalry", opening: "They were academic rivals, always competing for the top spot. But beneath the competition was something else..." },
+];
+
+const LESBIAN_ROMANCE_PROMPTS = [
+    { title: "The Bookstore Corner", opening: "She reached for the same book on the top shelf. Their fingers touched, and time seemed to stop..." },
+    { title: "Art Class Model", opening: "She was trying to focus on her sketch, but the model's gaze was distracting her in the best way possible..." },
+    { title: "The Coffee Date", opening: "It was supposed to be just a friendly coffee. Three hours later, neither of them wanted to leave..." },
+    { title: "Softball Season", opening: "The game was intense, but she couldn't take her eyes off the pitcher..." },
+];
+
+function getPromptForGenders(genders: Gender[]) {
+    if (genders.length !== 2) return GENERIC_PROMPTS[Math.floor(Math.random() * GENERIC_PROMPTS.length)];
+
+    const [g1, g2] = genders;
+    
+    if (g1 === 'boy' && g2 === 'boy') {
+        return GAY_ROMANCE_PROMPTS[Math.floor(Math.random() * GAY_ROMANCE_PROMPTS.length)];
+    } else if (g1 === 'girl' && g2 === 'girl') {
+        return LESBIAN_ROMANCE_PROMPTS[Math.floor(Math.random() * LESBIAN_ROMANCE_PROMPTS.length)];
+    } else {
+        // Boy + Girl or Girl + Boy
+        return ROMANCE_PROMPTS[Math.floor(Math.random() * ROMANCE_PROMPTS.length)];
+    }
 }
 
 export interface StoryBuilderSession {
@@ -33,7 +61,7 @@ export interface StoryBuilderSession {
     phase: 'lobby' | 'countdown' | 'writing' | 'voting' | 'ended';
     lobbyReady: boolean;
     creatorUserId: string;
-    participants: Array<{ userId: string; joined: boolean; ready: boolean; score: number }>;
+    participants: Array<{ userId: string; joined: boolean; ready: boolean; score: number; gender?: Gender }>;
     createdAt: number;
     roundStartedAt?: number;
     paragraphs: StoryParagraph[];
@@ -70,7 +98,7 @@ export function createStoryBuilderSession(creatorUserId: string, participants: s
         turnOrder: [],
         turnIndex: 0,
         winnerUserId: null,
-        storyPrompt: getRandomPrompt()
+        storyPrompt: undefined // Will be set when game starts based on genders
     };
     connections[sessionId] = new Set();
     return sessionId;
@@ -106,18 +134,25 @@ export function joinStoryBuilder(sessionId: string, userId: string, socket?: any
     return session;
 }
 
-export function setStoryBuilderReady(sessionId: string, userId: string, ready: boolean) {
+export function setStoryBuilderReady(sessionId: string, userId: string, ready: boolean, gender?: Gender) {
     const session = sessions[sessionId];
     if (!session) throw new Error('session_not_found');
 
     const participant = session.participants.find(p => p.userId === userId);
     if (participant) {
         participant.ready = ready;
+        if (gender) {
+            participant.gender = gender;
+        }
     }
 
     session.lobbyReady = session.participants.every(p => p.ready) && session.participants.length >= 2;
 
     if (session.lobbyReady && session.status === 'pending') {
+        // Generate prompt based on genders
+        const genders = session.participants.map(p => p.gender).filter((g): g is Gender => !!g);
+        session.storyPrompt = getPromptForGenders(genders);
+        
         startCountdown(sessionId);
     } else {
         broadcastState(sessionId);
@@ -272,10 +307,10 @@ export function handleMessage(sessionId: string, data: any, socket?: any) {
             leaveStoryBuilder(sessionId, userId);
         }
     } else if (data.type === 'ready') {
-        const { userId } = data.payload;
+        const { userId, gender } = data.payload;
         const participant = session.participants.find(p => p.userId === userId);
         if (participant) {
-            setStoryBuilderReady(sessionId, userId, !participant.ready);
+            setStoryBuilderReady(sessionId, userId, !participant.ready, gender);
         }
     } else if (data.type === 'submit_paragraph') {
         const { userId, text } = data.payload;

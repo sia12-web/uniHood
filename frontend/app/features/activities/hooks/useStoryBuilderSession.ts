@@ -14,7 +14,7 @@ export interface StoryBuilderState {
     phase: 'lobby' | 'countdown' | 'writing' | 'voting' | 'ended';
     lobbyReady: boolean;
     creatorUserId: string;
-    participants: Array<{ userId: string; joined: boolean; ready: boolean; score: number }>;
+    participants: Array<{ userId: string; joined: boolean; ready: boolean; score: number; gender?: 'boy' | 'girl' }>;
     createdAt: number;
     roundStartedAt?: number;
     paragraphs: StoryParagraph[];
@@ -124,11 +124,11 @@ export function useStoryBuilderSession(sessionId: string) {
         };
     }, [sessionId]);
 
-    const toggleReady = () => {
+    const toggleReady = (gender?: 'boy' | 'girl') => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({
             type: 'ready',
-            payload: { userId: selfRef.current }
+            payload: { userId: selfRef.current, gender }
         }));
     };
 

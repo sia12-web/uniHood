@@ -175,24 +175,24 @@ export default function TicTacToeEntryPage() {
         </div>
 
         {/* How to Play Card - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+        <div className="absolute bottom-6 right-6 z-10 max-w-md">
           <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
-            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
-              <Gamepad2 className="h-5 w-5 text-cyan-400" />
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+              <Gamepad2 className="h-6 w-6 text-cyan-400" />
               How to Play
             </h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">1</div>
-                <p className="text-xs text-slate-200">Select a friend to challenge.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">1</div>
+                <p className="text-sm text-slate-200">Select a friend to challenge.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">2</div>
-                <p className="text-xs text-slate-200">Play a series of Tic Tac Toe games.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">2</div>
+                <p className="text-sm text-slate-200">Play a series of Tic Tac Toe games.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">3</div>
-                <p className="text-xs text-slate-200">First to win 2 rounds wins the match!</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">3</div>
+                <p className="text-sm text-slate-200">First to win 2 rounds wins the match!</p>
               </li>
             </ul>
           </div>

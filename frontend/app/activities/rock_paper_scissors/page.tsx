@@ -127,28 +127,28 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
         </div>
 
         {/* How to Play Card - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+        <div className="absolute bottom-6 right-6 z-10 max-w-md">
           <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
-            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
-              <Zap className="h-5 w-5 text-rose-400" />
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+              <Zap className="h-6 w-6 text-rose-400" />
               How to Play
             </h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">1</div>
-                <p className="text-xs text-slate-200">Invite a friend to a duel session.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-sm font-bold text-white">1</div>
+                <p className="text-sm text-slate-200">Invite a friend to a duel session.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">2</div>
-                <p className="text-xs text-slate-200">Both players must &ldquo;Ready Up&rdquo; to start.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-sm font-bold text-white">2</div>
+                <p className="text-sm text-slate-200">Both players must &ldquo;Ready Up&rdquo; to start.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">3</div>
-                <p className="text-xs text-slate-200">Choose Rock, Paper, or Scissors secretly.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-sm font-bold text-white">3</div>
+                <p className="text-sm text-slate-200">Choose Rock, Paper, or Scissors secretly.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">4</div>
-                <p className="text-xs text-slate-200">Moves are revealed at the same time. Best strategy wins!</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-sm font-bold text-white">4</div>
+                <p className="text-sm text-slate-200">Moves are revealed at the same time. Best strategy wins!</p>
               </li>
             </ul>
           </div>

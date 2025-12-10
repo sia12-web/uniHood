@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Check, Heart } from "lucide-react";
+import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Check, Heart, Loader2 } from "lucide-react";
 
 import { createStoryBuilderSession } from "@/app/features/activities/api/client";
 import { fetchFriends } from "@/lib/social";
@@ -134,28 +134,28 @@ function StoryActivityContent() {
         </div>
 
         {/* How to Play Card - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-10 max-w-sm">
+        <div className="absolute bottom-6 right-6 z-10 max-w-md">
           <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
-            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
-              <Sparkles className="h-5 w-5 text-violet-400" />
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+              <Sparkles className="h-6 w-6 text-violet-400" />
               How to Play
             </h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">1</div>
-                <p className="text-xs text-slate-200">Start a story with a friend.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-sm font-bold text-white">1</div>
+                <p className="text-sm text-slate-200">Start a story with a friend.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">2</div>
-                <p className="text-xs text-slate-200">Both players click Ready.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-sm font-bold text-white">2</div>
+                <p className="text-sm text-slate-200">Both players click Ready.</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">3</div>
-                <p className="text-xs text-slate-200">Choose your roles (Boy/Girl).</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-sm font-bold text-white">3</div>
+                <p className="text-sm text-slate-200">Choose your roles (Boy/Girl).</p>
               </li>
               <li className="flex items-start gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">4</div>
-                <p className="text-xs text-slate-200">Read the scenario and take turns writing.</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-sm font-bold text-white">4</div>
+                <p className="text-sm text-slate-200">Read the scenario and take turns writing.</p>
               </li>
             </ul>
           </div>
@@ -189,75 +189,86 @@ function StoryActivityContent() {
                 <div className="space-y-3">
                   <span className="text-sm font-medium text-slate-700">Select Partner</span>
                   <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                      {loadingFriends ? (
-                        <div className="flex items-center justify-center p-8 text-sm text-slate-500">
-                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600"></div>
-                          Loading friends...
-                        </div>
-                      ) : friendsError ? (
-                        <div className="p-4 text-center text-sm text-rose-600">{friendsError}</div>
-                      ) : friends.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-slate-500">
-                          No friends found. Add some friends to play!
-                        </div>
-                      ) : (
-                        <ul className="divide-y divide-slate-100">
-                          {friends.map((friend) => {
-                            const label = friend.friend_display_name || friend.friend_handle || friend.friend_id;
-                            const isSelected = friendId === friend.friend_id;
-                            return (
-                              <li key={friend.friend_id}>
-                                <label className={`flex cursor-pointer items-center justify-between px-4 py-3 transition-colors ${isSelected ? 'bg-violet-50' : 'hover:bg-slate-100'}`}>
-                                  <div className="flex items-center gap-3">
-                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isSelected ? 'bg-violet-100 text-violet-600' : 'bg-slate-200 text-slate-500'}`}>
-                                      <Users className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                      <p className={`text-sm font-medium ${isSelected ? 'text-violet-900' : 'text-slate-700'}`}>{label}</p>
-                                      {friend.friend_handle && (
-                                        <p className="text-xs text-slate-500">@{friend.friend_handle}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? 'border-violet-500 bg-violet-500' : 'border-slate-300'}`}>
-                                    {isSelected && <Check className="h-3 w-3 text-white" />}
-                                  </div>
-                                  <input
-                                    type="radio"
-                                    name="friend"
-                                    value={friend.friend_id}
-                                    checked={isSelected}
-                                    onChange={() => setFriendId(friend.friend_id)}
-                                    className="sr-only"
-                                  />
-                                </label>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
+                    {loadingFriends ? (
+                      <div className="flex items-center justify-center py-8 text-slate-500">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading friends...
+                      </div>
+                    ) : friendsError ? (
+                      <div className="p-4 text-center text-sm text-rose-600">{friendsError}</div>
+                    ) : friends.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Users className="mb-2 h-8 w-8 text-slate-300" />
+                        <p className="text-sm text-slate-500">No friends available yet.</p>
+                        <Link href="/friends" className="mt-2 text-xs font-medium text-violet-600 hover:underline">
+                          Add friends first
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {friends.map((friend) => {
+                          const label = friend.friend_display_name || friend.friend_handle || friend.friend_id;
+                          const isSelected = friendId === friend.friend_id;
+                          return (
+                            <label
+                              key={friend.friend_id}
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${isSelected
+                                ? "bg-white shadow-md ring-1 ring-violet-500"
+                                : "hover:bg-white hover:shadow-sm"
+                                }`}
+                            >
+                              <input
+                                type="radio"
+                                name="friend"
+                                value={friend.friend_id}
+                                checked={isSelected}
+                                onChange={() => setFriendId(friend.friend_id)}
+                                className="sr-only"
+                              />
+                              <div className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-violet-600 bg-violet-600" : "border-slate-300"}`}>
+                                {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
+                              </div>
+                              <div>
+                                <div className={`font-medium ${isSelected ? "text-violet-900" : "text-slate-700"}`}>{label}</div>
+                                {friend.friend_handle && (
+                                  <div className="text-xs text-slate-500">@{friend.friend_handle}</div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+                </div>
 
-                  {createError && (
-                    <div className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">
-                      {createError}
-                    </div>
-                  )}
+                {createError && (
+                  <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-600">
+                    {createError}
+                  </div>
+                )}
 
-                  <button
-                    type="submit"
-                    disabled={creating || !friendId}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-500 hover:shadow disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                  >
+                <button
+                  type="submit"
+                  disabled={creating || !friendId}
+                  className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-violet-600 px-8 py-4 font-bold text-white shadow-lg shadow-violet-500/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
                     {creating ? (
                       <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
-                        Creating...
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Creating Story...
                       </>
                     ) : (
                       <>
                         Create Story
+                        <PenTool className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                      </>
+                    )}
+                  </span>
+                </button>
+              </form>
+            </div>
                         <PenTool className="h-4 w-4" />
                       </>
                     )}

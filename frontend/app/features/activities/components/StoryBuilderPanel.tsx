@@ -122,20 +122,6 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                     <p className="text-slate-600">Collaboratively write a story, then vote on the best parts!</p>
                 </div>
 
-                {/* Show the story prompt preview */}
-                {storyPrompt && (
-                    <div className="w-full p-6 rounded-2xl bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 text-left">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Heart className="h-4 w-4 text-rose-500" />
-                            <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today&apos;s Theme</span>
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">{storyPrompt.title}</h3>
-                        <p className="text-sm font-serif text-slate-600 italic leading-relaxed">
-                            &ldquo;{storyPrompt.opening}&rdquo;
-                        </p>
-                    </div>
-                )}
-
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {participants.map(p => (
                         <div key={p.userId} className={clsx(
@@ -156,8 +142,22 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                 </div>
 
                 {status === 'countdown' ? (
-                    <div className="text-2xl font-bold text-violet-600 animate-pulse">
-                        Starting soon...
+                    <div className="flex flex-col gap-6 items-center">
+                        <div className="text-2xl font-bold text-violet-600 animate-pulse">
+                            Starting soon...
+                        </div>
+                        {storyPrompt && (
+                            <div className="w-full p-6 rounded-2xl bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 text-left animate-in fade-in slide-in-from-bottom duration-500">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Heart className="h-4 w-4 text-rose-500" />
+                                    <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today&apos;s Theme</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-900 mb-2">{storyPrompt.title}</h3>
+                                <p className="text-sm font-serif text-slate-600 italic leading-relaxed">
+                                    &ldquo;{storyPrompt.opening}&rdquo;
+                                </p>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3 items-center">

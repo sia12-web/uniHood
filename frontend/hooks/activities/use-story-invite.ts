@@ -111,11 +111,13 @@ export function useStoryInvite(options?: Options) {
         // 1. I am NOT the creator (so I didn't invite myself)
         // 2. I AM in the participants list (I was invited)
         // 3. Not already handled/dismissed
+        // 4. Has enough participants (at least 2)
         const next = summaries.find((summary) => {
           if (summary.activityKey !== "story_builder") return false;
           if (summary.creatorUserId === selfId) return false; // Don't show invite to creator
           if (!summary.participants.some((p) => p.userId === selfId)) return false; // Must be invited
           if (handledRef.current.has(summary.id)) return false;
+          if (summary.participants.length < 2) return false; // Must have at least 2 participants
           const opponentId = pickOpponent(summary, selfId);
           if (!opponentId) return false;
           if (options?.peerUserId && opponentId !== options.peerUserId) return false;

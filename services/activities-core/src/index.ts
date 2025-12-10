@@ -104,6 +104,7 @@ function trackUserSession(userId: string, sessionId: string) {
     userPendingSessions[userId].add(sessionId);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function untrackUserSession(userId: string, sessionId: string) {
     userPendingSessions[userId]?.delete(sessionId);
 }

@@ -117,11 +117,12 @@ export function createTicTacToeSession(creatorUserId: string, opponentId?: strin
         scores: {},
         roundWins: {},
         countdown: null,
-        invitedOpponentId: opponentId,
+        invitedOpponentId,
         creatorUserId,
         roundIndex: 0,
         lastRoundWinner: null,
         matchWinner: null,
+        createdAt: Date.now()
     };
     connections[sessionId] = new Set();
     return sessionId;
@@ -306,7 +307,8 @@ export function handleTicTacToeConnection(connection: SocketStream, _req: Fastif
             scores: {},
             roundWins: {},
             countdown: null,
-            roundIndex: 0
+            roundIndex: 0,
+            createdAt: Date.now()
         };
         connections[sessionId] = new Set();
     }
@@ -455,6 +457,7 @@ export function handleRoundEnd(sessionId: string) {
 
     // Record round winner
     let roundWinnerId: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const isDraw = session.winner === 'draw';
     
     if (session.winner && session.winner !== 'draw') {

@@ -238,6 +238,16 @@ export function leaveStoryBuilder(sessionId: string, userId: string): { sessionE
 
     // Lobby phase - just remove and update
     session.lobbyReady = session.participants.every(p => p.ready) && session.participants.length >= 2;
+    
+    // If we're in lobby phase and not enough players remain, end the session
+    if (session.status === 'pending' && session.participants.length < 2) {
+        session.status = 'ended';
+        session.phase = 'ended';
+        session.leaveReason = 'opponent_left';
+        broadcastState(sessionId);
+        return { sessionEnded: true };
+    }
+    
     broadcastState(sessionId);
     return { sessionEnded: false };
 }

@@ -28,10 +28,32 @@ export function useQuickTriviaInvite(options?: Options) {
 
   useEffect(() => {
     selfIdRef.current = getSelf();
+
+    // Sync handled IDs from localStorage
+    try {
+      const stored = localStorage.getItem("quick_trivia_invites_handled");
+      if (stored) {
+        const ids = JSON.parse(stored);
+        if (Array.isArray(ids)) {
+          ids.forEach((id) => handledRef.current.add(id));
+        }
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
   const acknowledge = useCallback((sessionId: string) => {
     handledRef.current.add(sessionId);
+
+    // Persist to localStorage
+    try {
+      const ids = Array.from(handledRef.current);
+      localStorage.setItem("quick_trivia_invites_handled", JSON.stringify(ids));
+    } catch {
+      // ignore
+    }
+
     if (activeInviteIdRef.current === sessionId) {
       activeInviteIdRef.current = null;
       setInvite(null);

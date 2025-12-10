@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Swords, Trophy, Users, Scissors, FileText, Circle, Check, AlertCircle, LogOut, Minus } from "lucide-react";
 
 import { getSelf } from "@/app/features/activities/api/client";
@@ -178,7 +178,6 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     
     const iWonRound = state.lastRoundWinner === selfId;
     const opponentWonRound = state.lastRoundWinner && state.lastRoundWinner !== selfId;
-    const isDraw = state.lastRoundReason === "draw" || !state.lastRoundWinner;
     
     // Get round wins from scoreboard (scoreboard shows round wins during game)
     const myRoundWins = state.scoreboard.find(s => s.userId === selfId)?.score ?? 0;

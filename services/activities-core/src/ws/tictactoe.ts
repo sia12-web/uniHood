@@ -19,6 +19,7 @@ export interface GameState {
     lastRoundWinner?: string | null;
     matchWinner?: string | null;
     leaveReason?: 'opponent_left' | 'forfeit' | null;
+    createdAt: number;
 }
 
 const sessions: Record<string, GameState> = {};
@@ -43,6 +44,7 @@ export function createSession(sessionId: string, _creatorUserId: string, _partic
         roundIndex: 0,
         lastRoundWinner: null,
         matchWinner: null,
+        createdAt: Date.now(),
     };
     connections[sessionId] = new Set();
     return sessions[sessionId];
@@ -64,6 +66,7 @@ export function listSessions(): Array<{
     lobbyReady: boolean;
     creatorUserId: string;
     participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+    createdAt: number;
 }> {
     return Object.entries(sessions).map(([sessionId, session]) => {
         const participants: Array<{ userId: string; joined: boolean; ready: boolean }> = [];

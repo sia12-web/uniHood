@@ -161,28 +161,48 @@ export default function TicTacToeEntryPage() {
             Back to Dashboard
           </Link>
 
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-cyan-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300 ring-1 ring-cyan-500/50">
-                <Gamepad2 className="h-3 w-3" />
-                Live Strategy
-              </div>
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div className="space-y-6">
               <h1 className="text-4xl font-black tracking-tight text-white md:text-5xl lg:text-6xl">
                 Tic Tac Toe
               </h1>
               <p className="mt-4 text-lg text-slate-400 md:text-xl">
                 The classic game of X&apos;s and O&apos;s. Challenge a friend to a strategic battle. First to 2 wins takes the crown.
               </p>
+
+              <div className="flex gap-8 pt-4">
+                <div>
+                  <div className="text-3xl font-bold text-white">1v1</div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-cyan-400">3</div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Rounds</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-white">1v1</div>
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-cyan-400">3</div>
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Rounds</div>
+            {/* How to Play Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 ring-1 ring-white/10 backdrop-blur-sm">
+              <div className="relative z-10">
+                <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
+                  <Gamepad2 className="h-5 w-5 text-cyan-400" />
+                  How to Play
+                </h3>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">1</div>
+                    <p className="text-sm text-slate-300">Select a friend to challenge.</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">2</div>
+                    <p className="text-sm text-slate-300">Play a series of Tic Tac Toe games.</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-xs font-bold text-white">3</div>
+                    <p className="text-sm text-slate-300">First to win 2 rounds wins the match!</p>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -193,21 +213,6 @@ export default function TicTacToeEntryPage() {
         {sessionId ? (
           // Active Game View (Full Width Card)
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5">
-            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <div className="flex items-center justify-center">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-2 w-2">
-                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-cyan-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
-                  </span>
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold text-xs uppercase tracking-wider text-slate-500">Live Session</span>
-                    <span className="font-mono text-[10px] text-slate-400">{sessionId}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div className="p-6 md:p-8">
               <TicTacToeBoard
                 state={state}
@@ -367,27 +372,6 @@ export default function TicTacToeEntryPage() {
                     <div className="text-3xl font-black">0</div>
                     <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Played</div>
                   </div>
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
-                <div className="relative z-10">
-                  <h3 className="mb-4 font-bold text-slate-900">How to Play</h3>
-                  <ul className="space-y-3 text-sm text-slate-600">
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">1</span>
-                      <span>Select a friend from the list to challenge them.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">2</span>
-                      <span>Play a series of Tic Tac Toe games.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">3</span>
-                      <span>First player to win 2 rounds wins the match!</span>
-                    </li>
-                  </ul>
                 </div>
               </div>
             </div>

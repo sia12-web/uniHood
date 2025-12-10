@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Swords, Users, Trophy, Copy, Check, Zap } from "lucide-react";
+import { ArrowLeft, Swords, Users, Trophy, Check, Zap } from "lucide-react";
 
 import { createRockPaperScissorsSession } from "@/app/features/activities/api/client";
 import { RockPaperScissorsPanel } from "@/app/features/activities/components/RockPaperScissorsPanel";
@@ -31,7 +31,6 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const { invite, acknowledge } = useRockPaperScissorsInvite();
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (initialSessionId) {
@@ -98,13 +97,6 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
     acknowledge(invite.sessionId);
   };
 
-  const copySessionId = () => {
-    if (!sessionId) return;
-    navigator.clipboard.writeText(sessionId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       {/* Hero Section */}
@@ -126,11 +118,6 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-rose-500/20 px-3 py-1 text-sm font-medium text-rose-300 ring-1 ring-inset ring-rose-500/40">
-                <Swords className="h-4 w-4" />
-                <span>1v1 Duel</span>
-              </div>
-
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
                 Rock Paper <span className="text-rose-400">Scissors</span>
               </h1>
@@ -174,35 +161,6 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
         {sessionId ? (
           <div className="space-y-6">
             <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200">
-              <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                      <Swords className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-slate-900">Active Session</h2>
-                      <div className="flex items-center gap-2">
-                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{sessionId}</code>
-                        <button
-                          onClick={copySessionId}
-                          className="text-slate-400 hover:text-slate-600"
-                          title="Copy Session ID"
-                        >
-                          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSessionId("")}
-                    className="text-xs font-medium text-slate-500 hover:text-slate-800"
-                  >
-                    Leave Session
-                  </button>
-                </div>
-              </div>
-
               <div className="p-6">
                 <RockPaperScissorsPanel sessionId={sessionId} />
               </div>

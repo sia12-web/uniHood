@@ -10,6 +10,9 @@ import { CheckCircle2, Loader2, Calendar } from "lucide-react";
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
 import { useTypingDuelInviteState } from "@/components/providers/typing-duel-invite-provider";
+import { useTicTacToeInviteState } from "@/components/providers/tictactoe-invite-provider";
+import { useQuickTriviaInviteState } from "@/components/providers/quick-trivia-invite-provider";
+import { useRockPaperScissorsInviteState } from "@/components/providers/rock-paper-scissors-invite-provider";
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
@@ -244,8 +247,11 @@ export default function HomePage() {
     chatRosterLoading,
   } = useDeferredFeatures();
 
-  const { hasPending: hasStoryInvite } = useStoryInviteState();
-  const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
+  const { hasPending: hasStoryInvite, dismissLatest: dismissStory } = useStoryInviteState();
+  const { hasPending: hasTypingInvite, dismissLatest: dismissTyping } = useTypingDuelInviteState();
+  const { hasPending: hasTicTacToeInvite, dismissLatest: dismissTicTacToe } = useTicTacToeInviteState();
+  const { hasPending: hasQuickTriviaInvite, dismissLatest: dismissQuickTrivia } = useQuickTriviaInviteState();
+  const { hasPending: hasRPSInvite, dismissLatest: dismissRPS } = useRockPaperScissorsInviteState();
 
 
 
@@ -574,34 +580,37 @@ export default function HomePage() {
 
 
   const navItems = useMemo(
-    () => [
-      { key: "dashboard" as const, label: "Dashboard", icon: <DiscoveryIcon />, badge: null },
-      {
-        key: "network" as const,
-        label: "Network",
-        icon: <UsersIcon />,
-        badge: inboundPending > 0 ? inboundPending : (hasFriendAcceptanceNotification ? "New" : null),
-      },
-      {
-        key: "messages" as const,
-        label: "Messages",
-        icon: <ChatIcon />,
-        badge: chatUnreadCount > 0 ? chatUnreadCount : null,
-      },
-      {
-        key: "games" as const,
-        label: "Games",
-        icon: <ActivityIcon />,
-        badge: hasStoryInvite || hasTypingInvite ? "Live" : null,
-      },
-      {
-        key: "profile" as const,
-        label: "Profile",
-        icon: <ProfileIcon />,
-        badge: null,
-      },
-    ],
-    [inboundPending, hasFriendAcceptanceNotification, chatUnreadCount, hasStoryInvite, hasTypingInvite],
+    () => {
+      const hasAnyInvite = hasStoryInvite || hasTypingInvite || hasTicTacToeInvite || hasQuickTriviaInvite || hasRPSInvite;
+      return [
+        { key: "dashboard" as const, label: "Dashboard", icon: <DiscoveryIcon />, badge: null },
+        {
+          key: "network" as const,
+          label: "Network",
+          icon: <UsersIcon />,
+          badge: inboundPending > 0 ? inboundPending : (hasFriendAcceptanceNotification ? "New" : null),
+        },
+        {
+          key: "messages" as const,
+          label: "Messages",
+          icon: <ChatIcon />,
+          badge: chatUnreadCount > 0 ? chatUnreadCount : null,
+        },
+        {
+          key: "games" as const,
+          label: "Games",
+          icon: <ActivityIcon />,
+          badge: hasAnyInvite ? "Live" : null,
+        },
+        {
+          key: "profile" as const,
+          label: "Profile",
+          icon: <ProfileIcon />,
+          badge: null,
+        },
+      ];
+    },
+    [inboundPending, hasFriendAcceptanceNotification, chatUnreadCount, hasStoryInvite, hasTypingInvite, hasTicTacToeInvite, hasQuickTriviaInvite, hasRPSInvite],
   );
 
   const handleNavClick = (key: NavKey) => {
@@ -1109,7 +1118,10 @@ export default function HomePage() {
               {activityPreviews.map((game) => {
                 const highlight =
                   (game.key === "speed_typing" && hasTypingInvite) ||
-                  (game.key === "story" && hasStoryInvite);
+                  (game.key === "story" && hasStoryInvite) ||
+                  (game.key === "tictactoe" && hasTicTacToeInvite) ||
+                  (game.key === "quick_trivia" && hasQuickTriviaInvite) ||
+                  (game.key === "rps" && hasRPSInvite);
                 return (
                   <Link
                     key={game.key}
@@ -1126,11 +1138,6 @@ export default function HomePage() {
                       {game.tag ? (
                         <span className="ml-auto rounded-full bg-white/10 px-3 py-0.5 text-[9px] tracking-[0.2em] text-white/80">
                           {game.tag}
-                        </span>
-                      ) : null}
-                      {highlight ? (
-                        <span className="rounded-full bg-emerald-500/90 px-3 py-0.5 text-[9px] font-semibold tracking-[0.2em] text-white shadow">
-                          Session waiting
                         </span>
                       ) : null}
                     </div>
@@ -1161,10 +1168,26 @@ export default function HomePage() {
                           2 players
                         </span>
                       </div>
-                      <div className="pt-1">
-                        <span className="inline-flex w-full items-center justify-center rounded-xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#ff5f72]/30 transition group-hover:bg-[#ff4b61]">
+                      <div className="pt-1 flex gap-2">
+                        <span className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#ff5f72]/30 transition group-hover:bg-[#ff4b61]">
                           {highlight ? "Join pending session" : "Open game window"}
                         </span>
+                        {highlight && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (game.key === "story") dismissStory();
+                              if (game.key === "speed_typing") dismissTyping();
+                              if (game.key === "tictactoe") dismissTicTacToe();
+                              if (game.key === "quick_trivia") dismissQuickTrivia();
+                              if (game.key === "rps") dismissRPS();
+                            }}
+                            className="inline-flex items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                          >
+                            Dismiss
+                          </button>
+                        )}
                       </div>
                     </div>
                   </Link>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { TicTacToeState } from '../hooks/useTicTacToeSession';
 import { CheckCircle2, RotateCcw, LogOut, AlertTriangle, Timer, XCircle, Trophy, Loader2 } from 'lucide-react';
@@ -18,7 +18,6 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
     const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason, winner } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
-    const showBoard = status === 'playing' || status === 'countdown';
     const opponentLeft = leaveReason === 'opponent_left';
 
     const roundNumber = typeof roundIndex === 'number' ? roundIndex + 1 : 1;
@@ -147,7 +146,6 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
     // Render round result announcement (similar to RPS)
     const renderRoundResult = () => {
         const iWonRound = lastWinnerId === myUserId;
-        const opponentWonRound = lastWinnerId && lastWinnerId !== myUserId;
         
         // Get scores
         const myRoundWins = myUserId ? (roundWins[myUserId] || 0) : 0;

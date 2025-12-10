@@ -148,26 +148,48 @@ function SpeedTypingEntryPageContent() {
             Back to Dashboard
           </Link>
 
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/50">
-                <Keyboard className="h-3 w-3" />
-                Live Multiplayer
-              </div>
-              <h1 className="sr-only">Speed Typing Duel</h1>
-              <p className="mt-4 text-lg text-slate-300 md:text-xl">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div className="space-y-6">
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
+                Speed <span className="text-emerald-400">Typing</span>
+              </h1>
+              <p className="text-lg leading-8 text-slate-300">
                 Challenge a friend to a real-time typing race. 10-second countdown, then prove who has the fastest fingers on campus.
               </p>
+
+              <div className="flex gap-8 pt-4">
+                <div>
+                  <div className="text-3xl font-bold text-white">1v1</div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-emerald-400">Live</div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Sync</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-white">1v1</div>
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-emerald-400">Live</div>
-                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Sync</div>
+            {/* How to Play Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 ring-1 ring-white/10 backdrop-blur-sm">
+              <div className="relative z-10">
+                <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
+                  <Keyboard className="h-5 w-5 text-emerald-400" />
+                  How to Play
+                </h3>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">1</div>
+                    <p className="text-sm text-slate-300">Both players click <span className="font-bold text-white">Ready</span>.</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">2</div>
+                    <p className="text-sm text-slate-300">Wait for the <span className="font-bold text-white">10s countdown</span>.</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">3</div>
+                    <p className="text-sm text-slate-300">Type exactly. First to <span className="font-bold text-white">100%</span> wins.</p>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -177,17 +199,6 @@ function SpeedTypingEntryPageContent() {
       <div className="mx-auto mt-8 max-w-5xl px-6">
         {sessionId ? (
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5">
-            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <div className="flex items-center justify-center">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-2 w-2">
-                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                  </span>
-                  <span className="text-sm font-medium text-slate-600">Session Active</span>
-                </div>
-              </div>
-            </div>
             <div className="p-6">
               <SpeedTypingPanel sessionId={sessionId} />
             </div>
@@ -343,27 +354,6 @@ function SpeedTypingEntryPageContent() {
                     <p className="mt-1 text-xs text-slate-500">Challenges will appear here instantly.</p>
                   </div>
                 )}
-              </div>
-
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-lg">
-                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
-                <div className="relative z-10">
-                  <h3 className="font-bold text-white">How to Play</h3>
-                  <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span>
-                      <span>Both players must click <span className="font-bold text-white">Ready</span> to start the countdown.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span>
-                      <span>Wait for the <span className="font-bold text-white">10s countdown</span>. The text will be blurred until it hits zero.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span>
-                      <span>Type the text exactly. First to finish with <span className="font-bold text-white">100% accuracy</span> wins.</span>
-                    </li>
-                  </ul>
-                </div>
               </div>
             </div>
           </div>

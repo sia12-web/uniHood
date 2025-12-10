@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Copy, Check, Heart } from "lucide-react";
+import { ArrowLeft, BookOpen, Users, PenTool, Sparkles, Check, Heart } from "lucide-react";
 
 import { createStoryBuilderSession } from "@/app/features/activities/api/client";
 import { fetchFriends } from "@/lib/social";
@@ -30,7 +30,6 @@ function StoryActivityContent() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [friendId, setFriendId] = useState<string>("");
-  const [copied, setCopied] = useState(false);
   const { invite, acknowledge, dismiss } = useStoryInvite();
 
   // Acknowledge the invite when session is loaded from URL (suppresses notification)
@@ -89,13 +88,6 @@ function StoryActivityContent() {
     dismiss(invite.id);
   };
 
-  const copySessionId = () => {
-    if (!activityId) return;
-    navigator.clipboard.writeText(activityId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   useEffect(() => {
     if (!wantsInviteFocus) {
       return;
@@ -133,11 +125,6 @@ function StoryActivityContent() {
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-violet-500/20 px-3 py-1 text-sm font-medium text-violet-300 ring-1 ring-inset ring-violet-500/40">
-                <PenTool className="h-4 w-4" />
-                <span>Co-op Writing</span>
-              </div>
-
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
                 Story <span className="text-violet-400">Builder</span>
               </h1>
@@ -180,35 +167,6 @@ function StoryActivityContent() {
         {activityId ? (
           <div className="space-y-6">
             <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200">
-              <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-600">
-                      <BookOpen className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-slate-900">Active Story</h2>
-                      <div className="flex items-center gap-2">
-                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{activityId}</code>
-                        <button
-                          onClick={copySessionId}
-                          className="text-slate-400 hover:text-slate-600"
-                          title="Copy Session ID"
-                        >
-                          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <Link
-                    href="/activities/story"
-                    className="text-xs font-medium text-slate-500 hover:text-slate-800"
-                  >
-                    Leave Story
-                  </Link>
-                </div>
-              </div>
-
               <div className="p-6">
                 <StoryBuilderPanel sessionId={activityId} />
               </div>

@@ -18,6 +18,7 @@ type TriviaSession = {
     startedAt?: number;
     roundStartedAt?: number;
     leaveReason?: 'opponent_left' | 'forfeit' | null;
+    createdAt: number;
 };
 
 const QUESTION_TIME_MS = 7_000;
@@ -68,6 +69,7 @@ export function createQuickTriviaSession(creatorUserId: string, participants?: s
         currentRound: -1,
         status: 'pending',
         lobbyReady: false, // Will be set to true when enough players join and are ready
+        createdAt: Date.now(),
     };
     questionDeck[sessionId] = pickQuestions(ROUND_COUNT);
     return sessionId;
@@ -85,6 +87,7 @@ export function listQuickTriviaSessions(): Array<{
     lobbyReady: boolean;
     creatorUserId: string;
     participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+    createdAt: number;
 }> {
     return Object.values(sessions).map((s) => ({
         sessionId: s.id,
@@ -94,6 +97,7 @@ export function listQuickTriviaSessions(): Array<{
         lobbyReady: s.lobbyReady,
         creatorUserId: s.participants[0]?.userId || 'anonymous',
         participants: s.participants,
+        createdAt: s.createdAt,
     }));
 }
 

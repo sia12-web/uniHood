@@ -560,7 +560,16 @@ export function handleRoundEnd(sessionId: string) {
     // I will keep this "Fast Forward" behavior.
     if (session.players.X) session.ready[session.players.X] = true;
     if (session.players.O) session.ready[session.players.O] = true;
-    startCountdown(sessionId);
+    
+    // Broadcast the lobby state first so clients can see the round result
+    broadcastState(sessionId);
+    
+    // Delay before starting countdown to show round result (3 seconds like RPS)
+    setTimeout(() => {
+        const s = sessions[sessionId];
+        if (!s || s.status === 'finished') return;
+        startCountdown(sessionId);
+    }, 3000);
 }
 
 function broadcastState(sessionId: string) {

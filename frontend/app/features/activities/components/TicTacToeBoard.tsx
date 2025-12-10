@@ -319,7 +319,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                                             It&apos;s a Draw!
                                         </h3>
                                     </>
-                                ) : lastWinnerId === myRole ? (
+                                ) : lastWinnerId === myUserId ? (
                                     <>
                                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                                             <Trophy className="h-8 w-8" />

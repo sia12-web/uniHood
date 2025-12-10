@@ -478,6 +478,7 @@ server.register(async function (fastify) {
                                                 sess.phase = 'running';
                                                 sess.countdownValue = undefined;
                                                 broadcastGenericState(sessionId);
+                                                broadcastGenericRoundStarted(sessionId, sess.currentRound ?? 1);
                                             });
                                         }, 2000); // 2 second delay between rounds
                                     }
@@ -871,6 +872,7 @@ server.register(async function (fastify) {
                         s.roundStartedAt = Date.now();
                         s.countdownValue = undefined;
                         broadcastGenericState(sessionId);
+                        broadcastGenericRoundStarted(sessionId, s.currentRound ?? 1);
                     });
                 } else {
                     generic.status = 'countdown';

@@ -45,9 +45,15 @@ export default function TicTacToeEntryPage() {
   const [friendId, setFriendId] = useState("");
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
 
-  const { acknowledge } = useTicTacToeInvite();
+  const { invite, acknowledge } = useTicTacToeInvite();
   // We only initialize the hook when sessionId is available
   const { state, makeMove, restartGame, toggleReady, leave } = useTicTacToeSession(sessionId ?? "");
+
+  const handleAcceptInvite = useCallback(() => {
+    if (!invite) return;
+    setSessionId(invite.sessionId);
+    acknowledge(invite.sessionId);
+  }, [invite, acknowledge]);
 
   // Update player names map from friends list
   useEffect(() => {
@@ -301,6 +307,52 @@ export default function TicTacToeEntryPage() {
             </div>
 
             <div className="flex flex-col gap-6">
+              {/* Invite Inbox */}
+              <div
+                ref={inviteCardRef}
+                className={`rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5 transition-all ${inviteFocusPulse || invite ? "ring-4 ring-cyan-200" : ""
+                  }`}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Invite Inbox</h2>
+                    <p className="text-xs text-slate-500">Challenges waiting for you.</p>
+                  </div>
+                  <div className="rounded-full bg-cyan-50 p-2 text-cyan-600">
+                    <Users className="h-5 w-5" />
+                  </div>
+                </div>
+
+                {invite ? (
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-5 text-white shadow-lg">
+                    <div className="relative z-10">
+                      <h3 className="font-bold">New Challenger!</h3>
+                      <p className="mt-1 text-xs text-cyan-100">
+                        {friends.find((f) => f.friend_id === invite.opponentUserId)?.friend_display_name || "A friend"} has invited you.
+                      </p>
+
+                      <div className="mt-4 flex items-center justify-end">
+                        <button
+                          onClick={handleAcceptInvite}
+                          className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-cyan-700 shadow-sm transition hover:bg-cyan-50"
+                        >
+                          Accept & Play
+                        </button>
+                      </div>
+                    </div>
+                    {/* Decorative circles */}
+                    <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10 blur-xl" />
+                    <div className="absolute -bottom-4 -left-4 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-center">
+                    <div className="rounded-full bg-slate-100 p-2">
+                      <Users className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <p className="mt-2 text-xs font-medium text-slate-900">No pending invites</p>
+                  </div>
+                )}
+              </div>
               <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-xl">
                 <div className="mb-6 flex items-center gap-2 text-cyan-400">
                   <Trophy className="h-5 w-5" />
@@ -340,7 +392,7 @@ export default function TicTacToeEntryPage() {
         )}
       </div>
 
-      <div ref={inviteCardRef} className={`transition-all duration-500 ${inviteFocusPulse ? "scale-105 ring-4 ring-cyan-400" : ""}`} />
+
     </main>
   );
 }

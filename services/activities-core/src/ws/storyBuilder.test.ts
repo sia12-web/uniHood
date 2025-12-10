@@ -45,7 +45,7 @@ describe('StoryBuilder Logic', () => {
         setStoryBuilderReady(sessionId, 'user2', true);
         expect(session?.status).toBe('countdown');
 
-        jest.advanceTimersByTime(3000);
+        jest.advanceTimersByTime(5000);
         expect(session?.status).toBe('writing');
         expect(session?.turnOrder).toHaveLength(2);
         expect(session?.currentTurnUserId).toBeDefined();

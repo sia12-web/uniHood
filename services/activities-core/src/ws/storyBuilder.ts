@@ -23,6 +23,8 @@ const ROMANCE_PROMPTS = [
     { title: "The Wrong Order", opening: "'I think you grabbed my food by mistake,' they said, holding up an identical takeout bag. Their smile was unexpectedly warm..." },
     { title: "Study Group Sparks", opening: "The study group was supposed to be about calculus. But every time their hands brushed reaching for the same textbook..." },
     { title: "Elevator Stuck", opening: "The elevator lurched to a stop between floors. 'Well,' they said to the only other person inside, 'I guess we have time to talk...'" },
+    { title: "The Time Capsule", opening: "They dug up a time capsule from 50 years ago. Inside was a photo of two people who looked exactly like them..." },
+    { title: "The Last Train", opening: "Missing the last train home seemed like a disaster, until they realized who else was stranded on the platform..." },
 ];
 
 const GAY_ROMANCE_PROMPTS = [
@@ -30,6 +32,8 @@ const GAY_ROMANCE_PROMPTS = [
     { title: "The Late Night Gamer", opening: "They had been gaming together online for months. When they finally met at the convention, the chemistry was instant..." },
     { title: "Roommates", opening: "They had been roommates for a year, strictly platonic. But one movie night changed everything..." },
     { title: "The Rivalry", opening: "They were academic rivals, always competing for the top spot. But beneath the competition was something else..." },
+    { title: "The Fake Date", opening: "He needed a date for his sister's wedding to get his family off his back. His best friend volunteered, but the lines started to blur..." },
+    { title: "The Coffee Shop Rivalry", opening: "He owned the artisanal tea shop. The guy across the street owned the espresso bar. It was war, until the power went out on the whole block..." },
 ];
 
 const LESBIAN_ROMANCE_PROMPTS = [
@@ -37,6 +41,8 @@ const LESBIAN_ROMANCE_PROMPTS = [
     { title: "Art Class Model", opening: "She was trying to focus on her sketch, but the model's gaze was distracting her in the best way possible..." },
     { title: "The Coffee Date", opening: "It was supposed to be just a friendly coffee. Three hours later, neither of them wanted to leave..." },
     { title: "Softball Season", opening: "The game was intense, but she couldn't take her eyes off the pitcher..." },
+    { title: "The Road Trip", opening: "Her car broke down in the middle of nowhere. The mechanic who pulled up in the tow truck was the most beautiful woman she'd ever seen..." },
+    { title: "The Masquerade", opening: "She didn't know who she was dancing with behind the mask, but she knew she never wanted the music to stop..." },
 ];
 
 function getPromptForGenders(genders: Gender[]) {
@@ -170,7 +176,7 @@ function startCountdown(sessionId: string) {
 
     setTimeout(() => {
         startStory(sessionId);
-    }, 3000);
+    }, 5000);
 }
 
 export function startStory(sessionId: string) {

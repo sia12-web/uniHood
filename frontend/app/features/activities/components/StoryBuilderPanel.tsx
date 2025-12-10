@@ -236,7 +236,12 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                         </div>
                         <div>
                             <h3 className="font-bold text-slate-900">{storyPrompt?.title || "Writing Phase"}</h3>
-                            <p className="text-xs text-slate-500">
+                            {storyPrompt?.opening && (
+                                <p className="text-xs text-slate-500 italic mb-1 max-w-md">
+                                    &ldquo;{storyPrompt.opening}&rdquo;
+                                </p>
+                            )}
+                            <p className="text-xs font-medium text-violet-600">
                                 {isMyTurn ? "It's your turn to write!" : `Waiting for ${getDisplayName(currentTurnUserId || "")}...`}
                             </p>
                         </div>

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { CheckCircle2, Loader2, Calendar, Trophy, Gamepad2, Crown } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar } from "lucide-react";
 
 import Image from "next/image";
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
@@ -247,7 +247,7 @@ export default function HomePage() {
   const { hasPending: hasStoryInvite } = useStoryInviteState();
   const { hasPending: hasTypingInvite } = useTypingDuelInviteState();
 
-  const hasFriendsNotification = hasFriendAcceptanceNotification || inboundPending > 0;
+
 
   useEffect(() => {
     const hydrate = () => {
@@ -480,7 +480,7 @@ export default function HomePage() {
     if (authHydrated) {
       void loadMeetups();
     }
-  }, [authHydrated, authUser?.campusId]);
+  }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
 
 

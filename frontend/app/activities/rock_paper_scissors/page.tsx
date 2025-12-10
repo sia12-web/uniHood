@@ -17,7 +17,12 @@ type PageProps = {
 };
 
 export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) {
-  const initialSessionId = typeof searchParams?.sessionId === "string" ? searchParams.sessionId : "";
+  // Support both 'sessionId' (legacy) and 'session' (from chat invite links) params
+  const initialSessionId = typeof searchParams?.sessionId === "string"
+    ? searchParams.sessionId
+    : typeof searchParams?.session === "string"
+      ? searchParams.session
+      : "";
   const [sessionId, setSessionId] = useState(initialSessionId);
   const [friendId, setFriendId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,8 +36,10 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
   useEffect(() => {
     if (initialSessionId) {
       setSessionId(initialSessionId);
+      // Acknowledge the invite when session is loaded from URL (suppresses notification)
+      acknowledge(initialSessionId);
     }
-  }, [initialSessionId]);
+  }, [initialSessionId, acknowledge]);
 
   useEffect(() => {
     let active = true;
@@ -107,10 +114,10 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
             <path d="M0 100 C 20 0 50 0 100 100 Z" fill="white" />
           </svg>
         </div>
-        
+
         <div className="relative mx-auto max-w-5xl px-6">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -123,11 +130,11 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                 <Swords className="h-4 w-4" />
                 <span>1v1 Duel</span>
               </div>
-              
+
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
                 Rock Paper <span className="text-rose-400">Scissors</span>
               </h1>
-              
+
               <p className="text-lg leading-8 text-slate-300">
                 The classic game of strategy and chance. Challenge a friend, lock in your move, and reveal simultaneously to claim victory.
               </p>
@@ -177,7 +184,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                       <h2 className="text-sm font-semibold text-slate-900">Active Session</h2>
                       <div className="flex items-center gap-2">
                         <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{sessionId}</code>
-                        <button 
+                        <button
                           onClick={copySessionId}
                           className="text-slate-400 hover:text-slate-600"
                           title="Copy Session ID"
@@ -187,7 +194,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                       </div>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setSessionId("")}
                     className="text-xs font-medium text-slate-500 hover:text-slate-800"
                   >
@@ -195,7 +202,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                   </button>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <RockPaperScissorsPanel sessionId={sessionId} />
               </div>
@@ -212,7 +219,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                 <h2 className="text-2xl font-bold">Start a Duel</h2>
                 <p className="mt-2 text-rose-100">Challenge a friend to a game.</p>
               </div>
-              
+
               <div className="p-6">
                 <form onSubmit={handleCreate} className="space-y-6">
                   <div className="space-y-3">
@@ -304,7 +311,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
                 <h2 className="text-2xl font-bold">Invites</h2>
                 <p className="mt-2 text-slate-400">Accept challenges from friends.</p>
               </div>
-              
+
               <div className="p-6">
                 {invite ? (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">

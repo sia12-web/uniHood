@@ -52,6 +52,16 @@ function SpeedTypingEntryPageContent() {
     setSelfId(getSelf());
   }, []);
 
+  // Read session ID from URL query parameter (for game invite links)
+  useEffect(() => {
+    const sessionFromUrl = searchParams?.get("session");
+    if (sessionFromUrl && !sessionId) {
+      setSessionId(sessionFromUrl);
+      // Acknowledge the invite when session is loaded from URL (suppresses notification)
+      acknowledge(sessionFromUrl);
+    }
+  }, [searchParams, sessionId, acknowledge]);
+
   useEffect(() => {
     let active = true;
     async function loadFriends() {
@@ -128,16 +138,16 @@ function SpeedTypingEntryPageContent() {
       <div className="relative overflow-hidden bg-[#0f172a] pb-12 pt-16 text-white shadow-xl lg:pt-24">
         <div className="absolute inset-0 bg-[url('/activities/speedtyping.svg')] bg-cover bg-center opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f172a]" />
-        
+
         <div className="relative mx-auto max-w-5xl px-6">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
-          
+
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/50">
@@ -149,7 +159,7 @@ function SpeedTypingEntryPageContent() {
                 Challenge a friend to a real-time typing race. 10-second countdown, then prove who has the fastest fingers on campus.
               </p>
             </div>
-            
+
             <div className="flex gap-8 text-center">
               <div>
                 <div className="text-3xl font-bold text-white">1v1</div>
@@ -202,7 +212,7 @@ function SpeedTypingEntryPageContent() {
                     <span className="font-medium text-slate-700">Select Opponent</span>
                     <span className="text-slate-400">You: {selfId || "…"}</span>
                   </div>
-                  
+
                   <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
                     {friendsLoading ? (
                       <div className="flex items-center justify-center py-8 text-slate-500">
@@ -227,11 +237,10 @@ function SpeedTypingEntryPageContent() {
                           return (
                             <label
                               key={friend.friend_id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${
-                                isSelected 
-                                  ? "bg-white shadow-md ring-1 ring-indigo-500" 
-                                  : "hover:bg-white hover:shadow-sm"
-                              }`}
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${isSelected
+                                ? "bg-white shadow-md ring-1 ring-indigo-500"
+                                : "hover:bg-white hover:shadow-sm"
+                                }`}
                             >
                               <input
                                 type="radio"
@@ -290,9 +299,8 @@ function SpeedTypingEntryPageContent() {
             <div className="flex flex-col gap-6">
               <div
                 ref={inviteCardRef}
-                className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${
-                  inviteFocusPulse || invite ? "border-2 border-rose-200 ring-rose-200/40" : "border border-slate-200"
-                }`}
+                className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${inviteFocusPulse || invite ? "border-2 border-rose-200 ring-rose-200/40" : "border border-slate-200"
+                  }`}
               >
                 <div className="mb-6 flex items-center justify-between">
                   <div>
@@ -311,7 +319,7 @@ function SpeedTypingEntryPageContent() {
                       <p className="mt-1 text-emerald-100">
                         {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "A friend"} has invited you to a duel.
                       </p>
-                      
+
                       <div className="mt-6 flex items-center justify-end">
                         <button
                           onClick={handleAcceptInvite}
@@ -321,7 +329,7 @@ function SpeedTypingEntryPageContent() {
                         </button>
                       </div>
                     </div>
-                    
+
                     {/* Decorative circles */}
                     <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
                     <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />

@@ -13,14 +13,12 @@
  */
 
 import { APILatencyTracker } from './web-vitals-reporter';
-import { getTraceHeaders, createRequestSpan, extractTraceFromResponse, getSampleRate, type TraceContext } from './tracing';
-import { 
-  shouldSampleMetric, 
-  scrubUrl, 
-  scrubHeaders, 
-  scrubPayload, 
+import { getTraceHeaders, createRequestSpan, extractTraceFromResponse, getSampleRate } from './tracing';
+import {
+  shouldSampleMetric,
+  scrubUrl,
   scrubError,
-  isTrackingAllowed 
+  isTrackingAllowed
 } from './privacy';
 
 interface RequestMetrics {
@@ -66,19 +64,19 @@ function emitMetrics(metrics: RequestMetrics) {
   if (!isTrackingAllowed() || !shouldSampleMetric('apiLatency', metrics.endpoint)) {
     return;
   }
-  
+
   const tracker = APILatencyTracker.getInstance();
   if (metrics.duration) {
     tracker.record(metrics.endpoint, metrics.duration);
   }
-  
+
   // Scrub sensitive data before emitting
   const scrubbedMetrics = {
     ...metrics,
     endpoint: scrubUrl(metrics.endpoint),
     error: metrics.error ? scrubError(metrics.error).message : undefined,
   };
-  
+
   metricsCallbacks.forEach((cb) => {
     try {
       cb(scrubbedMetrics);
@@ -114,10 +112,10 @@ export function createInstrumentedFetch(originalFetch: typeof fetch = fetch): ty
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method || 'GET';
     const endpoint = normalizeEndpoint(url);
-    
+
     // Create trace context for this request
     const traceCtx = createRequestSpan();
-    
+
     const metrics: RequestMetrics = {
       endpoint,
       method,
@@ -151,18 +149,18 @@ export function createInstrumentedFetch(originalFetch: typeof fetch = fetch): ty
       // Use modified init with trace headers
       const modifiedInit = { ...init, headers };
       const response = await originalFetch(input, modifiedInit);
-      
+
       metrics.endTime = performance.now();
       metrics.duration = metrics.endTime - metrics.startTime;
       metrics.status = response.status;
       metrics.success = response.ok;
-      
+
       // Extract server-side trace context from response for RUM linking
       const serverTrace = extractTraceFromResponse(response.headers);
       if (serverTrace.spanId) {
         metrics.serverSpanId = serverTrace.spanId;
       }
-      
+
       // Clone response to read size without consuming body
       const cloned = response.clone();
       try {
@@ -173,7 +171,7 @@ export function createInstrumentedFetch(originalFetch: typeof fetch = fetch): ty
       }
 
       emitMetrics(metrics);
-      
+
       // Log slow requests in development (with trace ID for correlation)
       if (process.env.NODE_ENV === 'development' && metrics.duration > 150) {
         console.warn(
@@ -188,7 +186,7 @@ export function createInstrumentedFetch(originalFetch: typeof fetch = fetch): ty
       metrics.duration = metrics.endTime - metrics.startTime;
       metrics.success = false;
       metrics.error = error instanceof Error ? error.message : 'Unknown error';
-      
+
       emitMetrics(metrics);
       throw error;
     }
@@ -207,7 +205,7 @@ export function createAxiosInterceptors() {
         const requestId = `${Date.now()}-${Math.random()}`;
         const url = config.url || '';
         const method = (config.method || 'GET').toUpperCase();
-        
+
         const metrics: RequestMetrics = {
           endpoint: normalizeEndpoint(url),
           method,
@@ -224,11 +222,11 @@ export function createAxiosInterceptors() {
         }
 
         pendingRequests.set(requestId, metrics);
-        
+
         // Attach request ID to headers for tracking
         config.headers = config.headers || {};
         config.headers['X-Request-Id'] = requestId;
-        
+
         return config;
       },
     },
@@ -242,7 +240,7 @@ export function createAxiosInterceptors() {
             metrics.duration = metrics.endTime - metrics.startTime;
             metrics.status = response.status;
             metrics.success = true;
-            
+
             if (response.data) {
               try {
                 metrics.responseSize = new Blob([JSON.stringify(response.data)]).size;
@@ -293,7 +291,7 @@ export function createBudgetChecker(budgets: APIBudget[]) {
       const matches = typeof budget.endpoint === 'string'
         ? metrics.endpoint === budget.endpoint
         : budget.endpoint.test(metrics.endpoint);
-      
+
       if (!matches) continue;
 
       const violations: string[] = [];

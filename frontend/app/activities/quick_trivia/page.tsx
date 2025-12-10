@@ -16,7 +16,12 @@ type PageProps = {
 };
 
 export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
-  const initialSessionId = typeof searchParams?.sessionId === "string" ? searchParams.sessionId : "";
+  // Support both 'sessionId' (legacy) and 'session' (from chat invite links) params
+  const initialSessionId = typeof searchParams?.sessionId === "string"
+    ? searchParams.sessionId
+    : typeof searchParams?.session === "string"
+      ? searchParams.session
+      : "";
   const [sessionId, setSessionId] = useState(initialSessionId);
   const [friendId, setFriendId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,17 +36,18 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
     setSelfId(getSelf());
   }, []);
 
+  // Acknowledge the invite when session is loaded from URL (suppresses notification)
+  useEffect(() => {
+    if (initialSessionId) {
+      acknowledge(initialSessionId);
+    }
+  }, [initialSessionId, acknowledge]);
+
   // Log resolved activities-core base env for troubleshooting missing debug output.
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.info('[quick_trivia] NEXT_PUBLIC_ACTIVITIES_CORE_URL =', process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL);
   }, []);
-
-  useEffect(() => {
-    if (initialSessionId) {
-      setSessionId(initialSessionId);
-    }
-  }, [initialSessionId]);
 
   useEffect(() => {
     let active = true;
@@ -106,16 +112,16 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
       <div className="relative overflow-hidden bg-[#0f172a] pb-12 pt-16 text-white shadow-xl lg:pt-24">
         <div className="absolute inset-0 bg-[url('/activities/trivia.svg')] bg-cover bg-center opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f172a]" />
-        
+
         <div className="relative mx-auto max-w-5xl px-6">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
-          
+
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/50">
@@ -127,7 +133,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                 Rapid-fire questions. Earn points for speed and accuracy. Tie-breakers decide the closest matches.
               </p>
             </div>
-            
+
             <div className="flex gap-8 text-center">
               <div>
                 <div className="text-3xl font-bold text-white">1v1</div>
@@ -185,7 +191,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                     <span className="font-medium text-slate-700">Select Opponent</span>
                     <span className="text-slate-400">You: {selfId || "…"}</span>
                   </div>
-                  
+
                   <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
                     {friendsLoading ? (
                       <div className="flex items-center justify-center py-8 text-slate-500">
@@ -210,11 +216,10 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                           return (
                             <label
                               key={friend.friend_id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${
-                                isSelected 
-                                  ? "bg-white shadow-md ring-1 ring-indigo-500" 
-                                  : "hover:bg-white hover:shadow-sm"
-                              }`}
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${isSelected
+                                ? "bg-white shadow-md ring-1 ring-indigo-500"
+                                : "hover:bg-white hover:shadow-sm"
+                                }`}
                             >
                               <input
                                 type="radio"
@@ -289,7 +294,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                       <p className="mt-1 text-amber-100">
                         {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "A friend"} has invited you to a duel.
                       </p>
-                      
+
                       <div className="mt-6 flex items-center justify-end">
                         <button
                           onClick={handleAcceptInvite}
@@ -299,7 +304,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                         </button>
                       </div>
                     </div>
-                    
+
                     {/* Decorative circles */}
                     <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
                     <div className="absolute -bottom-4 -left-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />

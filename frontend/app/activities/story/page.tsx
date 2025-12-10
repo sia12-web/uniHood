@@ -17,7 +17,8 @@ function StoryActivityContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchString = searchParams?.toString() ?? "";
-  const activityId = searchParams?.get("id");
+  // Support both 'id' (legacy) and 'session' (from chat invite links) params
+  const activityId = searchParams?.get("id") || searchParams?.get("session");
   const inviteCardRef = useRef<HTMLDivElement>(null);
   const [inviteFocusPulse, setInviteFocusPulse] = useState(false);
   const wantsInviteFocus = searchParams?.get("focus") === "invites";
@@ -31,6 +32,13 @@ function StoryActivityContent() {
   const [friendId, setFriendId] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const { invite, acknowledge, dismiss } = useStoryInvite();
+
+  // Acknowledge the invite when session is loaded from URL (suppresses notification)
+  useEffect(() => {
+    if (activityId) {
+      acknowledge(activityId);
+    }
+  }, [activityId, acknowledge]);
 
   // Load friends if no activity ID
   useEffect(() => {

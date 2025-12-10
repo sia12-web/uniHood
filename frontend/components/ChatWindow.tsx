@@ -12,7 +12,7 @@ import { useTypingDuelInvite } from "@/hooks/activities/use-typing-duel-invite";
 
 import type { ChatMessage } from "../lib/chat";
 import { ChooseActivityModal } from "../app/features/activities/components/ChooseActivityModal";
-import { LiveSessionShell } from "../app/features/activities/components/LiveSessionShell";
+import { GameInviteCard, isGameInviteMessage } from "./GameInviteCard";
 
 type Props = {
   conversationId: string;
@@ -51,7 +51,6 @@ export default function ChatWindow({
   deliveredSeq,
 }: Props) {
   const [playOpen, setPlayOpen] = useState(false);
-  const [activeSession, setActiveSession] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -78,8 +77,7 @@ export default function ChatWindow({
     if (!invite) {
       return;
     }
-    setActiveSession(invite.sessionId);
-    setPlayOpen(false);
+    // Acknowledge the invite - user will click the link in chat instead
     acknowledge(invite.sessionId);
   }, [acknowledge, invite]);
 
@@ -292,7 +290,13 @@ export default function ChatWindow({
                                     group.isSelf ? "rounded-l-2xl rounded-r-sm" : "rounded-r-2xl rounded-l-sm"
                         )}
                       >
-                        {hasBody && <span className="whitespace-pre-wrap break-words">{body}</span>}
+                        {isGameInviteMessage(body) ? (
+                          <GameInviteCard body={body} isSelf={group.isSelf} />
+                        ) : (
+                          <>
+                            {hasBody && <span className="whitespace-pre-wrap break-words">{body}</span>}
+                          </>
+                        )}
 
                         {imageAttachments.length > 0 && (
                           <div className={clsx(hasBody ? "mt-3" : "", "space-y-2")}>
@@ -405,16 +409,14 @@ export default function ChatWindow({
               >
                 <Smile className="h-5 w-5" />
               </button>
-              {!activeSession && (
-                <button
-                  type="button"
-                  onClick={() => setPlayOpen(true)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                  title="Invite to play a game"
-                >
-                  <Gamepad2 className="h-5 w-5" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setPlayOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                title="Invite to play a game"
+              >
+                <Gamepad2 className="h-5 w-5" />
+              </button>
               {draft.trim() ? (
                 <button
                   type="submit"
@@ -443,7 +445,7 @@ export default function ChatWindow({
         )}
       </div>
 
-      {playOpen && !activeSession && (
+      {playOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
           role="dialog"
@@ -452,16 +454,9 @@ export default function ChatWindow({
         >
           <ChooseActivityModal
             peerUserId={peerUserId}
-            onStarted={(sid) => { setActiveSession(sid); setPlayOpen(false); }}
+            onSendMessage={async (message) => { await onSend(message); setPlayOpen(false); }}
             onClose={() => setPlayOpen(false)}
           />
-        </div>
-      )}
-      {activeSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="rounded-3xl bg-white p-6 shadow-2xl w-full max-w-5xl h-[80vh] overflow-hidden">
-            <LiveSessionShell sessionId={activeSession} opponentUserId={peerName || 'peer'} onEnded={() => setActiveSession(null)} />
-          </div>
         </div>
       )}
     </div>

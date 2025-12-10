@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { TicTacToeState } from '../hooks/useTicTacToeSession';
-import { Check, RotateCcw, LogOut, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, RotateCcw, LogOut, AlertTriangle, Timer, XCircle, Trophy, Loader2 } from 'lucide-react';
 import { MyPointsBadge } from './MyPointsBadge';
 
 interface BoardProps {
@@ -15,216 +15,337 @@ interface BoardProps {
 }
 
 export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, onLeave, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, scores, roundWins, countdown, winner, error, lastRoundWinner, roundIndex, matchWinner, leaveReason } = state;
+    const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
     const opponentLeft = leaveReason === 'opponent_left';
 
-    const roundNumber = typeof roundIndex === 'number' ? roundIndex : null;
+    const roundNumber = typeof roundIndex === 'number' ? roundIndex + 1 : 1;
     const lastWinnerId = lastRoundWinner || null;
+
     const resolveName = (userId?: string) => {
         if (!userId) return "Opponent";
         if (playerNames && playerNames[userId]) return playerNames[userId];
         return userId.slice(0, 6);
     };
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-10 w-full max-w-4xl mx-auto">
-            {/* Round Indicator */}
-            {status === 'playing' && roundNumber !== null && (
-                <div className="text-center">
-                    <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Best of 3</span>
-                    <div className="text-slate-300 text-sm">Round {roundNumber + 1} of 3</div>
+    const getPlayerName = (role: 'X' | 'O') => {
+        const userId = players[role];
+        if (!userId) return `Player ${role}`;
+        return resolveName(userId);
+    };
+
+    const myPlayerRole = players.X === myRole ? 'X' : players.O === myRole ? 'O' : null;
+    const isSpectator = !myPlayerRole;
+
+    // --- Render Helpers ---
+
+    const renderLobby = () => {
+        const xId = players.X;
+        const oId = players.O;
+        const xReady = xId && ready[xId];
+        const oReady = oId && ready[oId];
+
+        const participants = [
+            { role: 'X', id: xId, ready: xReady, name: getPlayerName('X') },
+            { role: 'O', id: oId, ready: oReady, name: getPlayerName('O') }
+        ];
+
+        return (
+            <div className="space-y-8 max-w-2xl mx-auto">
+                <div className="flex justify-center mb-4">
+                    <MyPointsBadge />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {participants.map((p) => (
+                        <div
+                            key={p.role}
+                            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${p.ready
+                                ? "border-emerald-200 bg-emerald-50/50 ring-1 ring-emerald-500/20"
+                                : "border-slate-200 bg-white"
+                                }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold ${p.role === 'X' ? "bg-cyan-100 text-cyan-700" : "bg-pink-100 text-pink-700"
+                                        }`}>
+                                        {p.role}
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-slate-900">
+                                            {p.id ? p.name : "Waiting..."}
+                                            {p.id === myRole && <span className="text-xs font-normal text-slate-500 ml-1">(You)</span>}
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            {p.id ? (p.ready ? "Ready to play" : "Not ready") : "Waiting for player"}
+                                        </div>
+                                    </div>
+                                </div>
+                                {p.ready ? (
+                                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Ready
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                                        <Timer className="h-3.5 w-3.5" />
+                                        Waiting
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex flex-col items-center justify-center gap-4 border-t border-slate-100 pt-8">
+                    {!isSpectator && (
+                        <button
+                            onClick={onToggleReady}
+                            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${ready[myRole || '']
+                                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                : "bg-slate-900 text-white shadow-lg hover:bg-slate-800"
+                                }`}
+                        >
+                            {ready[myRole || ''] ? (
+                                <>
+                                    <XCircle className="h-5 w-5" />
+                                    Cancel Ready
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="h-5 w-5" />
+                                    I&apos;m Ready
+                                </>
+                            )}
+                        </button>
+                    )}
+
+                    <div className="text-xs font-medium text-slate-400">
+                        {xReady && oReady ? "Starting game..." : "Waiting for both players to ready up"}
+                    </div>
+
+                    {onLeave && (
+                        <button
+                            onClick={onLeave}
+                            className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-500 transition-colors mt-2"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Leave Game
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderCountdown = () => (
+        <div className="relative flex flex-col items-center justify-center py-12">
+            <div className="relative z-10 flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-cyan-50">
+                <span className="text-8xl font-black tracking-tighter text-cyan-600">
+                    {countdown}
+                </span>
+            </div>
+            <div className="mt-8 text-center">
+                <h3 className="text-2xl font-bold text-slate-900">Get Ready!</h3>
+                <p className="text-slate-500">Round {roundNumber} is starting</p>
+            </div>
+        </div>
+    );
+
+    const renderResults = () => (
+        <div className="text-center max-w-md mx-auto">
+            {opponentLeft && (
+                <div className="mb-6 flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-left">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                    <div>
+                        <p className="font-semibold">Opponent left</p>
+                        <p className="text-sm text-amber-600">You win by forfeit!</p>
+                    </div>
                 </div>
             )}
 
-            {/* Header / Scoreboard */}
-            <div className="flex items-center justify-between w-full px-6 py-4 bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-slate-700/50 shadow-lg">
-                <div className={clsx("flex items-center gap-4 px-6 py-3 rounded-xl transition-colors", turn === 'X' && status === 'playing' ? "bg-cyan-500/20 border border-cyan-500/50" : "")}>
-                    <div className="text-cyan-400 font-bold text-2xl">X</div>
-                    <div className="flex flex-col">
-                        <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Player X</span>
-                        <span className="text-white font-mono text-lg">
-                            {roundWins?.[players.X || ''] || 0} wins
-                        </span>
-                    </div>
-                    {players.X && ready[players.X] && status === 'lobby' && <Check className="w-5 h-5 text-green-400" />}
-                </div>
+            <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-amber-600 ring-8 ring-amber-50">
+                <Trophy className="h-10 w-10" />
+            </div>
 
-                <div className="flex flex-col items-center">
-                    <span className="text-xs text-slate-500 uppercase tracking-wider">First to 2</span>
-                    <div className="text-slate-600 font-mono text-lg font-bold">VS</div>
-                </div>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {matchWinner ? (
+                    matchWinner === myRole ? "Victory!" : `${resolveName(matchWinner)} Won!`
+                ) : (
+                    "Game Over"
+                )}
+            </h2>
+            <p className="text-slate-500 mb-8">
+                Final Score: {players.X ? roundWins[players.X] || 0 : 0} - {players.O ? roundWins[players.O] || 0 : 0}
+            </p>
 
-                <div className={clsx("flex items-center gap-4 px-6 py-3 rounded-xl transition-colors", turn === 'O' && status === 'playing' ? "bg-pink-500/20 border border-pink-500/50" : "")}>
-                    <div className="flex flex-col items-end">
-                        <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Player O</span>
-                        <span className="text-white font-mono text-lg">
-                            {roundWins?.[players.O || ''] || 0} wins
-                        </span>
-                    </div>
-                    <div className="text-pink-400 font-bold text-2xl">O</div>
-                    {players.O && ready[players.O] && status === 'lobby' && <Check className="w-5 h-5 text-green-400" />}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className={`p-4 rounded-xl border ${matchWinner === players.X ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
+                    <div className="text-xs font-bold uppercase text-slate-400 mb-1">Player X</div>
+                    <div className="font-bold text-slate-900 text-lg mb-1">{getPlayerName('X')}</div>
+                    <div className="text-2xl font-black text-slate-900">{roundWins[players.X || ''] || 0} Wins</div>
+                </div>
+                <div className={`p-4 rounded-xl border ${matchWinner === players.O ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
+                    <div className="text-xs font-bold uppercase text-slate-400 mb-1">Player O</div>
+                    <div className="font-bold text-slate-900 text-lg mb-1">{getPlayerName('O')}</div>
+                    <div className="text-2xl font-black text-slate-900">{roundWins[players.O || ''] || 0} Wins</div>
                 </div>
             </div>
 
-            {/* Game Area */}
+            <button
+                onClick={onRestart}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
+            >
+                <RotateCcw className="w-4 h-4" />
+                Play Again
+            </button>
+        </div>
+    );
+
+    const renderBoard = () => (
+        <div className="flex flex-col items-center gap-8 w-full max-w-4xl mx-auto">
+            {/* Scoreboard Header */}
+            <div className="flex items-center justify-between w-full px-6 py-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className={clsx("flex items-center gap-4 px-4 py-2 rounded-xl transition-colors", turn === 'X' ? "bg-cyan-50 border border-cyan-100" : "bg-transparent border border-transparent")}>
+                    <div className="flex flex-col items-center justify-center h-10 w-10 rounded-full bg-cyan-100 text-cyan-700 font-bold text-lg">X</div>
+                    <div>
+                        <div className="text-xs font-bold uppercase text-slate-400">Player X</div>
+                        <div className="font-bold text-slate-900">{getPlayerName('X')}</div>
+                        <div className="text-xs font-medium text-cyan-600">{roundWins[players.X || ''] || 0} Wins</div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col items-center">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Round {roundNumber}/3</div>
+                    <div className="text-xl font-black text-slate-300">VS</div>
+                </div>
+
+                <div className={clsx("flex items-center gap-4 px-4 py-2 rounded-xl transition-colors", turn === 'O' ? "bg-pink-50 border border-pink-100" : "bg-transparent border border-transparent")}>
+                    <div className="text-right">
+                        <div className="text-xs font-bold uppercase text-slate-400">Player O</div>
+                        <div className="font-bold text-slate-900">{getPlayerName('O')}</div>
+                        <div className="text-xs font-medium text-pink-600">{roundWins[players.O || ''] || 0} Wins</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center h-10 w-10 rounded-full bg-pink-100 text-pink-700 font-bold text-lg">O</div>
+                </div>
+            </div>
+
+            {/* Board Grid */}
             <div className="relative">
-                {/* Board */}
-                <div className={clsx("grid grid-cols-3 gap-3 p-6 bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-slate-700/50 shadow-2xl transition-opacity duration-500", status !== 'playing' && status !== 'finished' && "opacity-50 blur-sm pointer-events-none")}>
+                <div className={clsx(
+                    "grid grid-cols-3 gap-3 p-4 bg-slate-100 rounded-3xl border border-slate-200 shadow-inner",
+                    !isMyTurn && "opacity-90 grayscale-[0.2]"
+                )}>
                     {board.map((cell, index) => (
                         <motion.button
                             key={index}
-                            whileHover={!cell && canPlay ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
-                            whileTap={!cell && canPlay ? { scale: 0.98 } : {}}
+                            whileHover={!cell && canPlay ? { scale: 0.98 } : {}}
+                            whileTap={!cell && canPlay ? { scale: 0.95 } : {}}
                             onClick={() => canPlay && !cell && onMove(index)}
                             disabled={!!cell || !canPlay}
                             className={clsx(
-                                "w-32 h-32 sm:w-40 sm:h-40 rounded-xl flex items-center justify-center text-6xl relative overflow-hidden transition-colors",
-                                "bg-slate-900/80 border-2 border-slate-700/50",
-                                !cell && canPlay && "cursor-pointer hover:border-slate-500",
-                                !cell && !canPlay && "cursor-default opacity-80"
+                                "w-24 h-24 sm:w-32 sm:h-32 rounded-2xl flex items-center justify-center text-6xl relative overflow-hidden transition-all shadow-sm",
+                                "bg-white border-2",
+                                !cell && canPlay
+                                    ? "cursor-pointer border-slate-200 hover:border-cyan-200 hover:shadow-md"
+                                    : "border-slate-100 cursor-default",
+                                cell === 'X' && "border-cyan-100 bg-cyan-50/30",
+                                cell === 'O' && "border-pink-100 bg-pink-50/30"
                             )}
                         >
                             {cell === 'X' && (
-                                <motion.svg initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 0.3 }} viewBox="0 0 100 100" className="w-20 h-20 sm:w-24 sm:h-24 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]">
-                                    <path d="M25 25 L75 75 M75 25 L25 75" fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="round" />
-                                </motion.svg>
+                                <motion.span
+                                    initial={{ scale: 0.5, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-cyan-500 font-black drop-shadow-sm"
+                                >
+                                    X
+                                </motion.span>
                             )}
                             {cell === 'O' && (
-                                <motion.svg initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 0.3 }} viewBox="0 0 100 100" className="w-20 h-20 sm:w-24 sm:h-24 text-pink-400 drop-shadow-[0_0_15px_rgba(244,114,182,0.6)]">
-                                    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="round" />
-                                </motion.svg>
+                                <motion.span
+                                    initial={{ scale: 0.5, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-pink-500 font-black drop-shadow-sm"
+                                >
+                                    O
+                                </motion.span>
                             )}
                         </motion.button>
                     ))}
                 </div>
 
-                {/* Overlays */}
+                {/* Turn Indicator Overlay */}
+                {!isMyTurn && status === 'playing' && (
+                    <div className="mt-6 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500 animate-pulse">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Opponent&apos;s turn...
+                        </div>
+                    </div>
+                )}
+                {isMyTurn && status === 'playing' && (
+                    <div className="mt-6 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-cyan-100 px-4 py-2 text-sm font-bold text-cyan-700 shadow-sm ring-1 ring-cyan-200">
+                            Your turn!
+                        </div>
+                    </div>
+                )}
+
+                {/* Round Result Overlay */}
                 <AnimatePresence>
-                    {status === 'lobby' && (
+                    {lastWinnerId && status === 'lobby' && (
                         <motion.div
-                            key="lobby"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10"
-                        >
-                            <div className="bg-slate-900/90 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center gap-6 max-w-md text-center backdrop-blur-md">
-                                <MyPointsBadge />
-                                <h2 className="text-3xl font-bold text-white">Waiting for Players</h2>
-                                <p className="text-slate-400 text-base">Invite a friend to play or wait for someone to join.</p>
-                                {lastWinnerId && roundNumber !== null && roundNumber > 0 && (
-                                    <div className="w-full rounded-xl border border-slate-700 bg-slate-800/70 p-4 text-sm text-slate-200">
-                                        {lastWinnerId === (myRole === 'X' || myRole === 'O' ? players[myRole] : undefined)
-                                            ? `You won round ${roundNumber}!`
-                                            : `${resolveName(lastWinnerId)} won round ${roundNumber}.`}
-                                    </div>
-                                )}
-
-                                <button
-                    onClick={onToggleReady}
-                    className={clsx(
-                        "w-full px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2",
-                        myRole && myRole !== 'spectator' && ready[players[myRole] || '']
-                            ? "bg-green-500/20 text-green-400 border border-green-500/50"
-                            : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
-                    )}
-                >
-                    {myRole && myRole !== 'spectator' && ready[players[myRole] || ''] ? "Ready!" : "I'm Ready"}
-                </button>
-                                {onLeave && (
-                                    <button
-                                        onClick={onLeave}
-                                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-400 transition-colors mt-2"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        Leave Game
-                                    </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {status === 'countdown' && (
-                        <motion.div
-                            key="countdown"
-                            initial={{ opacity: 0, scale: 0.5 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.5 }}
-                            className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
-                        >
-                            <div className="text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)] animate-pulse">
-                                {countdown}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {status === 'finished' && winner && (
-                        <motion.div
-                            key="finished"
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute inset-0 flex items-center justify-center z-10"
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl z-10"
                         >
-                            <div className="bg-slate-900/95 p-8 rounded-2xl border border-slate-700 shadow-2xl flex flex-col items-center gap-6 text-center backdrop-blur-md">
-                                {opponentLeft && (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-500/50 rounded-xl text-amber-300 text-sm">
-                                        <AlertTriangle className="w-4 h-4" />
-                                        Opponent left the game
-                                    </div>
-                                )}
-                                <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                                    {opponentLeft ? "You Win!" : (winner === 'draw' ? "It's a Draw!" : `${playerNames?.[players[winner as 'X' | 'O'] || ''] || `Player ${winner}`} Wins!`)}
-                                </h2>
-                                {matchWinner && (
-                                    <div className="text-slate-300 text-sm">
-                                        <span className="font-semibold">{resolveName(matchWinner)}</span> wins the match!
-                                        <div className="mt-2 flex justify-center gap-4 text-slate-400">
-                                            <span>X: {roundWins?.[players.X || ''] || 0}</span>
-                                            <span>—</span>
-                                            <span>O: {roundWins?.[players.O || ''] || 0}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={onRestart}
-                                        className="flex items-center gap-2 px-6 py-3 bg-white text-slate-900 font-bold rounded-full hover:bg-slate-200 transition-colors shadow-lg"
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                        Play Again
-                                    </button>
-                                </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 text-center animate-in zoom-in-90 fill-mode-forwards">
+                                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                                    {lastWinnerId === myRole ? "You Win Round!" : `${resolveName(lastWinnerId)} Wins Round`}
+                                </h3>
+                                <p className="text-sm text-slate-500">Next round starting soon...</p>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
-            {!connected && !error && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="text-white text-xl font-mono animate-pulse">Connecting...</div>
-                </div>
+            {onLeave && (
+                <button
+                    onClick={onLeave}
+                    className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-rose-500 transition-colors"
+                >
+                    <LogOut className="h-3 w-3" />
+                    Forfeit & Leave
+                </button>
             )}
+        </div>
+    );
 
-            {error && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur">
-                    <div className="bg-slate-900 border border-red-500/40 shadow-2xl rounded-2xl p-8 max-w-md w-full text-center space-y-4">
-                        <h3 className="text-2xl font-semibold text-red-300">Unable to reach Tic-Tac-Toe server</h3>
-                        <p className="text-slate-300 text-sm">
-                            {error === 'unresolved_socket'
-                                ? 'Set NEXT_PUBLIC_ACTIVITIES_CORE_URL in frontend/.env.local and restart the dev server.'
-                                : 'Check that the activities-core service is running and reachable, then try again.'}
-                        </p>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="px-6 py-3 rounded-lg bg-gradient-to-r from-red-400 to-pink-500 text-white font-semibold shadow-lg hover:opacity-90"
-                        >
-                            Retry Connection
-                        </button>
-                    </div>
+    return (
+        <div className="w-full">
+            {!connected && !error ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <Loader2 className="h-8 w-8 animate-spin mb-4 text-slate-300" />
+                    <p>Connecting to game server...</p>
                 </div>
+            ) : error ? (
+                <div className="flex flex-col items-center justify-center py-12 text-rose-600 text-center">
+                    <AlertTriangle className="mb-4 h-12 w-12 opacity-20" />
+                    <p className="font-medium text-lg">Connection Error</p>
+                    <p className="text-sm opacity-80 max-w-xs mx-auto mb-6">{error === 'unresolved_socket' ? 'Server configuration error' : 'Could not connect to game lobby'}</p>
+                    <button onClick={() => window.location.reload()} className="text-sm underline hover:text-rose-800">Reload Page</button>
+                </div>
+            ) : status === 'countdown' ? (
+                renderCountdown()
+            ) : status === 'finished' ? (
+                renderResults()
+            ) : status === 'playing' ? (
+                renderBoard()
+            ) : (
+                renderLobby()
             )}
         </div>
     );

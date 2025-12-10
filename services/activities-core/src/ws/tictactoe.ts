@@ -25,7 +25,7 @@ const sessions: Record<string, GameState> = {};
 const connections: Record<string, Set<any>> = {};
 const countdowns: Record<string, NodeJS.Timeout> = {};
 const userSockets: Record<string, Map<string, any>> = {}; // sessionId -> userId -> socket
-const ROUND_WIN_TARGET = 2; // Best of 3 - first to 2 wins
+
 
 // Exported session management functions for REST API integration
 export function createSession(sessionId: string, _creatorUserId: string, _participants: string[]): GameState {
@@ -441,22 +441,32 @@ export function checkWin(session: GameState) {
     }
 }
 
-function handleRoundEnd(sessionId: string) {
+const TOTAL_ROUNDS = 3;
+
+// Exported for testing logic
+export function handleRoundEnd(sessionId: string) {
     const session = sessions[sessionId];
     if (!session) return;
 
-    let matchOver = false;
+    // Record round winner
     let roundWinnerId: string | null = null;
     if (session.winner && session.winner !== 'draw') {
         const winnerId = session.players[session.winner as 'X' | 'O'];
         if (winnerId) {
             session.roundWins[winnerId] = (session.roundWins[winnerId] || 0) + 1;
             roundWinnerId = winnerId;
-            if (session.roundWins[winnerId] >= ROUND_WIN_TARGET) {
-                matchOver = true;
-                session.matchWinner = winnerId;
-            }
         }
+    }
+
+    // Increment round count (after recording result)
+    // Actually we increment at the end of the function usually, 
+    // but we need to know if this was the last round.
+    // roundIndex is 0-based. So if we just finished round 0, we played 1 round.
+    const roundsPlayed = session.roundIndex + 1;
+
+    let matchOver = false;
+    if (roundsPlayed >= TOTAL_ROUNDS) {
+        matchOver = true;
     }
 
     if (matchOver) {
@@ -465,10 +475,20 @@ function handleRoundEnd(sessionId: string) {
         const winsX = session.roundWins[pX] || 0;
         const winsO = session.roundWins[pO] || 0;
 
-        const calculatePoints = (winnerWins: number, loserWins: number) => {
-            if (loserWins === 0) return 300; // 2-0
-            if (loserWins === 1) return 200; // 2-1
-            return 150; // fallback
+        // Determine match winner
+        if (winsX > winsO) {
+            session.matchWinner = pX;
+        } else if (winsO > winsX) {
+            session.matchWinner = pO;
+        } else {
+            session.matchWinner = null; // Draw match
+        }
+
+        const calculatePoints = (myWins: number, theirWins: number) => {
+            // Example scoring logic
+            if (myWins > theirWins) return 300;
+            if (myWins === theirWins) return 100;
+            return 50;
         };
 
         if (session.matchWinner === pX) {
@@ -476,16 +496,28 @@ function handleRoundEnd(sessionId: string) {
             session.scores[pO] = winsO * 50;
             recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
             recordGameResult(pO, 'tictactoe', 'loss', session.scores[pO]);
-        } else {
+        } else if (session.matchWinner === pO) {
             session.scores[pO] = calculatePoints(winsO, winsX);
             session.scores[pX] = winsX * 50;
             recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
             recordGameResult(pX, 'tictactoe', 'loss', session.scores[pX]);
+        } else {
+            // Draw
+            session.scores[pX] = 100;
+            session.scores[pO] = 100;
+            // Record draw? The recordGameResult type might restrict 'draw'.
+            // Assuming 'win'/'loss'. If draw, strictly neither won.
+            // But maybe we record it as a 'loss' for both or simple game played?
+            // Let's stick to recording it as 'loss' (no win) but with points, or skip recording 'win'.
+            // Actually recordGameResult types: 'win' | 'loss'. 
+            // We can record as loss for both but with points.
+            recordGameResult(pX, 'tictactoe', 'loss', 100);
+            recordGameResult(pO, 'tictactoe', 'loss', 100);
         }
 
         session.status = 'finished';
         session.lastRoundWinner = roundWinnerId;
-        session.roundIndex += 1;
+        // roundIndex is already at max
         return;
     }
 
@@ -493,10 +525,38 @@ function handleRoundEnd(sessionId: string) {
     session.lastRoundWinner = roundWinnerId;
     session.roundIndex += 1;
     session.board = Array(9).fill(null);
-    session.turn = 'X';
+    session.turn = 'X'; // Force X to start every round? Or alternate? 
+    // Standard TT often winners start or alternate.
+    // Let's alternate start based on round index? 
+    // Round 0: X starts. Round 1: O starts?
+    // User didn't specify, keeping 'X' start is simple.
+    // Or simpler: whoever lost previous round starts? 
+    // Let's keep it 'X' starts for now to minimize logic drift.
+
     session.winner = null;
     session.status = 'lobby';
     session.countdown = null;
+    // Keep ready status? Usually reset ready status between rounds.
+    // But for 'auto-start next round' flow, we might want to qualify ready explicitly?
+    // "session.status = lobby" implies waiting for ready.
+    // If we want seamless 3 rounds, maybe 'countdown' immediately?
+    // But users might want a break.
+    // Let's require ready again.
+
+    // Clear ready status
+    // if (session.players.X) session.ready[session.players.X] = false;
+    // if (session.players.O) session.ready[session.players.O] = false;
+    // The existing code was AUTO-setting ready:
+    // if (session.players.X) session.ready[session.players.X] = true;
+    // If we keep auto-ready, it transitions instantly.
+    // Let's keep the existing auto-ready behavior for between-rounds to be fast?
+    // "game one ha 3 rounds ... should be played"
+    // If we make them click ready 3 times, it's fine.
+    // But the previous code had:
+    // if (session.players.X) session.ready[session.players.X] = true;
+    // startCountdown(sessionId);
+    // This effectively loops immediately.
+    // I will keep this "Fast Forward" behavior.
     if (session.players.X) session.ready[session.players.X] = true;
     if (session.players.O) session.ready[session.players.O] = true;
     startCountdown(sessionId);

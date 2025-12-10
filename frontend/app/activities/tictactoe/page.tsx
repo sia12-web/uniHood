@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Gamepad2, Loader2, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Gamepad2, Loader2, Trophy, Users, Check, AlertCircle } from "lucide-react";
 
 import { createTicTacToeSession, getSelf } from "@/app/features/activities/api/client";
 import { useTicTacToeSession } from "@/app/features/activities/hooks/useTicTacToeSession";
@@ -19,9 +19,9 @@ const TicTacToeBoard = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex items-center justify-center py-12 text-slate-500">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        Connecting to board...
+      <div className="flex h-[400px] items-center justify-center text-slate-400">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        <span className="font-medium">Loading game board...</span>
       </div>
     ),
   },
@@ -45,9 +45,11 @@ export default function TicTacToeEntryPage() {
   const [friendId, setFriendId] = useState("");
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
 
-  const { invite, acknowledge } = useTicTacToeInvite();
+  const { acknowledge } = useTicTacToeInvite();
+  // We only initialize the hook when sessionId is available
   const { state, makeMove, restartGame, toggleReady, leave } = useTicTacToeSession(sessionId ?? "");
 
+  // Update player names map from friends list
   useEffect(() => {
     const auth = readAuthUser();
     const names: Record<string, string> = {};
@@ -60,23 +62,31 @@ export default function TicTacToeEntryPage() {
     setPlayerNames((prev) => ({ ...prev, ...names }));
   }, [friends]);
 
+  // Read session ID from URL query parameter (for game invite links)
   useEffect(() => {
-    if (!wantsInviteFocus) {
-      return;
+    const sessionFromUrl = searchParams?.get("session");
+    if (sessionFromUrl && !sessionId) {
+      setSessionId(sessionFromUrl);
+      acknowledge(sessionFromUrl);
     }
+  }, [searchParams, sessionId, acknowledge]);
+
+  // Handle invite focus (from dashboard click)
+  useEffect(() => {
+    if (!wantsInviteFocus) return;
     inviteCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     setInviteFocusPulse(true);
     const timer = window.setTimeout(() => setInviteFocusPulse(false), 2200);
     router.replace("/activities/tictactoe", { scroll: false });
-    return () => {
-      window.clearTimeout(timer);
-    };
+    return () => window.clearTimeout(timer);
   }, [router, wantsInviteFocus]);
 
+  // Get self ID
   useEffect(() => {
     setSelfId(getSelf());
   }, []);
 
+  // Load friends
   useEffect(() => {
     let active = true;
     async function loadFriends() {
@@ -129,255 +139,208 @@ export default function TicTacToeEntryPage() {
     }
   }, [friendId]);
 
-  const handleAcceptInvite = useCallback(() => {
-    if (!invite) return;
-    setSessionId(invite.sessionId);
-    acknowledge(invite.sessionId);
-  }, [invite, acknowledge]);
-
   return (
     <main className="min-h-screen bg-slate-50 pb-20">
+      {/* Hero Section */}
       <div className="relative overflow-hidden bg-[#040617] pb-12 pt-16 text-white shadow-xl lg:pt-24">
-        <div className="absolute inset-0 bg-[url('/activities/tictactoe.svg')] bg-cover bg-center opacity-30" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#040617]" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-6">
+
+        <div className="relative mx-auto max-w-5xl px-6">
           <Link
             href="/"
-            className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+            className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to dashboard
+            Back to Dashboard
           </Link>
+
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-sky-200 ring-1 ring-sky-500/40">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-cyan-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300 ring-1 ring-cyan-500/50">
                 <Gamepad2 className="h-3 w-3" />
-                Classic duel
+                Live Strategy
               </div>
-              <div>
-                <p className="text-sm uppercase tracking-[0.5em] text-white/60">Mini activities</p>
-                <h1 className="text-3xl font-semibold text-white md:text-4xl">Tic-Tac-Toe Arena</h1>
-              </div>
-              <p className="text-lg text-slate-200 md:text-xl">
-                Spin up a board, send the invite, and go head-to-head for leaderboard points.
+              <h1 className="text-4xl font-black tracking-tight text-white md:text-5xl lg:text-6xl">
+                Tic Tac Toe
+              </h1>
+              <p className="mt-4 text-lg text-slate-400 md:text-xl">
+                The classic game of X&apos;s and O&apos;s. Challenge a friend to a strategic battle. First to 2 wins takes the crown.
               </p>
             </div>
-            <div className="flex gap-8 text-center text-sm uppercase tracking-wider text-slate-300">
+
+            <div className="flex gap-8 text-center">
               <div>
-                <div className="text-3xl font-bold text-white">2</div>
-                <div>Players</div>
+                <div className="text-3xl font-bold text-white">1v1</div>
+                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-emerald-300">Live</div>
-                <div>Sync</div>
+                <div className="text-3xl font-bold text-cyan-400">3</div>
+                <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Rounds</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-6xl px-6">
-        <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-          {/* Create Duel Card */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg ring-1 ring-slate-900/5">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Start a New Match</h2>
-                <p className="text-sm text-slate-500">Select a friend to challenge instantly.</p>
-              </div>
-              <div className="rounded-full bg-indigo-50 p-3 text-indigo-600">
-                <Trophy className="h-6 w-6" />
+      <div className="mx-auto mt-8 max-w-5xl px-6">
+        {sessionId ? (
+          // Active Game View (Full Width Card)
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5">
+            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-2 w-2">
+                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
+                  </span>
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-xs uppercase tracking-wider text-slate-500">Live Session</span>
+                    <span className="font-mono text-[10px] text-slate-400">{sessionId}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {sessionId ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner ring-1 ring-slate-900/5">
-                <div className="flex items-center justify-center border-b border-slate-100 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-2 w-2">
-                      <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                    </span>
-                    Session active
-                  </div>
-                </div>
-                <div className="p-4 sm:p-6">
-                  <TicTacToeBoard state={state} onMove={makeMove} onRestart={restartGame} onToggleReady={toggleReady} onLeave={leave} playerNames={playerNames} />
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-700">Select Opponent</span>
-                    <span className="text-slate-400">You: {selfId || "Unknown"}</span>
-                  </div>
+            <div className="p-6 md:p-8">
+              <TicTacToeBoard
+                state={state}
+                onMove={makeMove}
+                onRestart={restartGame}
+                onToggleReady={() => toggleReady(!state.ready?.[selfId ?? ""])}
+                onLeave={leave}
+                playerNames={playerNames}
+              />
+            </div>
+          </div>
+        ) : (
+          // Lobby / Create View
+          <div className="grid gap-8 lg:grid-cols-[1fr_350px]">
+            <div className="space-y-8">
+              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-slate-900">
+                  <Users className="h-5 w-5 text-cyan-600" />
+                  Invite a Friend
+                </h2>
 
-                  <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                    {friendsLoading ? (
-                      <div className="flex items-center justify-center py-8 text-slate-500">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading friends...
-                      </div>
-                    ) : friendsError ? (
-                      <div className="p-4 text-center text-sm text-rose-600">{friendsError}</div>
-                    ) : friends.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <Users className="mb-2 h-8 w-8 text-slate-300" />
-                        <p className="text-sm text-slate-500">No friends available yet.</p>
-                        <Link href="/friends" className="mt-2 text-xs font-medium text-indigo-600 hover:underline">
-                          Add friends first
-                        </Link>
+                {friendsLoading ? (
+                  <div className="flex h-40 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+                  </div>
+                ) : friendsError ? (
+                  <div className="rounded-xl bg-rose-50 p-6 text-center text-sm text-rose-600">
+                    <AlertCircle className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                    {friendsError}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {friends.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
+                        No friends online right now.
                       </div>
                     ) : (
-                      <div className="space-y-1">
-                        {friends.map((friend) => {
-                          const label = friend.friend_display_name || friend.friend_handle || friend.friend_id;
-                          const isSelected = friendId === friend.friend_id;
-                          return (
-                            <label
-                              key={friend.friend_id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${isSelected
-                                ? "bg-white shadow-md ring-1 ring-indigo-500"
-                                : "hover:bg-white hover:shadow-sm"
-                                }`}
-                            >
-                              <input
-                                type="radio"
-                                name="friend"
-                                value={friend.friend_id}
-                                checked={isSelected}
-                                onChange={() => setFriendId(friend.friend_id)}
-                                className="sr-only"
-                              />
-                              <div className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-indigo-600 bg-indigo-600" : "border-slate-300"}`}>
-                                {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {friends.map((friend) => (
+                          <button
+                            key={friend.friend_id}
+                            onClick={() => setFriendId(friend.friend_id)}
+                            className={`group relative flex items-center gap-4 rounded-xl border p-4 text-left transition-all hover:shadow-md ${friendId === friend.friend_id
+                              ? "border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500"
+                              : "border-slate-200 hover:border-cyan-300 hover:bg-slate-50"
+                              }`}
+                          >
+                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold transition-colors ${friendId === friend.friend_id ? "bg-cyan-100 text-cyan-700" : "bg-slate-100 text-slate-500 group-hover:bg-cyan-50 group-hover:text-cyan-600"
+                              }`}>
+                              {(friend.friend_display_name?.[0] || friend.friend_handle?.[0] || "?").toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-bold text-slate-900">
+                                {friend.friend_display_name || friend.friend_handle}
                               </div>
-                              <div>
-                                <div className={`font-medium ${isSelected ? "text-indigo-900" : "text-slate-700"}`}>{label}</div>
-                                {friend.friend_handle && (
-                                  <div className="text-xs text-slate-500">@{friend.friend_handle}</div>
-                                )}
+                              {friend.friend_display_name && (
+                                <div className="truncate text-xs font-medium text-slate-500">@{friend.friend_handle}</div>
+                              )}
+                            </div>
+                            {friendId === friend.friend_id && (
+                              <div className="absolute right-3 top-3 rounded-full bg-cyan-500 p-1 text-white shadow-sm">
+                                <Check className="h-3 w-3" />
                               </div>
-                            </label>
-                          );
-                        })}
+                            )}
+                          </button>
+                        ))}
                       </div>
                     )}
-                  </div>
-                </div>
 
-                {createError && (
-                  <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-600">
-                    {createError}
+                    <div className="border-t border-slate-100 pt-6">
+                      <button
+                        onClick={handleCreate}
+                        disabled={creating || !friendId}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-slate-900/10 transition-all hover:bg-slate-800 hover:shadow-slate-900/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                      >
+                        {creating ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Creating Session...
+                          </>
+                        ) : (
+                          <>
+                            Start Duel
+                            <div className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white/80">
+                              PRO
+                            </div>
+                          </>
+                        )}
+                      </button>
+                      {createError && (
+                        <p className="mt-3 text-center text-sm font-medium text-rose-500">{createError}</p>
+                      )}
+                    </div>
                   </div>
                 )}
+              </div>
+            </div>
 
-                <button
-                  type="submit"
-                  disabled={creating || !friendId}
-                  className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-indigo-600 px-8 py-4 font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    {creating ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Spawning arena...
-                      </>
-                    ) : (
-                      <>
-                        Create Match
-                        <Gamepad2 className="h-5 w-5 transition-transform group-hover:scale-110" />
-                      </>
-                    )}
-                  </span>
-                </button>
-              </form>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <div 
-              ref={inviteCardRef}
-              className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 border border-slate-200 transition-all duration-1000 ${
-                inviteFocusPulse ? "ring-4 ring-indigo-500/50 shadow-indigo-500/20" : ""
-              }`}
-            >
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Invite Inbox</h2>
-                  <p className="text-sm text-slate-500">Incoming matches appear here.</p>
+            <div className="flex flex-col gap-6">
+              <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-xl">
+                <div className="mb-6 flex items-center gap-2 text-cyan-400">
+                  <Trophy className="h-5 w-5" />
+                  <span className="font-bold uppercase tracking-wider">Your Stats</span>
                 </div>
-                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
-                  <Users className="h-6 w-6" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm transition-colors hover:bg-white/15">
+                    <div className="text-3xl font-black">0</div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Wins</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm transition-colors hover:bg-white/15">
+                    <div className="text-3xl font-black">0</div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Played</div>
+                  </div>
                 </div>
               </div>
 
-              {invite ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-indigo-200 bg-indigo-50 py-8 text-center">
-                  <div className="rounded-full bg-indigo-100 p-3">
-                    <Gamepad2 className="h-6 w-6 text-indigo-600" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-indigo-900">
-                    Duel request from {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "a friend"}
-                  </p>
-                  <button
-                    onClick={handleAcceptInvite}
-                    className="mt-4 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-                  >
-                    Accept Challenge
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center">
-                  <div className="rounded-full bg-slate-100 p-3">
-                    <Users className="h-6 w-6 text-slate-400" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-slate-900">No pending invites</p>
-                  <p className="mt-1 text-xs text-slate-500">Friends will drop their matches here soon.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-lg">
-              <h3 className="font-bold text-white">How invites work</h3>
-              <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                <li className="flex gap-3">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span>
-                  <span>Host picks a friend and starts a match.</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span>
-                  <span>An invite pops into this inbox for that friend.</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span>
-                  <span>They accept to join instantly as Player O.</span>
-                </li>
-              </ul>
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="mb-4 font-bold text-slate-900">How to Play</h3>
+                <ul className="space-y-3 text-sm text-slate-600">
+                  <li className="flex gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">1</span>
+                    <span>Select a friend from the list to challenge them.</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">2</span>
+                    <span>Play a series of Tic Tac Toe games.</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">3</span>
+                    <span>First player to win 2 rounds wins the match!</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-
-        <section className="mt-8 rounded-3xl bg-slate-900 p-8 text-white shadow-xl">
-          <p className="text-xs uppercase tracking-[0.5em] text-white/50">How it works</p>
-          <h3 className="mt-2 text-2xl font-semibold">Match flow</h3>
-          <ul className="mt-6 grid gap-4 text-sm text-slate-200 md:grid-cols-3">
-            <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.6em] text-white/60">1</p>
-              <p className="mt-2 text-base font-medium text-white">Both players press Ready in the lobby.</p>
-            </li>
-            <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.6em] text-white/60">2</p>
-              <p className="mt-2 text-base font-medium text-white">Countdown hits 0, the board unlocks, and turns alternate automatically.</p>
-            </li>
-            <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.6em] text-white/60">3</p>
-              <p className="mt-2 text-base font-medium text-white">Winner claims the round and scores update on the leaderboard.</p>
-            </li>
-          </ul>
-        </section>
+        )}
       </div>
+
+      <div ref={inviteCardRef} className={`transition-all duration-500 ${inviteFocusPulse ? "scale-105 ring-4 ring-cyan-400" : ""}`} />
     </main>
   );
 }

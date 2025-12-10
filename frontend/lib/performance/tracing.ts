@@ -84,14 +84,14 @@ export function parseTraceparent(header: string): TraceContext | null {
   const match = header.match(
     /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/i
   );
-  
+
   if (!match) return null;
-  
+
   const [, version, traceId, spanId, flags] = match;
-  
+
   // Only support version 00 for now
   if (version !== '00') return null;
-  
+
   return {
     traceId,
     spanId,
@@ -113,20 +113,19 @@ export function formatBaggage(baggage: Record<string, string>): string {
  */
 export function parseBaggage(header: string): Record<string, string> {
   const baggage: Record<string, string> = {};
-  
+
   for (const pair of header.split(',')) {
     const [key, value] = pair.split('=').map((s) => s.trim());
     if (key && value) {
       baggage[decodeURIComponent(key)] = decodeURIComponent(value);
     }
   }
-  
+
   return baggage;
 }
 
 // ===== TRACE CONTEXT STORAGE =====
 
-const TRACE_STORAGE_KEY = 'divan_trace_context';
 const SESSION_STORAGE_KEY = 'divan_session_trace';
 
 /**
@@ -136,7 +135,7 @@ export function getPageTraceContext(): TraceContext {
   if (typeof window === 'undefined') {
     return createTraceContext();
   }
-  
+
   // Try to get existing context from session
   try {
     const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -146,18 +145,18 @@ export function getPageTraceContext(): TraceContext {
   } catch {
     // Ignore storage errors
   }
-  
+
   // Create new context with sampling decision
   const sampled = shouldSample();
   const ctx = createTraceContext(sampled);
-  
+
   // Store in session
   try {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(ctx));
   } catch {
     // Ignore storage errors
   }
-  
+
   return ctx;
 }
 
@@ -210,22 +209,22 @@ export function shouldSample(): boolean {
  */
 export function getTraceHeaders(ctx?: TraceContext): Record<string, string> {
   const context = ctx || createRequestSpan();
-  
+
   const headers: Record<string, string> = {
     'traceparent': formatTraceparent(context),
     'x-trace-id': context.traceId,
     'x-span-id': context.spanId,
     'x-request-id': `${context.traceId.slice(0, 8)}-${Date.now().toString(36)}`,
   };
-  
+
   if (context.parentSpanId) {
     headers['x-parent-span-id'] = context.parentSpanId;
   }
-  
+
   if (context.baggage && Object.keys(context.baggage).length > 0) {
     headers['baggage'] = formatBaggage(context.baggage);
   }
-  
+
   return headers;
 }
 
@@ -234,7 +233,7 @@ export function getTraceHeaders(ctx?: TraceContext): Record<string, string> {
  */
 export function extractTraceFromResponse(headers: Headers): Partial<TraceContext> {
   const result: Partial<TraceContext> = {};
-  
+
   const traceparent = headers.get('traceparent');
   if (traceparent) {
     const parsed = parseTraceparent(traceparent);
@@ -242,13 +241,13 @@ export function extractTraceFromResponse(headers: Headers): Partial<TraceContext
       Object.assign(result, parsed);
     }
   }
-  
+
   // Also check custom headers
   const traceId = headers.get('x-trace-id');
   const spanId = headers.get('x-span-id');
-  
+
   if (traceId) result.traceId = traceId;
   if (spanId) result.spanId = spanId;
-  
+
   return result;
 }

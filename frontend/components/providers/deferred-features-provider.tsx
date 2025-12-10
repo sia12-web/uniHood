@@ -24,7 +24,6 @@ import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
 import { useFriendAcceptanceIndicator } from "@/hooks/social/use-friend-acceptance-indicator";
 import { useChatUnreadIndicator } from "@/hooks/chat/use-chat-unread-indicator";
 import { useChatRoster, type ChatRosterEntry } from "@/hooks/chat/use-chat-roster";
-import { usePresence } from "@/hooks/presence/use-presence";
 
 // Types for the context values
 export type DeferredFeaturesContextType = {
@@ -62,14 +61,9 @@ function HeavyFeaturesLoader({ children }: { children: ReactNode }) {
   const { hasNotification: hasFriendAcceptanceNotification } = useFriendAcceptanceIndicator();
   const { totalUnread: chatUnreadCount } = useChatUnreadIndicator();
   const { entries: chatRosterEntries, loading: chatRosterLoading } = useChatRoster();
-  
-  // We can't call usePresence conditionally, so we provide a function instead
-  const [presenceCache, setPresenceCache] = useState<Record<string, Record<string, "online" | "away" | "offline">>>({});
-  
-  const getPresence = (peerIds: string[]) => {
-    const key = peerIds.sort().join(",");
-    return presenceCache[key] ?? {};
-  };
+
+  // Stub for presence - feature not currently used
+  const getPresence = () => ({});
 
   const value: DeferredFeaturesContextType = {
     isReady: true,
@@ -89,10 +83,10 @@ function HeavyFeaturesLoader({ children }: { children: ReactNode }) {
 }
 
 // Wrapper that delays mounting of heavy features
-export function DeferredFeaturesProvider({ 
+export function DeferredFeaturesProvider({
   children,
   delayMs = 50,
-}: { 
+}: {
   children: ReactNode;
   delayMs?: number;
 }) {

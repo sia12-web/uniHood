@@ -113,6 +113,7 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
   if (typeof window === 'undefined') return;
 
   // Configure privacy settings
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { configurePrivacy, loadConsent, setConsent } = require('./privacy');
   configurePrivacy({
     ...privacy,
@@ -124,7 +125,7 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
       ...privacy.sampling,
     },
   });
-  
+
   // Load existing consent or assume consent for testing
   if (assumeConsent) {
     setConsent(true);
@@ -133,10 +134,12 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
   }
 
   // Configure trace sampling to match
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { setSampleRate: setTraceSampleRate } = require('./tracing');
   setTraceSampleRate(sampleRate);
 
   // Initialize Web Vitals
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { initWebVitals } = require('./web-vitals-reporter');
   const vitals = initWebVitals({
     debug,
@@ -147,6 +150,7 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
 
   // Instrument fetch if requested
   if (instrumentFetch) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createInstrumentedFetch } = require('./api-interceptor');
     const originalFetch = window.fetch.bind(window);
     window.fetch = createInstrumentedFetch(originalFetch);
@@ -154,11 +158,13 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
 
   // Set up API budget checking
   if (apiBudgets.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createBudgetChecker } = require('./api-interceptor');
     createBudgetChecker(apiBudgets);
   }
-  
+
   // Set up periodic cleanup of expired metrics
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { purgeExpiredMetrics } = require('./privacy');
   const cleanupInterval = setInterval(() => {
     const purged = purgeExpiredMetrics();
@@ -169,6 +175,7 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
 
   // Log initialization
   if (debug) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getPageTraceContext } = require('./tracing');
     const traceCtx = getPageTraceContext();
     console.log('📊 Performance monitoring initialized', {
@@ -192,16 +199,16 @@ export function initPerformanceMonitoring(config: PerformanceConfig = {}) {
 export const DEFAULT_API_BUDGETS: import('./api-interceptor').APIBudget[] = [
   // Auth endpoints - should be fast
   { endpoint: /\/auth\//, maxLatencyMs: 200 },
-  
+
   // Chat messages - real-time feel
   { endpoint: /\/chat\/messages/, maxLatencyMs: 150 },
-  
+
   // User profile - moderate
   { endpoint: /\/users\//, maxLatencyMs: 300 },
-  
+
   // Discovery/search - can be slower
   { endpoint: /\/discover/, maxLatencyMs: 500 },
-  
+
   // Default for all other endpoints
   { endpoint: /.*/, maxLatencyMs: 400, maxPayloadBytes: 1024 * 100 }, // 100KB
 ];

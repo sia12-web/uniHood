@@ -105,11 +105,13 @@ export function joinQuickTrivia(sessionId: string, userId: string): TriviaSessio
     const existing = session.participants.find((p) => p.userId === userId);
     if (existing) {
         existing.joined = true;
-        existing.ready = true;
+        // Don't auto-ready - user must click Ready button
     } else {
-        session.participants.push({ userId, joined: true, ready: true });
+        // New participant - joined but not ready
+        session.participants.push({ userId, joined: true, ready: false });
     }
-    session.lobbyReady = session.participants.filter((p) => p.joined).length >= 2;
+    // Lobby is ready when at least 2 participants are ready
+    session.lobbyReady = session.participants.filter((p) => p.ready).length >= 2;
     if (session.status === 'pending' && session.lobbyReady) {
         startTriviaCountdown(sessionId);
     }

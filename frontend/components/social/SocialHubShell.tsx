@@ -50,8 +50,8 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       href={link.href}
       onClick={() => setMobileNavOpen(false)}
       className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${activeMap[link.href]
-          ? "bg-midnight text-white shadow-soft"
-          : "text-navy hover:bg-warm-sand/90 hover:text-midnight"
+        ? "bg-midnight text-white shadow-soft"
+        : "text-navy hover:bg-warm-sand/90 hover:text-midnight"
         }`}
     >
       {link.label}
@@ -63,8 +63,8 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       key={link.href}
       href={link.href}
       className={`rounded-full px-3 py-2 text-sm font-medium transition ${activeMap[link.href]
-          ? "bg-midnight text-white shadow-soft"
-          : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
+        ? "bg-midnight text-white shadow-soft"
+        : "text-navy hover:bg-warm-sand/80 hover:text-midnight"
         }`}
     >
       {link.label}
@@ -103,7 +103,7 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       <aside className="relative hidden w-full max-w-xs shrink-0 flex-col gap-6 rounded-3xl border border-warm-sand bg-glass p-6 shadow-soft md:flex">
         <header className="flex flex-col items-center gap-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <BrandLogo withWordmark={false} className="text-navy" logoClassName="h-12 w-12" />
+            <BrandLogo withWordmark={false} className="text-navy" logoClassName="h-[46px] w-[46px]" />
             <div className="flex justify-center w-full">
               <CampusLogoBadge campusId={authUser?.campusId} />
             </div>

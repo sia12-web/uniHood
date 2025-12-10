@@ -9,6 +9,6 @@
   <circle cx="180" cy="180" r="120" fill="#fff" fill-opacity="0.15" />
   <circle cx="350" cy="160" r="90" fill="#fff" fill-opacity="0.10" />
   <circle cx="520" cy="180" r="110" fill="#fff" fill-opacity="0.08" />
-  <text x="80" y="320" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" fill="#ffffff">Quick Trivia</text>
-  <text x="80" y="380" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="22" fill="#f0e9ff">Rapid-fire questions. Tie-break speed.</text>
+  <text x="80" y="320" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="64" font-weight="800" fill="#ffffff">Quick Trivia</text>
+  <text x="80" y="390" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="28" font-weight="500" fill="#ffffff" fill-opacity="0.9">Rapid-fire questions. Tie-break speed.</text>
 </svg>

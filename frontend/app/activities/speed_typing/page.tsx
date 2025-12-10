@@ -154,7 +154,7 @@ function SpeedTypingEntryPageContent() {
                 Speed <span className="text-emerald-400">Typing</span>
               </h1>
               <p className="text-lg leading-8 text-slate-300">
-                Challenge a friend to a real-time typing race. 10-second countdown, then prove who has the fastest fingers on campus.
+                Challenge a friend to a real-time typing race. 5-second countdown, then prove who has the fastest fingers on campus.
               </p>
 
               <div className="flex gap-8 pt-4">
@@ -183,7 +183,7 @@ function SpeedTypingEntryPageContent() {
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">2</div>
-                    <p className="text-sm text-slate-300">Wait for the <span className="font-bold text-white">10s countdown</span>.</p>
+                    <p className="text-sm text-slate-300">Wait for the <span className="font-bold text-white">5s countdown</span>.</p>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">3</div>

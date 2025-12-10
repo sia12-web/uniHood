@@ -1,23 +1,24 @@
-<svg width="640" height="240" viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
   <defs>
-    <linearGradient id="rpsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#9b8eff"/>
-      <stop offset="45%" stop-color="#7c8bff"/>
-      <stop offset="100%" stop-color="#53b7ff"/>
+    <linearGradient id="rpsGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="100%" stop-color="#fb7185"/>
     </linearGradient>
-    <filter id="rpsBlur" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="25" />
-    </filter>
   </defs>
-  <rect width="640" height="240" rx="24" fill="url(#rpsGradient)" />
-  <circle cx="160" cy="60" r="90" fill="#ffffff" opacity="0.08" filter="url(#rpsBlur)" />
-  <circle cx="520" cy="180" r="110" fill="#ffffff" opacity="0.08" filter="url(#rpsBlur)" />
-  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.6">
-    <path d="M120 110c40-60 100-60 140 0" />
-    <path d="M340 70c30 30 30 70 0 100" />
-    <path d="M460 120c40-20 80-10 120 30" />
+  <rect width="1200" height="600" fill="url(#rpsGrad)"/>
+  <!-- Decorative circles -->
+  <circle cx="200" cy="150" r="100" fill="#fff" fill-opacity="0.12" />
+  <circle cx="380" cy="180" r="80" fill="#fff" fill-opacity="0.08" />
+  <circle cx="1000" cy="400" r="120" fill="#fff" fill-opacity="0.10" />
+  <!-- Hand icons (rock, paper, scissors) -->
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.25">
+    <!-- Rock (fist) -->
+    <circle cx="900" cy="140" r="50" />
+    <!-- Paper (open hand) -->
+    <rect x="1000" y="100" width="80" height="80" rx="8" />
+    <!-- Scissors -->
+    <path d="M1120 100 L1160 160 M1160 100 L1120 160" />
   </g>
-  <text x="320" y="200" fill="#ffffff" font-size="28" font-family="Inter, system-ui" font-weight="600" opacity="0.85" text-anchor="middle">
-    Rock · Paper · Scissors
-  </text>
+  <text x="80" y="320" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="64" font-weight="800" fill="#ffffff">Rock Paper Scissors</text>
+  <text x="80" y="390" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="28" font-weight="500" fill="#ffffff" fill-opacity="0.9">Best of 5 showdown. Classic duel.</text>
 </svg>

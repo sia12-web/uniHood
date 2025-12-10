@@ -116,6 +116,12 @@ export function useTypingDuelInvite(options?: Options) {
             return false;
           }
 
+          // Filter out stale sessions (> 30 mins old)
+          if (session.createdAt) {
+             const age = Date.now() - session.createdAt;
+             if (age > 30 * 60 * 1000) return false;
+          }
+
           return true;
         });
 

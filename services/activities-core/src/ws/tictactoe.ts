@@ -98,6 +98,7 @@ export function listSessions(): Array<{
             lobbyReady: hasBothReady,
             creatorUserId: session.creatorUserId || 'anonymous',
             participants,
+            createdAt: session.createdAt,
         };
     });
 }

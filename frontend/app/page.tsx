@@ -1157,8 +1157,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex flex-1 flex-col gap-3 px-5 py-5">
                       <div>
-                        <h3 className="text-lg font-semibold text-white">{game.title}</h3>
-                        <p className="mt-1 text-sm text-white/70">{game.description}</p>
+                        <p className="text-sm text-white/70">{game.description}</p>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-white/80">
                         <span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 font-semibold text-white">You</span>
@@ -1169,7 +1168,7 @@ export default function HomePage() {
                         </span>
                       </div>
                       <div className="pt-1 flex gap-2">
-                        <span className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#ff5f72] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#ff5f72]/30 transition group-hover:bg-[#ff4b61]">
+                        <span className={`inline-flex flex-1 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg transition ${highlight ? "bg-emerald-500 shadow-emerald-500/30 group-hover:bg-emerald-600" : "bg-[#ff5f72] shadow-[#ff5f72]/30 group-hover:bg-[#ff4b61]"}`}>
                           {highlight ? "Join pending session" : "Open game window"}
                         </span>
                         {highlight && (
@@ -1219,13 +1218,13 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
             <BrandLogo
               className="flex-shrink-0"
-              logoClassName="!h-10 w-auto"
+              logoClassName="!h-14 w-auto"
               backgroundTone="transparent"
               logoWidth={120}
               logoHeight={120}
               asLink={false}
             />
-            <span className="h-10 w-px flex-shrink-0 bg-rose-200" aria-hidden />
+            <span className="h-14 w-px flex-shrink-0 bg-rose-200" aria-hidden />
             <div className="flex flex-shrink-0 items-center">
               <Image
                 src="/university-logos/mcgill.svg"

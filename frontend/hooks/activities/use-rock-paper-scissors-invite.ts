@@ -89,6 +89,13 @@ export function useRockPaperScissorsInvite(options?: Options) {
           if (summary.creatorUserId === selfId) return false;
           if (!summary.participants.some((entry) => entry.userId === selfId)) return false;
           if (summary.expiresAt && summary.expiresAt <= Date.now()) return false;
+
+          // Filter out stale sessions (> 30 mins old)
+          if (summary.createdAt) {
+             const age = Date.now() - summary.createdAt;
+             if (age > 30 * 60 * 1000) return false;
+          }
+
           const opponentId = pickOpponent(summary, selfId);
           if (!opponentId) return false;
           if (options?.peerUserId && opponentId !== options.peerUserId) return false;

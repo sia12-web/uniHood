@@ -540,6 +540,7 @@ export interface SpeedTypingLobbySummary {
   lobbyReady: boolean;
   creatorUserId: string;
   participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  createdAt?: number;
 }
 
 export interface TicTacToeLobbySummary {
@@ -550,6 +551,7 @@ export interface TicTacToeLobbySummary {
   lobbyReady: boolean;
   creatorUserId: string;
   participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
+  createdAt?: number;
 }
 
 export interface QuickTriviaCountdown {
@@ -569,6 +571,7 @@ export interface QuickTriviaLobbySummary {
   creatorUserId: string;
   participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
   countdown?: QuickTriviaCountdown;
+  createdAt?: number;
 }
 
 export interface RockPaperScissorsCountdown {
@@ -588,6 +591,7 @@ export interface RockPaperScissorsLobbySummary {
   participants: Array<{ userId: string; joined: boolean; ready: boolean }>;
   countdown?: RockPaperScissorsCountdown;
   expiresAt?: number;
+  createdAt?: number;
 }
 
 export interface StoryBuilderLobbySummary {
@@ -599,6 +603,7 @@ export interface StoryBuilderLobbySummary {
   creatorUserId: string;
   participants: Array<{ userId: string; ready: boolean; joined: boolean; role?: 'boy' | 'girl' }>;
   countdown?: { startedAt: number; durationMs: number; endsAt: number } | null;
+  createdAt?: number;
 }
 
 export async function listSpeedTypingSessions(status: 'pending' | 'running' | 'ended' | 'all' = 'pending'): Promise<SpeedTypingLobbySummary[]> {

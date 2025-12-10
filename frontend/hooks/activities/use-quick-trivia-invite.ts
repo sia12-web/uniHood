@@ -98,6 +98,13 @@ export function useQuickTriviaInvite(options?: Options) {
           if (!opponentId) return false;
           if (options?.peerUserId && opponentId !== options.peerUserId) return false;
           if (handledRef.current.has(summary.id)) return false;
+
+          // Filter out stale sessions (> 30 mins old)
+          if (summary.createdAt) {
+             const age = Date.now() - summary.createdAt;
+             if (age > 30 * 60 * 1000) return false;
+          }
+
           return true;
         });
 

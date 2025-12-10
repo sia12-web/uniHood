@@ -73,6 +73,57 @@ const genericSessions: Record<string, GenericSession> = {};
 const genericSockets: Record<string, Set<WebSocket>> = {};
 const genericUserSockets: Record<string, Map<string, WebSocket>> = {}; // sessionId -> userId -> socket
 const genericCountdowns: Record<string, NodeJS.Timeout> = {}; // Server-side countdown timers
+
+// Rate limiting: track pending sessions per user
+const userPendingSessions: Record<string, Set<string>> = {}; // userId -> Set of sessionIds
+const MAX_PENDING_SESSIONS_PER_USER = 3; // Max concurrent pending sessions per user
+const SESSION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+
+// Session cleanup interval
+let cleanupInterval: NodeJS.Timeout | null = null;
+
+function cleanupExpiredSessions() {
+    const now = Date.now();
+    
+    // Cleanup generic sessions
+    for (const [sessionId, session] of Object.entries(genericSessions)) {
+        if (session.status === 'pending' && now - session.createdAt > SESSION_EXPIRY_MS) {
+            delete genericSessions[sessionId];
+            // Remove from user tracking
+            for (const userId of Object.keys(userPendingSessions)) {
+                userPendingSessions[userId]?.delete(sessionId);
+            }
+        }
+    }
+}
+
+function trackUserSession(userId: string, sessionId: string) {
+    if (!userPendingSessions[userId]) {
+        userPendingSessions[userId] = new Set();
+    }
+    userPendingSessions[userId].add(sessionId);
+}
+
+function untrackUserSession(userId: string, sessionId: string) {
+    userPendingSessions[userId]?.delete(sessionId);
+}
+
+function getUserPendingSessionCount(userId: string): number {
+    // Clean up ended sessions from tracking first
+    const tracked = userPendingSessions[userId];
+    if (!tracked) return 0;
+    
+    // Remove sessions that no longer exist or are not pending
+    for (const sessionId of tracked) {
+        const session = genericSessions[sessionId];
+        if (!session || session.status !== 'pending') {
+            tracked.delete(sessionId);
+        }
+    }
+    
+    return tracked.size;
+}
+
 const GENERIC_COUNTDOWN_MS = 3000;
 const GENERIC_ROUND_DURATION_MS = 30000;
 const RPS_MAX_ROUNDS = 5; // Best of 5 - play all 5 rounds or until someone gets 3 wins
@@ -126,7 +177,7 @@ function startGenericCountdown(sessionId: string, onComplete: () => void) {
 
     session.status = 'countdown';
     session.phase = 'countdown';
-    session.countdownValue = 3; // Start at 3 seconds
+    session.countdownValue = 5; // Start at 5 seconds
 
     // Clear any existing countdown
     if (genericCountdowns[sessionId]) {
@@ -620,18 +671,32 @@ server.register(async function (fastify) {
             ? Array.from(new Set(body?.participants.filter((p): p is string => typeof p === 'string')))
             : [];
 
+        // Rate limiting: check if user has too many pending sessions
+        if (creatorUserId !== 'anonymous') {
+            const pendingCount = getUserPendingSessionCount(creatorUserId);
+            if (pendingCount >= MAX_PENDING_SESSIONS_PER_USER) {
+                return reply.status(429).send({ 
+                    error: 'rate_limit_exceeded', 
+                    message: `You have too many pending game invites (${pendingCount}). Please wait for them to expire or be accepted.` 
+                });
+            }
+        }
+
         if (activityKey === 'tictactoe' || activityKey === 'tic_tac_toe') {
             const sessionId = createTicTacToeSession(creatorUserId, body?.opponentId);
+            trackUserSession(creatorUserId, sessionId);
             return { sessionId };
         }
 
         if (activityKey === 'quick_trivia') {
             const sessionId = createQuickTriviaSession(creatorUserId, participants);
+            trackUserSession(creatorUserId, sessionId);
             return { sessionId };
         }
 
         if (activityKey === 'story_builder') {
             const sessionId = createStoryBuilderSession(creatorUserId, participants, (body as any).sessionId);
+            trackUserSession(creatorUserId, sessionId);
             return { sessionId };
         }
 
@@ -658,6 +723,7 @@ server.register(async function (fastify) {
             scores: {},
             winnerUserId: null,
         };
+        trackUserSession(creatorUserId, sessionId);
         return { sessionId };
     });
 
@@ -692,10 +758,11 @@ server.register(async function (fastify) {
                         lobbyReady: t.lobbyReady,
                         creatorUserId: t.creatorUserId,
                         participants: t.participants,
+                        createdAt: t.createdAt,
                     };
                 }
                 if ((s as any).activityKey === 'quick_trivia') {
-                    const q = s as { sessionId?: string; id?: string; status: string; phase: string; lobbyReady: boolean; creatorUserId: string; participants: Array<{ userId: string; joined: boolean; ready: boolean }>; };
+                    const q = s as { sessionId?: string; id?: string; status: string; phase: string; lobbyReady: boolean; creatorUserId: string; participants: Array<{ userId: string; joined: boolean; ready: boolean }>; createdAt: number; };
                     const resolvedId = q.sessionId ?? q.id ?? '';
                     return {
                         id: resolvedId,
@@ -705,10 +772,11 @@ server.register(async function (fastify) {
                         lobbyReady: q.lobbyReady,
                         creatorUserId: q.creatorUserId,
                         participants: q.participants || [],
+                        createdAt: q.createdAt,
                     };
                 }
                 if ((s as any).activityKey === 'story_builder') {
-                    const sb = s as { id: string; status: string; phase: string; lobbyReady: boolean; creatorUserId: string; participants: Array<{ userId: string; joined: boolean; ready: boolean }>; };
+                    const sb = s as { id: string; status: string; phase: string; lobbyReady: boolean; creatorUserId: string; participants: Array<{ userId: string; joined: boolean; ready: boolean }>; createdAt: number; };
                     return {
                         id: sb.id,
                         activityKey: 'story_builder',
@@ -717,6 +785,7 @@ server.register(async function (fastify) {
                         lobbyReady: sb.lobbyReady,
                         creatorUserId: sb.creatorUserId,
                         participants: sb.participants || [],
+                        createdAt: sb.createdAt,
                     };
                 }
                 const g = s as GenericSession;
@@ -728,6 +797,7 @@ server.register(async function (fastify) {
                     lobbyReady: g.lobbyReady,
                     creatorUserId: g.creatorUserId,
                     participants: g.participants,
+                    createdAt: g.createdAt,
                 };
             }),
         };
@@ -1013,10 +1083,22 @@ const start = async () => {
         const port = parseInt(process.env.PORT || '3001', 10);
         await server.listen({ port, host: '0.0.0.0' });
         console.log(`Server listening on http://localhost:${port}`);
+        
+        // Start session cleanup interval (runs every 5 minutes)
+        cleanupInterval = setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
+        console.log('Session cleanup interval started (every 5 minutes)');
     } catch (err) {
         server.log.error(err);
         process.exit(1);
     }
 };
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+    }
+    server.close();
+});
 
 start();

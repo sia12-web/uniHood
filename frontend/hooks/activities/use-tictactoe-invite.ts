@@ -96,6 +96,12 @@ export function useTicTacToeInvite(options?: Options) {
             return false;
           }
 
+          // Filter out stale sessions (> 30 mins old)
+          if (s.createdAt) {
+             const age = Date.now() - s.createdAt;
+             if (age > 30 * 60 * 1000) return false;
+          }
+
           return true;
         });
 

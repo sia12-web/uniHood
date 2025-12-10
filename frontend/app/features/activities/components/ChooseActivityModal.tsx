@@ -122,7 +122,11 @@ export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage
       // Close the modal
       onClose?.();
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to start game';
+      let message = e instanceof Error ? e.message : 'Failed to start game';
+      // Handle rate limit error
+      if (message.includes('rate_limit') || message.includes('too many pending')) {
+        message = 'You have too many pending game invites. Wait for them to expire (30 min) or be accepted.';
+      }
       setError(message);
     } finally {
       setLoading(null);

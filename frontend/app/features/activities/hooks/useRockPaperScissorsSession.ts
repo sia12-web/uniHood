@@ -180,18 +180,29 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
             }
             if (type === "session.snapshot") {
               const snapshot = payload.payload || {};
+              // Convert countdown value (number) to countdown object
+              const countdownValue = snapshot.countdown;
+              const countdownObj = typeof countdownValue === "number" && countdownValue > 0
+                ? {
+                    startedAt: Date.now(),
+                    durationMs: countdownValue * 1000,
+                    endsAt: Date.now() + countdownValue * 1000,
+                  }
+                : undefined;
               setState((prev) => ({
                 ...prev,
                 phase:
                   snapshot.lobbyPhase ?? snapshot.status === "pending"
                     ? "lobby"
+                    : snapshot.status === "countdown"
+                    ? "countdown"
                     : snapshot.status === "running"
                     ? "running"
                     : snapshot.status === "ended"
                     ? "ended"
                     : prev.phase,
                 presence: snapshot.presence ?? prev.presence,
-                countdown: snapshot.countdown ?? undefined,
+                countdown: countdownObj ?? prev.countdown,
                 scoreboard: snapshot.participants
                   ? snapshot.participants.map((entry: { userId: string; score: number }) => ({
                       userId: entry.userId,

@@ -36,8 +36,12 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
         return resolveName(userId);
     };
 
-    const myPlayerRole = players.X === myRole ? 'X' : players.O === myRole ? 'O' : null;
+    // myRole is 'X', 'O', or 'spectator' from the hook
+    const myPlayerRole = myRole === 'X' || myRole === 'O' ? myRole : null;
     const isSpectator = !myPlayerRole;
+    
+    // Get my userId for ready state lookup
+    const myUserId = myPlayerRole ? players[myPlayerRole] : undefined;
 
     // --- Render Helpers ---
 
@@ -75,7 +79,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                                     <div>
                                         <div className="font-bold text-slate-900">
                                             {p.id ? p.name : "Waiting..."}
-                                            {p.id === myRole && <span className="text-xs font-normal text-slate-500 ml-1">(You)</span>}
+                                            {p.id === myUserId && <span className="text-xs font-normal text-slate-500 ml-1">(You)</span>}
                                         </div>
                                         <div className="text-xs text-slate-500">
                                             {p.id ? (p.ready ? "Ready to play" : "Not ready") : "Waiting for player"}
@@ -102,12 +106,12 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                     {!isSpectator && (
                         <button
                             onClick={onToggleReady}
-                            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${ready[myRole || '']
+                            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${ready[myUserId || '']
                                 ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                 : "bg-slate-900 text-white shadow-lg hover:bg-slate-800"
                                 }`}
                         >
-                            {ready[myRole || ''] ? (
+                            {ready[myUserId || ''] ? (
                                 <>
                                     <XCircle className="h-5 w-5" />
                                     Cancel Ready

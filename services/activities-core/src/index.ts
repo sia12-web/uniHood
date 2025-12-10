@@ -470,19 +470,17 @@ server.register(async function (fastify) {
                                         session.moves = {}; // Clear moves for next round
 
                                         // 3 second delay between rounds to allow frontend to show result
+                                        // Then go directly to running (no countdown between rounds)
                                         setTimeout(() => {
                                             const s = genericSessions[sessionId];
                                             if (!s || s.status === 'ended') return;
 
-                                            startGenericCountdown(sessionId, () => {
-                                                const sess = genericSessions[sessionId];
-                                                if (!sess || sess.status === 'ended') return;
-                                                sess.status = 'running';
-                                                sess.phase = 'running';
-                                                sess.countdownValue = undefined;
-                                                broadcastGenericState(sessionId);
-                                                broadcastGenericRoundStarted(sessionId, sess.currentRound ?? 0);
-                                            });
+                                            // Go directly to running state - no countdown between rounds
+                                            s.status = 'running';
+                                            s.phase = 'running';
+                                            s.countdownValue = undefined;
+                                            broadcastGenericState(sessionId);
+                                            broadcastGenericRoundStarted(sessionId, s.currentRound ?? 0);
                                         }, 3000); // 3 second delay between rounds
                                     }
                                 }

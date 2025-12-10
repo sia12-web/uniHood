@@ -173,8 +173,10 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   );
 
   const renderCountdown = () => {
-    if (!state.countdown) return null;
-    const secondsLeft = Math.max(0, Math.ceil((state.countdown.endsAt - Date.now()) / 1000));
+    // Calculate seconds left from countdown object, or use 3 as default
+    const secondsLeft = state.countdown?.endsAt 
+      ? Math.max(0, Math.ceil((state.countdown.endsAt - Date.now()) / 1000))
+      : 3;
     
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -183,6 +185,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
           <span className="relative text-6xl font-black text-rose-600">{secondsLeft}</span>
         </div>
         <p className="mt-8 text-lg font-medium text-slate-600">Get Ready!</p>
+        <p className="text-sm text-slate-400">Round {(state.currentRound ?? 0) + 1} starting</p>
       </div>
     );
   };

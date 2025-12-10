@@ -243,6 +243,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
             }
 
             if (type === "activity.round.started") {
+              console.log("[RPS Hook] Round started:", payload.payload?.index ?? payload.payload?.round);
               setState((prev) => ({
                 ...prev,
                 phase: "running",
@@ -253,10 +254,12 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                       durationMs: payload.payload.payload.timeLimitMs,
                       endsAt: Date.now() + payload.payload.payload.timeLimitMs,
                     }
-                  : prev.countdown,
+                  : undefined,
                 submittedMove: null,
-                // Keep lastRoundWinner, lastRoundMoves, lastRoundReason so UI can display them
-                // The frontend will clear them via useEffect after the display timeout
+                // Clear last round data when new round starts
+                lastRoundWinner: undefined,
+                lastRoundMoves: undefined,
+                lastRoundReason: undefined,
               }));
               return;
             }

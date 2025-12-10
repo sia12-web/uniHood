@@ -76,50 +76,90 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
 
   // Track which room's history has been fetched to avoid repeated fetches
   const historyFetchedRef = useRef<string | null>(null);
+  const joinedRoomRef = useRef<string | null>(null);
 
-  // Room socket connection logic
+  // Room socket connection logic with retry
   useEffect(() => {
     if (!meetup?.room_id || !meetup.is_joined) return;
 
     const roomId = meetup.room_id;
     let socket: ReturnType<typeof roomsSocket> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
 
-    try {
-      socket = roomsSocket();
-    } catch (err) {
-      console.warn("Socket not ready yet", err);
-      return;
-    }
+    const tryConnect = () => {
+      if (!mounted) return;
+      
+      try {
+        socket = roomsSocket();
+      } catch (err) {
+        console.warn("Socket not ready yet, retrying in 1s", err);
+        retryTimeout = setTimeout(tryConnect, 1000);
+        return;
+      }
 
-    const handleMessage = (msg: RoomMessageDTO) => {
-      if (msg.room_id === roomId) {
-        setMessages((prev) => upsertMessage(prev, msg));
+      const handleMessage = (msg: RoomMessageDTO) => {
+        if (msg.room_id === roomId && mounted) {
+          setMessages((prev) => upsertMessage(prev, msg));
+        }
+      };
+
+      const handleConnect = () => {
+        if (!mounted) return;
+        console.log("Socket connected/reconnected, joining room:", roomId);
+        socket?.emit("room:join", { room_id: roomId });
+        joinedRoomRef.current = roomId;
+      };
+
+      // Register listeners
+      socket.on("room:msg:new", handleMessage);
+      socket.on("connect", handleConnect);
+
+      // If already connected, emit room:join immediately
+      if (socket.connected) {
+        console.log("Socket already connected, joining room:", roomId);
+        socket.emit("room:join", { room_id: roomId });
+        joinedRoomRef.current = roomId;
       }
     };
 
-    const handleConnect = () => {
-      console.log("Socket connected/reconnected, joining room:", roomId);
-      socket?.emit("room:join", { room_id: roomId });
-    };
-
-    // Register listeners first
-    socket.on("room:msg:new", handleMessage);
-    socket.on("connect", handleConnect);
-
-    // If already connected, emit room:join immediately
-    // The socket manager handles connection - don't call socket.connect() directly
-    if (socket.connected) {
-      socket.emit("room:join", { room_id: roomId });
-    }
-    // If not connected, the socket manager will handle reconnection
-    // and the handleConnect listener will fire when connected
+    tryConnect();
 
     return () => {
-      socket?.off("room:msg:new", handleMessage);
-      socket?.off("connect", handleConnect);
-      socket?.emit("room:leave", { room_id: roomId });
+      mounted = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (socket) {
+        socket.off("room:msg:new");
+        socket.off("connect");
+        if (joinedRoomRef.current === roomId) {
+          socket.emit("room:leave", { room_id: roomId });
+          joinedRoomRef.current = null;
+        }
+      }
     };
   }, [meetup?.room_id, meetup?.is_joined]);
+
+  // Re-join room when socket reconnects (status changes to connected)
+  useEffect(() => {
+    if (!meetup?.room_id || !meetup.is_joined) return;
+    if (roomsSocketStatus !== "connected") return;
+
+    const roomId = meetup.room_id;
+    
+    // Only rejoin if we're not already joined to this room
+    if (joinedRoomRef.current === roomId) return;
+
+    try {
+      const socket = roomsSocket();
+      if (socket.connected) {
+        console.log("Socket status connected, rejoining room:", roomId);
+        socket.emit("room:join", { room_id: roomId });
+        joinedRoomRef.current = roomId;
+      }
+    } catch (err) {
+      console.warn("Failed to rejoin room:", err);
+    }
+  }, [roomsSocketStatus, meetup?.room_id, meetup?.is_joined]);
 
   // Fetch history separately - only once per room to avoid overwriting optimistic messages
   useEffect(() => {
@@ -142,7 +182,34 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     }).catch(console.error);
   }, [meetup?.room_id, meetup?.is_joined]);
 
+  // Polling fallback: fetch new messages periodically when socket is not connected
+  // This ensures real-time experience even if socket has issues
+  useEffect(() => {
+    const roomId = meetup?.room_id;
+    if (!roomId || !meetup?.is_joined) return;
 
+    // Poll every 3 seconds when socket is not connected, every 10 seconds when connected (as backup)
+    const pollInterval = roomsSocketStatus !== "connected" ? 3000 : 10000;
+    
+    const pollMessages = async () => {
+      try {
+        const res = await fetchHistory(roomId);
+        setMessages((prev) => {
+          let merged = [...prev];
+          for (const msg of res.items) {
+            merged = upsertMessage(merged, msg);
+          }
+          return merged;
+        });
+      } catch (err) {
+        console.warn("Polling failed:", err);
+      }
+    };
+
+    const interval = setInterval(pollMessages, pollInterval);
+    
+    return () => clearInterval(interval);
+  }, [meetup?.room_id, meetup?.is_joined, roomsSocketStatus]);
 
 
   const handleSendMessage = useCallback(async (payload: RoomMessageSend) => {

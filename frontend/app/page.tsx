@@ -799,14 +799,14 @@ export default function HomePage() {
               <div className="relative z-10 flex gap-4 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
                 {/* Live Peers */}
                 {discoveryPreviewList.map((person) => (
-                  <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px] cursor-pointer group">
+                  <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px]">
                     <div className={`relative h-16 w-16 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300"}`}>
                       <div className="h-full w-full rounded-full bg-white p-1">
                         <div className="h-full w-full rounded-full bg-slate-100 overflow-hidden">
                           <img
                             src={person.imageUrl || ""}
                             alt={person.name}
-                            className="h-full w-full object-cover transition group-hover:scale-110"
+                            className="h-full w-full object-cover"
                           />
                         </div>
                       </div>

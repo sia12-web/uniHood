@@ -188,11 +188,11 @@ export default function TicTacToeEntryPage() {
               </li>
               <li className="flex items-start gap-3">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">2</div>
-                <p className="text-sm text-slate-200">Play a series of Tic Tac Toe games.</p>
+                <p className="text-sm text-slate-200">Both players must <span className="font-bold text-white">Ready Up</span> to start.</p>
               </li>
               <li className="flex items-start gap-3">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">3</div>
-                <p className="text-sm text-slate-200">First to win 2 rounds wins the match!</p>
+                <p className="text-sm text-slate-200">Best of 5 rounds. <span className="font-bold text-white">First to 3 wins!</span></p>
               </li>
             </ul>
           </div>

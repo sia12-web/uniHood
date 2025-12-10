@@ -15,7 +15,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: divan
+      POSTGRES_DB: radius
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -23,7 +23,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d divan" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d radius" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,7 +44,7 @@ services:
       - backend_uploads:/app/app/uploads
     environment:
       REDIS_URL: redis://redis:6379/0
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/divan
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/radius
       PYTHONPATH: /app
       ENVIRONMENT: dev
       SMTP_HOST: mailhog
@@ -84,7 +84,7 @@ services:
       - ./services/activities-core:/app
       - /app/node_modules
     environment:
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/divan
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/radius
       REDIS_URL: redis://redis:6379/0
       PORT: 3001
     ports:

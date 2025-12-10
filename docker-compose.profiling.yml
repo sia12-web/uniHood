@@ -9,7 +9,7 @@
 services:
   prometheus:
     image: prom/prometheus:v2.47.0
-    container_name: divan_prometheus
+    container_name: radius_prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -29,12 +29,12 @@ services:
 
   grafana:
     image: grafana/grafana:10.1.0
-    container_name: divan_grafana
+    container_name: radius_grafana
     ports:
       - "3002:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=divan123
+      - GF_SECURITY_ADMIN_PASSWORD=radius123
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro

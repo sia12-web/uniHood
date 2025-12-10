@@ -1,4 +1,4 @@
-# Production Docker Compose for Divan Platform
+# Production Docker Compose for Radius Platform
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml up -d
@@ -46,14 +46,14 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-divan}
-      POSTGRES_USER: ${POSTGRES_USER:-divan}
+      POSTGRES_DB: ${POSTGRES_DB:-radius}
+      POSTGRES_USER: ${POSTGRES_USER:-radius}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-divan} -d ${POSTGRES_DB:-divan}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radius} -d ${POSTGRES_DB:-radius}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,7 +96,7 @@ services:
     restart: always
     environment:
       # Database
-      POSTGRES_URL: postgresql://${POSTGRES_USER:-divan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-divan}
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-radius}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-radius}
 
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -179,7 +179,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
-      POSTGRES_URL: postgresql://${POSTGRES_USER:-divan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-divan}
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-radius}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-radius}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       PORT: 3001
       NODE_ENV: production
@@ -232,9 +232,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-divan}
+      POSTGRES_USER: ${POSTGRES_USER:-radius}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-divan}
+      POSTGRES_DB: ${POSTGRES_DB:-radius}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}

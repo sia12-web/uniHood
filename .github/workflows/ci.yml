@@ -50,7 +50,7 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: divan
+          POSTGRES_DB: radius
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
@@ -99,13 +99,13 @@ jobs:
 
       - name: Apply DB migrations (optional)
         env:
-          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/divan
-        run: |
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
+        run:
           python scripts/apply_migrations.py
 
       - name: Run pytest
         env:
-          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/divan
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
           REDIS_URL: redis://localhost:6379/0
         run: |
           cd backend

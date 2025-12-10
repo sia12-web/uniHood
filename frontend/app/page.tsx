@@ -96,7 +96,6 @@ const activityPreviews = [
     title: "Speed Typing Duel",
     description: "Race head-to-head to finish the sample with accuracy.",
     href: "/activities/speed_typing",
-    tag: "Live duel",
     image: "/activities/speedtyping.svg",
   },
   {
@@ -104,7 +103,6 @@ const activityPreviews = [
     title: "Quick Trivia",
     description: "Rapid questions. Earn points for correctness and speed.",
     href: "/activities/quick_trivia",
-    tag: "PvP",
     image: "/activities/trivia.svg",
   },
   {
@@ -112,7 +110,6 @@ const activityPreviews = [
     title: "Rock / Paper / Scissors",
     description: "Real-time duel game used in earlier calibration labs.",
     href: "/activities/rock_paper_scissors",
-    tag: "Classic",
     image: "/activities/rps.svg",
   },
   {
@@ -120,7 +117,6 @@ const activityPreviews = [
     title: "Story Builder",
     description: "Collaborative romance story. You write one part, they write the next.",
     href: "/activities/story",
-    tag: "New",
     image: "/activities/story.svg",
   },
   {
@@ -128,7 +124,6 @@ const activityPreviews = [
     title: "Tic Tac Toe",
     description: "The classic game of X's and O's. Challenge a friend.",
     href: "/activities/tictactoe",
-    tag: "Classic",
     image: "/activities/tictactoe.svg",
   },
 ];
@@ -1176,11 +1171,6 @@ export default function HomePage() {
                         <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
                       </span>
                       <span>Preview</span>
-                      {game.tag ? (
-                        <span className="ml-auto rounded-full bg-white/10 px-3 py-0.5 text-[9px] tracking-[0.2em] text-white/80">
-                          {game.tag}
-                        </span>
-                      ) : null}
                     </div>
                     <div
                       className="relative h-48 overflow-hidden"

@@ -215,15 +215,34 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   const handleSendMessage = useCallback(async (payload: RoomMessageSend) => {
     if (!meetup?.room_id || !meetup?.current_user_id) return;
 
+    // Create optimistic message to show immediately
+    const optimisticMessage: RoomMessageDTO = {
+      id: `temp-${payload.client_msg_id}`,
+      room_id: meetup.room_id,
+      seq: Date.now(), // Temporary seq for sorting
+      sender_id: meetup.current_user_id,
+      client_msg_id: payload.client_msg_id,
+      kind: payload.kind,
+      content: payload.content ?? null,
+      media_key: payload.media_key ?? null,
+      media_mime: payload.media_mime ?? null,
+      media_bytes: payload.media_bytes ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    // Add optimistic message immediately for instant feedback
+    setMessages((prev) => upsertMessage(prev, optimisticMessage));
+
     try {
       // Send to server - the socket broadcast will update the UI for everyone
       // including the sender, ensuring consistent message display
       const msg = await sendRoomMessage(meetup.room_id, payload);
-      // Also update immediately from HTTP response to ensure the message shows
-      // even if socket has issues - upsertMessage handles deduplication
+      // Update with real message from server - upsertMessage handles deduplication via client_msg_id
       setMessages((prev) => upsertMessage(prev, msg));
     } catch (err) {
       console.error("Failed to send message", err);
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.client_msg_id !== payload.client_msg_id));
     }
   }, [meetup?.room_id, meetup?.current_user_id]);
 

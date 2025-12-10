@@ -15,12 +15,13 @@ export default function PublicProfileHeader({ profile }: PublicProfileHeaderProp
 	useEffect(() => {
 		if (!profile.campus_id) return;
 		// Fetch campus name from API instead of showing raw UUID
-		fetch(`/api/campus/${profile.campus_id}`)
-			.then((res) => res.ok ? res.json() : null)
-			.then((data) => {
-				if (data?.name) setCampusName(data.name);
-			})
-			.catch(() => {});
+		import("@/lib/identity").then(({ getCampusById }) => {
+			getCampusById(profile.campus_id!)
+				.then((data) => {
+					if (data?.name) setCampusName(data.name);
+				})
+				.catch(() => {});
+		});
 	}, [profile.campus_id]);
 
 	return (

@@ -345,22 +345,25 @@ function SpeedTypingEntryPageContent() {
                 )}
               </div>
 
-              <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-lg">
-                <h3 className="font-bold text-white">How to Play</h3>
-                <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span>
-                    <span>Both players must click <span className="font-bold text-white">Ready</span> to start the countdown.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span>
-                    <span>Wait for the <span className="font-bold text-white">10s countdown</span>. The text will be blurred until it hits zero.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span>
-                    <span>Type the text exactly. First to finish with <span className="font-bold text-white">100% accuracy</span> wins.</span>
-                  </li>
-                </ul>
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-lg">
+                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+                <div className="relative z-10">
+                  <h3 className="font-bold text-white">How to Play</h3>
+                  <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span>
+                      <span>Both players must click <span className="font-bold text-white">Ready</span> to start the countdown.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span>
+                      <span>Wait for the <span className="font-bold text-white">10s countdown</span>. The text will be blurred until it hits zero.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span>
+                      <span>Type the text exactly. First to finish with <span className="font-bold text-white">100% accuracy</span> wins.</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

@@ -144,6 +144,70 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
         );
     };
 
+    // Render round result announcement (similar to RPS)
+    const renderRoundResult = () => {
+        const iWonRound = lastWinnerId === myUserId;
+        const opponentWonRound = lastWinnerId && lastWinnerId !== myUserId;
+        
+        // Get scores
+        const myRoundWins = myUserId ? (roundWins[myUserId] || 0) : 0;
+        const opponentUserId = myPlayerRole === 'X' ? players.O : players.X;
+        const opponentRoundWins = opponentUserId ? (roundWins[opponentUserId] || 0) : 0;
+        const opponentName = opponentUserId ? resolveName(opponentUserId) : "Opponent";
+        
+        // The completed round number (roundIndex is 0-based and has already been incremented)
+        const completedRound = roundNumber > 1 ? roundNumber - 1 : 1;
+        
+        return (
+            <div className="py-8 animate-in fade-in duration-300 max-w-md mx-auto">
+                <div className="mb-6 text-center">
+                    <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Round {completedRound} Result</span>
+                    {isRoundDraw ? (
+                        <>
+                            <div className="mx-auto mt-4 mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                                <span className="text-3xl font-bold">=</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-600">
+                                It&apos;s a Draw!
+                            </h3>
+                        </>
+                    ) : iWonRound ? (
+                        <>
+                            <div className="mx-auto mt-4 mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                                <Trophy className="h-10 w-10" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-emerald-600">
+                                You Won This Round! 🎉
+                            </h3>
+                        </>
+                    ) : (
+                        <>
+                            <div className="mx-auto mt-4 mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                                <XCircle className="h-10 w-10" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-rose-600">
+                                {opponentName} Won This Round
+                            </h3>
+                        </>
+                    )}
+                </div>
+
+                {/* Score display */}
+                <div className="flex items-center justify-center gap-4 text-sm">
+                    <div className={`px-4 py-2 rounded-full ${myRoundWins > opponentRoundWins ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className="font-bold">You: {myRoundWins}</span>
+                    </div>
+                    <span className="text-slate-300">—</span>
+                    <div className={`px-4 py-2 rounded-full ${opponentRoundWins > myRoundWins ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className="font-bold">{opponentName}: {opponentRoundWins}</span>
+                    </div>
+                </div>
+
+                <p className="mt-6 text-sm text-slate-500 animate-pulse text-center">Next round starting soon...</p>
+            </div>
+        );
+    };
+
     // Only show countdown screen for round 1 (initial game start), not during round transitions
     const renderCountdown = () => {
         // For rounds after the first, show the board instead of countdown
@@ -315,59 +379,6 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                         </div>
                     </div>
                 )}
-
-                {/* Round Result Overlay */}
-                <AnimatePresence>
-                    {(lastWinnerId || isRoundDraw) && status === 'lobby' && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-3xl z-10"
-                        >
-                            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center animate-in zoom-in-90 fill-mode-forwards max-w-sm">
-                                {isRoundDraw ? (
-                                    <>
-                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                                            <span className="text-2xl font-bold">=</span>
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-slate-700 mb-2">
-                                            It&apos;s a Draw!
-                                        </h3>
-                                    </>
-                                ) : lastWinnerId === myUserId ? (
-                                    <>
-                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                                            <Trophy className="h-8 w-8" />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-emerald-600 mb-2">
-                                            You Won This Round! 🎉
-                                        </h3>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                                            <XCircle className="h-8 w-8" />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-rose-600 mb-2">
-                                            {resolveName(lastWinnerId)} Won This Round
-                                        </h3>
-                                    </>
-                                )}
-                                <div className="flex items-center justify-center gap-4 mt-4 text-sm">
-                                    <div className={`px-3 py-1 rounded-full ${(roundWins[players.X || ''] || 0) > (roundWins[players.O || ''] || 0) ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-600'}`}>
-                                        <span className="font-bold">{getPlayerName('X')}: {roundWins[players.X || ''] || 0}</span>
-                                    </div>
-                                    <span className="text-slate-300">—</span>
-                                    <div className={`px-3 py-1 rounded-full ${(roundWins[players.O || ''] || 0) > (roundWins[players.X || ''] || 0) ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-600'}`}>
-                                        <span className="font-bold">{getPlayerName('O')}: {roundWins[players.O || ''] || 0}</span>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-slate-500 mt-4 animate-pulse">Next round starting soon...</p>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
 
             {onLeave && (
@@ -381,6 +392,9 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
             )}
         </div>
     );
+
+    // Check if we should show round result (lobby status with lastRoundWinner or draw, and not the initial lobby)
+    const hasRoundResult = status === 'lobby' && (lastWinnerId || isRoundDraw) && (roundIndex !== undefined && roundIndex > 0);
 
     return (
         <div className="w-full">
@@ -402,6 +416,8 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                 renderResults()
             ) : status === 'playing' ? (
                 renderBoard()
+            ) : hasRoundResult ? (
+                renderRoundResult()
             ) : (
                 renderLobby()
             )}

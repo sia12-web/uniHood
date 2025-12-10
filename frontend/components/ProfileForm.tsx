@@ -50,12 +50,13 @@ export default function ProfileForm({
 	// Fetch campus name from API instead of showing raw UUID
 	useEffect(() => {
 		if (!current.campus_id) return;
-		fetch(`/api/campus/${current.campus_id}`)
-			.then((res) => res.ok ? res.json() : null)
-			.then((data) => {
-				if (data?.name) setCampusName(data.name);
-			})
-			.catch(() => {});
+		import("@/lib/identity").then(({ getCampusById }) => {
+			getCampusById(current.campus_id!)
+				.then((data) => {
+					if (data?.name) setCampusName(data.name);
+				})
+				.catch(() => {});
+		});
 	}, [current.campus_id]);
 
 	const syncProfile = useCallback((next: ProfileRecord) => {

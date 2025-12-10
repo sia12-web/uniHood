@@ -370,22 +370,25 @@ export default function TicTacToeEntryPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 font-bold text-slate-900">How to Play</h3>
-                <ul className="space-y-3 text-sm text-slate-600">
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">1</span>
-                    <span>Select a friend from the list to challenge them.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">2</span>
-                    <span>Play a series of Tic Tac Toe games.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">3</span>
-                    <span>First player to win 2 rounds wins the match!</span>
-                  </li>
-                </ul>
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+                <div className="relative z-10">
+                  <h3 className="mb-4 font-bold text-slate-900">How to Play</h3>
+                  <ul className="space-y-3 text-sm text-slate-600">
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">1</span>
+                      <span>Select a friend from the list to challenge them.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">2</span>
+                      <span>Play a series of Tic Tac Toe games.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">3</span>
+                      <span>First player to win 2 rounds wins the match!</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

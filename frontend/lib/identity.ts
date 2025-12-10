@@ -78,6 +78,10 @@ export async function listCampuses(): Promise<CampusRow[]> {
 	return request<CampusRow[]>("/auth/campuses");
 }
 
+export async function getCampusById(campusId: string): Promise<CampusRow> {
+	return request<CampusRow>(`/api/campus/${campusId}`);
+}
+
 export async function registerIdentity(payload: RegisterPayload): Promise<RegisterResponse> {
 	return request<RegisterResponse>("/auth/register", { method: "POST", body: payload });
 }

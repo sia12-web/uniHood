@@ -18,6 +18,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
     const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason, winner } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
+    const showBoard = status === 'playing' || status === 'countdown';
     const opponentLeft = leaveReason === 'opponent_left';
 
     const roundNumber = typeof roundIndex === 'number' ? roundIndex + 1 : 1;
@@ -143,19 +144,26 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
         );
     };
 
-    const renderCountdown = () => (
-        <div className="relative flex flex-col items-center justify-center py-12">
-            <div className="relative z-10 flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-cyan-50">
-                <span className="text-8xl font-black tracking-tighter text-cyan-600">
-                    {countdown}
-                </span>
+    // Only show countdown screen for round 1 (initial game start), not during round transitions
+    const renderCountdown = () => {
+        // For rounds after the first, show the board instead of countdown
+        if (roundNumber > 1) {
+            return renderBoard();
+        }
+        return (
+            <div className="relative flex flex-col items-center justify-center py-12">
+                <div className="relative z-10 flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-cyan-50">
+                    <span className="text-8xl font-black tracking-tighter text-cyan-600">
+                        {countdown}
+                    </span>
+                </div>
+                <div className="mt-8 text-center">
+                    <h3 className="text-2xl font-bold text-slate-900">Get Ready!</h3>
+                    <p className="text-slate-500">Game is starting</p>
+                </div>
             </div>
-            <div className="mt-8 text-center">
-                <h3 className="text-2xl font-bold text-slate-900">Get Ready!</h3>
-                <p className="text-slate-500">Round {roundNumber} is starting</p>
-            </div>
-        </div>
-    );
+        );
+    };
 
     const renderResults = () => (
         <div className="text-center max-w-md mx-auto">
@@ -242,7 +250,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
             <div className="relative">
                 <div className={clsx(
                     "grid grid-cols-3 gap-3 p-4 bg-slate-100 rounded-3xl border border-slate-200 shadow-inner",
-                    !isMyTurn && "opacity-90 grayscale-[0.2]"
+                    (!isMyTurn || status === 'countdown') && "opacity-90 grayscale-[0.2]"
                 )}>
                     {board.map((cell, index) => (
                         <motion.button
@@ -250,7 +258,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                             whileHover={!cell && canPlay ? { scale: 0.98 } : {}}
                             whileTap={!cell && canPlay ? { scale: 0.95 } : {}}
                             onClick={() => canPlay && !cell && onMove(index)}
-                            disabled={!!cell || !canPlay}
+                            disabled={!!cell || !canPlay || status === 'countdown'}
                             className={clsx(
                                 "w-24 h-24 sm:w-32 sm:h-32 rounded-2xl flex items-center justify-center text-6xl relative overflow-hidden transition-all shadow-sm",
                                 "bg-white border-2",
@@ -284,6 +292,14 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                 </div>
 
                 {/* Turn Indicator Overlay */}
+                {status === 'countdown' && (
+                    <div className="mt-6 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-sm font-bold text-amber-700 shadow-sm ring-1 ring-amber-200">
+                            <Timer className="h-4 w-4" />
+                            Starting in {countdown}...
+                        </div>
+                    </div>
+                )}
                 {!isMyTurn && status === 'playing' && (
                     <div className="mt-6 text-center">
                         <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500 animate-pulse">

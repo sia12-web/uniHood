@@ -1196,7 +1196,7 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
             <BrandLogo
               className="flex-shrink-0"
-              logoClassName="!h-14 w-auto"
+              logoClassName="!h-10 w-auto"
               backgroundTone="transparent"
               logoWidth={120}
               logoHeight={120}

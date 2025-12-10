@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
+import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface StoryParagraph {
     userId: string;
@@ -75,6 +76,7 @@ export function useStoryBuilderSession(sessionId: string) {
 
     const wsRef = useRef<WebSocket | null>(null);
     const selfRef = useRef<string>(getSelf());
+    const outcomeRecordedRef = useRef(false);
 
     useEffect(() => {
         if (!sessionId) return;
@@ -167,6 +169,33 @@ export function useStoryBuilderSession(sessionId: string) {
             // Ignore errors, websocket should handle it
         }
     }, [sessionId]);
+
+    // Record game outcome when finished
+    useEffect(() => {
+        if (state.status !== 'ended' || outcomeRecordedRef.current) {
+            return;
+        }
+        outcomeRecordedRef.current = true;
+
+        // Get participants
+        const participants = state.participants.map(p => p.userId);
+        if (participants.length < 1) {
+            return;
+        }
+
+        // Determine winner
+        const winnerId = state.winnerUserId ?? null;
+
+        // Record the outcome
+        recordGameOutcome({
+            userIds: participants,
+            winnerId,
+            gameKind: 'story_builder',
+            durationSeconds: 60, // Default estimate
+        }).catch((err) => {
+            console.error('Failed to record game outcome:', err);
+        });
+    }, [state.status, state.participants, state.winnerUserId]);
 
     return {
         state,

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
+import { recordGameOutcome } from "@/lib/leaderboards";
 
 export type RpsChoice = "rock" | "paper" | "scissors";
 type ScoreEntry = { userId: string; score: number };
@@ -81,6 +82,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
   const sessionIdRef = useRef<string | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const selfIdRef = useRef<string>(getSelf());
+  const outcomeRecordedRef = useRef(false);
 
   useEffect(() => {
     selfIdRef.current = getSelf();
@@ -435,6 +437,33 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
       socket.send(JSON.stringify({ type: 'restart' }));
     }
   }, []);
+
+  // Record game outcome when finished
+  useEffect(() => {
+    if (state.phase !== 'ended' || outcomeRecordedRef.current) {
+      return;
+    }
+    outcomeRecordedRef.current = true;
+
+    // Get participants
+    const participants = state.scoreboard.map(p => p.userId);
+    if (participants.length < 1) {
+      return;
+    }
+
+    // Determine winner
+    const winnerId = state.winnerUserId ?? (state.scoreboard.length > 0 ? state.scoreboard[0].userId : null);
+
+    // Record the outcome
+    recordGameOutcome({
+      userIds: participants,
+      winnerId,
+      gameKind: 'rock_paper_scissors',
+      durationSeconds: 60, // Default estimate
+    }).catch((err) => {
+      console.error('Failed to record game outcome:', err);
+    });
+  }, [state.phase, state.scoreboard, state.winnerUserId]);
 
   return useMemo(
     () => ({

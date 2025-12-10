@@ -17,15 +17,27 @@ import { useSocketStatus } from "@/app/lib/socket/useStatus";
 import { Calendar, Clock, Users, LogOut, XCircle, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// Helper to upsert messages (copied from RoomPage)
+// Helper to upsert messages - handles both regular and optimistic messages
 function upsertMessage(prev: RoomMessageDTO[], incoming: RoomMessageDTO): RoomMessageDTO[] {
-  const existingIndex = prev.findIndex(
-    (message) => message.id === incoming.id || (incoming.client_msg_id && message.client_msg_id === incoming.client_msg_id),
-  );
+  // Find existing message by id OR by client_msg_id (for optimistic message replacement)
+  const existingIndex = prev.findIndex((message) => {
+    // Direct ID match (but not for temp messages)
+    if (!message.id.startsWith("temp-") && message.id === incoming.id) return true;
+    // Client message ID match (optimistic message being replaced by real one)
+    if (incoming.client_msg_id && message.client_msg_id === incoming.client_msg_id) return true;
+    return false;
+  });
+  
   if (existingIndex >= 0) {
+    const existing = prev[existingIndex];
+    // If incoming is same as existing (same real ID), skip
+    if (existing.id === incoming.id && !existing.id.startsWith("temp-")) {
+      return prev;
+    }
+    // Replace optimistic with real, or update existing
     const next = [...prev];
     next[existingIndex] = incoming;
-    return next;
+    return next.sort((a, b) => a.seq - b.seq);
   }
   return [...prev, incoming].sort((a, b) => a.seq - b.seq);
 }
@@ -41,10 +53,8 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     enabled: !!id,
   });
 
-
-
-
   const [messages, setMessages] = useState<RoomMessageDTO[]>([]);
+  const [pendingClientIds, setPendingClientIds] = useState<Set<string>>(new Set());
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const roomsSocketStatus = useSocketStatus(onRoomsSocketStatus, getRoomsSocketStatus);
 
@@ -183,22 +193,54 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   }, [meetup?.room_id, meetup?.is_joined]);
 
   // Polling fallback: fetch new messages periodically when socket is not connected
-  // This ensures real-time experience even if socket has issues
+  // Skip polling if there are pending optimistic messages to avoid flickering
   useEffect(() => {
     const roomId = meetup?.room_id;
     if (!roomId || !meetup?.is_joined) return;
+    
+    // Don't poll if there are pending messages - let the send response handle it
+    if (pendingClientIds.size > 0) return;
 
-    // Poll every 3 seconds when socket is not connected, every 10 seconds when connected (as backup)
-    const pollInterval = roomsSocketStatus !== "connected" ? 3000 : 10000;
+    // Poll less aggressively - only when socket is disconnected
+    // When socket is connected, rely on real-time updates
+    if (roomsSocketStatus === "connected") return;
+
+    const pollInterval = 5000; // 5 seconds when disconnected
     
     const pollMessages = async () => {
+      // Double-check no pending messages
+      if (pendingClientIds.size > 0) return;
+      
       try {
         const res = await fetchHistory(roomId);
         setMessages((prev) => {
+          // Build a map of existing messages by their client_msg_id or id
+          const existingByClientId = new Map<string, RoomMessageDTO>();
+          const existingById = new Map<string, RoomMessageDTO>();
+          
+          for (const msg of prev) {
+            if (msg.client_msg_id) existingByClientId.set(msg.client_msg_id, msg);
+            existingById.set(msg.id, msg);
+          }
+          
           let merged = [...prev];
+          
           for (const msg of res.items) {
+            // Skip if we already have this exact message
+            if (existingById.has(msg.id)) continue;
+            
+            // Check if this replaces an optimistic message
+            if (msg.client_msg_id && existingByClientId.has(msg.client_msg_id)) {
+              const existing = existingByClientId.get(msg.client_msg_id)!;
+              if (existing.id.startsWith("temp-")) {
+                // Replace optimistic with real
+                merged = merged.filter(m => m.id !== existing.id);
+              }
+            }
+            
             merged = upsertMessage(merged, msg);
           }
+          
           return merged;
         });
       } catch (err) {
@@ -209,19 +251,24 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     const interval = setInterval(pollMessages, pollInterval);
     
     return () => clearInterval(interval);
-  }, [meetup?.room_id, meetup?.is_joined, roomsSocketStatus]);
+  }, [meetup?.room_id, meetup?.is_joined, roomsSocketStatus, pendingClientIds.size]);
 
 
   const handleSendMessage = useCallback(async (payload: RoomMessageSend) => {
     if (!meetup?.room_id || !meetup?.current_user_id) return;
 
+    const clientMsgId = payload.client_msg_id;
+
+    // Track this as pending to pause polling
+    setPendingClientIds(prev => new Set(prev).add(clientMsgId));
+
     // Create optimistic message to show immediately
     const optimisticMessage: RoomMessageDTO = {
-      id: `temp-${payload.client_msg_id}`,
+      id: `temp-${clientMsgId}`,
       room_id: meetup.room_id,
       seq: Date.now(), // Temporary seq for sorting
       sender_id: meetup.current_user_id,
-      client_msg_id: payload.client_msg_id,
+      client_msg_id: clientMsgId,
       kind: payload.kind,
       content: payload.content ?? null,
       media_key: payload.media_key ?? null,
@@ -234,15 +281,26 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     setMessages((prev) => upsertMessage(prev, optimisticMessage));
 
     try {
-      // Send to server - the socket broadcast will update the UI for everyone
-      // including the sender, ensuring consistent message display
+      // Send to server
       const msg = await sendRoomMessage(meetup.room_id, payload);
       // Update with real message from server - upsertMessage handles deduplication via client_msg_id
       setMessages((prev) => upsertMessage(prev, msg));
     } catch (err) {
       console.error("Failed to send message", err);
-      // Remove optimistic message on error
-      setMessages((prev) => prev.filter((m) => m.client_msg_id !== payload.client_msg_id));
+      // Don't remove optimistic message on error immediately
+      // The backend sometimes returns 200 OK but fails to close the connection properly (ASGI error),
+      // causing a client-side NetworkError even though the message was saved.
+      // We'll let the polling/socket reconciliation handle the cleanup if it was actually saved.
+      // setMessages((prev) => prev.filter((m) => m.client_msg_id !== clientMsgId));
+    } finally {
+      // Remove from pending after a short delay to allow state to settle
+      setTimeout(() => {
+        setPendingClientIds(prev => {
+          const next = new Set(prev);
+          next.delete(clientMsgId);
+          return next;
+        });
+      }, 500);
     }
   }, [meetup?.room_id, meetup?.current_user_id]);
 

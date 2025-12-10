@@ -57,7 +57,12 @@ export function useMeetupNotifications() {
           timestamp: new Date(meetup.created_at).getTime()
         }));
 
-        setNotifications(prev => [...newNotifications, ...prev].slice(0, 10)); // Keep last 10
+        // Merge with existing notifications, deduplicating by meetup ID
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(n => n.meetup.id));
+          const uniqueNew = newNotifications.filter(n => !existingIds.has(n.meetup.id));
+          return [...uniqueNew, ...prev].slice(0, 10);
+        });
         setHasNewMeetups(true);
       }
 

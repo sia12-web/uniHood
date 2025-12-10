@@ -23,6 +23,7 @@ import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/
 import { fetchFriends } from "@/lib/social";
 import { listMeetups, type MeetupResponse } from "@/lib/meetups";
 import type { FriendRow } from "@/lib/types";
+import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 
 const iconClassName = "h-4 w-4 flex-none";
 
@@ -768,49 +769,54 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* Compact Live Discovery */}
-            <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-rose-50/50 p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
-              <div className="absolute top-0 right-0 -mt-16 -mr-16 h-40 w-40 rounded-full bg-gradient-to-br from-rose-400/20 to-amber-300/20 blur-3xl" />
-              <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-40 w-40 rounded-full bg-gradient-to-tr from-indigo-400/20 to-emerald-300/20 blur-3xl" />
+            {/* Leaderboard Preview */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <LeaderboardPreview />
+              
+              {/* Compact Live Discovery */}
+              <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-rose-50/50 p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
+                <div className="absolute top-0 right-0 -mt-16 -mr-16 h-40 w-40 rounded-full bg-gradient-to-br from-rose-400/20 to-amber-300/20 blur-3xl" />
+                <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-40 w-40 rounded-full bg-gradient-to-tr from-indigo-400/20 to-emerald-300/20 blur-3xl" />
 
-              <div className="relative z-10 flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    Live on Campus
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-500">See who&apos;s active right now</p>
+                <div className="relative z-10 flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      Live on Campus
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-500">See who&apos;s active right now</p>
+                  </div>
+                  <Link href="/discovery" className="group flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold text-indigo-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-indigo-700 hover:ring-indigo-200">
+                    View Map
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 transition-transform group-hover:translate-x-0.5">
+                      <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
                 </div>
-                <Link href="/discovery" className="group flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold text-indigo-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-white hover:text-indigo-700 hover:ring-indigo-200">
-                  View Map
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 transition-transform group-hover:translate-x-0.5">
-                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                  </svg>
-                </Link>
-              </div>
-              <div className="relative z-10 flex gap-4 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
-                {/* Live Peers */}
-                {discoveryPreviewList.map((person) => (
-                  <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px]">
-                    <div className={`relative h-16 w-16 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300"}`}>
-                      <div className="h-full w-full rounded-full bg-white p-1">
-                        <div className="h-full w-full rounded-full bg-slate-100 overflow-hidden">
-                          <img
-                            src={person.imageUrl || ""}
-                            alt={person.name}
-                            className="h-full w-full object-cover"
-                          />
+                <div className="relative z-10 flex gap-4 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
+                  {/* Live Peers */}
+                  {discoveryPreviewList.map((person) => (
+                    <div key={person.userId} className="flex flex-col items-center gap-2 min-w-[72px]">
+                      <div className={`relative h-16 w-16 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300"}`}>
+                        <div className="h-full w-full rounded-full bg-white p-1">
+                          <div className="h-full w-full rounded-full bg-slate-100 overflow-hidden">
+                            <img
+                              src={person.imageUrl || ""}
+                              alt={person.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
                         </div>
                       </div>
+                      <span className="text-xs font-medium text-slate-600 truncate w-16 text-center">{person.name.split(" ")[0]}</span>
                     </div>
-                    <span className="text-xs font-medium text-slate-600 truncate w-16 text-center">{person.name.split(" ")[0]}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            </div>
 
 
 

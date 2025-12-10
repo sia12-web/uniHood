@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
+import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface TriviaState {
   phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";
@@ -58,6 +59,7 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
   const joinedRef = useRef(false);
   const expiredRef = useRef(false);
   const socketCleanupRef = useRef<(() => void) | null>(null);
+  const outcomeRecordedRef = useRef(false);
 
   const isSessionGone = useCallback((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error ?? "");
@@ -453,6 +455,33 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
       // Ignore errors, websocket should handle it
     }
   }, [state.sessionId]);
+
+  // Record game outcome when finished
+  useEffect(() => {
+    if (state.phase !== 'ended' || outcomeRecordedRef.current) {
+      return;
+    }
+    outcomeRecordedRef.current = true;
+
+    // Get participants
+    const participants = state.scoreboard.map(p => p.userId);
+    if (participants.length < 1) {
+      return;
+    }
+
+    // Determine winner
+    const winnerId = state.winnerUserId ?? (state.scoreboard.length > 0 ? state.scoreboard[0].userId : null);
+
+    // Record the outcome
+    recordGameOutcome({
+      userIds: participants,
+      winnerId,
+      gameKind: 'quick_trivia',
+      durationSeconds: 60, // Default estimate
+    }).catch((err) => {
+      console.error('Failed to record game outcome:', err);
+    });
+  }, [state.phase, state.scoreboard, state.winnerUserId]);
 
   return { state, selectOption, toggleReady, leave, progress, countdownRemainingMs, questionMsRemaining: remainingMs, self: selfRef.current };
 }

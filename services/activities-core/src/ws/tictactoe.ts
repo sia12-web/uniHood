@@ -488,35 +488,32 @@ export function handleRoundEnd(sessionId: string) {
             session.matchWinner = null; // Draw match
         }
 
-        const calculatePoints = (myWins: number, theirWins: number) => {
-            // Example scoring logic
-            if (myWins > theirWins) return 300;
-            if (myWins === theirWins) return 100;
-            return 50;
+        // Scoring logic mirrored from RPS - winner gets points based on margin, loser gets 0
+        const calculatePoints = (winnerWins: number, loserWins: number) => {
+            if (winnerWins === 3 && loserWins === 0) return 300; // 3-0 sweep
+            if (winnerWins === 3 && loserWins === 1) return 250; // 3-1
+            if (winnerWins === 3 && loserWins === 2) return 200; // 3-2 close match
+            if (winnerWins === 2 && loserWins === 2) return 150; // 2-2 draw after 5 rounds
+            return 100; // fallback
         };
 
+        // LOSER GETS 0 POINTS - only the winner gets points
         if (session.matchWinner === pX) {
             session.scores[pX] = calculatePoints(winsX, winsO);
-            session.scores[pO] = winsO * 50;
+            session.scores[pO] = 0; // Loser gets 0 points
             recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
-            recordGameResult(pO, 'tictactoe', 'loss', session.scores[pO]);
+            recordGameResult(pO, 'tictactoe', 'loss', 0);
         } else if (session.matchWinner === pO) {
             session.scores[pO] = calculatePoints(winsO, winsX);
-            session.scores[pX] = winsX * 50;
+            session.scores[pX] = 0; // Loser gets 0 points
             recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
-            recordGameResult(pX, 'tictactoe', 'loss', session.scores[pX]);
+            recordGameResult(pX, 'tictactoe', 'loss', 0);
         } else {
-            // Draw
-            session.scores[pX] = 100;
-            session.scores[pO] = 100;
-            // Record draw? The recordGameResult type might restrict 'draw'.
-            // Assuming 'win'/'loss'. If draw, strictly neither won.
-            // But maybe we record it as a 'loss' for both or simple game played?
-            // Let's stick to recording it as 'loss' (no win) but with points, or skip recording 'win'.
-            // Actually recordGameResult types: 'win' | 'loss'. 
-            // We can record as loss for both but with points.
-            recordGameResult(pX, 'tictactoe', 'loss', 100);
-            recordGameResult(pO, 'tictactoe', 'loss', 100);
+            // Draw - both get equal points
+            session.scores[pX] = 150;
+            session.scores[pO] = 150;
+            recordGameResult(pX, 'tictactoe', 'loss', 150);
+            recordGameResult(pO, 'tictactoe', 'loss', 150);
         }
 
         session.status = 'finished';

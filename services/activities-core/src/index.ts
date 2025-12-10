@@ -102,16 +102,18 @@ const GENERIC_SAMPLES: string[] = [
 const GENERIC_SAMPLE_TEXT = () => GENERIC_SAMPLES[Math.floor(Math.random() * GENERIC_SAMPLES.length)];
 
 function snapshotFromGeneric(session: GenericSession) {
+    // Use roundWins as the score for display (this is the "best of 5" round wins counter)
+    const roundWins = session.roundWins ?? {};
     return {
         id: session.id,
         status: session.status,
         activityKey: session.activityKey,
-        participants: session.participants.map((p) => ({ userId: p.userId, score: 0 })),
+        participants: session.participants.map((p) => ({ userId: p.userId, score: roundWins[p.userId] ?? 0 })),
         presence: session.participants.map((p) => ({ userId: p.userId, joined: p.joined, ready: p.ready })),
         lobbyReady: session.lobbyReady,
         countdown: session.countdownValue ?? null,
         currentRoundIndex: session.currentRound ?? 0,
-        roundWins: session.roundWins ?? {},
+        roundWins: roundWins,
         scoreboard: { participants: Object.entries(session.scores).map(([userId, score]) => ({ userId, score })) },
         winnerUserId: session.winnerUserId ?? null,
     };
@@ -443,14 +445,15 @@ server.register(async function (fastify) {
                                         };
 
                                         // Determine winner (if someone has 3 wins, otherwise most wins after 5 rounds)
+                                        // LOSER GETS 0 POINTS - only the winner gets points
                                         if (wins1 > wins2) {
                                             session.winnerUserId = p1;
                                             session.scores[p1] = calculatePoints(wins1, wins2);
-                                            session.scores[p2] = wins2 * 50;
+                                            session.scores[p2] = 0; // Loser gets 0 points
                                         } else if (wins2 > wins1) {
                                             session.winnerUserId = p2;
                                             session.scores[p2] = calculatePoints(wins2, wins1);
-                                            session.scores[p1] = wins1 * 50;
+                                            session.scores[p1] = 0; // Loser gets 0 points
                                         } else {
                                             // It's a draw - both get equal points
                                             session.winnerUserId = null;
@@ -462,11 +465,11 @@ server.register(async function (fastify) {
                                         session.phase = 'ended';
                                         broadcastGenericEnded(sessionId);
                                     } else {
-                                        // Start next round after a short delay
+                                        // Start next round after a delay to show round result
                                         session.currentRound++;
                                         session.moves = {}; // Clear moves for next round
 
-                                        // Brief delay then start next round countdown
+                                        // 3 second delay between rounds to allow frontend to show result
                                         setTimeout(() => {
                                             const s = genericSessions[sessionId];
                                             if (!s || s.status === 'ended') return;
@@ -480,7 +483,7 @@ server.register(async function (fastify) {
                                                 broadcastGenericState(sessionId);
                                                 broadcastGenericRoundStarted(sessionId, sess.currentRound ?? 0);
                                             });
-                                        }, 2000); // 2 second delay between rounds
+                                        }, 3000); // 3 second delay between rounds
                                     }
                                 }
                             }
@@ -507,6 +510,31 @@ server.register(async function (fastify) {
                                 broadcastGenericEnded(sessionId);
                             }
                         }
+                    }
+                }
+
+                // Handle restart message for RPS (start new match)
+                if (msg?.type === 'restart') {
+                    if (session.status === 'ended' && session.activityKey === 'rock_paper_scissors') {
+                        // Reset the session for a new match
+                        session.status = 'pending';
+                        session.phase = 'lobby';
+                        session.currentRound = 0;
+                        session.moves = {};
+                        session.roundWins = {};
+                        session.scores = {};
+                        session.winnerUserId = null;
+                        session.lastRoundWinner = null;
+                        session.lastRoundMoves = undefined;
+                        session.leaveReason = undefined;
+                        session.lobbyReady = false;
+                        session.countdownValue = undefined;
+                        // Reset ready status for all participants
+                        session.participants.forEach((p) => {
+                            p.ready = false;
+                        });
+                        broadcastGenericState(sessionId);
+                        broadcastGenericPresence(sessionId);
                     }
                 }
             } catch {

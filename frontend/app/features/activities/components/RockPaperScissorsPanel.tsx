@@ -34,7 +34,7 @@ const MOVES: Record<RpsChoice, { label: string; icon: React.ElementType; color: 
 };
 
 export function RockPaperScissorsPanel({ sessionId }: Props) {
-  const { state, readyUp, unready, submitMove, leave } = useRockPaperScissorsSession({ sessionId });
+  const { state, readyUp, unready, submitMove, leave, restart } = useRockPaperScissorsSession({ sessionId });
   const { map: friendIdentities, authUser } = useFriendIdentities();
   const selfId = useMemo(() => getSelf(), []);
   
@@ -338,12 +338,11 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   };
 
   const renderResults = () => {
-    const myMove = state.submittedMove;
-    // We need to infer opponent move from winner or if it's exposed in state (it's not directly exposed until revealed)
-    // Actually, in 'ended' phase, we usually know the result. 
-    // The hook doesn't explicitly give opponent move, but we can infer it or maybe the backend sends it.
-    // Looking at the hook type, we don't have opponentMove. 
-    // However, we have `lastRoundWinner` and `lastRoundReason`.
+    // Get both players' moves from lastRoundMoves
+    const myMoveData = state.lastRoundMoves?.find(m => m.userId === selfId);
+    const opponentMoveData = state.lastRoundMoves?.find(m => m.userId !== selfId);
+    const myMove = (myMoveData?.move ?? state.submittedMove) as RpsChoice | undefined;
+    const opponentMove = opponentMoveData?.move as RpsChoice | undefined;
     
     const isWinner = state.winnerUserId === selfId;
     const isDraw = !state.winnerUserId;
@@ -399,28 +398,40 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
                   return <Icon className={`h-10 w-10 ${MOVES[myMove].color}`} />;
                 })()}
               </div>
-            ) : null}
-            <p className="font-semibold text-slate-900">{myMove ? MOVES[myMove].label : "?"}</p>
+            ) : (
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <div className="text-4xl">?</div>
+              </div>
+            )}
+            <p className="font-semibold text-slate-900">{myMove && MOVES[myMove] ? MOVES[myMove].label : "?"}</p>
           </div>
 
           <div className="text-2xl font-black text-slate-300">VS</div>
 
-          {/* Opponent Move - We might not know it if it's not in state, but usually revealed in reason */}
+          {/* Opponent Move */}
           <div className="flex flex-col items-center gap-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Opponent</p>
-            <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 ${!isWinner && !isDraw ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
-               {/* Since we don't have opponent move in state explicitly, we show a generic revealed icon or question mark if hidden */}
-               <div className="text-4xl">?</div>
-            </div>
-            <p className="font-semibold text-slate-900">Hidden</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{opponentName}</p>
+            {opponentMove && MOVES[opponentMove] ? (
+              <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 ${!isWinner && !isDraw ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                {(() => {
+                  const Icon = MOVES[opponentMove].icon;
+                  return <Icon className={`h-10 w-10 ${MOVES[opponentMove].color}`} />;
+                })()}
+              </div>
+            ) : (
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <div className="text-4xl">?</div>
+              </div>
+            )}
+            <p className="font-semibold text-slate-900">{opponentMove && MOVES[opponentMove] ? MOVES[opponentMove].label : "?"}</p>
           </div>
         </div>
 
         <button
-          onClick={readyUp}
+          onClick={restart}
           className="rounded-full bg-rose-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-xl"
         >
-          {state.scoreboard.some(s => s.score >= 2) ? "New Match" : "Next Round"}
+          New Match
         </button>
       </div>
     );

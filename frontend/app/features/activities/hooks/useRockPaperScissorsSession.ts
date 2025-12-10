@@ -244,9 +244,8 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                     }
                   : prev.countdown,
                 submittedMove: null,
-                lastRoundWinner: undefined,
-                lastRoundMoves: undefined,
-                lastRoundReason: undefined,
+                // Keep lastRoundWinner, lastRoundMoves, lastRoundReason so UI can display them
+                // The frontend will clear them via useEffect after the display timeout
               }));
               return;
             }
@@ -406,6 +405,13 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
+  const restart = useCallback(() => {
+    const socket = wsRef.current;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'restart' }));
+    }
+  }, []);
+
   return useMemo(
     () => ({
       state,
@@ -413,7 +419,8 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
       unready,
       submitMove,
       leave,
+      restart,
     }),
-    [state, readyUp, unready, submitMove, leave],
+    [state, readyUp, unready, submitMove, leave, restart],
   );
 }

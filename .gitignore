@@ -54,3 +54,12 @@ perf-results/
 infra/perf/perf-results/
 *.lhr.json
 *.lhr.html
+
+# ---- Build/Test output logs ----
+*_output*.txt
+*_errors*.txt
+*_check*.txt
+test_*.txt
+build_*.txt
+lint_*.txt
+build.log

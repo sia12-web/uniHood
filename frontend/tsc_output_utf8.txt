@@ -1,5 +1,0 @@
-﻿app/(activities)/activities/page.tsx(28,14): error TS2741: Property 'onToggleReady' is missing in type '{ state: TicTacToeState; onMove: (index: number) => void; onRestart: () => void; }' but required in type 'BoardProps'.
-app/features/activities/components/TicTacToeBoard.tsx(112,57): error TS7053: Element implicitly has an 'any' type because expression of type '"X" | "O" | "spectator"' can't be used to index type '{ X?: string | undefined; O?: string | undefined; }'.
-  Property 'spectator' does not exist on type '{ X?: string | undefined; O?: string | undefined; }'.
-app/features/activities/components/TicTacToeBoard.tsx(117,54): error TS7053: Element implicitly has an 'any' type because expression of type '"X" | "O" | "spectator"' can't be used to index type '{ X?: string | undefined; O?: string | undefined; }'.
-  Property 'spectator' does not exist on type '{ X?: string | undefined; O?: string | undefined; }'.

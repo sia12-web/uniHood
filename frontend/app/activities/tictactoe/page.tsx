@@ -162,22 +162,25 @@ export default function TicTacToeEntryPage() {
           </Link>
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-black tracking-tight text-white md:text-5xl lg:text-6xl">
-                Tic Tac Toe
-              </h1>
-              <p className="mt-4 text-lg text-slate-400 md:text-xl">
-                The classic game of X&apos;s and O&apos;s. Challenge a friend to a strategic battle. First to 2 wins takes the crown.
-              </p>
-
-              <div className="flex gap-8 pt-4">
-                <div>
-                  <div className="text-3xl font-bold text-white">1v1</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-cyan-400">3</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Rounds</div>
+            {/* Preview Image Placeholder */}
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-700 p-8 text-white">
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 grid h-16 w-16 grid-cols-3 gap-1 rounded-lg bg-cyan-200/20 p-2">
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                      <div className="rounded bg-cyan-200"></div>
+                    </div>
+                    <div className="text-3xl font-bold">Tic Tac Toe</div>
+                    <div className="mt-2 text-cyan-200">Classic strategy game</div>
+                  </div>
                 </div>
               </div>
             </div>

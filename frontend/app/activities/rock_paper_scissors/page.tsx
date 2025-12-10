@@ -117,14 +117,17 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
           </Link>
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                Rock Paper <span className="text-rose-400">Scissors</span>
-              </h1>
-
-              <p className="text-lg leading-8 text-slate-300">
-                The classic game of strategy and chance. Challenge a friend, lock in your move, and reveal simultaneously to claim victory.
-              </p>
+            {/* Preview Image Placeholder */}
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-rose-500 to-rose-700 p-8 text-white">
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <Swords className="mx-auto mb-4 h-16 w-16 text-rose-200" />
+                    <div className="text-3xl font-bold">Rock Paper Scissors</div>
+                    <div className="mt-2 text-rose-200">Classic strategy game</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* How to Play Card */}

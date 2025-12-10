@@ -15,6 +15,7 @@ import { useQuickTriviaInviteState } from "@/components/providers/quick-trivia-i
 import { useRockPaperScissorsInviteState } from "@/components/providers/rock-paper-scissors-invite-provider";
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { usePresence } from "@/hooks/presence/use-presence";
+import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { fetchMySummary } from "@/lib/leaderboards";
 import { listCampuses } from "@/lib/identity";
@@ -237,6 +238,9 @@ export default function HomePage() {
   const [recentMeetups, setRecentMeetups] = useState<MeetupResponse[]>([]);
   const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
   const [meetupsLoading, setMeetupsLoading] = useState(true);
+
+  // Meetup notifications
+  const { hasNewMeetups, notifications: meetupNotifications, markAsSeen: markMeetupsSeen } = useMeetupNotifications();
 
   // Use deferred features for heavy hooks (chat, social) to reduce TBT
   const {
@@ -492,7 +496,7 @@ export default function HomePage() {
 
   type ActivityItem =
     | { type: "friend"; date: Date; id: string; data: FriendRow }
-    | { type: "meetup"; date: Date; id: string; data: MeetupResponse };
+    | { type: "meetup"; date: Date; id: string; data: MeetupResponse; action: "joined" | "created" };
 
   const combinedActivity = useMemo<ActivityItem[]>(() => {
     const activities: ActivityItem[] = [];
@@ -506,12 +510,27 @@ export default function HomePage() {
       });
     });
 
-    joinedMeetups.forEach(m => {
+    // Add joined meetups (excluding ones user created)
+    joinedMeetups
+      .filter(m => m.creator_user_id !== authUser?.userId)
+      .forEach(m => {
+        activities.push({
+          type: 'meetup',
+          date: new Date(m.joined_at || m.created_at),
+          id: `meetup-joined-${m.id}`,
+          data: m,
+          action: 'joined'
+        });
+      });
+
+    // Add created meetups
+    recentMeetups.forEach(m => {
       activities.push({
         type: 'meetup',
         date: new Date(m.created_at),
-        id: `meetup-${m.id}`,
-        data: m
+        id: `meetup-created-${m.id}`,
+        data: m,
+        action: 'created'
       });
     });
 
@@ -838,17 +857,22 @@ export default function HomePage() {
                       );
                     } else if (item.type === 'meetup') {
                       const meetup = item.data as MeetupResponse;
+                      const isCreated = (item as any).action === 'created';
                       return (
                         <div key={item.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition">
-                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isCreated 
+                              ? 'bg-violet-100 text-violet-600' 
+                              : 'bg-indigo-100 text-indigo-600'
+                          }`}>
                             <Calendar className="h-6 w-6" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-slate-900 truncate">
-                              Joined Meetup
+                              {isCreated ? 'Created Meetup' : 'Joined Meetup'}
                             </p>
                             <p className="text-xs text-slate-500 truncate">
-                              You joined <span className="font-medium text-slate-700">{meetup.title}</span>
+                              You {isCreated ? 'created' : 'joined'} <span className="font-medium text-slate-700">{meetup.title}</span>
                             </p>
                           </div>
                           <span className="text-xs text-slate-400 whitespace-nowrap">
@@ -975,19 +999,36 @@ export default function HomePage() {
               <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                       </svg>
+                      {hasNewMeetups && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-rose-500 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-white">{meetupNotifications.length}</span>
+                        </span>
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-slate-900">My Meetups</h3>
                       <p className="text-xs text-slate-500">Events you&apos;re hosting</p>
                     </div>
                   </div>
-                  <Link href="/meetups" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
-                    View All
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {hasNewMeetups && (
+                      <div className="flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1">
+                        <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-xs font-bold text-rose-600">New meetups available!</span>
+                      </div>
+                    )}
+                    <Link 
+                      href="/meetups" 
+                      className="text-sm font-semibold text-rose-600 hover:text-rose-700"
+                      onClick={markMeetupsSeen}
+                    >
+                      View All
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="flex-1">

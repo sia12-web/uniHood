@@ -149,22 +149,15 @@ function SpeedTypingEntryPageContent() {
           </Link>
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                Speed <span className="text-emerald-400">Typing</span>
-              </h1>
-              <p className="text-lg leading-8 text-slate-300">
-                Challenge a friend to a real-time typing race. 5-second countdown, then prove who has the fastest fingers on campus.
-              </p>
-
-              <div className="flex gap-8 pt-4">
-                <div>
-                  <div className="text-3xl font-bold text-white">1v1</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-emerald-400">Live</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Sync</div>
+            {/* Preview Image Placeholder */}
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-8 text-white">
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <Keyboard className="mx-auto mb-4 h-16 w-16 text-emerald-200" />
+                    <div className="text-3xl font-bold">Speed Typing</div>
+                    <div className="mt-2 text-emerald-200">Race to type fastest</div>
+                  </div>
                 </div>
               </div>
             </div>

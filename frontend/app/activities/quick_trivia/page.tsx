@@ -123,22 +123,15 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
           </Link>
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                Quick <span className="text-amber-400">Trivia</span>
-              </h1>
-              <p className="mt-4 text-lg text-slate-300 md:text-xl">
-                Rapid-fire questions. Earn points for speed and accuracy. Tie-breakers decide the closest matches.
-              </p>
-
-              <div className="flex gap-8 pt-4">
-                <div>
-                  <div className="text-3xl font-bold text-white">1v1</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Format</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-amber-400">Live</div>
-                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">Sync</div>
+            {/* Preview Image Placeholder */}
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 p-8 text-white">
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <Zap className="mx-auto mb-4 h-16 w-16 text-amber-200" />
+                    <div className="text-3xl font-bold">Quick Trivia</div>
+                    <div className="mt-2 text-amber-200">Rapid-fire questions</div>
+                  </div>
                 </div>
               </div>
             </div>

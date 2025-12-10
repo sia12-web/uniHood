@@ -124,14 +124,17 @@ function StoryActivityContent() {
           </Link>
 
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-                Story <span className="text-violet-400">Builder</span>
-              </h1>
-
-              <p className="text-lg leading-8 text-slate-300">
-                Create a unique romantic story together. Take turns writing parts of the narrative and see where your imagination leads.
-              </p>
+            {/* Preview Image Placeholder */}
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 p-8 text-white">
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <PenTool className="mx-auto mb-4 h-16 w-16 text-violet-200" />
+                    <div className="text-3xl font-bold">Story Builder</div>
+                    <div className="mt-2 text-violet-200">Create together</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* How to Play Card */}

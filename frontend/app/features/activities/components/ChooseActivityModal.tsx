@@ -144,6 +144,7 @@ export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage
         {onClose && (
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />

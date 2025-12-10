@@ -259,6 +259,7 @@ export default function MeetupsPage() {
                   <select
                     name="category"
                     required
+                    aria-label="Category"
                     className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
                   >
                     {CATEGORIES.map((c) => (
@@ -275,6 +276,7 @@ export default function MeetupsPage() {
                     min={15}
                     max={480}
                     defaultValue={60}
+                    aria-label="Duration in minutes"
                     className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
                   />
                 </div>
@@ -289,6 +291,7 @@ export default function MeetupsPage() {
                   min={2}
                   max={50}
                   defaultValue={10}
+                  aria-label="Maximum participants"
                   className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
                 />
               </div>

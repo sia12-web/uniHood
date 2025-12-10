@@ -297,11 +297,10 @@ export default function TicTacToeEntryPage() {
                     </div>
                   </div>
                 )}
-              </div>
             </div>
 
             {/* Invites Card */}
-            <div className="flex flex-col gap-6">
+            <div>
               <div
                 ref={inviteCardRef}
                 className={`rounded-3xl bg-white p-8 shadow-lg ring-1 ring-slate-900/5 ${inviteFocusPulse || invite ? "border-2 border-cyan-200 ring-cyan-200/40" : "border border-slate-200"

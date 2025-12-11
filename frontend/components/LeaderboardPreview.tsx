@@ -72,7 +72,7 @@ export function LeaderboardPreview() {
           ))}
           <div className="pt-2">
             <Link 
-              href="/leaderboard" 
+              href="/leaderboards" 
               className="block w-full rounded-md bg-indigo-50 py-2 text-center text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
             >
               View Full Leaderboard

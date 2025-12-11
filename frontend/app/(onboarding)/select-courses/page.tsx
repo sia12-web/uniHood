@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, Search } from "lucide-react";
 
-import { fetchProfile, fetchPopularCourses, saveProfileCourses, type Course } from "@/lib/identity";
+import { fetchPopularCourses, saveProfileCourses, fetchProfile, type Course } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SelectCoursesPage() {
@@ -99,7 +99,7 @@ export default function SelectCoursesPage() {
             }
             await saveProfileCourses(auth.user_id, campusId, unique);
 
-            router.push("/passions");
+            router.push("/set-profile");
         } catch (err) {
             console.error(err);
             setError("Failed to save courses.");

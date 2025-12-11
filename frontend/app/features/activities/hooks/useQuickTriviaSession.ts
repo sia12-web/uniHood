@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { recordGameOutcome } from "@/lib/leaderboards";
+import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export interface TriviaState {
   phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";
@@ -438,50 +438,38 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
     const sessionId = state.sessionId;
     const self = selfRef.current;
     if (!sessionId || !self) return;
-    
-    // Send leave via WebSocket first for immediate feedback
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'leave',
-        payload: { userId: self }
-      }));
+      try {
+        ws.send(JSON.stringify({ type: "leave", payload: { userId: self } }));
+      } catch {
+        // ignore send errors
+      }
     }
-    
-    // Also call REST API as backup
+
     try {
       await leaveSession(sessionId, self);
     } catch {
-      // Ignore errors, websocket should handle it
+      // ignore errors; websocket path should handle leave
     }
   }, [state.sessionId]);
 
-  // Record game outcome when finished
   useEffect(() => {
-    if (state.phase !== 'ended' || outcomeRecordedRef.current) {
-      return;
-    }
-    outcomeRecordedRef.current = true;
-
-    // Get participants
-    const participants = state.scoreboard.map(p => p.userId);
-    if (participants.length < 1) {
-      return;
-    }
-
-    // Determine winner
-    const winnerId = state.winnerUserId ?? (state.scoreboard.length > 0 ? state.scoreboard[0].userId : null);
-
-    // Record the outcome
-    recordGameOutcome({
-      userIds: participants,
-      winnerId,
-      gameKind: 'quick_trivia',
-      durationSeconds: 60, // Default estimate
-    }).catch((err) => {
-      console.error('Failed to record game outcome:', err);
+    maybeRecordOutcome({
+      phase: state.phase,
+      leaveReason: state.leaveReason,
+      scoreboard: state.scoreboard,
+      winnerUserId: state.winnerUserId,
+      selfUserId: selfRef.current,
+      gameKind: "quick_trivia",
+      durationSeconds: 60,
+      outcomeRecordedRef,
     });
-  }, [state.phase, state.scoreboard, state.winnerUserId]);
+  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
+
+  useEffect(() => {
+    resetOutcomeGuard(outcomeRecordedRef);
+  }, [state.sessionId]);
 
   return { state, selectOption, toggleReady, leave, progress, countdownRemainingMs, questionMsRemaining: remainingMs, self: selfRef.current };
 }

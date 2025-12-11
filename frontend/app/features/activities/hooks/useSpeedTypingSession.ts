@@ -11,7 +11,7 @@ import {
 	setSessionReady,
 	startSession,
 } from '../api/client';
-import { recordGameOutcome } from '@/lib/leaderboards';
+import { maybeRecordOutcome, resetOutcomeGuard } from './outcome-recorder';
 
 export type LobbyParticipant = {
 	userId: string;
@@ -1024,32 +1024,23 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		}
 	}, [autoStart, pushToast, state.phase]);
 
-	// Record game outcome when finished
 	useEffect(() => {
-		if (state.phase !== 'ended' || outcomeRecordedRef.current) {
-			return;
-		}
-		outcomeRecordedRef.current = true;
+		resetOutcomeGuard(outcomeRecordedRef);
+	}, [state.sessionId]);
 
-		// Get participants
-		const participants = state.scoreboard.map(p => p.userId);
-		if (participants.length < 1) {
-			return;
-		}
-
-		// Determine winner
-		const winnerId = state.winnerUserId ?? (state.scoreboard.length > 0 ? state.scoreboard[0].userId : null);
-
-		// Record the outcome
-		recordGameOutcome({
-			userIds: participants,
-			winnerId,
+	// Record game outcome when finished or on opponent leave
+	useEffect(() => {
+		maybeRecordOutcome({
+			phase: state.phase,
+			leaveReason: state.leaveReason,
+			scoreboard: state.scoreboard,
+			winnerUserId: state.winnerUserId,
+			selfUserId: selfUserIdRef.current,
 			gameKind: 'speed_typing',
-			durationSeconds: 60, // Default estimate
-		}).catch((err) => {
-			console.error('Failed to record game outcome:', err);
+			durationSeconds: 60,
+			outcomeRecordedRef,
 		});
-	}, [state.phase, state.scoreboard, state.winnerUserId]);
+	}, [state.phase, state.scoreboard, state.winnerUserId, state.leaveReason]);
 
 	const remainingMs = useMemo(() => {
 		// include countdownTick to drive updates at ~150ms cadence while countdown is active

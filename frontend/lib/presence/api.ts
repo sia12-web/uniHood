@@ -144,7 +144,7 @@ export function getLastHeartbeatAt(): number | null {
   }
 }
 
-export function isRecentlyLive(windowMs = 10_800_000): boolean {  // 3 hours
+export function isRecentlyLive(windowMs = 90_000): boolean {  // default 90s
   const ts = getLastHeartbeatAt();
   if (!ts) return false;
   return Date.now() - ts <= windowMs;

@@ -4,11 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { recordGameOutcome } from "@/lib/leaderboards";
+import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export type RpsChoice = "rock" | "paper" | "scissors";
 type ScoreEntry = { userId: string; score: number };
 const compareScoreDesc = (a: ScoreEntry, b: ScoreEntry) => b.score - a.score;
+
+function resolveLeaveReason(reason?: string | null): RockPaperScissorsState['leaveReason'] {
+  if (!reason) return null;
+  if (reason === 'opponent_left') return 'opponent_left';
+  return reason as RockPaperScissorsState['leaveReason'];
+}
 
 export type RockPaperScissorsPhase = "idle" | "connecting" | "lobby" | "countdown" | "running" | "ended" | "error";
 
@@ -311,7 +317,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                 scoreboard: payload.payload?.finalScoreboard?.participants
                   ? payload.payload.finalScoreboard.participants.map((entry: ScoreEntry) => ({ userId: entry.userId, score: entry.score })).sort(compareScoreDesc)
                   : prev.scoreboard,
-                leaveReason: payload.payload?.leaveReason ?? null,
+                leaveReason: resolveLeaveReason(payload.payload?.leaveReason ?? payload.payload?.reason),
               }));
               return;
             }
@@ -379,6 +385,10 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
+  useEffect(() => {
+    resetOutcomeGuard(outcomeRecordedRef);
+  }, [state.sessionId]);
+
   const unready = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
@@ -438,32 +448,19 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
-  // Record game outcome when finished
+  // Record game outcome when finished or opponent leaves
   useEffect(() => {
-    if (state.phase !== 'ended' || outcomeRecordedRef.current) {
-      return;
-    }
-    outcomeRecordedRef.current = true;
-
-    // Get participants
-    const participants = state.scoreboard.map(p => p.userId);
-    if (participants.length < 1) {
-      return;
-    }
-
-    // Determine winner
-    const winnerId = state.winnerUserId ?? (state.scoreboard.length > 0 ? state.scoreboard[0].userId : null);
-
-    // Record the outcome
-    recordGameOutcome({
-      userIds: participants,
-      winnerId,
+    maybeRecordOutcome({
+      phase: state.phase,
+      leaveReason: state.leaveReason,
+      scoreboard: state.scoreboard,
+      winnerUserId: state.winnerUserId,
+      selfUserId: selfIdRef.current,
       gameKind: 'rock_paper_scissors',
-      durationSeconds: 60, // Default estimate
-    }).catch((err) => {
-      console.error('Failed to record game outcome:', err);
+      durationSeconds: 60,
+      outcomeRecordedRef,
     });
-  }, [state.phase, state.scoreboard, state.winnerUserId]);
+  }, [state.phase, state.scoreboard, state.winnerUserId, state.leaveReason]);
 
   return useMemo(
     () => ({

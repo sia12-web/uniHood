@@ -33,6 +33,7 @@ export default function SiteHeader() {
     "/major-year",
     "/passions",
     "/photos",
+    "/leaderboards",
   ];
   const shouldRenderHeader = !suppressedPrefixes.some((prefix) =>
     prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),

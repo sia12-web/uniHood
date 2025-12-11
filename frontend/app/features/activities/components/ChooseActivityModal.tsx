@@ -8,13 +8,16 @@ import {
   createQuickTriviaSession,
   createRockPaperScissorsSession,
   createStoryBuilderSession,
+  createTypingDuel,
+  startActivity,
 } from '../api/client';
 import { track } from '../../../../lib/analytics';
 import { formatGameInviteMessage, type GameKey } from '../../../../components/GameInviteCard';
 
 interface Props {
   peerUserId: string;
-  onSendMessage: (message: string) => Promise<void>;
+  onSendMessage?: (message: string) => Promise<void>;
+  onStarted?: (activityId: string) => void;
   onClose?: () => void;
 }
 
@@ -101,11 +104,13 @@ async function createSessionForGame(gameKey: GameKey, peerUserId: string): Promi
   }
 }
 
-export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage, onClose }) => {
+export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage, onStarted, onClose }) => {
   const [loading, setLoading] = useState<GameKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [startingTyping, setStartingTyping] = useState(false);
 
   async function handleSelectGame(game: GameOption) {
+    if (!onSendMessage) return; // when using onStarted flow, skip invite grid handler
     setLoading(game.key);
     setError(null);
     try {
@@ -163,7 +168,7 @@ export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage
       <div className="grid grid-cols-1 gap-3">
         {GAMES.map((game) => {
           const isLoading = loading === game.key;
-          const isDisabled = loading !== null;
+          const isDisabled = loading !== null || Boolean(onStarted);
 
           return (
             <button
@@ -186,10 +191,36 @@ export const ChooseActivityModal: React.FC<Props> = ({ peerUserId, onSendMessage
         })}
       </div>
 
-      {/* Footer hint */}
-      <p className="mt-4 text-center text-xs text-slate-400">
-        A game invite will be sent in the chat
-      </p>
+      {onStarted ? (
+        <div className="mt-6">
+          <button
+            type="button"
+            disabled={startingTyping}
+            onClick={async () => {
+              setStartingTyping(true);
+              setError(null);
+              try {
+                const duel = await createTypingDuel(peerUserId);
+                await startActivity(duel.id);
+                onStarted?.(duel.id);
+                onClose?.();
+              } catch (e) {
+                const message = e instanceof Error ? e.message : 'Failed to start game';
+                setError(message);
+              } finally {
+                setStartingTyping(false);
+              }
+            }}
+            className="w-full rounded-xl bg-[#d64045] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] disabled:opacity-60"
+          >
+            {startingTyping ? 'Starting…' : 'Start'}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-4 text-center text-xs text-slate-400">
+          A game invite will be sent in the chat
+        </p>
+      )}
     </div>
   );
 };

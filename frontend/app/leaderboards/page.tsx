@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 import LeaderboardTable from "@/components/LeaderboardTable";
 import { fetchLeaderboard } from "@/lib/leaderboards";
@@ -56,6 +58,13 @@ export default function LeaderboardsPage() {
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-6">
+      <div className="flex items-center">
+        <Link href="/" className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Link>
+      </div>
+
       {/* Header */}
       <header className="flex flex-col gap-4 text-center">
         <div className="flex justify-center">

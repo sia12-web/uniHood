@@ -4,7 +4,7 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Mic, Smile, X, Gamepad2 } from "lucide-react";
+import { Send, Smile, X, Gamepad2 } from "lucide-react";
 
 import type { SocketConnectionStatus } from "@/app/lib/socket/base";
 
@@ -14,9 +14,17 @@ import type { ChatMessage } from "../lib/chat";
 import { ChooseActivityModal } from "../app/features/activities/components/ChooseActivityModal";
 import { GameInviteCard, isGameInviteMessage } from "./GameInviteCard";
 
+type AudioAttachment = {
+  attachmentId: string;
+  mediaType: string;
+  sizeBytes: number;
+  remoteUrl: string; // base64 data URL for audio
+};
+
 type Props = {
   conversationId: string;
   onSend: (body: string) => Promise<void>;
+  onSendAudio?: (body: string, attachments: AudioAttachment[]) => Promise<void>;
   messages: ChatMessage[];
   selfUserId: string;
   peerUserId: string;
@@ -39,9 +47,23 @@ function isRenderableImageAttachment(attachment: ChatAttachment): attachment is 
   return typeof mediaType === "string" && mediaType.startsWith("image/");
 }
 
+type AudioAttachmentType = ChatAttachment & { remoteUrl: string };
+
+function isRenderableAudioAttachment(attachment: ChatAttachment): attachment is AudioAttachmentType {
+  if (!attachment?.remoteUrl) {
+    return false;
+  }
+  const mediaType = attachment.mediaType?.toLowerCase?.();
+  return typeof mediaType === "string" && mediaType.startsWith("audio/");
+}
+
+// Helper function to convert Blob to base64 data URL - REMOVED
+
+
 export default function ChatWindow({
   conversationId,
   onSend,
+  onSendAudio,
   messages,
   selfUserId,
   peerUserId,
@@ -54,13 +76,7 @@ export default function ChatWindow({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { invite, acknowledge } = useTypingDuelInvite({ peerUserId });
 
@@ -89,6 +105,8 @@ export default function ChatWindow({
     setDraft("");
   }, [conversationId]);
 
+
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault?.();
     if (!draft.trim()) {
@@ -108,75 +126,7 @@ export default function ChatWindow({
     setShowEmojiPicker(false);
   }
 
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      audioChunksRef.current = [];
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        console.log("Audio recorded:", audioBlob);
-        // TODO: Implement upload and send logic here
-        // For now, we just log it as we don't have an upload endpoint ready
-
-        stream.getTracks().forEach(track => track.stop());
-        setIsRecording(false);
-        setRecordingDuration(0);
-      };
-
-      recorder.start();
-      setIsRecording(true);
-
-      const startTime = Date.now();
-      timerRef.current = setInterval(() => {
-        setRecordingDuration(Math.floor((Date.now() - startTime) / 1000));
-      }, 1000);
-
-    } catch (err) {
-      console.error("Error accessing microphone:", err);
-      alert("Could not access microphone. Please ensure you have granted permission.");
-    }
-  }
-
-  function stopRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-  }
-
-  function cancelRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      // Stop but don't process
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      setIsRecording(false);
-      setRecordingDuration(0);
-    }
-  }
-
-  function formatDuration(seconds: number) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
 
   const reconnecting = connectionStatus === "reconnecting";
   const disconnected = connectionStatus === "disconnected";
@@ -272,6 +222,7 @@ export default function ChatWindow({
                     const body = msg.body?.trim() ?? "";
                     const hasBody = body.length > 0;
                     const imageAttachments = msg.attachments.filter(isRenderableImageAttachment);
+                    const audioAttachments = msg.attachments.filter(isRenderableAudioAttachment);
 
                     return (
                       <div
@@ -296,6 +247,26 @@ export default function ChatWindow({
                           <>
                             {hasBody && <span className="whitespace-pre-wrap break-words">{body}</span>}
                           </>
+                        )}
+
+                        {/* Audio attachments (voice messages) */}
+                        {audioAttachments.length > 0 && (
+                          <div className={clsx(hasBody ? "mt-3" : "", "space-y-2")}>
+                            {audioAttachments.map((attachment) => (
+                              <div key={attachment.attachmentId} className="flex items-center gap-2">
+                                <audio
+                                  src={attachment.remoteUrl}
+                                  controls
+                                  className={clsx(
+                                    "h-10 w-full max-w-[250px] rounded-lg",
+                                    group.isSelf
+                                      ? "[&::-webkit-media-controls-panel]:bg-indigo-500"
+                                      : "[&::-webkit-media-controls-panel]:bg-slate-100"
+                                  )}
+                                />
+                              </div>
+                            ))}
+                          </div>
                         )}
 
                         {imageAttachments.length > 0 && (
@@ -354,95 +325,57 @@ export default function ChatWindow({
           </div>
         )}
 
-        {isRecording ? (
-          <div className="flex items-center gap-4 rounded-[28px] bg-red-50 p-2 ring-1 ring-red-100 shadow-sm animate-pulse">
-            <div className="flex-1 flex items-center gap-3 px-4">
-              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-red-600 font-medium font-mono">{formatDuration(recordingDuration)}</span>
-              <span className="text-red-400 text-sm">Recording...</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={cancelRecording}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-                title="Cancel"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <button
-                onClick={stopRecording}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition-all"
-                title="Send Voice Message"
-              >
-                <Send className="h-4 w-4 ml-0.5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="relative flex items-end gap-2 rounded-[28px] bg-slate-50 p-2 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:bg-white transition-all shadow-sm"
-          >
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              className="max-h-32 min-h-[44px] w-full resize-none bg-transparent py-3 px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-              placeholder="Type a message..."
-              disabled={sending}
-              rows={1}
-            />
+        <form
+          onSubmit={handleSubmit}
+          className="relative flex items-end gap-2 rounded-[28px] bg-slate-50 p-2 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:bg-white transition-all shadow-sm"
+        >
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleSubmit();
+              }
+            }}
+            className="max-h-32 min-h-[44px] w-full resize-none bg-transparent py-3 px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            placeholder="Type a message..."
+            disabled={sending}
+            rows={1}
+          />
 
-            <div className="flex items-center gap-1 pb-1">
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={clsx(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
-                  showEmojiPicker ? "text-indigo-600 bg-indigo-50" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                )}
-              >
-                <Smile className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlayOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                title="Invite to play a game"
-              >
-                <Gamepad2 className="h-5 w-5" />
-              </button>
-              {draft.trim() ? (
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-4 w-4 ml-0.5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                >
-                  <Mic className="h-5 w-5" />
-                </button>
+          <div className="flex items-center gap-1 pb-1">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={clsx(
+                "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                showEmojiPicker ? "text-indigo-600 bg-indigo-50" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               )}
-            </div>
-          </form>
-        )}
-
-        {!isRecording && (
-          <div className="mt-2 flex justify-center">
-            <p className="text-[10px] text-slate-400 font-medium">Press Enter to send • Shift+Enter for new line</p>
+            >
+              <Smile className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlayOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              title="Invite to play a game"
+            >
+              <Gamepad2 className="h-5 w-5" />
+            </button>
+            <button
+              type="submit"
+              disabled={sending || !draft.trim()}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+            >
+              <Send className="h-4 w-4 ml-0.5" />
+            </button>
           </div>
-        )}
+        </form>
+
+        <div className="mt-2 flex justify-center">
+          <p className="text-[10px] text-slate-400 font-medium">Press Enter to send • Shift+Enter for new line</p>
+        </div>
       </div>
 
       {playOpen && (

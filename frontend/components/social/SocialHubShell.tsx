@@ -6,6 +6,7 @@ import { useMemo, useState, useEffect, type ReactNode } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import CampusLogoBadge from "@/components/CampusLogoBadge";
 import { readAuthUser, onAuthChange, type AuthUser } from "@/lib/auth-storage";
+import { useCampuses } from "@/components/providers/campus-provider";
 
 const PRIMARY_LINKS = [
   { href: "/social", label: "Overview" },
@@ -31,11 +32,18 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const { getCampus } = useCampuses();
+  const campus = getCampus(authUser?.campusId);
 
   useEffect(() => {
     setAuthUser(readAuthUser());
     return onAuthChange(() => setAuthUser(readAuthUser()));
   }, []);
+
+  // ... (omitting intermediate code, just replacing the component usage below)
+
+  // [I need to target the block around line 108 again]
+
 
   const activeMap = useMemo(() => {
     return PRIMARY_LINKS.reduce<Record<string, boolean>>((acc, link) => {
@@ -105,7 +113,7 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
           <div className="flex flex-col items-center gap-2">
             <BrandLogo withWordmark={false} className="text-navy" logoClassName="h-[46px] w-[46px]" />
             <div className="flex justify-center w-full">
-              <CampusLogoBadge campusId={authUser?.campusId} />
+              <CampusLogoBadge campusName={campus?.name} logoUrl={campus?.logo_url} />
             </div>
           </div>
           <div>

@@ -37,7 +37,7 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
               User
             </th>
             <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Score
+              {scope === "social" ? "Social Score" : "Score"}
             </th>
           </tr>
         </thead>
@@ -46,13 +46,17 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
             const isMine = highlightUserId ? row.user_id === highlightUserId : false;
             // Prefer display_name, then handle, then truncated UUID as fallback
             const displayName = row.display_name || row.handle || `${row.user_id.slice(0, 8)}…${row.user_id.slice(-4)}`;
+            // For social scope, display as integer (the Social Score)
+            const scoreDisplay = scope === "social"
+              ? Math.floor(row.score).toString()
+              : formatScore(row.score);
             return (
               <tr key={row.user_id} className={isMine ? "bg-amber-50" : "bg-white"}>
                 <td className="whitespace-nowrap px-4 py-2 text-sm font-semibold text-slate-700">#{row.rank}</td>
                 <td className="px-4 py-2 text-sm text-slate-700">
                   {displayName}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2 text-right text-sm font-semibold text-slate-700">{formatScore(row.score)}</td>
+                <td className="whitespace-nowrap px-4 py-2 text-right text-sm font-semibold text-slate-700">{scoreDisplay}</td>
               </tr>
             );
           })}

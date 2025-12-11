@@ -9,20 +9,19 @@ vi.mock("next/image", () => ({
 	},
 }));
 
-import CampusLogoBadge, { MCGILL_ID } from "@/components/CampusLogoBadge";
+import CampusLogoBadge from "@/components/CampusLogoBadge";
 
 describe("CampusLogoBadge", () => {
-	it("renders McGill badge when campus id matches", () => {
-		render(<CampusLogoBadge campusId={MCGILL_ID} campusName="McGill University" />);
-
-		expect(screen.getByLabelText(/mcgill university/i)).toBeInTheDocument();
-		expect(screen.getByAltText(/mcgill crest/i)).toBeInTheDocument();
-		expect(screen.getByText(/mcgill/i)).toBeInTheDocument();
+	it("renders generic badge with initials when no logo provided", () => {
+		render(<CampusLogoBadge campusName="Test University" />);
+		expect(screen.getByLabelText(/Test University/i)).toBeInTheDocument();
+		expect(screen.getByText("T")).toBeInTheDocument(); // Initial
+		expect(screen.getByText(/Test University/i)).toBeInTheDocument();
 	});
 
-	it("does not render when campus is not McGill", () => {
-		const { container } = render(<CampusLogoBadge campusId="different-campus" campusName="Other University" />);
-
-		expect(container.firstChild).toBeNull();
+	it("renders logo when logoUrl is provided", () => {
+		render(<CampusLogoBadge campusName="McGill University" logoUrl="/brand/mcgill.svg" />);
+		expect(screen.getByAltText(/McGill University logo/i)).toBeInTheDocument();
+		expect(screen.getByLabelText(/McGill University/i)).toBeInTheDocument();
 	});
 });

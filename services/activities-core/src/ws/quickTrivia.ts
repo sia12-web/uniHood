@@ -165,9 +165,11 @@ export function leaveQuickTrivia(sessionId: string, userId: string): { sessionEn
             session.status = 'ended';
             session.leaveReason = 'opponent_left';
 
-            // Record stats
-            recordGameResult(winner.userId, 'quick_trivia', 'win', session.scores[winner.userId]);
-            recordGameResult(userId, 'quick_trivia', 'loss', 0);
+            // Record stats asynchronously
+            (async () => {
+                await recordGameResult(winner.userId, 'quick_trivia', 'win', session.scores[winner.userId]);
+                await recordGameResult(userId, 'quick_trivia', 'loss', 0);
+            })();
 
             // Clear round timer
             if (roundTimers[sessionId]) {
@@ -440,12 +442,14 @@ function endSession(sessionId: string) {
     const scores: ScoreEntry[] = Object.entries(session.scores).map(([userId, score]) => ({ userId, score }));
     const winner = scores.sort((a, b) => b.score - a.score)[0]?.userId;
 
-    // Record stats
-    scores.forEach(({ userId, score }) => {
-        const isWinner = userId === winner;
-        const result = isWinner ? 'win' : 'loss';
-        recordGameResult(userId, 'quick_trivia', result, score);
-    });
+    // Record stats asynchronously
+    (async () => {
+        for (const { userId, score } of scores) {
+            const isWinner = userId === winner;
+            const result = isWinner ? 'win' : 'loss';
+            await recordGameResult(userId, 'quick_trivia', result, score);
+        }
+    })();
 
     sendToSession(sessionId, {
         type: 'activity.session.ended',

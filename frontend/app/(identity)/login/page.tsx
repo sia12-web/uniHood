@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
+import FeatureShowcase from "@/components/auth/FeatureShowcase";
 import { loginIdentity } from "@/lib/identity";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
 import { HttpError } from "@/app/lib/http/errors";
@@ -114,96 +115,149 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen w-full bg-white">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-8">
-        <section className="flex flex-1 flex-col items-center justify-center text-slate-900 lg:justify-center">
-          <div className="relative flex flex-col items-center">
-            <BrandLogo
-              asLink={false}
-              backgroundTone="transparent"
-              logoWidth={800}
-              logoHeight={800}
-              className="w-full justify-center text-[#b7222d]"
-              logoClassName="h-48 w-auto sm:h-72 lg:h-[425px]"
-            />
+  return (
+    <main className="min-h-screen w-full bg-[#f8f9fa] flex items-stretch">
+      {/* Left visual side */}
+      <section className="hidden lg:flex flex-1 flex-col justify-between bg-gradient-to-br from-rose-50 via-white to-rose-100 p-16 relative overflow-hidden">
+        {/* Decorative background elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#ffdbe0] to-transparent rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-white to-transparent opacity-80" />
+
+        <div className="relative z-10">
+          <BrandLogo
+            asLink={false}
+            backgroundTone="transparent"
+            logoWidth={180}
+            logoHeight={180}
+            className="text-[#b7222d] origin-left scale-90"
+            logoClassName="h-16 w-auto"
+          />
+          <div className="mt-12 max-w-lg">
+            <h1 className="text-5xl font-extrabold text-[#8a1c23] tracking-tight leading-tight">
+              Get closer to <br />
+              <span className="text-[#d64045]">your campus.</span>
+            </h1>
+            <p className="mt-6 text-xl text-slate-600 leading-relaxed font-medium">
+              Join the live network where students discover, connect, and thrive together. One profile, endless possibilities.
+            </p>
           </div>
-        </section>
+        </div>
 
-        <section className="flex flex-1 justify-center">
-          <div className="w-full max-w-md rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9">
-            <header className="flex flex-col gap-2">
-              <h2 className="text-3xl font-semibold text-slate-900">Sign in to Radius</h2>
-            </header>
+        <div className="relative z-10 mt-auto">
+          <FeatureShowcase />
+        </div>
+      </section>
 
-            {error ? (
-              <p className="mt-4 rounded-lg border border-[#f0b7bd] bg-[#fbeaec] px-3 py-2 text-sm text-[#7a1d23]">
-                {error}
-              </p>
-            ) : null}
+      {/* Right form side */}
+      <section className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-white shadow-2xl z-20">
+        <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="text-center lg:text-left space-y-2">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back!</h2>
+            <p className="text-slate-500">
+              Please enter your details to sign in.
+            </p>
+          </div>
 
-            <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
-                <span>Email</span>
+          {error && (
+            <div className="rounded-2xl border border-red-100 bg-red-50/50 p-4 text-sm font-medium text-red-700 animate-in shake">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="space-y-5">
+              <div className="group relative">
                 <input
                   required
                   type="email"
+                  id="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder={demoEmail || "name@email.com"}
+                  placeholder=" "
                   value={form.email}
                   onChange={(event) => handleChange("email")(event.target.value)}
-                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                  className="peer w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-4 pt-6 pb-2 text-base font-semibold text-slate-900 outline-none transition-all focus:border-[#d64045] focus:bg-white focus:ring-4 focus:ring-[#ffdbe0]"
                 />
-              </label>
+                <label
+                  htmlFor="email"
+                  className="pointer-events-none absolute left-4 top-4 text-xs font-bold text-slate-400 uppercase tracking-wider transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:font-medium peer-placeholder-shown:text-slate-500 peer-placeholder-shown:normal-case peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[#d64045] peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-bold"
+                >
+                  Email Address
+                </label>
+              </div>
 
-              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
-                <span>Password</span>
+              <div className="group relative">
                 <input
                   required
                   type="password"
+                  id="password"
                   autoComplete="current-password"
-                  placeholder="Enter your password"
+                  placeholder=" "
                   value={form.password}
                   onChange={(event) => handleChange("password")(event.target.value)}
-                  className="rounded-xl border border-[#e7d7d8] bg-[#fffdfb] px-3 py-3 text-sm text-slate-900 shadow-sm transition focus:border-[#d64045] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf]"
+                  className="peer w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-4 pt-6 pb-2 text-base font-semibold text-slate-900 outline-none transition-all focus:border-[#d64045] focus:bg-white focus:ring-4 focus:ring-[#ffdbe0]"
                 />
+                <label
+                  htmlFor="password"
+                  className="pointer-events-none absolute left-4 top-4 text-xs font-bold text-slate-400 uppercase tracking-wider transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:font-medium peer-placeholder-shown:text-slate-500 peer-placeholder-shown:normal-case peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[#d64045] peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-bold"
+                >
+                  Password
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="w-5 h-5 rounded-md border-2 border-slate-200 transition-colors group-hover:border-[#d64045] bg-white flex items-center justify-center">
+                  {/* Placeholder for checkbox logic if implemented later */}
+                </div>
+                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700">Remember me</span>
               </label>
+              <Link href="/forgot-password" className="text-sm font-bold text-[#b7222d] hover:text-[#991b1b] hover:underline decoration-2 underline-offset-4">
+                Forgot Password?
+              </Link>
+            </div>
 
-              <div className="flex justify-start text-sm">
-                <Link href="/forgot-password" className="font-medium text-[#b7222d] hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+            <button
+              type="submit"
+              disabled={disabled}
+              className="mt-2 w-full rounded-2xl bg-[#d64045] py-4 text-lg font-bold text-white shadow-lg shadow-rose-200 transition-all hover:bg-[#b7222d] hover:shadow-xl hover:shadow-rose-300 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-[#ffdbe0] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+            >
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Signing in...
+                </span>
+              ) : "Sign In"}
+            </button>
+          </form>
 
-              <button
-                type="submit"
-                disabled={disabled}
-                className="mt-2 rounded-xl bg-[#d64045] px-4 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Signing in..." : "Sign in"}
-              </button>
-            </form>
-
-            <footer className="mt-6 flex flex-col gap-2 border-t border-[#f0d8d9] pt-4 text-sm text-slate-700">
-              <span>
-                Need an account?{" "}
-                <Link href="/onboarding" className="font-semibold text-[#b7222d] underline-offset-4 hover:underline">
-                  Create one
-                </Link>
-                .
-              </span>
-              <div className="mt-2 flex gap-4 text-xs text-slate-500">
-                <Link href="/terms" className="hover:text-[#d64045] hover:underline">
-                  Terms of Service
-                </Link>
-                <Link href="/privacy" className="hover:text-[#d64045] hover:underline">
-                  Privacy Policy
-                </Link>
-              </div>
-            </footer>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-100"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-400 font-bold tracking-widest">or</span>
+            </div>
           </div>
-        </section>
-      </div>
+
+          <div className="text-center">
+            <p className="text-slate-600 font-medium">
+              Don't have an account yet?{" "}
+              <Link href="/onboarding" className="text-[#b7222d] font-bold hover:underline decoration-2 underline-offset-4">
+                Create an account
+              </Link>
+            </p>
+            <div className="mt-8 flex gap-6 justify-center text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy</Link>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

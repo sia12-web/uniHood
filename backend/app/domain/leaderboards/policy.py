@@ -10,7 +10,7 @@ from app.infra.redis import redis_client
 
 
 # --- Social Score Weights ---
-# The Social Score combines: Friends + Meetups + Games
+# Points earned for social activities (these accumulate to increase Social Score level)
 
 # Friends Category
 W_INVITE_ACCEPT = 30.0   # Accepting a friend invite
@@ -22,7 +22,7 @@ W_ROOM_SENT = 1.0        # Sending a message in a room (capped)
 W_ROOM_JOIN = 30.0       # Joining a room/meetup
 W_ROOM_CREATE = 100.0    # Creating/hosting a meetup
 
-# Games Category
+# Games Category (separate from social, tracked as Game Points)
 W_ACT_PLAYED = 50.0      # Playing a game
 W_ACT_WON = 150.0        # Winning a game
 
@@ -37,6 +37,74 @@ ROOM_JOIN_CAP = 10       # Max room joins counted per day
 ROOM_CREATE_CAP = 3      # Max room creations counted per day
 UNIQ_SENDER_CAP = 20     # Max unique senders counted
 UNIQ_INVITE_CAP = 10     # Max unique invite accepters counted
+
+# ============================================================================
+# SOCIAL SCORE TIER SYSTEM
+# Social Score is a LEVEL (1, 2, 3, etc.) that increases as you earn points
+# The leaderboard ranks users by their Social Score level
+# ============================================================================
+
+# Thresholds: cumulative points needed to reach each Social Score level
+# Social Score 1: 0-99 points
+# Social Score 2: 100-299 points
+# Social Score 3: 300-599 points
+# etc.
+SOCIAL_SCORE_THRESHOLDS = [
+    0,      # Level 1: 0+ points
+    100,    # Level 2: 100+ points
+    300,    # Level 3: 300+ points
+    600,    # Level 4: 600+ points
+    1000,   # Level 5: 1000+ points
+    1500,   # Level 6: 1500+ points
+    2100,   # Level 7: 2100+ points
+    2800,   # Level 8: 2800+ points
+    3600,   # Level 9: 3600+ points
+    4500,   # Level 10: 4500+ points
+    5500,   # Level 11: 5500+ points
+    6600,   # Level 12: 6600+ points
+    7800,   # Level 13: 7800+ points
+    9100,   # Level 14: 9100+ points
+    10500,  # Level 15: 10500+ points (max visible level, continues beyond)
+]
+
+
+def calculate_social_score_level(total_points: float) -> int:
+    """
+    Calculate the Social Score level based on accumulated points.
+    Returns a level (1, 2, 3, etc.) - the higher the better.
+    """
+    level = 1
+    for i, threshold in enumerate(SOCIAL_SCORE_THRESHOLDS):
+        if total_points >= threshold:
+            level = i + 1
+        else:
+            break
+    # Allow levels beyond the defined thresholds
+    if total_points >= SOCIAL_SCORE_THRESHOLDS[-1]:
+        # Each additional 1500 points after max threshold = +1 level
+        extra_points = total_points - SOCIAL_SCORE_THRESHOLDS[-1]
+        extra_levels = int(extra_points // 1500)
+        level = len(SOCIAL_SCORE_THRESHOLDS) + extra_levels
+    return level
+
+
+def points_to_next_level(total_points: float) -> tuple[int, float]:
+    """
+    Calculate points needed to reach next Social Score level.
+    Returns (next_level, points_needed).
+    """
+    current_level = calculate_social_score_level(total_points)
+    
+    if current_level < len(SOCIAL_SCORE_THRESHOLDS):
+        next_threshold = SOCIAL_SCORE_THRESHOLDS[current_level]
+        return current_level + 1, next_threshold - total_points
+    else:
+        # Beyond defined thresholds, each level needs 1500 points
+        base = SOCIAL_SCORE_THRESHOLDS[-1]
+        levels_beyond = current_level - len(SOCIAL_SCORE_THRESHOLDS)
+        current_threshold = base + (levels_beyond * 1500)
+        next_threshold = current_threshold + 1500
+        return current_level + 1, next_threshold - total_points
 
 # ============================================================================
 # ANTI-CHEAT CONFIGURATION

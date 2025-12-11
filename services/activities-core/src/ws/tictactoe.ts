@@ -117,8 +117,8 @@ export function createTicTacToeSession(creatorUserId: string, opponentId?: strin
         scores: {},
         roundWins: {},
         countdown: null,
-        invitedOpponentId,
-        creatorUserId,
+        invitedOpponentId: opponentId,
+        creatorUserId: creatorUserId,
         roundIndex: 0,
         lastRoundWinner: null,
         matchWinner: null,
@@ -211,9 +211,11 @@ export function leaveSession(sessionId: string, userId: string): { sessionEnded:
             session.status = 'finished';
             session.leaveReason = 'opponent_left';
 
-            // Record stats
-            recordGameResult(remainingPlayerId, 'tictactoe', 'win', session.scores[remainingPlayerId]);
-            recordGameResult(userId, 'tictactoe', 'loss', 0);
+            // Record stats asynchronously
+            (async () => {
+                await recordGameResult(remainingPlayerId, 'tictactoe', 'win', session.scores[remainingPlayerId]);
+                await recordGameResult(userId, 'tictactoe', 'loss', 0);
+            })();
 
             // Clear countdown if running
             if (countdowns[sessionId]) {
@@ -459,7 +461,7 @@ export function handleRoundEnd(sessionId: string) {
     let roundWinnerId: string | null = null;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const isDraw = session.winner === 'draw';
-    
+
     if (session.winner && session.winner !== 'draw') {
         const winnerId = session.players[session.winner as 'X' | 'O'];
         if (winnerId) {
@@ -508,19 +510,25 @@ export function handleRoundEnd(sessionId: string) {
         if (session.matchWinner === pX) {
             session.scores[pX] = calculatePoints(winsX, winsO);
             session.scores[pO] = 0; // Loser gets 0 points
-            recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
-            recordGameResult(pO, 'tictactoe', 'loss', 0);
+            (async () => {
+                await recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
+                await recordGameResult(pO, 'tictactoe', 'loss', 0);
+            })();
         } else if (session.matchWinner === pO) {
             session.scores[pO] = calculatePoints(winsO, winsX);
             session.scores[pX] = 0; // Loser gets 0 points
-            recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
-            recordGameResult(pX, 'tictactoe', 'loss', 0);
+            (async () => {
+                await recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
+                await recordGameResult(pX, 'tictactoe', 'loss', 0);
+            })();
         } else {
             // Draw - both get equal points
             session.scores[pX] = 150;
             session.scores[pO] = 150;
-            recordGameResult(pX, 'tictactoe', 'loss', 150);
-            recordGameResult(pO, 'tictactoe', 'loss', 150);
+            (async () => {
+                await recordGameResult(pX, 'tictactoe', 'draw', 150);
+                await recordGameResult(pO, 'tictactoe', 'draw', 150);
+            })();
         }
 
         session.status = 'finished';
@@ -567,10 +575,10 @@ export function handleRoundEnd(sessionId: string) {
     // I will keep this "Fast Forward" behavior.
     if (session.players.X) session.ready[session.players.X] = true;
     if (session.players.O) session.ready[session.players.O] = true;
-    
+
     // Broadcast the lobby state first so clients can see the round result
     broadcastState(sessionId);
-    
+
     // Delay before starting countdown to show round result (3 seconds like RPS)
     setTimeout(() => {
         const s = sessions[sessionId];

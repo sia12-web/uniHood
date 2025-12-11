@@ -5,8 +5,16 @@ export async function recordGameResult(
     activityKey: string,
     result: 'win' | 'loss' | 'draw',
     points: number
-) {
-    if (!userId || userId === 'anonymous' || userId.startsWith('anon-')) return;
+): Promise<boolean> {
+    if (!userId || userId === 'anonymous' || userId.startsWith('anon-')) {
+        console.log(`[Stats] Skipping anonymous user: ${userId}`);
+        return false;
+    }
+
+    console.log(`[Stats] Recording game result for user=${userId}, activity=${activityKey}, result=${result}, points=${points}`);
+
+    let sqlSuccess = false;
+    let redisSuccess = false;
 
     // 1. Update SQL Stats
     try {
@@ -50,15 +58,31 @@ export async function recordGameResult(
                 lastPlayedAt: new Date()
             }
         });
+        sqlSuccess = true;
+        console.log(`[Stats] SQL stats updated successfully for user=${userId}`);
     } catch (e) {
-        console.error(`Failed to update SQL stats for ${userId}`, e);
+        console.error(`[Stats] Failed to update SQL stats for ${userId}`, e);
     }
 
     // 2. Update Redis Leaderboards (Daily Counters)
     try {
+        // Check if Redis is connected
+        if (!redis.isOpen) {
+            console.error(`[Stats] Redis is not connected, attempting to reconnect...`);
+            try {
+                await redis.connect();
+                console.log(`[Stats] Redis reconnected successfully`);
+            } catch (reconnectError) {
+                console.error(`[Stats] Redis reconnection failed`, reconnectError);
+                return sqlSuccess; // Return partial success
+            }
+        }
+
         const now = new Date();
         const ymd = now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
         const key = `lb:day:${ymd}:user:${userId}`;
+
+        console.log(`[Stats] Writing to Redis key: ${key}`);
 
         await redis.hIncrBy(key, 'acts_played', 1);
         if (result === 'win') {
@@ -66,7 +90,15 @@ export async function recordGameResult(
         }
         await redis.hSet(key, 'touched', '1');
         await redis.expire(key, 48 * 60 * 60); // 48h TTL
+
+        // Verify the write by reading back
+        const verifyData = await redis.hGetAll(key);
+        console.log(`[Stats] Redis write verified for key=${key}: acts_played=${verifyData.acts_played}, acts_won=${verifyData.acts_won}, touched=${verifyData.touched}`);
+
+        redisSuccess = true;
     } catch (e) {
-        console.error(`Failed to update Redis stats for ${userId}`, e);
+        console.error(`[Stats] Failed to update Redis stats for ${userId}`, e);
     }
+
+    return sqlSuccess || redisSuccess;
 }

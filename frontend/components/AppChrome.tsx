@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
+import { CampusProvider } from "@/components/providers/campus-provider";
 import { ReportProvider } from "@/app/features/moderation/ReportProvider";
 
 const AuthenticatedAppChrome = dynamic(() => import("@/components/AuthenticatedAppChrome"), {
@@ -24,22 +25,26 @@ export default function AppChrome({ children }: { children: ReactNode }) {
   if (hideChrome) {
     return (
       <QueryProvider>
-        <ToastProvider>
-          <ReportProvider>
-            {children}
-          </ReportProvider>
-        </ToastProvider>
+        <CampusProvider>
+          <ToastProvider>
+            <ReportProvider>
+              {children}
+            </ReportProvider>
+          </ToastProvider>
+        </CampusProvider>
       </QueryProvider>
     );
   }
 
   return (
     <QueryProvider>
-      <ToastProvider>
-        <ReportProvider>
-          <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>
-        </ReportProvider>
-      </ToastProvider>
+      <CampusProvider>
+        <ToastProvider>
+          <ReportProvider>
+            <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>
+          </ReportProvider>
+        </ToastProvider>
+      </CampusProvider>
     </QueryProvider>
   );
 }

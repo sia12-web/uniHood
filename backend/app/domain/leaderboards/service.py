@@ -73,25 +73,35 @@ class LeaderboardService:
 
 	def _score_for_user(self, counters: DailyCounters, streak_days: int) -> ScoreBreakdown:
 		counters = policy.clamp_daily_counters(counters)
+		
+		# Social points: friends, meetups, messaging (NOT games)
+		# These accumulate to determine Social Score LEVEL
 		social = (
 			policy.W_INVITE_ACCEPT * counters.invites_accepted
 			+ policy.W_FRIEND_NEW * counters.friends_new
 			+ policy.W_DM_SENT * counters.dm_sent
 			+ policy.W_ROOM_SENT * counters.room_sent
-		)
-		engagement = (
-			policy.W_ACT_PLAYED * counters.acts_played
-			+ policy.W_ACT_WON * counters.acts_won
 			+ policy.W_ROOM_JOIN * counters.rooms_joined
 			+ policy.W_ROOM_CREATE * counters.rooms_created
 		)
+		
+		# Game points: games played and won (separate from social)
+		engagement = (
+			policy.W_ACT_PLAYED * counters.acts_played
+			+ policy.W_ACT_WON * counters.acts_won
+		)
+		
+		# Popularity bonus
 		popularity = (
 			policy.W_POP_UNIQ_SENDER * counters.uniq_senders
 			+ policy.W_POP_UNIQ_INVITE_FROM * counters.uniq_invite_accept_from
 		)
+		
+		# Overall combines everything with streak multiplier
 		overall_raw = social + engagement + popularity
 		multiplier = policy.streak_multiplier(streak_days)
 		overall = overall_raw * multiplier
+		
 		return ScoreBreakdown(
 			social=social,
 			engagement=engagement,
@@ -501,10 +511,15 @@ class LeaderboardService:
 	) -> LeaderboardResponseSchema:
 		if ymd is None:
 			ymd = _today_ymd()
-		key = _format_zset_key(scope, period, str(campus_id), ymd)
-		items = await self._redis.zrevrange(key, 0, limit - 1, withscores=True)
-		if not items:
-			items = await self._fallback_query(scope, period, campus_id, ymd, limit)
+		
+		# For SOCIAL scope, calculate live from database (same formula as get_my_summary)
+		if scope == LeaderboardScope.SOCIAL:
+			items = await self._calculate_live_social_scores(campus_id, limit)
+		else:
+			key = _format_zset_key(scope, period, str(campus_id), ymd)
+			items = await self._redis.zrevrange(key, 0, limit - 1, withscores=True)
+			if not items:
+				items = await self._fallback_query(scope, period, campus_id, ymd, limit)
 		
 		# Fetch display names for all users
 		user_ids = [user_id for user_id, _ in items]
@@ -527,6 +542,62 @@ class LeaderboardService:
 			campus_id=campus_id,
 			items=rows,
 		)
+	
+	async def _calculate_live_social_scores(self, campus_id: UUID, limit: int) -> List[Tuple[str, float]]:
+		"""Calculate social scores for all users in a campus from database."""
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			# Get all users in this campus with their social activity counts
+			rows = await conn.fetch(
+				"""
+				SELECT 
+					u.id as user_id,
+					COALESCE(f.friend_count, 0) as friend_count,
+					COALESCE(mh.hosted_count, 0) as hosted_count,
+					COALESCE(mj.joined_count, 0) as joined_count
+				FROM users u
+				LEFT JOIN (
+					SELECT user_id, COUNT(*) as friend_count 
+					FROM friendships 
+					WHERE status = 'accepted' 
+					GROUP BY user_id
+				) f ON f.user_id = u.id
+				LEFT JOIN (
+					SELECT creator_user_id, COUNT(*) as hosted_count 
+					FROM meetups 
+					GROUP BY creator_user_id
+				) mh ON mh.creator_user_id = u.id
+				LEFT JOIN (
+					SELECT user_id, COUNT(*) as joined_count 
+					FROM meetup_participants 
+					WHERE status = 'JOINED' 
+					GROUP BY user_id
+				) mj ON mj.user_id = u.id
+				WHERE u.campus_id = $1
+				ORDER BY (
+					COALESCE(f.friend_count, 0) * 50 + 
+					COALESCE(mh.hosted_count, 0) * 100 + 
+					COALESCE(mj.joined_count, 0) * 30
+				) DESC
+				LIMIT $2
+				""",
+				campus_id,
+				limit,
+			)
+			
+			results = []
+			for row in rows:
+				# Calculate total points
+				total_points = (
+					row["friend_count"] * policy.W_FRIEND_NEW +
+					row["hosted_count"] * policy.W_ROOM_CREATE +
+					row["joined_count"] * policy.W_ROOM_JOIN
+				)
+				# Convert to Social Score level
+				social_score = policy.calculate_social_score_level(total_points)
+				results.append((str(row["user_id"]), float(social_score)))
+			
+			return results
 
 	async def _fetch_user_display_names(self, user_ids: List[str]) -> Dict[str, Dict[str, str]]:
 		"""Fetch display names and handles for a list of user IDs."""
@@ -689,32 +760,84 @@ class LeaderboardService:
 			scores["popularity"] = live_score.popularity
 			scores["overall"] = live_score.overall
 
-		# CUSTOM: Override social score for dashboard display
-		# Formula: (total_friends + total_meetups) / 2
+		# NEW: Calculate Social Score as a LEVEL based on accumulated points
+		# Social points come from: friends, meetups hosted, meetups joined, messaging
 		async with pool.acquire() as conn:
+			# Count total friends (each friend = W_FRIEND_NEW points)
 			friend_count_row = await conn.fetchrow(
 				"SELECT COUNT(*) as count FROM friendships WHERE user_id = $1 AND status = 'accepted'",
 				user_id
 			)
-			meetup_count_row = await conn.fetchrow(
+			# Count meetups hosted (each = W_ROOM_CREATE points)
+			hosted_count_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM meetups WHERE creator_user_id = $1",
+				user_id
+			)
+			# Count meetups joined (each = W_ROOM_JOIN points)
+			joined_count_row = await conn.fetchrow(
 				"SELECT COUNT(*) as count FROM meetup_participants WHERE user_id = $1 AND status = 'JOINED'",
 				user_id
 			)
+			
 			f_count = friend_count_row["count"] if friend_count_row else 0
-			m_count = meetup_count_row["count"] if meetup_count_row else 0
-			# Calculate average
-			custom_social = (f_count + m_count) / 2.0
-			scores["social"] = custom_social
+			hosted_count = hosted_count_row["count"] if hosted_count_row else 0
+			joined_count = joined_count_row["count"] if joined_count_row else 0
+			
+			# Calculate total social points
+			# Friends: 50 points each
+			# Meetups hosted: 100 points each
+			# Meetups joined: 30 points each
+			# Plus any daily messaging points from Redis counters
+			total_social_points = (
+				f_count * policy.W_FRIEND_NEW +       # Friends
+				hosted_count * policy.W_ROOM_CREATE + # Meetups hosted
+				joined_count * policy.W_ROOM_JOIN     # Meetups joined
+			)
+			
+			# Add daily activity points (DMs, room messages) if we have them
+			if counters:
+				total_social_points += counters.dm_sent * policy.W_DM_SENT
+				total_social_points += counters.room_sent * policy.W_ROOM_SENT
+				total_social_points += counters.invites_accepted * policy.W_INVITE_ACCEPT
+			
+			# Convert total points to Social Score LEVEL
+			social_score_level = policy.calculate_social_score_level(total_social_points)
+			
+			# Store both the level (for display) and raw points (for context)
+			scores["social"] = float(social_score_level)
+			
+			# Also add raw points to counts for frontend display
+			counts_map["social_points"] = int(total_social_points)
+			counts_map["friends"] = f_count
+			counts_map["meetups_hosted"] = hosted_count
+			counts_map["meetups_joined"] = joined_count
+			
+			# Calculate points needed for next level
+			next_level, points_needed = policy.points_to_next_level(total_social_points)
+			counts_map["next_level"] = next_level
+			counts_map["points_to_next_level"] = int(points_needed)
 
 		streak = StreakSummarySchema(
 			current=current_streak,
 			best=best_streak,
 			last_active_ymd=last_active,
 		)
-		badge_payload = [
-			{"kind": row["kind"], "earned_ymd": int(row["earned_ymd"]), "meta": row["meta"] or {}}
-			for row in badges
-		]
+		badge_payload = []
+		for row in badges:
+			meta_raw = row["meta"]
+			# Parse meta if it's a string (from JSON storage)
+			if isinstance(meta_raw, str):
+				try:
+					meta = json.loads(meta_raw) if meta_raw else {}
+				except (json.JSONDecodeError, TypeError):
+					meta = {}
+			else:
+				meta = meta_raw or {}
+			badge_payload.append({
+				"kind": row["kind"],
+				"earned_ymd": int(row["earned_ymd"]),
+				"meta": meta
+			})
 
 		return MySummarySchema(
 			ymd=ymd,

@@ -84,7 +84,7 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 
 function cleanupExpiredSessions() {
     const now = Date.now();
-    
+
     // Cleanup generic sessions
     for (const [sessionId, session] of Object.entries(genericSessions)) {
         if (session.status === 'pending' && now - session.createdAt > SESSION_EXPIRY_MS) {
@@ -113,7 +113,7 @@ function getUserPendingSessionCount(userId: string): number {
     // Clean up ended sessions from tracking first
     const tracked = userPendingSessions[userId];
     if (!tracked) return 0;
-    
+
     // Remove sessions that no longer exist or are not pending
     for (const sessionId of tracked) {
         const session = genericSessions[sessionId];
@@ -121,7 +121,7 @@ function getUserPendingSessionCount(userId: string): number {
             tracked.delete(sessionId);
         }
     }
-    
+
     return tracked.size;
 }
 
@@ -292,18 +292,18 @@ function broadcastGenericStarted(sessionId: string) {
     });
 }
 
-function broadcastGenericEnded(sessionId: string) {
+async function broadcastGenericEnded(sessionId: string) {
     const session = genericSessions[sessionId];
     if (!session) return;
     const scores = Object.entries(session.scores).map(([userId, score]) => ({ userId, score }));
     const winner = session.winnerUserId || (scores.sort((a, b) => b.score - a.score)[0]?.userId ?? null);
 
-    // Record stats
-    scores.forEach(({ userId, score }) => {
+    // Record stats - await all promises
+    await Promise.all(scores.map(async ({ userId, score }) => {
         const isWinner = userId === winner;
         const result = isWinner ? 'win' : 'loss'; // No draw logic for generic yet
-        recordGameResult(userId, session.activityKey, result, score);
-    });
+        await recordGameResult(userId, session.activityKey, result, score);
+    }));
 
     const payload = {
         type: 'activity.session.ended',
@@ -458,7 +458,7 @@ server.register(async function (fastify) {
                                     let roundWinnerId: string | null = null;
                                     let roundReason: string | undefined;
 
-                                    console.log(`[RPS] Move check: p1=${p1.slice(0,8)} has ${m1}, p2=${p2.slice(0,8)} has ${m2}`);
+                                    console.log(`[RPS] Move check: p1=${p1.slice(0, 8)} has ${m1}, p2=${p2.slice(0, 8)} has ${m2}`);
 
                                     if (m1 === m2) {
                                         roundReason = 'draw';
@@ -470,11 +470,11 @@ server.register(async function (fastify) {
                                     ) {
                                         roundWinnerId = p1;
                                         session.roundWins[p1] = (session.roundWins[p1] || 0) + 1;
-                                        console.log(`[RPS] Result: p1 (${p1.slice(0,8)}) wins`);
+                                        console.log(`[RPS] Result: p1 (${p1.slice(0, 8)}) wins`);
                                     } else {
                                         roundWinnerId = p2;
                                         session.roundWins[p2] = (session.roundWins[p2] || 0) + 1;
-                                        console.log(`[RPS] Result: p2 (${p2.slice(0,8)}) wins`);
+                                        console.log(`[RPS] Result: p2 (${p2.slice(0, 8)}) wins`);
                                     }
 
                                     session.lastRoundWinner = roundWinnerId;
@@ -676,9 +676,9 @@ server.register(async function (fastify) {
         if (creatorUserId !== 'anonymous') {
             const pendingCount = getUserPendingSessionCount(creatorUserId);
             if (pendingCount >= MAX_PENDING_SESSIONS_PER_USER) {
-                return reply.status(429).send({ 
-                    error: 'rate_limit_exceeded', 
-                    message: `You have too many pending game invites (${pendingCount}). Please wait for them to expire or be accepted.` 
+                return reply.status(429).send({
+                    error: 'rate_limit_exceeded',
+                    message: `You have too many pending game invites (${pendingCount}). Please wait for them to expire or be accepted.`
                 });
             }
         }
@@ -1084,7 +1084,7 @@ const start = async () => {
         const port = parseInt(process.env.PORT || '3001', 10);
         await server.listen({ port, host: '0.0.0.0' });
         console.log(`Server listening on http://localhost:${port}`);
-        
+
         // Start session cleanup interval (runs every 5 minutes)
         cleanupInterval = setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
         console.log('Session cleanup interval started (every 5 minutes)');

@@ -11,16 +11,39 @@ from app.infra.postgres import get_pool
 MCGILL_CAMPUS_ID = "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2"
 
 POPULAR_COURSES_MCGILL = [
-    {"code": "COMP 202", "name": "Foundations of Programming"},
-    {"code": "COMP 250", "name": "Introduction to Computer Science"},
+    # Freshman Science & Engineering Core (U0)
     {"code": "MATH 133", "name": "Linear Algebra and Geometry"},
     {"code": "MATH 140", "name": "Calculus 1"},
-    {"code": "PSYC 100", "name": "Introduction to Psychology"},
-    {"code": "ECON 208", "name": "Microeconomic Analysis and Applications"},
-    {"code": "MGCR 211", "name": "Introduction to Financial Accounting"},
+    {"code": "MATH 141", "name": "Calculus 2"},
     {"code": "BIOL 111", "name": "Principles: Organismal Biology"},
+    {"code": "BIOL 112", "name": "Cell and Molecular Biology"},
     {"code": "CHEM 110", "name": "General Chemistry 1"},
-    {"code": "PHYS 101", "name": "Introductory Physics - Mechanics"},
+    {"code": "CHEM 120", "name": "General Chemistry 2"},
+    {"code": "PHYS 101", "name": "Introductory Physics – Mechanics"},
+    {"code": "PHYS 102", "name": "Introductory Physics – Electromagnetism"},
+    {"code": "PHYS 131", "name": "Mechanics and Waves"},
+    {"code": "PHYS 142", "name": "Electromagnetism and Optics"},
+
+    # Freshman Management Core (U0/U1)
+    {"code": "MATH 122", "name": "Calculus for Management"},
+    {"code": "MATH 123", "name": "Linear Algebra and Probability"},
+    {"code": "MGCR 211", "name": "Introduction to Financial Accounting"},
+    {"code": "MGCR 222", "name": "Introduction to Organizational Behaviour"},
+    {"code": "ECON 208", "name": "Microeconomic Analysis and Applications"},
+    {"code": "ECON 209", "name": "Macroeconomic Analysis and Applications"},
+
+    # Popular Electives & "Bird Courses"
+    {"code": "CHEM 181", "name": "World of Chemistry: Food"},
+    {"code": "ATOC 185", "name": "Natural Disasters"},
+    {"code": "ATOC 184", "name": "Science of Storms"},
+    {"code": "PHYS 183", "name": "The Milky Way Inside and Out"},
+    {"code": "MUAR 211", "name": "The Art of Listening"},
+    {"code": "COMP 202", "name": "Foundations of Programming"},
+    {"code": "PSYC 100", "name": "Introduction to Psychology"},
+    {"code": "ANTH 202", "name": "Socio-Cultural Anthropology"},
+    {"code": "RELG 204", "name": "Judaism, Christianity and Islam"},
+    {"code": "CLAS 203", "name": "Greek Mythology"},
+    {"code": "EPSY 202", "name": "Science of Education"},
 ]
 
 

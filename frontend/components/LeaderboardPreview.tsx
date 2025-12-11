@@ -10,7 +10,8 @@ export function LeaderboardPreview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLeaderboard("overall", { limit: 5, period: "all_time" })
+    // Fetch social leaderboard to show players with highest Social Score
+    fetchLeaderboard("social", { limit: 5 })
       .then((data) => {
         setLeaders(data.items);
         setLoading(false);
@@ -50,12 +51,11 @@ export function LeaderboardPreview() {
           {leaders.map((leader, index) => (
             <div key={leader.user_id} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                  index === 0 ? "bg-yellow-100 text-yellow-700" :
-                  index === 1 ? "bg-gray-100 text-gray-700" :
-                  index === 2 ? "bg-orange-100 text-orange-700" :
-                  "bg-slate-100 text-slate-500"
-                }`}>
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-yellow-100 text-yellow-700" :
+                    index === 1 ? "bg-gray-100 text-gray-700" :
+                      index === 2 ? "bg-orange-100 text-orange-700" :
+                        "bg-slate-100 text-slate-500"
+                  }`}>
                   {leader.rank}
                 </span>
                 <div className="flex flex-col">
@@ -67,12 +67,15 @@ export function LeaderboardPreview() {
                   )}
                 </div>
               </div>
-              <div className="font-mono text-sm font-bold text-slate-900">{leader.score}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-sm font-bold text-slate-900">{Math.floor(leader.score)}</span>
+                <span className="text-xs text-slate-500">Social Score</span>
+              </div>
             </div>
           ))}
           <div className="pt-2">
-            <Link 
-              href="/leaderboards" 
+            <Link
+              href="/leaderboards"
               className="block w-full rounded-md bg-indigo-50 py-2 text-center text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
             >
               View Full Leaderboard

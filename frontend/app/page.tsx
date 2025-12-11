@@ -14,6 +14,7 @@ import { useTicTacToeInviteState } from "@/components/providers/tictactoe-invite
 import { useQuickTriviaInviteState } from "@/components/providers/quick-trivia-invite-provider";
 import { useRockPaperScissorsInviteState } from "@/components/providers/rock-paper-scissors-invite-provider";
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
+import { useCampuses } from "@/components/providers/campus-provider";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
@@ -270,32 +271,6 @@ export default function HomePage() {
     persistActiveSection("dashboard", authUser?.userId ?? null);
   }, [authUser?.userId, authHydrated, persistActiveSection]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadCampuses = async () => {
-      try {
-        const rows = await listCampuses();
-        if (!cancelled) {
-          const map = rows.reduce<Record<string, string>>((acc, campus) => {
-            if (campus.id && campus.name) {
-              acc[campus.id] = campus.name;
-            }
-            return acc;
-          }, {});
-          setCampusNames(map);
-        }
-      } catch {
-        // Non-blocking; default labels will be used if campus lookup fails.
-      }
-    };
-    void loadCampuses();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-
-
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
   const rosterPeerIds = useMemo(() => chatRosterEntries.map((entry) => entry.peerId), [chatRosterEntries]);
   const discoverPeerIds = useMemo(() => discoverPeople.map((p) => p.userId), [discoverPeople]);
@@ -303,7 +278,10 @@ export default function HomePage() {
   const { presence: rosterPresence } = usePresence(rosterPeerIds);
   const { presence: discoverPresence } = usePresence(discoverPeerIds);
   const { presence: recentFriendsPresence } = usePresence(recentFriendPeerIds);
-  const [campusNames, setCampusNames] = useState<Record<string, string>>({});
+
+  const { getCampus } = useCampuses();
+  const currentCampus = getCampus(authUser?.campusId);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -354,7 +332,7 @@ export default function HomePage() {
           const campusId = (raw as { campus_id?: string | null }).campus_id ?? authUser?.campusId ?? null;
           const campusName =
             (raw as { campus_name?: string | null }).campus_name ??
-            (campusId ? campusNames[campusId] : undefined);
+            (campusId ? getCampus(campusId)?.name : undefined);
           const campusLabel =
             campusName ??
             (campusId && authUser?.campusId && campusId === authUser.campusId ? "Your campus" : "Campus peer");
@@ -393,7 +371,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [authUser?.campusId, authUser?.userId, campusNames]);
+  }, [authUser?.campusId, authUser?.userId, getCampus]);
 
   const [activitySnapshot, setActivitySnapshot] = useState<{
     totalGames: number;
@@ -587,8 +565,9 @@ export default function HomePage() {
   const handleSignOut = useCallback(() => {
     clearAuthSnapshot();
     setAuthUser(null);
-    router.push("/login");
-  }, [router]);
+    // Force hard redirect to clear memory and prevent back-navigation
+    window.location.replace("/login");
+  }, []);
 
 
 
@@ -772,7 +751,7 @@ export default function HomePage() {
             {/* Leaderboard Preview */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <LeaderboardPreview />
-              
+
               {/* Compact Live Discovery */}
               <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-rose-50/50 p-6 shadow-sm transition-all hover:shadow-md hover:border-indigo-200">
                 <div className="absolute top-0 right-0 -mt-16 -mr-16 h-40 w-40 rounded-full bg-gradient-to-br from-rose-400/20 to-amber-300/20 blur-3xl" />
@@ -861,11 +840,10 @@ export default function HomePage() {
                       const isCreated = (item as { action?: string }).action === 'created';
                       return (
                         <div key={item.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition">
-                          <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            isCreated 
-                              ? 'bg-violet-100 text-violet-600' 
-                              : 'bg-indigo-100 text-indigo-600'
-                          }`}>
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${isCreated
+                            ? 'bg-violet-100 text-violet-600'
+                            : 'bg-indigo-100 text-indigo-600'
+                            }`}>
                             <Calendar className="h-6 w-6" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1022,8 +1000,8 @@ export default function HomePage() {
                         <span className="text-xs font-bold text-rose-600">New meetups available!</span>
                       </div>
                     )}
-                    <Link 
-                      href="/meetups" 
+                    <Link
+                      href="/meetups"
                       className="text-sm font-semibold text-rose-600 hover:text-rose-700"
                       onClick={markMeetupsSeen}
                     >
@@ -1263,14 +1241,20 @@ export default function HomePage() {
             />
             <span className="h-14 w-px flex-shrink-0 bg-rose-200" aria-hidden />
             <div className="flex flex-shrink-0 items-center">
-              <Image
-                src="/university-logos/mcgill.svg"
-                alt="McGill University"
-                width={56}
-                height={56}
-                className="h-14 w-auto rounded-lg object-contain"
-                priority
-              />
+              {currentCampus?.logo_url ? (
+                <Image
+                  src={currentCampus.logo_url}
+                  alt={currentCampus.name}
+                  width={56}
+                  height={56}
+                  className="h-14 w-auto rounded-lg object-contain"
+                  priority
+                />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">
+                  {currentCampus?.name?.charAt(0) ?? "U"}
+                </div>
+              )}
             </div>
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">

@@ -261,6 +261,75 @@ export default function ChatConversationView({ peerId }: Props) {
     [authReady, validPeer, selfId, addMessages, buildAuthHeaders, conversationId, updateConversationSnapshot],
   );
 
+  const handleSendAudio = useCallback(
+    async (body: string, attachments: Array<{ attachmentId: string; mediaType: string; sizeBytes: number; remoteUrl: string }>) => {
+      if (!validPeer || !selfId || !authReady) {
+        return;
+      }
+      const clientMsgId = newClientMessageId();
+
+      // Convert to ChatMessage attachment format
+      const messageAttachments = attachments.map((att) => ({
+        attachmentId: att.attachmentId,
+        mediaType: att.mediaType,
+        sizeBytes: att.sizeBytes,
+        remoteUrl: att.remoteUrl,
+      }));
+
+      const optimisticMessage: ConversationMessage = {
+        conversationId: conversationId ?? buildConversationId(selfId, validPeer),
+        messageId: clientMsgId,
+        seq: 0,
+        senderId: selfId,
+        recipientId: validPeer,
+        body,
+        createdAt: new Date().toISOString(),
+        clientMsgId,
+        status: "pending",
+        attachments: messageAttachments,
+      };
+      addMessages([optimisticMessage]);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/chat/messages`, {
+          method: "POST",
+          headers: buildAuthHeaders({ json: true }),
+          body: JSON.stringify({
+            to_user_id: validPeer,
+            body,
+            client_msg_id: clientMsgId,
+            attachments: attachments.map((att) => ({
+              attachment_id: att.attachmentId,
+              media_type: att.mediaType,
+              size_bytes: att.sizeBytes,
+              remote_url: att.remoteUrl,
+            })),
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to send audio message (${response.status})`);
+        }
+        const payload = await response.json();
+        const normalised = normalizeChatMessages(payload);
+        addMessages(normalised);
+        const lastMessage = normalised.at(-1) ?? null;
+        if (lastMessage) {
+          updateConversationSnapshot(validPeer, lastMessage);
+        }
+      } catch (error) {
+        console.error("Audio send failed", error);
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.clientMsgId === clientMsgId
+              ? { ...message, status: "failed", error: "Failed to send audio" }
+              : message,
+          ),
+        );
+      }
+    },
+    [authReady, validPeer, selfId, addMessages, buildAuthHeaders, conversationId, updateConversationSnapshot],
+  );
+
   const peerEntry = useMemo(
     () => entries.find((entry) => entry.peerId === validPeer),
     [entries, validPeer],
@@ -308,6 +377,7 @@ export default function ChatConversationView({ peerId }: Props) {
             connectionStatus={chatSocketStatus}
             deliveredSeq={deliveredSeq}
             onSend={handleSend}
+            onSendAudio={handleSendAudio}
           />
         </div>
 

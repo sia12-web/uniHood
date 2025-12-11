@@ -5,6 +5,7 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
+import FeatureShowcase from "@/components/auth/FeatureShowcase";
 import { HttpError } from "@/app/lib/http/errors";
 import { registerIdentity, resendVerification, type RegisterPayload } from "@/lib/identity";
 
@@ -170,6 +171,9 @@ export default function OnboardingPage() {
               className="w-full justify-center text-[#b7222d]"
               logoClassName="h-48 w-auto sm:h-72 lg:h-[425px]"
             />
+            <div className="hidden lg:block">
+              <FeatureShowcase />
+            </div>
           </div>
         </section>
 

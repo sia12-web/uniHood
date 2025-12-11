@@ -113,17 +113,17 @@ function transformAttachment(entry: unknown): ChatMessage["attachments"][number]
 }
 
 export function initChatSocket(_baseUrl: string, userId: string, campusId: string): Socket {
-  if (!userId) {
-    throw new Error("Chat socket unavailable: missing user id");
-  }
-  if (socket) {
-    return socket;
-  }
-  const instance = (connectChatSocket({ userId, campusId }) ?? getChatSocketInstance()) as Socket | null;
-  if (!instance) {
-    throw new Error("Chat socket unavailable");
-  }
-  socket = instance;
+	if (!userId) {
+		throw new Error("Chat socket unavailable: missing user id");
+	}
+	if (socket) {
+		return socket;
+	}
+	const instance = (connectChatSocket({ userId, campusId }) ?? getChatSocketInstance()) as Socket | null;
+	if (!instance) {
+		throw new Error("Chat socket unavailable");
+	}
+	socket = instance;
 	socket.on("chat:message", handleServerMessage);
 	socket.on("chat:echo", handleServerEcho);
 	socket.on("chat:delivered", handleDelivered);
@@ -171,8 +171,8 @@ function transformMessage(raw: unknown): ChatMessage {
 	const attachmentsSource = raw.attachments;
 	const attachments = Array.isArray(attachmentsSource)
 		? attachmentsSource
-				.map((entry) => transformAttachment(entry))
-				.filter((entry): entry is ChatMessage["attachments"][number] => entry !== null)
+			.map((entry) => transformAttachment(entry))
+			.filter((entry): entry is ChatMessage["attachments"][number] => entry !== null)
 		: [];
 	const messageId = readString(pick(raw, ["message_id", "messageId"])) ?? ulid();
 	const clientMsgId = readString(pick(raw, ["client_msg_id", "clientMsgId"])) ?? ulid();
@@ -235,9 +235,26 @@ export function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage
 		}
 	}
 	return [...byId.values()].sort((a, b) => {
-		if (a.seq !== b.seq) {
-			return a.seq - b.seq;
+		// Messages with seq=0 are optimistic/pending - sort them by createdAt at the end
+		const aSeq = a.seq || 0;
+		const bSeq = b.seq || 0;
+
+		// Both have seq > 0: sort by seq
+		if (aSeq > 0 && bSeq > 0) {
+			if (aSeq !== bSeq) {
+				return aSeq - bSeq;
+			}
 		}
+
+		// One has seq=0 (pending), one has real seq: pending goes after confirmed
+		if (aSeq === 0 && bSeq > 0) {
+			return 1; // a (pending) comes after b (confirmed)
+		}
+		if (bSeq === 0 && aSeq > 0) {
+			return -1; // b (pending) comes after a (confirmed)
+		}
+
+		// Both pending (seq=0) or same seq: sort by createdAt
 		return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 	});
 }

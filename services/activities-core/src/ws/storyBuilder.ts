@@ -49,7 +49,7 @@ function getPromptForGenders(genders: Gender[]) {
     if (genders.length !== 2) return GENERIC_PROMPTS[Math.floor(Math.random() * GENERIC_PROMPTS.length)];
 
     const [g1, g2] = genders;
-    
+
     if (g1 === 'boy' && g2 === 'boy') {
         return GAY_ROMANCE_PROMPTS[Math.floor(Math.random() * GAY_ROMANCE_PROMPTS.length)];
     } else if (g1 === 'girl' && g2 === 'girl') {
@@ -158,7 +158,7 @@ export function setStoryBuilderReady(sessionId: string, userId: string, ready: b
         // Generate prompt based on genders
         const genders = session.participants.map(p => p.gender).filter((g): g is Gender => !!g);
         session.storyPrompt = getPromptForGenders(genders);
-        
+
         startCountdown(sessionId);
     } else {
         broadcastState(sessionId);
@@ -220,9 +220,11 @@ export function leaveStoryBuilder(sessionId: string, userId: string): { sessionE
             session.phase = 'ended';
             session.leaveReason = 'opponent_left';
 
-            // Record stats
-            recordGameResult(winner.userId, 'story_builder', 'win', winner.score);
-            recordGameResult(userId, 'story_builder', 'loss', 0);
+            // Record stats asynchronously
+            (async () => {
+                await recordGameResult(winner.userId, 'story_builder', 'win', winner.score);
+                await recordGameResult(userId, 'story_builder', 'loss', 0);
+            })();
 
             broadcastState(sessionId);
             return { sessionEnded: true, winnerUserId: winner.userId };
@@ -238,7 +240,7 @@ export function leaveStoryBuilder(sessionId: string, userId: string): { sessionE
 
     // Lobby phase - just remove and update
     session.lobbyReady = session.participants.every(p => p.ready) && session.participants.length >= 2;
-    
+
     // If we're in lobby phase and not enough players remain, end the session
     if (session.status === 'pending' && session.participants.length < 2) {
         session.status = 'ended';
@@ -247,7 +249,7 @@ export function leaveStoryBuilder(sessionId: string, userId: string): { sessionE
         broadcastState(sessionId);
         return { sessionEnded: true };
     }
-    
+
     broadcastState(sessionId);
     return { sessionEnded: false };
 }
@@ -414,12 +416,14 @@ function calculateScores(sessionId: string) {
     session.status = 'ended';
     session.phase = 'ended';
 
-    // Record stats
-    session.participants.forEach(p => {
-        const isWinner = p.userId === session.winnerUserId;
-        const result = isWinner ? 'win' : 'loss';
-        recordGameResult(p.userId, 'story_builder', result, p.score);
-    });
+    // Record stats asynchronously
+    (async () => {
+        for (const p of session.participants) {
+            const isWinner = p.userId === session.winnerUserId;
+            const result = isWinner ? 'win' : 'loss';
+            await recordGameResult(p.userId, 'story_builder', result, p.score);
+        }
+    })();
 
     broadcastState(sessionId);
 }

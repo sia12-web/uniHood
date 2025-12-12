@@ -46,54 +46,31 @@ async def delete_account(email: str, username: str) -> None:
 			)
 		user_id = str(row["id"])
 		token_key = deletion._token_key(user_id)
-		privacy_json = json.dumps(deletion.DEFAULT_PRIVACY)
 		now = datetime.now(timezone.utc)
 		async with conn.transaction():
-			new_handle = await deletion._generate_deleted_handle(conn)
-			await conn.execute(
-				"""
-				UPDATE users
-				SET email = NULL,
-					email_verified = FALSE,
-					handle = $1,
-					display_name = 'Deleted User',
-					bio = '',
-					privacy = $2::jsonb,
-					status = jsonb_build_object('text', '', 'emoji', '', 'updated_at', NOW()),
-					avatar_key = NULL,
-					avatar_url = NULL,
-					password_hash = 'argon2id$deleted',
-					deleted_at = $3,
-					updated_at = $3
-				WHERE id = $4
-				""",
-				new_handle,
-				privacy_json,
-				now,
-				user_id,
-			)
-			await conn.execute(
-				"""
-				INSERT INTO account_deletions (user_id, requested_at, confirmed_at)
-				VALUES ($1, $2, $2)
-				ON CONFLICT (user_id)
-				DO UPDATE SET requested_at = EXCLUDED.requested_at,
-					confirmed_at = EXCLUDED.confirmed_at
-				""",
-				user_id,
-				now,
-			)
-			await conn.execute(
-				"""
-				INSERT INTO audit_log (user_id, event, meta)
-				VALUES ($1, 'delete_confirmed', '{}'::jsonb)
-				""",
-				user_id,
-			)
+			# Delete all related data first
 			await conn.execute("DELETE FROM email_verifications WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1", user_id)
+			await conn.execute("DELETE FROM invitations WHERE from_user_id = $1 OR to_user_id = $1", user_id)
+			
+			# Record the deletion
+			await conn.execute(
+				"""
+				INSERT INTO account_deletions (user_id, requested_at, confirmed_at, purged_at)
+				VALUES ($1, $2, $2, $2)
+				ON CONFLICT (user_id)
+				DO UPDATE SET confirmed_at = $2, purged_at = $2
+				""",
+				user_id,
+				now,
+			)
+			
+			# Hard delete the user - completely remove from database
+			await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+	
 	await redis_client.delete(token_key)
 	await sessions.revoke_all_sessions(user_id)
-	print(f"Account {normalised_email} deleted and anonymized.")
+	print(f"Account {normalised_email} permanently deleted.")
 
 
 def main() -> None:

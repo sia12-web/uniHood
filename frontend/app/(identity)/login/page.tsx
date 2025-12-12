@@ -122,13 +122,13 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col items-center">
           <BrandLogo
-            withWordmark={true}
+            withWordmark={false}
             asLink={false}
             backgroundTone="transparent"
-            logoWidth={256}
-            logoHeight={256}
+            logoWidth={400}
+            logoHeight={400}
             className="text-[#881337] mb-12"
-            logoClassName="!h-32 w-auto"
+            logoClassName="!h-[320px] w-auto"
             wordmarkTitleClassName="text-7xl tracking-tight text-[#881337]"
             taglineClassName="hidden"
           />
@@ -176,13 +176,13 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:hidden flex justify-center mb-2">
             <BrandLogo
-              withWordmark={true}
+              withWordmark={false}
               asLink={false}
               backgroundTone="transparent"
-              logoWidth={64}
-              logoHeight={64}
+              logoWidth={300}
+              logoHeight={300}
               className="text-[#881337]"
-              logoClassName="h-16 w-auto"
+              logoClassName="h-44 w-auto"
               wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
               taglineClassName="hidden"
             />

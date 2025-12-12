@@ -6,7 +6,7 @@ global:
   evaluation_interval: 15s
   external_labels:
     environment: 'local'
-    app: 'divan'
+    app: 'unihood'
 
 # Remote write to Grafana Cloud
 remote_write:
@@ -22,7 +22,7 @@ rule_files:
 # Scrape configuration
 scrape_configs:
   # Backend service metrics
-  - job_name: 'divan-backend'
+  - job_name: 'unihood-backend'
     metrics_path: '/metrics'
     static_configs:
       - targets: ['backend:8000']
@@ -32,7 +32,7 @@ scrape_configs:
     scrape_timeout: 5s
 
   # Backend health endpoint (for availability tracking)
-  - job_name: 'divan-backend-health'
+  - job_name: 'unihood-backend-health'
     metrics_path: '/api/health'
     static_configs:
       - targets: ['backend:8000']

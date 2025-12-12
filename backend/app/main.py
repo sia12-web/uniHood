@@ -211,7 +211,7 @@ async def lifespan(app: FastAPI):
 		await postgres.close_pool()
 
 
-app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
+app = FastAPI(title="uniHood Proximity Core", lifespan=lifespan)
 custom_openapi(app)
 install_error_handlers(app)
 
@@ -223,7 +223,7 @@ if settings.environment == "dev":
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
-	allow_origins = ["http://localhost:3000"] if settings.environment == "dev" else ["https://app.divan.example"]
+	allow_origins = ["http://localhost:3000"] if settings.environment == "dev" else ["https://app.unihood.example"]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:
@@ -243,7 +243,7 @@ if "*" in allow_origins:
 			"https://127.0.0.1:3001",
 		]
 	else:
-		allow_origins = ["https://app.divan.example"]
+		allow_origins = ["https://app.unihood.example"]
 
 app.add_middleware(
 	CORSMiddleware,

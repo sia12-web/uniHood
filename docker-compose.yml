@@ -15,7 +15,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: radius
+      POSTGRES_DB: unihood
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
@@ -23,7 +23,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d radius" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d unihood" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,6 +34,8 @@ services:
           memory: 512M
 
   backend:
+    container_name: unihood-backend
+    image: unihood/backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -44,7 +46,7 @@ services:
       - backend_uploads:/app/app/uploads
     environment:
       REDIS_URL: redis://redis:6379/0
-      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/radius
+      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/unihood
       PYTHONPATH: /app
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       SMTP_HOST: mailhog
@@ -82,6 +84,8 @@ services:
           memory: 512M
 
   activities:
+    container_name: unihood-activities
+    image: unihood/activities
     build:
       context: ./services/activities-core
       dockerfile: Dockerfile
@@ -90,7 +94,7 @@ services:
       - ./services/activities-core:/app
       - /app/node_modules
     environment:
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/radius
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/unihood
       REDIS_URL: redis://redis:6379/0
       PORT: 3001
     ports:

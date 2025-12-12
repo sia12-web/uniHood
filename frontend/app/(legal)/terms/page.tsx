@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Terms of Service - Radius",
-	description: "Radius terms of service and user agreement",
+	title: "Terms of Service - uniHood",
+	description: "uniHood terms of service and user agreement",
 };
 
 export default function TermsOfServicePage() {
@@ -13,13 +13,13 @@ export default function TermsOfServicePage() {
 			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 5, 2025</p>
 
 			<p>
-				Welcome to Radius. By accessing or using our platform, you agree to be bound by these
+				Welcome to uniHood. By accessing or using our platform, you agree to be bound by these
 				Terms of Service and our <Link href="/privacy">Privacy Policy</Link>. If you disagree
 				with any part of these terms, please do not use our service.
 			</p>
 
 			<h2>1. Eligibility</h2>
-			<p>To use Radius, you must:</p>
+			<p>To use uniHood, you must:</p>
 			<ul>
 				<li>Be at least 18 years old</li>
 				<li>Have the legal capacity to enter into a binding agreement</li>
@@ -79,7 +79,7 @@ export default function TermsOfServicePage() {
 
 			<h2>5. Intellectual Property</h2>
 			<p>
-				The Radius platform, including its design, logos, and features, is our property and
+				The uniHood platform, including its design, logos, and features, is our property and
 				protected by intellectual property laws. You may not copy, modify, distribute, or
 				reverse-engineer any part of our service without written permission.
 			</p>
@@ -134,7 +134,7 @@ export default function TermsOfServicePage() {
 
 			<h2>10. Indemnification</h2>
 			<p>
-				You agree to indemnify and hold harmless Radius and its affiliates from any claims,
+				You agree to indemnify and hold harmless uniHood and its affiliates from any claims,
 				damages, or expenses arising from:
 			</p>
 			<ul>
@@ -201,7 +201,7 @@ export default function TermsOfServicePage() {
 			<ul>
 				<li>
 					<strong>Entire Agreement:</strong> These terms constitute the entire agreement
-					between you and Radius regarding use of the service.
+					between you and uniHood regarding use of the service.
 				</li>
 				<li>
 					<strong>Severability:</strong> If any provision is found unenforceable, the
@@ -231,7 +231,7 @@ export default function TermsOfServicePage() {
 				</Link>
 				{" · "}
 				<Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
-					Back to Radius
+					Back to uniHood
 				</Link>
 			</p>
 		</article>

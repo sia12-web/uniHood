@@ -38,7 +38,7 @@ def _env_field(default, *env_names: str):
 
 class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
-    postgres_url: str = _env_field("postgresql://postgres:postgres@127.0.0.1:5432/divan", "POSTGRES_URL", "DATABASE_URL")
+    postgres_url: str = _env_field("postgresql://postgres:postgres@127.0.0.1:5432/unihood", "POSTGRES_URL", "DATABASE_URL")
     postgres_min_pool_size: int = _env_field(10, "POSTGRES_MIN_POOL_SIZE")
     postgres_max_pool_size: int = _env_field(50, "POSTGRES_MAX_POOL_SIZE")
     postgres_ssl: bool = _env_field(False, "POSTGRES_SSL")
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     proximity_min_search_radius_10m: int = 15
     search_backend: str = "postgres"
     webauthn_rp_id: str = _env_field("localhost", "WEBAUTHN_RP_ID")
-    webauthn_rp_name: str = _env_field("Divan", "WEBAUTHN_RP_NAME")
+    webauthn_rp_name: str = _env_field("uniHood", "WEBAUTHN_RP_NAME")
     webauthn_origin: str = _env_field("http://localhost:3000", "WEBAUTHN_ORIGIN")
 
     environment: str = _env_field("production", "ENV", "APP_ENV", "ENVIRONMENT")
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: Optional[str] = _env_field(None, "OTEL_EXPORTER_OTLP_ENDPOINT")
     health_min_migration: str = _env_field("0001", "HEALTH_MIN_MIGRATION")
     obs_admin_token: Optional[str] = _env_field(None, "OBS_ADMIN_TOKEN")
-    service_name: str = _env_field("divan-api", "SERVICE_NAME")
+    service_name: str = _env_field("unihood-api", "SERVICE_NAME")
     git_commit: str = _env_field("unknown", "GIT_COMMIT", "COMMIT_SHA", "SOURCE_VERSION")
     oauth_google_client_id: Optional[str] = _env_field(None, "OAUTH_GOOGLE_CLIENT_ID")
     oauth_microsoft_client_id: Optional[str] = _env_field(None, "OAUTH_MICROSOFT_CLIENT_ID")

@@ -8,13 +8,13 @@ The application now supports multiple universities through a multi-tenant archit
 
 ### Backend
 - ✅ Fully supports multi-tenancy
-- ✅ `Campus` model with ID, name, and logo URL
+- ✅ `Campus` model with ID and name
 - ✅ `listCampuses()` endpoint (`/auth/campuses`) to fetch available universities
 - ✅ Discovery service filters content by user's `campus_id`
 
 ### Frontend
 - ✅ Dynamic campus context via `CampusContext` provider
-- ✅ `CampusLogoBadge` component accepts dynamic campus props
+- ✅ Campus display shows name initial as badge
 - ✅ University selection flow during onboarding
 - ✅ Fallback to demo campus when needed
 
@@ -32,14 +32,8 @@ function MyComponent() {
 }
 ```
 
-### 2. CampusLogoBadge (`components/CampusLogoBadge.tsx`)
-Displays campus branding with fallback to generic initials:
-```tsx
-<CampusLogoBadge 
-  campusName="McGill University" 
-  logoUrl="/brand/mcgill.svg" 
-/>
-```
+### 2. Campus Display
+Campuses are displayed using the first letter of the campus name in a styled badge throughout the app.
 
 ### 3. University Selection (`app/(onboarding)/select-university/page.tsx`)
 New users select their university during onboarding. This page:
@@ -74,38 +68,22 @@ Provides API functions:
 ### 1. Database
 Insert a new campus record:
 ```sql
-INSERT INTO campuses (id, name, logo_url)
+INSERT INTO campuses (id, name)
 VALUES (
   gen_random_uuid(),
-  'University of Toronto',
-  'https://your-cdn.com/logos/uoft.svg'
+  'University of Toronto'
 );
 ```
 
-### 2. Upload Logo
-- Upload logo to S3 or your CDN
-- Update `logo_url` in the campus record
-- Logo should be square, SVG or PNG, min 256x256px
-
-### 3. Test
+### 2. Test
 1. Register a new user
 2. Select the new university
 3. Verify:
-   - Badge shows correct name and logo
+   - Badge shows correct name initial
    - Discovery feed filters correctly
    - Profile displays campus correctly
 
 ## Testing
-
-### Unit Tests
-```bash
-npm test campus-logo-badge.spec
-```
-
-Tests verify:
-- ✅ Generic badge with initials when no logo
-- ✅ Custom logo when URL provided
-- ✅ Non-McGill universities display correctly
 
 ### Manual Testing
 1. Create test campus in database

@@ -67,7 +67,7 @@ export default function BrandLogo({
       >
         <Image
           src="/radius-logo.png"
-          alt="Radius"
+          alt="uniHood"
           width={logoWidth}
           height={logoHeight}
           className={mergedLogoClasses}
@@ -78,7 +78,7 @@ export default function BrandLogo({
 
       {withWordmark ? (
         <span className={cn("flex min-w-0 flex-col leading-none text-current", wordmarkClassName)}>
-          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>Radius</span>
+          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>uniHood</span>
           <span
             className={cn(
               "text-[0.65rem] font-semibold uppercase tracking-[0.4em] opacity-70",
@@ -94,7 +94,7 @@ export default function BrandLogo({
 
   if (asLink) {
     return (
-      <Link href="/" className={mergedClasses} aria-label="Radius home">
+      <Link href="/" className={mergedClasses} aria-label="uniHood home">
         {logoContent}
       </Link>
     );

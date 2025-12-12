@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PostgreSQL Backup Script for Divan Platform
+PostgreSQL Backup Script for uniHood Platform
 
 This script performs automated PostgreSQL backups with:
 - Full base backups (pg_dump)
@@ -45,9 +45,9 @@ class BackupConfig:
     def __init__(self):
         self.pg_host = os.getenv("POSTGRES_HOST", "localhost")
         self.pg_port = os.getenv("POSTGRES_PORT", "5432")
-        self.pg_user = os.getenv("POSTGRES_USER", "divan")
+        self.pg_user = os.getenv("POSTGRES_USER", "unihood")
         self.pg_password = os.getenv("POSTGRES_PASSWORD", "")
-        self.pg_database = os.getenv("POSTGRES_DB", "divan")
+        self.pg_database = os.getenv("POSTGRES_DB", "unihood")
         
         self.s3_bucket = os.getenv("S3_BACKUP_BUCKET", "")
         self.s3_region = os.getenv("S3_REGION", "us-east-1")
@@ -65,7 +65,7 @@ class PostgresBackup:
     def __init__(self, config: BackupConfig):
         self.config = config
         self.timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        self.backup_filename = f"divan_backup_{self.timestamp}.sql.gz"
+        self.backup_filename = f"unihood_backup_{self.timestamp}.sql.gz"
         self.local_path = self.config.local_backup_dir / self.backup_filename
         self.checksum: Optional[str] = None
         
@@ -215,10 +215,10 @@ class PostgresBackup:
         cutoff = datetime.utcnow() - timedelta(days=self.config.retention_days)
         removed = 0
         
-        for backup_file in self.config.local_backup_dir.glob("divan_backup_*.sql.gz"):
+        for backup_file in self.config.local_backup_dir.glob("unihood_backup_*.sql.gz"):
             try:
                 # Parse timestamp from filename
-                parts = backup_file.stem.replace("divan_backup_", "").replace(".sql", "")
+                parts = backup_file.stem.replace("unihood_backup_", "").replace(".sql", "")
                 file_date = datetime.strptime(parts, "%Y%m%d_%H%M%S")
                 
                 if file_date < cutoff:
@@ -259,7 +259,7 @@ class PostgresBackup:
 def main() -> int:
     """Main backup workflow."""
     print("=" * 60)
-    print(f"Divan PostgreSQL Backup - {datetime.utcnow().isoformat()}Z")
+    print(f"uniHood PostgreSQL Backup - {datetime.utcnow().isoformat()}Z")
     print("=" * 60)
     
     config = BackupConfig()

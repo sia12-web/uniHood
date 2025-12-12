@@ -105,7 +105,7 @@ export default function CoursesOnboardingPage() {
 
           <section className="flex flex-1 justify-center">
             <div className="w-full max-w-lg rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9 text-center">
-              <h1 className="text-3xl font-bold text-slate-900">Welcome to Radius!</h1>
+              <h1 className="text-3xl font-bold text-slate-900">Welcome to uniHood!</h1>
               <p className="mt-4 text-lg text-slate-600">You&apos;re all set. Redirecting you to the dashboard...</p>
             </div>
           </section>

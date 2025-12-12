@@ -66,7 +66,7 @@ const ProfileIcon = () => (
 // HeartIcon removed (unused)
 const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
   loading: () => (
-    <span className="text-2xl font-black tracking-tight text-[#b7222d]">Radius</span>
+    <span className="text-2xl font-black tracking-tight text-[#b7222d]">uniHood</span>
   ),
 });
 
@@ -1240,22 +1240,9 @@ export default function HomePage() {
             />
             <span className="h-14 w-px flex-shrink-0 bg-rose-200" aria-hidden />
             <div className="flex flex-shrink-0 items-center">
-              {currentCampus?.name?.toLowerCase().includes("mcgill") ? (
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">M</div>
-              ) : currentCampus?.logo_url ? (
-                <Image
-                  src={currentCampus.logo_url}
-                  alt={currentCampus.name}
-                  width={56}
-                  height={56}
-                  className="h-14 w-auto rounded-lg object-contain"
-                  priority
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">
-                  {currentCampus?.name?.charAt(0) ?? "U"}
-                </div>
-              )}
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">
+                {currentCampus?.name?.charAt(0) ?? "U"}
+              </div>
             </div>
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">

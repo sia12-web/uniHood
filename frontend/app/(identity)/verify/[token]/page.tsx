@@ -88,7 +88,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 
 				<div className="relative z-10 flex flex-col items-center">
 					<BrandLogo
-						withWordmark={true}
+						withWordmark={false}
 						asLink={false}
 						backgroundTone="transparent"
 						logoWidth={256}
@@ -142,7 +142,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 				<div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 					<div className="lg:hidden flex justify-center mb-2">
 						<BrandLogo
-							withWordmark={true}
+							withWordmark={false}
 							asLink={false}
 							backgroundTone="transparent"
 							logoWidth={64}

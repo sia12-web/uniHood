@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Legal - Radius",
+	title: "Legal - uniHood",
 	description: "Legal documents and policies",
 };
 

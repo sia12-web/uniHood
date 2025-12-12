@@ -13,9 +13,9 @@
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3"
 	},
-	"name": "divan",
+	"name": "unihood",
 	"version": "1.0.0",
-	"description": "This repository contains the full stack for Divan, including a Next.js frontend, FastAPI backend, and microservices, orchestrated with Docker Compose.",
+	"description": "This repository contains the full stack for uniHood, including a Next.js frontend, FastAPI backend, and microservices, orchestrated with Docker Compose.",
 	"main": "index.js",
 	"directories": {
 		"doc": "docs"

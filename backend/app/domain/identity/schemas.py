@@ -158,6 +158,12 @@ class PresignResponse(BaseModel):
 	expires_s: int
 
 
+class LocalUploadResponse(BaseModel):
+	"""Response for local file uploads in development."""
+	key: str
+	url: str
+
+
 class AvatarCommitRequest(BaseModel):
 	key: str
 

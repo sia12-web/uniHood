@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Iterable
 
 import ulid
@@ -9,7 +10,9 @@ import ulid
 from app.domain.identity.schemas import PresignRequest, PresignResponse
 
 DEFAULT_BUCKET_PREFIX = "avatars"
-DEFAULT_BASE_URL = "https://cdn.divan.local"
+# In development, point to the local backend's /uploads endpoint
+# In production, use an actual CDN URL or S3 bucket
+DEFAULT_BASE_URL = os.getenv("UPLOAD_BASE_URL", "http://localhost:8000/uploads")
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_AVATAR_BYTES = 5 * 1024 * 1024
 DEFAULT_EXPIRES = 600

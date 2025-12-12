@@ -11,17 +11,15 @@ The multi-university expansion implementation plan has been **fully completed**.
 The following items were already in place when this review was conducted:
 
 ### Backend (Already Complete)
-- ✅ `Campus` model with ID, name, and logo_url fields
+- ✅ `Campus` model with ID and name fields
 - ✅ `listCampuses()` API endpoint at `/auth/campuses`
 - ✅ Discovery service filtering by user's `campus_id`
 - ✅ Multi-tenant architecture fully functional
 
 ### Frontend (Already Complete)
-1. **CampusLogoBadge Component** ✅
-   - File: `components/CampusLogoBadge.tsx`
-   - Accepts dynamic `campusName` and `logoUrl` props
-   - Displays generic initial badge when no logo provided
-   - No hardcoded McGill checks
+1. **Campus Display** ✅
+   - Campuses show as styled initials badge
+   - Dynamic display based on campus name
 
 2. **University Selection Flow** ✅
    - File: `app/(onboarding)/select-university/page.tsx`
@@ -42,13 +40,7 @@ The following items were already in place when this review was conducted:
    - `getCampusById(id)` - Get specific campus
    - `patchProfile()` - Update user campus
 
-5. **Testing** ✅
-   - File: `__tests__/campus-logo-badge.spec.tsx`
-   - Tests with non-McGill universities
-   - Verifies dynamic logo display
-   - Verifies fallback behavior
-
-6. **Consistent Fallback Pattern** ✅
+5. **Consistent Fallback Pattern** ✅
    - Throughout the app: `authUser?.campusId ?? getDemoCampusId()`
    - Graceful degradation in demo mode
    - No breaking changes to existing flows
@@ -171,11 +163,10 @@ Pre-existing TypeScript errors in unrelated files (story, tictactoe, leaderboard
 
 ### Database
 ```sql
-INSERT INTO campuses (id, name, logo_url)
+INSERT INTO campuses (id, name)
 VALUES (
   gen_random_uuid(),
-  'University of Toronto',
-  'https://your-cdn.com/logos/uoft.svg'
+  'University of Toronto'
 );
 ```
 
@@ -223,7 +214,6 @@ The multi-university expansion is fully implemented and production-ready:
 **Next Steps** (Optional):
 1. Add the CampusProvider to your app layout if you want centralized campus management
 2. Add more universities to the database
-3. Upload campus logos to your CDN
-4. Test with real users from different universities
+3. Test with real users from different universities
 
 The implementation plan from `implementation_plan.md.resolved` has been **fully satisfied** and is ready for production deployment! 🎉

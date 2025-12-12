@@ -19,7 +19,7 @@ export default function WebsiteSettings() {
 
     useEffect(() => {
         setMounted(true);
-        const stored = localStorage.getItem("divan.website.settings");
+        const stored = localStorage.getItem("unihood.website.settings");
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
@@ -44,7 +44,7 @@ export default function WebsiteSettings() {
 
     useEffect(() => {
         if (mounted) {
-            localStorage.setItem("divan.website.settings", JSON.stringify({ theme: settings.theme }));
+            localStorage.setItem("unihood.website.settings", JSON.stringify({ theme: settings.theme }));
             // Apply theme
             if (settings.theme === "dark" || (settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
                 document.documentElement.classList.add("dark");
@@ -80,7 +80,7 @@ export default function WebsiteSettings() {
         <section className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 p-6 shadow-sm backdrop-blur">
             <header className="mb-6">
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Website Settings</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Customize your experience on Divan.</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Customize your experience on uniHood.</p>
             </header>
 
             <div className="space-y-6">
@@ -95,8 +95,8 @@ export default function WebsiteSettings() {
                                 key={t}
                                 onClick={() => setTheme(t)}
                                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${settings.theme === t
-                                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
-                                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                                     }`}
                             >
                                 {t.charAt(0).toUpperCase() + t.slice(1)}

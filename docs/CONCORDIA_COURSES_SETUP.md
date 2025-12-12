@@ -47,15 +47,13 @@ SELECT id, name FROM campuses WHERE name LIKE '%Concordia%';
 If Concordia doesn't exist, add it:
 
 ```sql
-INSERT INTO campuses (id, name, logo_url)
+INSERT INTO campuses (id, name)
 VALUES (
   gen_random_uuid(),
-  'Concordia University',
-  '/university-logos/concordia.png'  -- Logo is already saved in frontend/public/university-logos/
+  'Concordia University'
 );
 ```
 
-**Note**: The Concordia logo has been saved at `frontend/public/university-logos/concordia.png`. The `logo_url` in the database should be `/university-logos/concordia.png` (relative to the public directory).
 
 ### Step 2: Update the Campus ID in Code
 
@@ -190,12 +188,9 @@ Courses can be updated/modified in `POPULAR_COURSES_CONCORDIA` list as needed.
 
 **Files Modified**: 
 - `backend/app/domain/identity/courses.py` ✅
-- `frontend/public/university-logos/concordia.png` ✅ (Logo added)
-- `frontend/public/university-logos/README.md` ✅ (Documentation)
 
 **Next Steps**:
 1. Get Concordia UUID from database
 2. Update `CONCORDIA_CAMPUS_ID` constant in `backend/app/domain/identity/courses.py`
-3. Add Concordia to database with logo_url = `/university-logos/concordia.png`
-4. Restart backend
-5. Test with Concordia student account
+3. Restart backend
+4. Test with Concordia student account

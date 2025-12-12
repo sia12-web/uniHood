@@ -6,8 +6,8 @@ import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
   title: {
-    default: "Radius",
-    template: "%s | Radius",
+    default: "uniHood",
+    template: "%s | uniHood",
   },
   description: "Connect with students nearby.",
   icons: {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`
             (function() {
               try {
-                var stored = localStorage.getItem('divan.website.settings');
+                var stored = localStorage.getItem('unihood.website.settings');
                 var theme = stored ? JSON.parse(stored).theme : 'system';
                 // Map old 'light' to 'system' for backwards compatibility
                 if (theme === 'light') theme = 'system';

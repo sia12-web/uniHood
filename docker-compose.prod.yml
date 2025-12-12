@@ -1,4 +1,4 @@
-# Production Docker Compose for Radius Platform
+# Production Docker Compose for uniHood Platform
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml up -d
@@ -46,14 +46,14 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-radius}
-      POSTGRES_USER: ${POSTGRES_USER:-radius}
+      POSTGRES_DB: ${POSTGRES_DB:-unihood}
+      POSTGRES_USER: ${POSTGRES_USER:-unihood}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radius} -d ${POSTGRES_DB:-radius}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unihood} -d ${POSTGRES_DB:-unihood}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -90,13 +90,15 @@ services:
     # Backend (FastAPI)
     # =============================================================================
   backend:
+    container_name: unihood-backend
+    image: unihood/backend
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
     environment:
       # Database
-      POSTGRES_URL: postgresql://${POSTGRES_USER:-radius}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-radius}
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-unihood}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unihood}
 
       # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -174,12 +176,14 @@ services:
   # Activities Service (Node.js)
   # =============================================================================
   activities:
+    container_name: unihood-activities
+    image: unihood/activities
     build:
       context: ./services/activities-core
       dockerfile: Dockerfile
     restart: always
     environment:
-      POSTGRES_URL: postgresql://${POSTGRES_USER:-radius}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-radius}
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-unihood}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unihood}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       PORT: 3001
       NODE_ENV: production
@@ -198,6 +202,8 @@ services:
   # Frontend (Next.js)
   # =============================================================================
   frontend:
+    container_name: unihood-frontend
+    image: unihood/frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -225,6 +231,8 @@ services:
   # Backup Service (runs daily)
   # =============================================================================
   backup:
+    container_name: unihood-backup
+    image: unihood/backup
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -232,9 +240,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-radius}
+      POSTGRES_USER: ${POSTGRES_USER:-unihood}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-radius}
+      POSTGRES_DB: ${POSTGRES_DB:-unihood}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}

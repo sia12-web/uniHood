@@ -53,7 +53,7 @@ export default function PhotosPage() {
 	useEffect(() => {
 		// Load saved avatar state
 		try {
-			const saved = localStorage.getItem("divan.avatar_state");
+			const saved = localStorage.getItem("unihood.avatar_state");
 			if (saved) {
 				setAvatarState(JSON.parse(saved));
 			}
@@ -69,7 +69,7 @@ export default function PhotosPage() {
 
 		if (state) {
 			try {
-				localStorage.setItem("divan.avatar_state", JSON.stringify(state));
+				localStorage.setItem("unihood.avatar_state", JSON.stringify(state));
 				setAvatarState(state);
 			} catch {
 				// ignore

@@ -28,7 +28,7 @@ function isPublicPath(pathname: string): boolean {
 	if (pathname.startsWith("/_next/")) return true;
 	if (pathname.startsWith("/static/")) return true;
 	if (pathname.startsWith("/brand/")) return true; // Allow brand assets
-	if (pathname.startsWith("/university-logos/")) return true; // Allow university logo assets
+
 	if (FAVICON_PATHS.has(pathname)) return true;
 	if (pathname === "/robots.txt" || pathname === "/manifest.json" || pathname === "/radius-logo.png") return true;
 	return false;

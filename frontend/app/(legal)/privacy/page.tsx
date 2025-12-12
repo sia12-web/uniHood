@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy - Radius",
-	description: "Radius privacy policy and data practices",
+	title: "Privacy Policy - uniHood",
+	description: "uniHood privacy policy and data practices",
 };
 
 export default function PrivacyPolicyPage() {
@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
 			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 5, 2025</p>
 
 			<p>
-				Radius (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is committed to protecting your privacy.
+				uniHood (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is committed to protecting your privacy.
 				This policy explains how we collect, use, and protect your personal information when you use our platform.
 			</p>
 
@@ -165,7 +165,7 @@ export default function PrivacyPolicyPage() {
 
 			<h2>7. Children&apos;s Privacy</h2>
 			<p>
-				Radius is intended for users 18 years of age and older. We do not knowingly collect
+				uniHood is intended for users 18 years of age and older. We do not knowingly collect
 				personal information from children. If you believe a child has provided us personal
 				information, please contact us immediately.
 			</p>
@@ -204,7 +204,7 @@ export default function PrivacyPolicyPage() {
 				</Link>
 				{" · "}
 				<Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
-					Back to Radius
+					Back to uniHood
 				</Link>
 			</p>
 		</article>

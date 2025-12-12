@@ -41,7 +41,8 @@ jobs:
         run: npm run -s build
 
       - name: Unit tests (Vitest)
-        run: npm test -- --passWithNoTests || true
+        continue-on-error: true
+        run: npm test
 
   backend:
     name: Backend – pytest

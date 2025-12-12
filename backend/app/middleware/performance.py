@@ -46,31 +46,60 @@ def _get_trace_label_enabled() -> bool:
 
 
 # ===== PROMETHEUS METRICS =====
+# Use try/except to avoid duplicate registration errors when module is reimported (e.g., in tests)
+
+from prometheus_client import REGISTRY
+
+def _get_or_create_histogram(name, description, labels, buckets):
+    """Get existing histogram or create new one."""
+    try:
+        return Histogram(name, description, labels, buckets=buckets)
+    except ValueError:
+        # Metric already registered, get existing one
+        return REGISTRY._names_to_collectors.get(name, Histogram(name, description, labels, buckets=buckets))
+
+def _get_or_create_counter(name, description, labels):
+    """Get existing counter or create new one."""
+    try:
+        return Counter(name, description, labels)
+    except ValueError:
+        # Metric already registered, get existing one
+        return REGISTRY._names_to_collectors.get(name, Counter(name, description, labels))
+
+def _get_or_create_gauge(name, description, labels=None):
+    """Get existing gauge or create new one."""
+    try:
+        if labels:
+            return Gauge(name, description, labels)
+        return Gauge(name, description)
+    except ValueError:
+        # Metric already registered, get existing one
+        return REGISTRY._names_to_collectors.get(name, Gauge(name, description))
 
 # Standard metrics (low cardinality)
-HTTP_REQUEST_DURATION = Histogram(
+HTTP_REQUEST_DURATION = _get_or_create_histogram(
     "divan_http_request_duration_seconds",
     "HTTP request duration in seconds",
     ["method", "endpoint", "status"],
-    buckets=[0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1.0, 2.0, 5.0],
+    [0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1.0, 2.0, 5.0],
 )
 
-HTTP_REQUESTS_TOTAL = Counter(
+HTTP_REQUESTS_TOTAL = _get_or_create_counter(
     "divan_http_requests_total",
     "Total HTTP requests",
     ["method", "endpoint", "status"],
 )
 
 # Debug metrics with trace_id label (high cardinality - use sparingly)
-HTTP_REQUEST_DURATION_DEBUG = Histogram(
+HTTP_REQUEST_DURATION_DEBUG = _get_or_create_histogram(
     "divan_http_request_duration_debug_seconds",
     "HTTP request duration with trace correlation (debug only)",
     ["method", "endpoint", "status", "trace_id"],
-    buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0],
+    [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0],
 )
 
 # Sampled requests counter (for tracking sample rate effectiveness)
-SAMPLED_REQUESTS = Counter(
+SAMPLED_REQUESTS = _get_or_create_counter(
     "divan_sampled_requests_total",
     "Requests that were sampled for detailed tracing",
     ["method", "endpoint"],

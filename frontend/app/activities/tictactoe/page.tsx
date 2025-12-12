@@ -35,7 +35,6 @@ export default function TicTacToeEntryPage() {
   const [inviteFocusPulse, setInviteFocusPulse] = useState(false);
   const wantsInviteFocus = searchParams?.get("focus") === "invites";
 
-  const [selfId, setSelfId] = useState<string>("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -87,11 +86,6 @@ export default function TicTacToeEntryPage() {
     router.replace("/activities/tictactoe", { scroll: false });
     return () => window.clearTimeout(timer);
   }, [router, wantsInviteFocus]);
-
-  // Get self ID
-  useEffect(() => {
-    setSelfId(getSelf());
-  }, []);
 
   // Load friends
   useEffect(() => {

@@ -15,7 +15,7 @@ interface BoardProps {
 }
 
 export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart, onToggleReady, onLeave, playerNames }) => {
-    const { board, turn, myRole, connected, status, players, ready, roundWins, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason, winner } = state;
+    const { board, turn, myRole, connected, status, players, ready, roundWins = {}, countdown, error, lastRoundWinner, roundIndex, matchWinner, leaveReason, winner } = state;
     const isMyTurn = myRole === turn && status === 'playing';
     const canPlay = connected && status === 'playing' && isMyTurn;
     const opponentLeft = leaveReason === 'opponent_left';
@@ -39,7 +39,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
     // myRole is 'X', 'O', or 'spectator' from the hook
     const myPlayerRole = myRole === 'X' || myRole === 'O' ? myRole : null;
     const isSpectator = !myPlayerRole;
-    
+
     // Get my userId for ready state lookup
     const myUserId = myPlayerRole ? players[myPlayerRole] : undefined;
 
@@ -146,16 +146,16 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
     // Render round result announcement (similar to RPS)
     const renderRoundResult = () => {
         const iWonRound = lastWinnerId === myUserId;
-        
+
         // Get scores
         const myRoundWins = myUserId ? (roundWins[myUserId] || 0) : 0;
         const opponentUserId = myPlayerRole === 'X' ? players.O : players.X;
         const opponentRoundWins = opponentUserId ? (roundWins[opponentUserId] || 0) : 0;
         const opponentName = opponentUserId ? resolveName(opponentUserId) : "Opponent";
-        
+
         // The completed round number (roundIndex is 0-based and has already been incremented)
         const completedRound = roundNumber > 1 ? roundNumber - 1 : 1;
-        
+
         return (
             <div className="py-8 animate-in fade-in duration-300 max-w-md mx-auto">
                 <div className="mb-6 text-center">

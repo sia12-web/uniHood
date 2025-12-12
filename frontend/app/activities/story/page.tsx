@@ -292,7 +292,7 @@ function StoryActivityContent() {
                     <div className="relative z-10">
                       <h3 className="text-lg font-bold">New Story Invite!</h3>
                       <p className="mt-1 text-violet-100">
-                        {friends.find(f => f.friend_id === invite.from)?.friend_display_name || friends.find(f => f.friend_id === invite.from)?.friend_handle || "A friend"} has invited you to write.
+                        {friends.find(f => f.friend_id === invite.opponentUserId)?.friend_display_name || friends.find(f => f.friend_id === invite.opponentUserId)?.friend_handle || "A friend"} has invited you to write.
                       </p>
 
                       <div className="mt-6 flex items-center justify-end gap-2">

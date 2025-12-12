@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Gamepad2, Loader2, Users, Check, AlertCircle } from "lucide-react";
 
-import { createTicTacToeSession, getSelf } from "@/app/features/activities/api/client";
+import { createTicTacToeSession } from "@/app/features/activities/api/client";
 import { useTicTacToeSession } from "@/app/features/activities/hooks/useTicTacToeSession";
 import { useTicTacToeInvite } from "@/hooks/activities/use-tictactoe-invite";
 import { fetchFriends } from "@/lib/social";

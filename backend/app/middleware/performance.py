@@ -52,29 +52,39 @@ from prometheus_client import REGISTRY
 
 def _get_or_create_histogram(name, description, labels, buckets):
     """Get existing histogram or create new one."""
+    # Check if metric already exists in registry
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
     try:
         return Histogram(name, description, labels, buckets=buckets)
     except ValueError:
-        # Metric already registered, get existing one
-        return REGISTRY._names_to_collectors.get(name, Histogram(name, description, labels, buckets=buckets))
+        # Metric already registered, return existing one
+        return REGISTRY._names_to_collectors[name]
 
 def _get_or_create_counter(name, description, labels):
     """Get existing counter or create new one."""
+    # Check if metric already exists in registry
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
     try:
         return Counter(name, description, labels)
     except ValueError:
-        # Metric already registered, get existing one
-        return REGISTRY._names_to_collectors.get(name, Counter(name, description, labels))
+        # Metric already registered, return existing one
+        return REGISTRY._names_to_collectors[name]
 
 def _get_or_create_gauge(name, description, labels=None):
     """Get existing gauge or create new one."""
+    # Check if metric already exists in registry
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
     try:
         if labels:
             return Gauge(name, description, labels)
         return Gauge(name, description)
     except ValueError:
-        # Metric already registered, get existing one
-        return REGISTRY._names_to_collectors.get(name, Gauge(name, description))
+        # Metric already registered, return existing one
+        return REGISTRY._names_to_collectors[name]
+
 
 # Standard metrics (low cardinality)
 HTTP_REQUEST_DURATION = _get_or_create_histogram(

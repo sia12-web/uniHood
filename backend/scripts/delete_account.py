@@ -63,6 +63,7 @@ async def delete_account(email: str, username: str) -> None:
 					avatar_key = NULL,
 					avatar_url = NULL,
 					password_hash = 'argon2id$deleted',
+					deleted_at = $3,
 					updated_at = $3
 				WHERE id = $4
 				""",

@@ -407,7 +407,7 @@ async def list_inbox(auth_user: AuthenticatedUser) -> List[InviteSummary]:
 			FROM invitations i
 			JOIN users sender ON sender.id = i.from_user_id
 			JOIN users recipient ON recipient.id = i.to_user_id
-			WHERE i.to_user_id = $1 AND i.status = 'sent'
+			WHERE i.to_user_id = $1 AND i.status = 'sent' AND sender.deleted_at IS NULL
 			ORDER BY i.created_at DESC
 			""",
 			str(auth_user.id),
@@ -428,7 +428,7 @@ async def list_outbox(auth_user: AuthenticatedUser) -> List[InviteSummary]:
 			FROM invitations i
 			JOIN users sender ON sender.id = i.from_user_id
 			JOIN users recipient ON recipient.id = i.to_user_id
-			WHERE i.from_user_id = $1 AND i.status = 'sent'
+			WHERE i.from_user_id = $1 AND i.status = 'sent' AND recipient.deleted_at IS NULL
 			ORDER BY i.created_at DESC
 			""",
 			str(auth_user.id),
@@ -459,7 +459,7 @@ async def list_inbox_paginated(
 			" FROM invitations i"
 			" JOIN users sender ON sender.id = i.from_user_id"
 			" JOIN users recipient ON recipient.id = i.to_user_id"
-			" WHERE i.to_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL"
+			" WHERE i.to_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL AND sender.deleted_at IS NULL"
 			f"{where_cursor}"
 			" ORDER BY i.created_at DESC, i.id DESC"
 			" LIMIT $" + str(len(params) + 1)
@@ -499,7 +499,7 @@ async def list_outbox_paginated(
 			" FROM invitations i"
 			" JOIN users sender ON sender.id = i.from_user_id"
 			" JOIN users recipient ON recipient.id = i.to_user_id"
-			" WHERE i.from_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL"
+			" WHERE i.from_user_id = $1 AND i.status = 'sent' AND i.deleted_at IS NULL AND recipient.deleted_at IS NULL"
 			f"{where_cursor}"
 			" ORDER BY i.created_at DESC, i.id DESC"
 			" LIMIT $" + str(len(params) + 1)
@@ -561,7 +561,7 @@ async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List
 			SELECT f.*, u.handle AS friend_handle, COALESCE(u.display_name, u.handle) AS friend_display_name
 			FROM friendships f
 			JOIN users u ON u.id = f.friend_id
-			WHERE f.user_id = $1 AND f.status = $2
+			WHERE f.user_id = $1 AND f.status = $2 AND u.deleted_at IS NULL
 			ORDER BY f.created_at DESC
 			""",
 			user_id,

@@ -123,48 +123,48 @@ async def _ensure_table(conn: asyncpg.Connection) -> None:
 
 
 async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, force: bool = False) -> schemas.DeletionStatus:
+	"""Hard delete a user account - completely removes the user from the database."""
 	pool = await get_pool()
+	user_id = auth_user.id
+	now = _now()
+	
 	async with pool.acquire() as conn:
 		async with conn.transaction():
 			await _ensure_table(conn)
-			await _load_user(conn, auth_user.id)
-			new_handle = await _generate_deleted_handle(conn)
+			await _load_user(conn, user_id)
+			
+			# Delete all related data first (cascading deletes should handle most, but be explicit)
+			await conn.execute("DELETE FROM email_verifications WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1", user_id)
+			await conn.execute("DELETE FROM invitations WHERE from_user_id = $1 OR to_user_id = $1", user_id)
+			
+			# Record the deletion before removing the user
 			await conn.execute(
 				"""
-				UPDATE users
-				SET email = NULL,
-					email_verified = FALSE,
-					handle = $1,
-					display_name = 'Deleted User',
-					bio = '',
-					privacy = $2,
-					status = jsonb_build_object('text', '', 'emoji', '', 'updated_at', NOW()),
-					avatar_key = NULL,
-					avatar_url = NULL,
-					password_hash = 'argon2id$deleted',
-					updated_at = NOW()
-				WHERE id = $3
-				""",
-				new_handle,
-				DEFAULT_PRIVACY,
-				auth_user.id,
-			)
-			await conn.execute(
-				"""
-				INSERT INTO account_deletions (user_id, requested_at, confirmed_at)
-				VALUES ($1, NOW(), NOW())
+				INSERT INTO account_deletions (user_id, requested_at, confirmed_at, purged_at)
+				VALUES ($1, $2, $2, $2)
 				ON CONFLICT (user_id)
-				DO UPDATE SET confirmed_at = NOW()
+				DO UPDATE SET confirmed_at = $2, purged_at = $2
 				""",
-				auth_user.id,
+				user_id,
+				now,
 			)
+			
+			# Hard delete the user - completely remove from database
+			await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+	
 	if not force:
-		await redis_client.delete(_token_key(auth_user.id))
-	await sessions.revoke_all_sessions(auth_user.id)
+		await redis_client.delete(_token_key(user_id))
+	await sessions.revoke_all_sessions(user_id)
 	obs_metrics.inc_identity_delete_confirm()
-	await audit.append_db_event(auth_user.id, "delete_confirmed", {"force": force})
-	await audit.log_event("delete_confirmed", user_id=auth_user.id, meta={"force": force})
-	return await get_status(auth_user.id)
+	await audit.log_event("delete_hard_deleted", user_id=user_id, meta={"force": force})
+	
+	# Return a synthetic status since user no longer exists
+	return schemas.DeletionStatus(
+		requested_at=now,
+		confirmed_at=now,
+		purged_at=now,
+	)
 
 
 async def get_status(user_id: str) -> schemas.DeletionStatus:

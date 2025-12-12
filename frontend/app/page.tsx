@@ -19,7 +19,6 @@ import { usePresence } from "@/hooks/presence/use-presence";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { fetchMySummary } from "@/lib/leaderboards";
-import { listCampuses } from "@/lib/identity";
 import { clearAuthSnapshot, onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { fetchFriends } from "@/lib/social";
 import { listMeetups, type MeetupResponse } from "@/lib/meetups";
@@ -1241,7 +1240,9 @@ export default function HomePage() {
             />
             <span className="h-14 w-px flex-shrink-0 bg-rose-200" aria-hidden />
             <div className="flex flex-shrink-0 items-center">
-              {currentCampus?.logo_url ? (
+              {currentCampus?.name?.toLowerCase().includes("mcgill") ? (
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">M</div>
+              ) : currentCampus?.logo_url ? (
                 <Image
                   src={currentCampus.logo_url}
                   alt={currentCampus.name}

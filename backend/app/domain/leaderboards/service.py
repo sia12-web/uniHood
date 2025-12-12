@@ -573,7 +573,7 @@ class LeaderboardService:
 					WHERE status = 'JOINED' 
 					GROUP BY user_id
 				) mj ON mj.user_id = u.id
-				WHERE u.campus_id = $1
+				WHERE u.campus_id = $1 AND u.deleted_at IS NULL
 				ORDER BY (
 					COALESCE(f.friend_count, 0) * 50 + 
 					COALESCE(mh.hosted_count, 0) * 100 + 
@@ -609,7 +609,7 @@ class LeaderboardService:
 				"""
 				SELECT id, display_name, handle
 				FROM users
-				WHERE id = ANY($1::uuid[])
+				WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
 				""",
 				[uuid.UUID(uid) for uid in user_ids],
 			)

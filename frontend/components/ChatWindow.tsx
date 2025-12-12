@@ -4,7 +4,7 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Smile, X, Gamepad2 } from "lucide-react";
+import { Send, Smile, Gamepad2 } from "lucide-react";
 
 import type { SocketConnectionStatus } from "@/app/lib/socket/base";
 
@@ -63,6 +63,7 @@ function isRenderableAudioAttachment(attachment: ChatAttachment): attachment is 
 export default function ChatWindow({
   conversationId,
   onSend,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSendAudio,
   messages,
   selfUserId,

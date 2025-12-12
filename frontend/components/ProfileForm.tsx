@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect
 
 import AvatarUploader from "./AvatarUploader";
 import type { ProfilePatchPayload } from "@/lib/identity";
+import { getCampusById } from "@/lib/identity";
 import type { ProfileRecord, SocialLinks } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
 
@@ -50,13 +51,11 @@ export default function ProfileForm({
 	// Fetch campus name from API instead of showing raw UUID
 	useEffect(() => {
 		if (!current.campus_id) return;
-		import("@/lib/identity").then(({ getCampusById }) => {
-			getCampusById(current.campus_id!)
-				.then((data) => {
-					if (data?.name) setCampusName(data.name);
-				})
-				.catch(() => {});
-		});
+		getCampusById(current.campus_id)
+			.then((data) => {
+				if (data?.name) setCampusName(data.name);
+			})
+			.catch(() => { });
 	}, [current.campus_id]);
 
 	const syncProfile = useCallback((next: ProfileRecord) => {
@@ -234,7 +233,7 @@ export default function ProfileForm({
 		[addPassion, passionDraft],
 	);
 
-		return (
+	return (
 		<section className="flex flex-col gap-6">
 			<section className="flex flex-col gap-2 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
 				<p>
@@ -433,31 +432,6 @@ export default function ProfileForm({
 					</div>
 				</section>
 
-				<div className="grid gap-4 md:grid-cols-2">
-					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Profile Visibility</span>
-						<select
-							value={visibility}
-							onChange={(event) => setVisibility(event.target.value as typeof visibility)}
-							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-						>
-							<option value="everyone">Visible to everyone</option>
-							<option value="friends">Friends only</option>
-							<option value="none">Hidden</option>
-						</select>
-					</label>
-					<label className="flex items-center gap-3 text-sm text-slate-700">
-						<input
-							type="checkbox"
-							checked={ghostMode}
-							onChange={(event) => setGhostMode(event.target.checked)}
-							className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-						/>
-						<span>
-							<strong>Ghost mode</strong> hides you from discovery surfaces.
-						</span>
-					</label>
-				</div>
 				<div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
 					<button
 						type="submit"

@@ -15,15 +15,16 @@
 
 /* Dark mode color overrides */
 .dark {
-  --color-cream: #0f0f1a;
-  --color-warm-sand: #1a1a2e;
-  --color-ink: #e8e6f0;
-  --color-navy: #a5a3d9;
-  --color-midnight: #6b5ecd;
-  --color-aqua: #38b2c4;
-  --color-sunrise: #e6b85a;
+  --color-cream: #020617; /* Slate 950 - Deeper, richer background */
+  --color-warm-sand: #1e293b; /* Slate 800 */
+  --color-ink: #f8fafc; /* Slate 50 */
+  --color-navy: #818cf8; /* Indigo 400 */
+  --color-midnight: #4f46e5; /* Indigo 600 */
+  --color-aqua: #2dd4bf; /* Teal 400 */
+  --color-sunrise: #fbbf24; /* Amber 400 */
 }
 
+/* Base background setup */
 html,
 body {
   background: radial-gradient(circle at top left, rgba(77, 208, 225, 0.28), transparent 55%),
@@ -32,14 +33,14 @@ body {
   color: var(--color-ink);
 }
 
-/* Dark mode background */
+/* Dark mode background - Stronger gradient but darker base */
 .dark html,
 .dark body,
 html.dark,
 html.dark body {
-  background: radial-gradient(circle at top left, rgba(77, 208, 225, 0.08), transparent 55%),
-    radial-gradient(circle at bottom right, rgba(255, 209, 102, 0.06), transparent 60%),
-    var(--color-cream);
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.1), transparent 50%),
+    #020617; /* Explicit Slate 950 */
 }
 
 .bg-cream {
@@ -59,7 +60,7 @@ html.dark body {
 }
 
 .dark .bg-aurora {
-  background: linear-gradient(135deg, rgba(77, 208, 225, 0.12), rgba(255, 138, 101, 0.08));
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.1));
 }
 
 .bg-glass {
@@ -69,9 +70,10 @@ html.dark body {
 }
 
 .dark .bg-glass {
-  background: rgba(15, 15, 26, 0.85);
+  background: rgba(15, 23, 42, 0.75); /* Slate 900 with opacity */
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .text-navy {
@@ -91,124 +93,129 @@ html.dark body {
 }
 
 .dark .shadow-soft {
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 /* Global dark mode transitions */
 * {
-  transition-property: background-color, border-color;
-  transition-duration: 150ms;
-  transition-timing-function: ease-in-out;
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Dark mode overrides for common patterns */
 .dark .bg-white {
-  background-color: rgb(30 41 59) !important; /* slate-800 */
+  background-color: #0f172a !important; /* Slate 900 - Card Background */
 }
 
 .dark .bg-white\/90,
 .dark .bg-white\/95,
 .dark .bg-white\/80 {
-  background-color: rgb(30 41 59 / 0.9) !important;
+  background-color: rgba(15, 23, 42, 0.9) !important;
 }
 
 .dark .bg-slate-50,
-.dark .bg-slate-50\/50 {
-  background-color: rgb(51 65 85) !important; /* slate-700 */
-}
-
+.dark .bg-slate-50\/50,
 .dark .bg-slate-100 {
-  background-color: rgb(51 65 85) !important;
+  background-color: #1e293b !important; /* Slate 800 - Secondary Background */
 }
 
 .dark .border-slate-200,
 .dark .border-slate-100 {
-  border-color: rgb(71 85 105) !important; /* slate-600 */
+  border-color: #334155 !important; /* Slate 700 - Subtler borders */
 }
 
 .dark .text-slate-900 {
-  color: rgb(241 245 249) !important; /* slate-100 */
+  color: #f8fafc !important; /* Slate 50 - Primary Text */
 }
 
 .dark .text-slate-800 {
-  color: rgb(226 232 240) !important; /* slate-200 */
+  color: #f1f5f9 !important; /* Slate 100 */
 }
 
 .dark .text-slate-700 {
-  color: rgb(203 213 225) !important; /* slate-300 */
+  color: #cbd5e1 !important; /* Slate 300 */
 }
 
 .dark .text-slate-600 {
-  color: rgb(148 163 184) !important; /* slate-400 */
+  color: #94a3b8 !important; /* Slate 400 */
 }
 
 .dark .text-slate-500 {
-  color: rgb(148 163 184) !important;
+  color: #64748b !important; /* Slate 500 */
 }
 
 .dark .ring-slate-200,
 .dark .ring-slate-900\/5 {
-  --tw-ring-color: rgb(71 85 105) !important;
+  --tw-ring-color: #334155 !important;
 }
 
 .dark .hover\:bg-white:hover {
-  background-color: rgb(51 65 85) !important;
+  background-color: #1e293b !important;
 }
 
 .dark .hover\:bg-slate-50:hover {
-  background-color: rgb(71 85 105) !important;
+  background-color: #334155 !important;
 }
 
 /* Dark mode for forms */
 .dark input,
 .dark textarea,
 .dark select {
-  background-color: rgb(30 41 59);
-  border-color: rgb(71 85 105);
-  color: rgb(226 232 240);
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: rgb(148 163 184);
+  color: #64748b;
 }
 
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  border-color: rgb(99 102 241);
-  --tw-ring-color: rgb(99 102 241 / 0.3);
+  border-color: #818cf8; /* Indigo 400 */
+  background-color: #1e293b;
+  --tw-ring-color: rgba(129, 140, 248, 0.3);
+  box-shadow: 0 0 0 4px var(--tw-ring-color);
 }
 
 /* Dark mode for cards and containers */
 .dark [class*="rounded"][class*="border"][class*="bg-white"] {
-  background-color: rgb(30 41 59);
-  border-color: rgb(71 85 105);
+  background-color: #0f172a;
+  border-color: #1e293b;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Ensure text contrast in dark mode */
 .dark .text-indigo-600 {
-  color: rgb(165 180 252) !important; /* indigo-300 */
+  color: #818cf8 !important; /* Indigo 400 */
 }
 
 .dark .text-indigo-700 {
-  color: rgb(199 210 254) !important; /* indigo-200 */
+  color: #a5b4fc !important; /* Indigo 300 */
 }
 
-.dark .text-rose-500 {
-  color: rgb(251 113 133) !important; /* rose-400 */
+.dark .text-rose-500,
+.dark .text-rose-600 {
+  color: #fb7185 !important; /* Rose 400 */
 }
 
-.dark .text-emerald-500 {
-  color: rgb(52 211 153) !important; /* emerald-400 */
+.dark .text-emerald-500,
+.dark .text-emerald-600 {
+  color: #34d399 !important; /* Emerald 400 */
 }
 
 /* Dark hover states */
-.dark .hover\:border-rose-100:hover,
+.dark .hover\:border-rose-100:hover {
+  border-color: rgba(251, 113, 133, 0.3) !important;
+}
+
 .dark .hover\:border-indigo-100:hover {
-  border-color: rgb(99 102 241 / 0.3) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
 }
 
 .dark .hover\:shadow-md:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
 }

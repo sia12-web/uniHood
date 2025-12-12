@@ -9,6 +9,9 @@ from app.domain.identity import schemas
 from app.infra.postgres import get_pool
 
 MCGILL_CAMPUS_ID = "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2"
+# Concordia campus ID - replace with actual UUID from your database
+# To find it: SELECT id FROM campuses WHERE name LIKE '%Concordia%';
+CONCORDIA_CAMPUS_ID = "concordia-uuid-placeholder"
 
 POPULAR_COURSES_MCGILL = [
     # Freshman Science & Engineering Core (U0)
@@ -46,12 +49,49 @@ POPULAR_COURSES_MCGILL = [
     {"code": "EPSY 202", "name": "Science of Education"},
 ]
 
+POPULAR_COURSES_CONCORDIA = [
+    # Freshman Science & Engineering Core
+    {"code": "MATH 203", "name": "Differential & Integral Calculus I"},
+    {"code": "MATH 204", "name": "Vectors and Matrices"},
+    {"code": "MATH 205", "name": "Differential & Integral Calculus II"},
+    {"code": "PHYS 204", "name": "Mechanics"},
+    {"code": "PHYS 205", "name": "Electricity and Magnetism"},
+    {"code": "PHYS 206", "name": "Waves and Modern Physics"},
+    {"code": "CHEM 205", "name": "General Chemistry I"},
+    {"code": "CHEM 206", "name": "General Chemistry II"},
+    {"code": "BIOL 201", "name": "Introductory Biology"},
+
+    # Freshman Business Core (JMSB Foundation)
+    {"code": "MATH 208", "name": "Fundamental Mathematics I"},
+    {"code": "MATH 209", "name": "Fundamental Mathematics II"},
+    {"code": "ECON 201", "name": "Introduction to Microeconomics"},
+    {"code": "ECON 203", "name": "Introduction to Macroeconomics"},
+    {"code": "BTM 200", "name": "Fundamentals of Information Technology"},
+
+    # Popular Electives & "Bird Courses"
+    {"code": "PHYS 284", "name": "Introduction to Astronomy"},
+    {"code": "INST 250", "name": "Information Literacy Skills"},
+    {"code": "THEO 202", "name": "Introduction to Biblical Studies"},
+    {"code": "THEO 204", "name": "Introduction to Christian Ethics"},
+    {"code": "EXCI 251", "name": "Health and Physical Activity"},
+    {"code": "EXCI 202", "name": "The Body Human"},
+    {"code": "MARK 201", "name": "Introduction to Marketing"},
+    {"code": "LING 200", "name": "Introduction to Language Study"},
+    {"code": "EDUC 240", "name": "Training and Development"},
+    {"code": "CLAS 260", "name": "Greek Mythology"},
+]
+
 
 async def get_popular_courses(campus_id: UUID) -> List[schemas.Course]:
     """Return popular courses for the campus."""
-    # For MVP, we only have static data for McGill.
-    if str(campus_id) == MCGILL_CAMPUS_ID:
+    campus_id_str = str(campus_id)
+    
+    if campus_id_str == MCGILL_CAMPUS_ID:
         return [schemas.Course(**c) for c in POPULAR_COURSES_MCGILL]
+    elif campus_id_str == CONCORDIA_CAMPUS_ID:
+        return [schemas.Course(**c) for c in POPULAR_COURSES_CONCORDIA]
+    
+    # For other campuses, return empty list for now
     return []
 
 

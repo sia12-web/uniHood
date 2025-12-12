@@ -19,7 +19,13 @@ class MessageAttachment(BaseModel):
 
 	@classmethod
 	def from_meta(cls, meta: AttachmentMeta) -> "MessageAttachment":
-		return cls(**meta.__dict__)
+		return cls(
+			attachment_id=meta.attachment_id,
+			media_type=meta.media_type,
+			size_bytes=meta.size_bytes,
+			file_name=meta.file_name,
+			remote_url=meta.remote_url,
+		)
 
 
 class SendMessageRequest(BaseModel):

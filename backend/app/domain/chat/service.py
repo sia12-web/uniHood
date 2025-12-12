@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 import re
 from datetime import datetime, timezone
 from dataclasses import asdict
@@ -56,6 +57,51 @@ class _InMemoryStore:
 		self._lock = asyncio.Lock()
 		self._messages: dict[str, List[ChatMessage]] = {}
 		self._delivered: dict[tuple[str, str], int] = {}
+		self._load()
+
+	def _save(self) -> None:
+		data = {
+			"messages": {
+				cid: [
+					{
+						**asdict(m),
+						"created_at": m.created_at.isoformat(),
+						"attachments": [asdict(a) for a in m.attachments]
+					}
+					for m in msgs
+				]
+				for cid, msgs in self._messages.items()
+			},
+			"delivered": {
+				f"{k[0]}|{k[1]}": v for k, v in self._delivered.items()
+			}
+		}
+		try:
+			with open("chat_store.json", "w") as f:
+				json.dump(data, f)
+		except Exception as e:
+			print(f"Failed to save chat store: {e}")
+
+	def _load(self) -> None:
+		if not os.path.exists("chat_store.json"):
+			return
+		try:
+			with open("chat_store.json", "r") as f:
+				data = json.load(f)
+			
+			for cid, msgs_raw in data.get("messages", {}).items():
+				self._messages[cid] = []
+				for m in msgs_raw:
+					m["created_at"] = datetime.fromisoformat(m["created_at"])
+					m["attachments"] = tuple(AttachmentMeta(**a) for a in m["attachments"])
+					self._messages[cid].append(ChatMessage(**m))
+			
+			for k, v in data.get("delivered", {}).items():
+				parts = k.split("|")
+				if len(parts) == 2:
+					self._delivered[(parts[0], parts[1])] = v
+		except Exception as e:
+			print(f"Failed to load chat store: {e}")
 
 	async def create_message(
 		self,
@@ -83,6 +129,7 @@ class _InMemoryStore:
 				created_at=created_at,
 			)
 			messages.append(message)
+			self._save()
 			return message
 
 	async def list_messages(
@@ -106,6 +153,12 @@ class _InMemoryStore:
 			else:
 				filtered = messages
 			return filtered[:limit]
+
+	async def delete_conversation(self, conversation_id: str) -> None:
+		async with self._lock:
+			if conversation_id in self._messages:
+				del self._messages[conversation_id]
+				self._save()
 
 	async def get_message(self, message_id: str) -> Optional[ChatMessage]:
 		async with self._lock:
@@ -134,6 +187,7 @@ class _InMemoryStore:
 			key = (conversation_id, user_id)
 			existing = self._delivered.get(key, 0)
 			self._delivered[key] = max(existing, seq)
+			self._save()
 
 
 _MEMORY_STORE = _InMemoryStore()
@@ -261,6 +315,17 @@ class ChatRepository:
 			)
 			rows = await conn.fetch(query, *params)
 			return [self._row_to_message(str(row["conversation_id"]), row) for row in rows]
+
+	async def delete_conversation(self, conversation_id: str) -> None:
+		pool = await self._pool_or_none()
+		if pool is None:
+			await _MEMORY_STORE.delete_conversation(conversation_id)
+			return
+		async with pool.acquire() as conn:
+			await conn.execute(
+				"DELETE FROM chat_messages WHERE conversation_id = $1",
+				conversation_id,
+			)
 
 	async def get_message_by_id(self, message_id: str) -> Optional[ChatMessage]:
 		pool = await self._pool_or_none()
@@ -452,6 +517,10 @@ class ChatService:
 			pass  # Non-critical, don't block message send
 		return response
 
+	async def delete_conversation(self, auth_user: AuthenticatedUser, peer_id: str) -> None:
+		conversation = ConversationKey.from_participants(auth_user.id, peer_id)
+		await self._repo.delete_conversation(conversation.conversation_id)
+
 	async def get_message(self, auth_user: AuthenticatedUser, message_id: str) -> MessageResponse:
 		message = await self._repo.get_message_by_id(message_id)
 		if not message or not message.is_participant(str(auth_user.id)):
@@ -579,3 +648,7 @@ async def acknowledge_delivery(auth_user: AuthenticatedUser, other_user_id: str,
 
 async def load_outbox(auth_user: AuthenticatedUser, other_user_id: str, *, limit: int) -> OutboxResponse:
 	return await _SERVICE.load_outbox(auth_user, other_user_id, limit=limit)
+
+
+async def delete_conversation(auth_user: AuthenticatedUser, peer_id: str) -> None:
+	await _SERVICE.delete_conversation(auth_user, peer_id)

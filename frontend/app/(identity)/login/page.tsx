@@ -3,9 +3,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Target, Users, Gamepad2 } from "lucide-react";
 
 import BrandLogo from "@/components/BrandLogo";
-import FeatureShowcase from "@/components/auth/FeatureShowcase";
 import { loginIdentity } from "@/lib/identity";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
 import { HttpError } from "@/app/lib/http/errors";
@@ -65,8 +65,6 @@ export default function LoginPage() {
   const router = useRouter();
 
   const disabled = useMemo(() => submitting || form.email.trim() === "" || form.password === "", [form.email, form.password, submitting]);
-  // Keep placeholder consistent between SSR/CSR to avoid hydration mismatch warnings.
-  const demoEmail = useMemo(() => "name@university.edu", []);
 
   const handleChange = (field: keyof LoginForm) => (value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -115,42 +113,80 @@ export default function LoginPage() {
   };
 
   return (
-  return (
     <main className="min-h-screen w-full bg-[#f8f9fa] flex items-stretch">
       {/* Left visual side */}
-      <section className="hidden lg:flex flex-1 flex-col justify-between bg-gradient-to-br from-rose-50 via-white to-rose-100 p-16 relative overflow-hidden">
+      <section className="hidden lg:flex lg:flex-[1.3] flex-col justify-center items-center bg-gradient-to-br from-[#ffe4e6] via-[#fff1f2] to-[#ffe4e6] p-16 relative overflow-hidden text-center">
         {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#ffdbe0] to-transparent rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-white to-transparent opacity-80" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#fecdd3] to-transparent rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-white to-transparent opacity-60" />
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex flex-col items-center">
           <BrandLogo
+            withWordmark={true}
             asLink={false}
             backgroundTone="transparent"
-            logoWidth={180}
-            logoHeight={180}
-            className="text-[#b7222d] origin-left scale-90"
-            logoClassName="h-16 w-auto"
+            logoWidth={256}
+            logoHeight={256}
+            className="text-[#881337] mb-12"
+            logoClassName="!h-32 w-auto"
+            wordmarkTitleClassName="text-7xl tracking-tight text-[#881337]"
+            taglineClassName="hidden"
           />
-          <div className="mt-12 max-w-lg">
-            <h1 className="text-5xl font-extrabold text-[#8a1c23] tracking-tight leading-tight">
-              Get closer to <br />
-              <span className="text-[#d64045]">your campus.</span>
-            </h1>
-            <p className="mt-6 text-xl text-slate-600 leading-relaxed font-medium">
-              Join the live network where students discover, connect, and thrive together. One profile, endless possibilities.
-            </p>
+          <div className="max-w-md">
+            <h2 className="text-2xl font-medium text-slate-800 leading-snug">
+              Where your academic world <br />
+              meets your social life.
+            </h2>
           </div>
-        </div>
 
-        <div className="relative z-10 mt-auto">
-          <FeatureShowcase />
+          <div className="mt-12 grid gap-8 text-left max-w-sm w-full">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+                <Target className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Live Campus Radar</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">Instantly discover classmates, events, and activities happening nearby.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Find Your Community</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">Connect with your crowd, join groups, and never miss a campus moment.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+                <Gamepad2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Game Station</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">Play mini-games, climb leaderboards, and earn points with friends.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Right form side */}
       <section className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-white shadow-2xl z-20">
         <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="lg:hidden flex justify-center mb-2">
+            <BrandLogo
+              withWordmark={true}
+              asLink={false}
+              backgroundTone="transparent"
+              logoWidth={64}
+              logoHeight={64}
+              className="text-[#881337]"
+              logoClassName="h-16 w-auto"
+              wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
+              taglineClassName="hidden"
+            />
+          </div>
           <div className="text-center lg:text-left space-y-2">
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back!</h2>
             <p className="text-slate-500">
@@ -165,7 +201,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="group relative">
                 <input
                   required
@@ -176,11 +212,11 @@ export default function LoginPage() {
                   placeholder=" "
                   value={form.email}
                   onChange={(event) => handleChange("email")(event.target.value)}
-                  className="peer w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-4 pt-6 pb-2 text-base font-semibold text-slate-900 outline-none transition-all focus:border-[#d64045] focus:bg-white focus:ring-4 focus:ring-[#ffdbe0]"
+                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-[#d64045]/20"
                 />
                 <label
                   htmlFor="email"
-                  className="pointer-events-none absolute left-4 top-4 text-xs font-bold text-slate-400 uppercase tracking-wider transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:font-medium peer-placeholder-shown:text-slate-500 peer-placeholder-shown:normal-case peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[#d64045] peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-bold"
+                  className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
                 >
                   Email Address
                 </label>
@@ -195,11 +231,11 @@ export default function LoginPage() {
                   placeholder=" "
                   value={form.password}
                   onChange={(event) => handleChange("password")(event.target.value)}
-                  className="peer w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-4 pt-6 pb-2 text-base font-semibold text-slate-900 outline-none transition-all focus:border-[#d64045] focus:bg-white focus:ring-4 focus:ring-[#ffdbe0]"
+                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-[#d64045]/20"
                 />
                 <label
                   htmlFor="password"
-                  className="pointer-events-none absolute left-4 top-4 text-xs font-bold text-slate-400 uppercase tracking-wider transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:font-medium peer-placeholder-shown:text-slate-500 peer-placeholder-shown:normal-case peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[#d64045] peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-bold"
+                  className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
                 >
                   Password
                 </label>
@@ -208,10 +244,8 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <div className="w-5 h-5 rounded-md border-2 border-slate-200 transition-colors group-hover:border-[#d64045] bg-white flex items-center justify-center">
-                  {/* Placeholder for checkbox logic if implemented later */}
-                </div>
-                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700">Remember me</span>
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#d64045] focus:ring-[#d64045]" />
+                <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Remember me</span>
               </label>
               <Link href="/forgot-password" className="text-sm font-bold text-[#b7222d] hover:text-[#991b1b] hover:underline decoration-2 underline-offset-4">
                 Forgot Password?
@@ -221,7 +255,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={disabled}
-              className="mt-2 w-full rounded-2xl bg-[#d64045] py-4 text-lg font-bold text-white shadow-lg shadow-rose-200 transition-all hover:bg-[#b7222d] hover:shadow-xl hover:shadow-rose-300 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-[#ffdbe0] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+              className="mt-2 w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -246,7 +280,7 @@ export default function LoginPage() {
 
           <div className="text-center">
             <p className="text-slate-600 font-medium">
-              Don't have an account yet?{" "}
+              Don&apos;t have an account yet?{" "}
               <Link href="/onboarding" className="text-[#b7222d] font-bold hover:underline decoration-2 underline-offset-4">
                 Create an account
               </Link>

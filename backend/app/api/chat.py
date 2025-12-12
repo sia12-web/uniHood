@@ -16,7 +16,7 @@ from app.domain.chat.schemas import (
 	OutboxResponse,
 	SendMessageRequest,
 )
-from app.domain.chat.service import acknowledge_delivery, get_message, list_messages, load_outbox, send_message
+from app.domain.chat.service import acknowledge_delivery, delete_conversation, get_message, list_messages, load_outbox, send_message
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.api.pagination import decode_cursor
 from app.api.request_id import get_request_id
@@ -105,3 +105,12 @@ async def load_outbox_endpoint(
 	auth_user: AuthenticatedUser = Depends(get_current_user),
 ) -> OutboxResponse:
 	return await load_outbox(auth_user, user_id, limit=limit)
+
+
+@router.delete("/conversations/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conversation_endpoint(
+	user_id: str,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+	await delete_conversation(auth_user, user_id)
+	return Response(status_code=status.HTTP_204_NO_CONTENT)

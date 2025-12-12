@@ -48,10 +48,67 @@ async def delete_account(email: str, username: str) -> None:
 		token_key = deletion._token_key(user_id)
 		now = datetime.now(timezone.utc)
 		async with conn.transaction():
-			# Delete all related data first
-			await conn.execute("DELETE FROM email_verifications WHERE user_id = $1", user_id)
+			# Delete all related data from all tables that reference users
+			# Order matters due to foreign key constraints
+			
+			# Chat/messaging related
+			await conn.execute("DELETE FROM room_receipts WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM room_messages WHERE sender_id = $1", user_id)
+			await conn.execute("DELETE FROM room_members WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM rooms WHERE creator_id = $1", user_id)
+			
+			# Social/friends related
 			await conn.execute("DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1", user_id)
 			await conn.execute("DELETE FROM invitations WHERE from_user_id = $1 OR to_user_id = $1", user_id)
+			await conn.execute("DELETE FROM blocks WHERE blocker_id = $1 OR blocked_id = $1", user_id)
+			
+			# Meetups related
+			await conn.execute("DELETE FROM meetup_participants WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM meetups WHERE creator_user_id = $1", user_id)
+			
+			# Profile related
+			await conn.execute("DELETE FROM user_skills WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM user_interests WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM user_courses WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM social_links WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM education WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM public_profiles WHERE user_id = $1", user_id)
+			
+			# Auth related
+			await conn.execute("DELETE FROM email_verifications WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM email_change_requests WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM password_resets WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM sessions WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM twofa WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM recovery_codes WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM authenticators WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM trusted_devices WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM oauth_identities WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM user_phones WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM contact_optin WHERE user_id = $1", user_id)
+			
+			# Verification/trust related
+			await conn.execute("DELETE FROM verification_audit WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM verifications WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM trust_profiles WHERE user_id = $1", user_id)
+			
+			# Leaderboard/gamification related
+			await conn.execute("DELETE FROM badges WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM streaks WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM lb_daily WHERE user_id = $1", user_id)
+			
+			# Moderation related
+			await conn.execute("DELETE FROM mod_reputation_event WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_user_reputation WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_user_restriction WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_device WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_appeal WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_report WHERE reporter_id = $1 OR target_id = $1", user_id)
+			await conn.execute("DELETE FROM mod_case WHERE user_id = $1", user_id)
+			
+			# Settings/preferences related
+			await conn.execute("DELETE FROM notification_prefs WHERE user_id = $1", user_id)
+			await conn.execute("DELETE FROM audit_log WHERE user_id = $1", user_id)
 			
 			# Record the deletion
 			await conn.execute(

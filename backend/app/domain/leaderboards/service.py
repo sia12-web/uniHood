@@ -290,15 +290,20 @@ class LeaderboardService:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
 			rows = await conn.fetch(
-				"SELECT id, campus_id FROM users WHERE id = ANY($1::uuid[])",
+				"SELECT id, campus_id FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL",
 				user_ids,
 			)
 			campus_map: Dict[str, Optional[str]] = {str(row["id"]): (str(row["campus_id"]) if row["campus_id"] else None) for row in rows}
+			# Filter user_ids to only include users that exist in the database
+			valid_user_ids = set(campus_map.keys())
 			for uid, campus in campus_map.items():
 				await cache_user_campus(uid, campus)
 
 			campus_buckets: Dict[str, Dict[str, Tuple[DailyCounters, StreakState]]] = defaultdict(dict)
 			for user_id in user_ids:
+				# Skip users that don't exist in database (deleted or never existed)
+				if user_id not in valid_user_ids:
+					continue
 				counters = await self._accrual.get_daily_counters(day=day_str, user_id=user_id)
 				streak = await self._update_streak(conn, user_id, ymd, counters.touched)
 				campus_id = campus_map.get(user_id)
@@ -512,9 +517,22 @@ class LeaderboardService:
 		if ymd is None:
 			ymd = _today_ymd()
 		
-		# For SOCIAL scope, calculate live from database (same formula as get_my_summary)
+		# For SOCIAL scope, use cached results with 30-second TTL
 		if scope == LeaderboardScope.SOCIAL:
-			items = await self._calculate_live_social_scores(campus_id, limit)
+			cache_key = f"lb:cache:social:{campus_id}:{limit}"
+			cached = await self._redis.get(cache_key)
+			if cached:
+				import json
+				items = [(item["user_id"], item["score"]) for item in json.loads(cached)]
+			else:
+				items = await self._calculate_live_social_scores(campus_id, limit)
+				# Cache for 30 seconds to reduce DB load
+				import json
+				await self._redis.setex(
+					cache_key, 
+					30, 
+					json.dumps([{"user_id": uid, "score": s} for uid, s in items])
+				)
 		else:
 			key = _format_zset_key(scope, period, str(campus_id), ymd)
 			items = await self._redis.zrevrange(key, 0, limit - 1, withscores=True)

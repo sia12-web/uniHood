@@ -17,7 +17,7 @@ services:
     environment:
       POSTGRES_DB: radius
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -44,15 +44,21 @@ services:
       - backend_uploads:/app/app/uploads
     environment:
       REDIS_URL: redis://redis:6379/0
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/radius
+      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/radius
       PYTHONPATH: /app
-      ENVIRONMENT: dev
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
-      CORS_ALLOW_ORIGINS: "*"
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000}
       COMMUNITIES_WORKERS_ENABLED: "true"
       # Make metrics endpoint public for Prometheus scraping
       OBS_METRICS_PUBLIC: "true"
+      # Security: Required secrets (will fail if not set in .env)
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
+      SERVICE_SIGNING_KEY: ${SERVICE_SIGNING_KEY:?SERVICE_SIGNING_KEY must be set in .env}
+      REFRESH_PEPPER: ${REFRESH_PEPPER:?REFRESH_PEPPER must be set in .env}
+      # Cookie security
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Performance profiling (set via env vars for debug sessions)
       PERF_TRACE_LABELS: ${PERF_TRACE_LABELS:-false}
       PERF_DEBUG_MODE: ${PERF_DEBUG_MODE:-false}

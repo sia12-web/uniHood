@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Target, Users, Gamepad2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { verifyEmailToken } from "@/lib/identity";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
@@ -78,40 +79,100 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 	}, [status, router, redirectPath]);
 
 	return (
-		<main className="min-h-screen w-full bg-white">
-			<div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-center lg:gap-8">
-				<section className="flex flex-1 flex-col items-center justify-center text-slate-900 lg:justify-center">
-					<div className="relative flex flex-col items-center">
+		<main className="min-h-screen w-full bg-[#f8f9fa] flex items-stretch">
+			{/* Left visual side */}
+			<section className="hidden lg:flex lg:flex-[1.3] flex-col justify-center items-center bg-gradient-to-br from-[#ffe4e6] via-[#fff1f2] to-[#ffe4e6] p-16 relative overflow-hidden text-center">
+				{/* Decorative background elements */}
+				<div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#fecdd3] to-transparent rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/2" />
+				<div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-white to-transparent opacity-60" />
+
+				<div className="relative z-10 flex flex-col items-center">
+					<BrandLogo
+						withWordmark={true}
+						asLink={false}
+						backgroundTone="transparent"
+						logoWidth={256}
+						logoHeight={256}
+						className="text-[#881337] mb-12"
+						logoClassName="!h-32 w-auto"
+						wordmarkTitleClassName="text-7xl tracking-tight text-[#881337]"
+						taglineClassName="hidden"
+					/>
+					<div className="max-w-md">
+						<h2 className="text-2xl font-medium text-slate-800 leading-snug">
+							Where your academic world <br />
+							meets your social life.
+						</h2>
+					</div>
+
+					<div className="mt-12 grid gap-8 text-left max-w-sm w-full">
+						<div className="flex items-start gap-4">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+								<Target className="h-6 w-6" />
+							</div>
+							<div>
+								<h3 className="font-bold text-slate-900 text-lg">Live Campus Radar</h3>
+								<p className="text-sm text-slate-600 leading-relaxed">Instantly discover classmates, events, and activities happening nearby.</p>
+							</div>
+						</div>
+						<div className="flex items-start gap-4">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+								<Users className="h-6 w-6" />
+							</div>
+							<div>
+								<h3 className="font-bold text-slate-900 text-lg">Find Your Community</h3>
+								<p className="text-sm text-slate-600 leading-relaxed">Connect with your crowd, join groups, and never miss a campus moment.</p>
+							</div>
+						</div>
+						<div className="flex items-start gap-4">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+								<Gamepad2 className="h-6 w-6" />
+							</div>
+							<div>
+								<h3 className="font-bold text-slate-900 text-lg">Game Station</h3>
+								<p className="text-sm text-slate-600 leading-relaxed">Play mini-games, climb leaderboards, and earn points with friends.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* Right form side */}
+			<section className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-white shadow-2xl z-20">
+				<div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+					<div className="lg:hidden flex justify-center mb-2">
 						<BrandLogo
+							withWordmark={true}
 							asLink={false}
 							backgroundTone="transparent"
-							logoWidth={800}
-							logoHeight={800}
-							className="w-full justify-center text-[#b7222d]"
-							logoClassName="h-48 w-auto sm:h-72 lg:h-[425px]"
+							logoWidth={64}
+							logoHeight={64}
+							className="text-[#881337]"
+							logoClassName="h-16 w-auto"
+							wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
+							taglineClassName="hidden"
 						/>
 					</div>
-				</section>
 
-				<section className="flex flex-1 justify-center">
-					<div className="w-full rounded-3xl bg-white px-6 py-8 shadow-2xl ring-1 ring-[#f0d8d9]/80 sm:px-9 text-center">
-						<h1 className="text-2xl font-semibold text-slate-900 mb-4">Email Verification</h1>
-						<p
-							className={`rounded px-4 py-3 text-sm ${status === "success"
-								? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+					<div className="text-center space-y-6">
+						<h2 className="text-3xl font-bold text-slate-900 tracking-tight">Email Verification</h2>
+
+						<div
+							className={`rounded-2xl p-4 text-sm font-medium ${status === "success"
+								? "border border-green-100 bg-green-50/50 text-green-700"
 								: status === "error"
-									? "border border-rose-200 bg-rose-50 text-rose-700"
-									: "border border-slate-200 bg-slate-50 text-slate-700"
+									? "border border-red-100 bg-red-50/50 text-red-700"
+									: "border border-slate-100 bg-slate-50/50 text-slate-700"
 								}`}
 						>
 							{message}
-						</p>
+						</div>
 
 						{status === "success" ? (
-							<div className="mt-6 flex flex-col gap-3">
+							<div className="flex flex-col gap-4 space-y-3">
 								<Link
 									href={redirectPath}
-									className="inline-block rounded-xl bg-[#d64045] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2"
+									className="w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100"
 								>
 									{redirectPath === "/login" ? "Go to Sign In" : "Continue"}
 								</Link>
@@ -122,21 +183,30 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 						) : null}
 
 						{status === "error" ? (
-							<div className="mt-6 flex flex-col gap-3">
-								<p className="text-xs text-slate-500">
+							<div className="flex flex-col gap-4 space-y-3">
+								<p className="text-sm text-slate-500">
 									If the link expired, request a new email from the onboarding screen.
 								</p>
 								<Link
 									href="/onboarding"
-									className="inline-block rounded-xl bg-[#d64045] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2"
+									className="w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100"
 								>
 									Back to Onboarding
 								</Link>
 							</div>
 						) : null}
+
+						{status === "loading" && (
+							<div className="flex justify-center">
+								<svg className="animate-spin h-8 w-8 text-[#c1272d]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+									<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+							</div>
+						)}
 					</div>
-				</section>
-			</div>
+				</div>
+			</section>
 		</main>
 	);
 }

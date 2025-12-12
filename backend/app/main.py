@@ -76,6 +76,7 @@ from app.obs import init as obs_init
 from app.api.middleware_request_id import RequestIdMiddleware
 from app.api.middleware_idempotency import IdempotencyMiddleware
 from app.api.middleware_signed_intent import SignedIntentMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.api.openapi import custom_openapi
 from app.api.errors import install_error_handlers
 from app.settings import settings
@@ -304,6 +305,11 @@ app.add_middleware(
 		"/flags",
 		"/rooms",
 	),
+)
+# Security headers - enable HSTS only in production with HTTPS
+app.add_middleware(
+	SecurityHeadersMiddleware,
+	enable_hsts=(settings.environment == "production" and settings.cookie_secure)
 )
 
 

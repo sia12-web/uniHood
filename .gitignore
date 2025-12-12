@@ -44,6 +44,12 @@ backend/.ruff_cache/
 
 # ---- Local data / secrets ----
 infra/docker/pgdata/
+# Security: Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
 
 # ---- Misc build artifacts ----
 dist/

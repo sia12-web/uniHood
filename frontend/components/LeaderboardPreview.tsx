@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchLeaderboard, LeaderboardRow } from "@/lib/leaderboards";
+import { fetchLeaderboard } from "@/lib/leaderboards";
+import type { LeaderboardRow } from "@/lib/types";
 import { Trophy } from "lucide-react";
 
 export function LeaderboardPreview() {
@@ -52,9 +53,9 @@ export function LeaderboardPreview() {
             <div key={leader.user_id} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-yellow-100 text-yellow-700" :
-                    index === 1 ? "bg-gray-100 text-gray-700" :
-                      index === 2 ? "bg-orange-100 text-orange-700" :
-                        "bg-slate-100 text-slate-500"
+                  index === 1 ? "bg-gray-100 text-gray-700" :
+                    index === 2 ? "bg-orange-100 text-orange-700" :
+                      "bg-slate-100 text-slate-500"
                   }`}>
                   {leader.rank}
                 </span>

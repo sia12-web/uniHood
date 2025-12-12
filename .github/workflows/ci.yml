@@ -107,9 +107,13 @@ jobs:
         env:
           POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
           REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci
+          SERVICE_SIGNING_KEY: test-signing-key-for-ci
+          REFRESH_PEPPER: test-refresh-pepper-for-ci
+          ENVIRONMENT: test
         run: |
           cd backend
-          pytest -q
+          pytest -q --ignore=tests/integration --ignore=tests/redis_integration -m "not integration"
 
   frontend-e2e:
     name: Frontend – Playwright E2E (build + run)

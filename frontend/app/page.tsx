@@ -489,7 +489,7 @@ export default function HomePage() {
       .forEach(m => {
         activities.push({
           type: 'meetup',
-          date: new Date(m.joined_at || m.created_at),
+          date: new Date(m.created_at),
           id: `meetup-joined-${m.id}`,
           data: m,
           action: 'joined'

@@ -208,7 +208,7 @@ export default function TicTacToeEntryPage() {
                 state={state}
                 onMove={makeMove}
                 onRestart={restartGame}
-                onToggleReady={() => toggleReady(!state.ready?.[selfId ?? ""])}
+                onToggleReady={toggleReady}
                 onLeave={leave}
                 playerNames={playerNames}
               />
@@ -218,85 +218,85 @@ export default function TicTacToeEntryPage() {
           // Lobby / Create View
           <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg ring-1 ring-slate-900/5">
-                <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-slate-900">
-                  <Users className="h-5 w-5 text-cyan-600" />
-                  Invite a Friend
-                </h2>
+              <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-slate-900">
+                <Users className="h-5 w-5 text-cyan-600" />
+                Invite a Friend
+              </h2>
 
-                {friendsLoading ? (
-                  <div className="flex h-40 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
-                  </div>
-                ) : friendsError ? (
-                  <div className="rounded-xl bg-rose-50 p-6 text-center text-sm text-rose-600">
-                    <AlertCircle className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                    {friendsError}
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {friends.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
-                        No friends online right now.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {friends.map((friend) => (
-                          <button
-                            key={friend.friend_id}
-                            onClick={() => setFriendId(friend.friend_id)}
-                            className={`group relative flex items-center gap-4 rounded-xl border p-4 text-left transition-all hover:shadow-md ${friendId === friend.friend_id
-                              ? "border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500"
-                              : "border-slate-200 hover:border-cyan-300 hover:bg-slate-50"
-                              }`}
-                          >
-                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold transition-colors ${friendId === friend.friend_id ? "bg-cyan-100 text-cyan-700" : "bg-slate-100 text-slate-500 group-hover:bg-cyan-50 group-hover:text-cyan-600"
-                              }`}>
-                              {(friend.friend_display_name?.[0] || friend.friend_handle?.[0] || "?").toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate font-bold text-slate-900">
-                                {friend.friend_display_name || friend.friend_handle}
-                              </div>
-                              {friend.friend_display_name && (
-                                <div className="truncate text-xs font-medium text-slate-500">@{friend.friend_handle}</div>
-                              )}
-                            </div>
-                            {friendId === friend.friend_id && (
-                              <div className="absolute right-3 top-3 rounded-full bg-cyan-500 p-1 text-white shadow-sm">
-                                <Check className="h-3 w-3" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="border-t border-slate-100 pt-6">
-                      <button
-                        onClick={handleCreate}
-                        disabled={creating || !friendId}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-slate-900/10 transition-all hover:bg-slate-800 hover:shadow-slate-900/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                      >
-                        {creating ? (
-                          <>
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            Creating Session...
-                          </>
-                        ) : (
-                          <>
-                            Start Duel
-                            <div className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white/80">
-                              PRO
-                            </div>
-                          </>
-                        )}
-                      </button>
-                      {createError && (
-                        <p className="mt-3 text-center text-sm font-medium text-rose-500">{createError}</p>
-                      )}
+              {friendsLoading ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+                </div>
+              ) : friendsError ? (
+                <div className="rounded-xl bg-rose-50 p-6 text-center text-sm text-rose-600">
+                  <AlertCircle className="mx-auto mb-2 h-6 w-6 opacity-50" />
+                  {friendsError}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {friends.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
+                      No friends online right now.
                     </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {friends.map((friend) => (
+                        <button
+                          key={friend.friend_id}
+                          onClick={() => setFriendId(friend.friend_id)}
+                          className={`group relative flex items-center gap-4 rounded-xl border p-4 text-left transition-all hover:shadow-md ${friendId === friend.friend_id
+                            ? "border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500"
+                            : "border-slate-200 hover:border-cyan-300 hover:bg-slate-50"
+                            }`}
+                        >
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold transition-colors ${friendId === friend.friend_id ? "bg-cyan-100 text-cyan-700" : "bg-slate-100 text-slate-500 group-hover:bg-cyan-50 group-hover:text-cyan-600"
+                            }`}>
+                            {(friend.friend_display_name?.[0] || friend.friend_handle?.[0] || "?").toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-bold text-slate-900">
+                              {friend.friend_display_name || friend.friend_handle}
+                            </div>
+                            {friend.friend_display_name && (
+                              <div className="truncate text-xs font-medium text-slate-500">@{friend.friend_handle}</div>
+                            )}
+                          </div>
+                          {friendId === friend.friend_id && (
+                            <div className="absolute right-3 top-3 rounded-full bg-cyan-500 p-1 text-white shadow-sm">
+                              <Check className="h-3 w-3" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-100 pt-6">
+                    <button
+                      onClick={handleCreate}
+                      disabled={creating || !friendId}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-slate-900/10 transition-all hover:bg-slate-800 hover:shadow-slate-900/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                    >
+                      {creating ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Creating Session...
+                        </>
+                      ) : (
+                        <>
+                          Start Duel
+                          <div className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white/80">
+                            PRO
+                          </div>
+                        </>
+                      )}
+                    </button>
+                    {createError && (
+                      <p className="mt-3 text-center text-sm font-medium text-rose-500">{createError}</p>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
             </div>
 
             {/* Invites Card */}

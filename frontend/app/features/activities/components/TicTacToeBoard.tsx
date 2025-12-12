@@ -312,7 +312,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
             <div className="relative">
                 <div className={clsx(
                     "grid grid-cols-3 gap-3 p-4 bg-slate-100 rounded-3xl border border-slate-200 shadow-inner",
-                    (!isMyTurn || status === 'countdown') && "opacity-90 grayscale-[0.2]"
+                    !isMyTurn && "opacity-90 grayscale-[0.2]"
                 )}>
                     {board.map((cell, index) => (
                         <motion.button
@@ -320,7 +320,7 @@ export const TicTacToeBoard: React.FC<BoardProps> = ({ state, onMove, onRestart,
                             whileHover={!cell && canPlay ? { scale: 0.98 } : {}}
                             whileTap={!cell && canPlay ? { scale: 0.95 } : {}}
                             onClick={() => canPlay && !cell && onMove(index)}
-                            disabled={!!cell || !canPlay || status === 'countdown'}
+                            disabled={!!cell || !canPlay}
                             className={clsx(
                                 "w-24 h-24 sm:w-32 sm:h-32 rounded-2xl flex items-center justify-center text-6xl relative overflow-hidden transition-all shadow-sm",
                                 "bg-white border-2",

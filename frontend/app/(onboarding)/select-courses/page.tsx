@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, Search } from "lucide-react";
 
-import { fetchPopularCourses, saveProfileCourses, fetchProfile, type Course } from "@/lib/identity";
+import { fetchPopularCourses, saveProfileCourses, fetchProfile, fetchUserCourses, type Course } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SelectCoursesPage() {
@@ -31,8 +31,17 @@ export default function SelectCoursesPage() {
                     return;
                 }
                 setCampusId(profile.campus_id || null);
-                const popular = await fetchPopularCourses(profile.campus_id);
+                const [popular, existing] = await Promise.all([
+                    fetchPopularCourses(profile.campus_id),
+                    fetchUserCourses(auth.user_id, profile.campus_id).catch((err) => {
+                        console.warn("Failed to load saved courses", err);
+                        return [] as Awaited<ReturnType<typeof fetchUserCourses>>;
+                    }),
+                ]);
                 setCourses(popular);
+                if (existing.length > 0) {
+                    setSelectedCodes(new Set(existing.map((course) => normaliseCode(course.code || course.name || ""))));
+                }
             } catch (err) {
                 console.error("Failed to load courses", err);
                 setError("Unable to load courses.");

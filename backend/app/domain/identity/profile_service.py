@@ -36,15 +36,23 @@ async def _invalidate_profile_cache(user_id: str) -> None:
 	await redis_client.delete(cache_key)
 
 
+async def invalidate_profile_cache(user_id: str) -> None:
+	"""Public helper to clear the cached profile for the given user."""
+	await _invalidate_profile_cache(user_id)
+
+
 def _now_iso() -> str:
 	return datetime.now(timezone.utc).isoformat()
 
 
 def _avatar_url(user: models.User) -> Optional[str]:
-	if user.avatar_url:
-		return user.avatar_url
+	# Always build URL from avatar_key to use current DEFAULT_BASE_URL
+	# This ensures the URL reflects the correct port/host in dev
 	if user.avatar_key:
 		return f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{user.avatar_key}"
+	# Fallback to stored URL only if no key (legacy data)
+	if user.avatar_url:
+		return user.avatar_url
 	return None
 
 

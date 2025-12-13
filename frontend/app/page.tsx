@@ -1228,22 +1228,17 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="flex min-h-screen w-full gap-8 px-0">
-        <aside className="flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
-          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/95 px-3 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-rose-500 shadow-sm ring-1 ring-rose-100 overflow-hidden">
+        <aside className="hidden md:flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
+          <div className="flex items-center justify-center rounded-2xl bg-white/95 px-3 py-3 shadow-sm ring-1 ring-rose-100">
             <BrandLogo
-              className="flex-shrink-0"
-              logoClassName="!h-14 w-auto"
-              backgroundTone="transparent"
-              logoWidth={120}
-              logoHeight={120}
+              withWordmark={false}
+              className="flex items-center justify-center"
+              logoClassName="!h-32 !w-32 object-contain"
+              backgroundTone="light"
+              logoWidth={128}
+              logoHeight={128}
               asLink={false}
             />
-            <span className="h-14 w-px flex-shrink-0 bg-rose-200" aria-hidden />
-            <div className="flex flex-shrink-0 items-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-rose-100 text-xl font-bold text-rose-600">
-                {currentCampus?.name?.charAt(0) ?? "U"}
-              </div>
-            </div>
           </div>
           <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">
             {navItems.map((item) => (
@@ -1328,6 +1323,18 @@ export default function HomePage() {
           </div>
         </aside>
         <section className="flex-1 px-6 py-12 md:px-10">
+          {/* Mobile logo header */}
+          <div className="mb-8 flex justify-center md:hidden">
+            <BrandLogo
+              withWordmark={false}
+              className="flex items-center justify-center"
+              logoClassName="!h-24 !w-24 object-contain"
+              backgroundTone="light"
+              logoWidth={96}
+              logoHeight={96}
+              asLink={false}
+            />
+          </div>
           <div className="mx-auto max-w-6xl space-y-8">{renderSection()}</div>
         </section>
       </div>

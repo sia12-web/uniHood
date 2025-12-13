@@ -105,11 +105,17 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       <aside className="relative hidden w-full max-w-xs shrink-0 flex-col gap-6 rounded-3xl border border-warm-sand bg-glass p-6 shadow-soft md:flex">
         <header className="flex flex-col items-center gap-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <BrandLogo withWordmark={false} className="text-navy" logoClassName="h-[46px] w-[46px]" />
+            <BrandLogo 
+              withWordmark 
+              className="text-navy" 
+              logoClassName="h-[46px] w-[46px]"
+              wordmarkTitleClassName="text-xl"
+              tagline="Social hub"
+              taglineClassName="text-navy/60"
+            />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy/60">Social hub</p>
-            <h1 className="mt-2 text-2xl font-semibold text-navy">Stay close to your campus circle</h1>
+            <h1 className="text-2xl font-semibold text-navy">Stay close to your campus circle</h1>
           </div>
           <p className="text-sm text-navy/70">
             Switch between the live radar, friends, and invites without leaving the hub. Each module keeps

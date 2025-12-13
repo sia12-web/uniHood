@@ -328,10 +328,6 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
               ) : (
                 <div className="rounded-2xl border border-warm-sand bg-cream px-4 py-6 text-sm text-navy/70">
                   <p className="font-semibold text-midnight">No conversations yet</p>
-                  <p className="mt-2 text-xs text-navy/60">
-                    Once you add or accept a friend, they will appear here so you can jump straight into a chat. Use the
-                    Friends tab to start building your roster.
-                  </p>
                 </div>
               )}
             </div>

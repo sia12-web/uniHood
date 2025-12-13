@@ -174,15 +174,15 @@ export default function LoginPage() {
       {/* Right form side */}
       <section className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-white shadow-2xl z-20">
         <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="lg:hidden flex justify-center mb-2">
+          <div className="lg:hidden flex justify-center mb-6">
             <BrandLogo
               withWordmark={false}
               asLink={false}
               backgroundTone="transparent"
-              logoWidth={300}
-              logoHeight={300}
+              logoWidth={450}
+              logoHeight={450}
               className="text-[#881337]"
-              logoClassName="h-44 w-auto"
+              logoClassName="!h-64 !w-64 object-contain"
               wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
               taglineClassName="hidden"
             />

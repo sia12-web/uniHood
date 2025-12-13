@@ -2,7 +2,7 @@
 const nextConfig = (() => {
 	const remotePatterns = [];
 
-	const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+	const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8001";
 	try {
 		const url = new URL(backendOrigin);
 		const pattern = {

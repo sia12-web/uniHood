@@ -28,7 +28,7 @@ function readOptionalEnv(key: string): string | null {
 }
 
 export function getBackendUrl() {
-  return env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+  return env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8001";
 }
 
 export function getDemoUserId() {

@@ -7,7 +7,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 import socketio
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi import Request
@@ -215,19 +215,48 @@ app = FastAPI(title="uniHood Proximity Core", lifespan=lifespan)
 custom_openapi(app)
 install_error_handlers(app)
 
-if settings.environment == "dev":
+print("DEBUG: Registering Manual CORS Middleware")
+@app.middleware("http")
+async def manual_cors_middleware(request: Request, call_next):
+	origin = request.headers.get("origin")
+	print(f"DEBUG: [CORS] Incoming {request.method} {request.url} | Origin: {origin}", flush=True)
+
+	if request.method == "OPTIONS":
+		print(f"DEBUG: [CORS] Handling OPTIONS manually for {request.url}", flush=True)
+		requested_headers = request.headers.get("access-control-request-headers")
+		allow_headers = requested_headers if requested_headers else "*"
+		response = Response(status_code=200)
+		response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+		response.headers["Access-Control-Allow-Methods"] = "POST, GET, PUT, DELETE, OPTIONS, PATCH"
+		response.headers["Access-Control-Allow-Headers"] = allow_headers
+		response.headers["Access-Control-Allow-Credentials"] = "true"
+		return response
+
+	try:
+		response = await call_next(request)
+		print(f"DEBUG: [CORS] App returned status: {response.status_code} for {request.method} {request.url}", flush=True)
+	except Exception as e:
+		print(f"DEBUG: [CORS] App raised exception: {e}", flush=True)
+		raise e
+
+	# Add CORS headers to normal responses
+	response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+	response.headers["Access-Control-Allow-Credentials"] = "true"
+	return response
+
+if settings.environment in ["dev", "development"]:
 	# In local dev, make avatar uploads work without external object storage
 	from app.domain.identity import s3 as _s3  # local import to avoid circulars
 
-	_s3.DEFAULT_BASE_URL = "http://localhost:8000/uploads"
+	_s3.DEFAULT_BASE_URL = "http://localhost:8001/uploads"
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
-	allow_origins = ["http://localhost:3000"] if settings.environment == "dev" else ["https://app.unihood.example"]
+	allow_origins = ["http://localhost:3000"] if settings.environment in ["dev", "development"] else ["https://app.unihood.example"]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:
-	if settings.environment == "dev":
+	if settings.environment in ["dev", "development"]:
 		allow_origins = [
 			"http://localhost:3000",
 			"https://localhost:3000",
@@ -244,24 +273,23 @@ if "*" in allow_origins:
 		]
 	else:
 		allow_origins = ["https://app.unihood.example"]
-
-app.add_middleware(
-	CORSMiddleware,
-	allow_origins=allow_origins,
-	allow_credentials=True,
-	allow_methods=["*"],
-	allow_headers=["*"],
-)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Static serving for uploaded files in dev
-if settings.environment == "dev":
+# Static serving for uploaded files in dev
+uploads_router = None
+if settings.environment in ["dev", "development"]:
+	from fastapi import APIRouter
+	from fastapi.responses import FileResponse
 	upload_root = Path(os.environ.get("DIVAN_UPLOAD_ROOT", Path(__file__).parent / "uploads")).resolve()
 	upload_root.mkdir(parents=True, exist_ok=True)
 
-	@app.put("/uploads/{path:path}")
+	# Use a separate router for uploads to support both PUT and GET
+	router = APIRouter()
+
+	@router.put("/{path:path}")
 	async def _put_upload(path: str, request: Request):
-		# Naive dev-only uploader; do NOT use in production
+		# Naive dev-only uploader
 		rel = Path(path)
 		# Prevent path traversal
 		target = (upload_root / rel).resolve()
@@ -274,7 +302,16 @@ if settings.environment == "dev":
 			fh.write(data)
 		return {"ok": True, "bytes": len(data)}
 
-	app.mount("/uploads", StaticFiles(directory=str(upload_root), check_dir=True), name="uploads")
+	@router.get("/{path:path}")
+	async def _get_upload(path: str):
+		rel = Path(path)
+		target = (upload_root / rel).resolve()
+		if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
+			from fastapi import HTTPException
+			raise HTTPException(status_code=404, detail="not_found")
+		return FileResponse(target)
+
+	uploads_router = router
 
 # Use the same allowed origins for Socket.IO as for the REST API
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)
@@ -295,6 +332,10 @@ communities_socketio.register(sio)
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
 obs_init(app, sio)
 
+
+
+
+
 # Ensure every request carries an X-Request-Id and make it available on request.state
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(IdempotencyMiddleware)
@@ -312,6 +353,11 @@ app.add_middleware(
 	enable_hsts=(settings.environment == "production" and settings.cookie_secure)
 )
 
+
+
+
+if settings.environment in ["dev", "development"] and uploads_router is not None:
+	app.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 
 app.include_router(auth.router, tags=["identity"])
 app.include_router(courses.router, tags=["identity"])

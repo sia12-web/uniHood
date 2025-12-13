@@ -4,7 +4,7 @@ import axios from 'axios';
 const BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
 
 // Resolve activities-core base URL. Add explicit dev-time debug so we can see when env var is missing.
-const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || 'http://localhost:8000';
+const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || 'http://localhost:8001';
 const CORE_BASE = CORE_BASE_RAW.replace(/\/$/, '');
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   // eslint-disable-next-line no-console

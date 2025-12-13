@@ -58,7 +58,25 @@ export default function SelectUniversityPage() {
     };
 
     if (loading) {
-        return <div className="flex min-h-screen items-center justify-center text-slate-500">Loading...</div>;
+        return (
+            <div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+                <div className="w-full max-w-2xl space-y-8">
+                    {/* Skeleton header */}
+                    <div className="flex flex-col items-center">
+                        <div className="h-9 w-52 bg-slate-200 rounded-lg animate-pulse mt-6" />
+                        <div className="h-5 w-80 bg-slate-100 rounded animate-pulse mt-2" />
+                    </div>
+                    {/* Skeleton form */}
+                    <div className="mt-8 space-y-6">
+                        <div className="space-y-2">
+                            <div className="h-4 w-24 bg-slate-200 rounded animate-pulse" />
+                            <div className="h-10 w-full bg-slate-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="h-10 w-full bg-slate-200 rounded-md animate-pulse" />
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

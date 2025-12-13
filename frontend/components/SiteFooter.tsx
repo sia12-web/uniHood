@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Instagram } from "lucide-react";
 
 export default function SiteFooter() {
     const currentYear = new Date().getFullYear();
@@ -21,6 +22,15 @@ export default function SiteFooter() {
                     {/* Navigation Links */}
                     <nav className="flex items-center gap-6 sm:gap-8 text-sm font-medium text-navy/80 dark:text-slate-300">
                         <Link
+                            href="https://www.instagram.com/unihood.app"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-coral dark:hover:text-coral transition-colors duration-200"
+                            aria-label="Instagram"
+                        >
+                            <Instagram className="h-5 w-5" />
+                        </Link>
+                        <Link
                             href="/privacy"
                             className="hover:text-coral dark:hover:text-coral transition-colors duration-200"
                         >
@@ -33,10 +43,10 @@ export default function SiteFooter() {
                             Terms
                         </Link>
                         <Link
-                            href="/support"
+                            href="/contact"
                             className="hover:text-coral dark:hover:text-coral transition-colors duration-200"
                         >
-                            Support
+                            Contact
                         </Link>
                     </nav>
 

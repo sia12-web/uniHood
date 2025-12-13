@@ -122,7 +122,13 @@ async def verify_email(payload: schemas.VerifyRequest, request: Request, respons
 		return res
 	except service.VerificationError as exc:
 		obs_metrics.inc_identity_reject(exc.reason)
-		_raise(exc.reason, exc.status_code)
+		raise HTTPException(status_code=exc.status_code, detail=exc.reason, headers={"X-Request-Id": get_request_id()})
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+	except Exception as exc:
+		# Catch-all to ensure we always return a response
+		raise HTTPException(status_code=500, detail="internal_error", headers={"X-Request-Id": get_request_id()}) from exc
+
 
 
 @router.post("/auth/resend")

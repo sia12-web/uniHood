@@ -8,11 +8,11 @@ from typing import Iterable
 import ulid
 
 from app.domain.identity.schemas import PresignRequest, PresignResponse
+from app.settings import settings
 
 DEFAULT_BUCKET_PREFIX = "avatars"
-# In development, point to the local backend's /uploads endpoint on the exposed port (8001 in docker-compose)
-# In production, use an actual CDN URL or S3 bucket
-DEFAULT_BASE_URL = os.getenv("UPLOAD_BASE_URL", "http://localhost:8001/uploads")
+# Use configured upload base so URLs work in prod/stage; fallback to localhost for dev.
+DEFAULT_BASE_URL = settings.upload_base_url or os.getenv("UPLOAD_BASE_URL", "http://localhost:8001/uploads")
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_AVATAR_BYTES = 5 * 1024 * 1024
 DEFAULT_EXPIRES = 600

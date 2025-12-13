@@ -24,7 +24,7 @@ export default function AuthenticatedAppChrome({ children }: { children: ReactNo
                                         <SiteHeader />
                                         <main className="flex-1 pb-16">
                                             <div className="relative h-full w-full">
-                                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(240,92,77,0.12)_0%,_rgba(255,255,255,0)_55%)] dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.15)_0%,_rgba(0,0,0,0)_55%)]" />
+                                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,138,101,0.15)_0%,_rgba(255,255,255,0)_55%)] dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.15)_0%,_rgba(0,0,0,0)_55%)]" />
                                                 <div className="relative h-full w-full">{children}</div>
                                             </div>
                                         </main>

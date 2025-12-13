@@ -66,7 +66,10 @@ const ProfileIcon = () => (
 // HeartIcon removed (unused)
 const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
   loading: () => (
-    <span className="text-2xl font-black tracking-tight text-[#b7222d]">uniHood</span>
+    <span className="text-2xl font-black tracking-tight">
+      <span className="text-[#2d2a8d] dark:text-[#818cf8]">uni</span>
+      <span className="text-[#ff8a65] dark:text-[#fb7185]">Hood</span>
+    </span>
   ),
 });
 
@@ -279,7 +282,6 @@ export default function HomePage() {
   const { presence: recentFriendsPresence } = usePresence(recentFriendPeerIds);
 
   const { getCampus } = useCampuses();
-  const currentCampus = getCampus(authUser?.campusId);
 
 
   useEffect(() => {
@@ -557,7 +559,12 @@ export default function HomePage() {
     }
     const handle = authUser.handle?.trim();
     const name = authUser.displayName?.trim();
-    return handle || name || "";
+    // Skip handle/displayName if it looks like a default user_id (starts with user_ or matches userId)
+    const isHandleDefault = handle && (handle.startsWith("user_") || handle === authUser.userId);
+    const isNameDefault = name && (name.startsWith("user_") || name === authUser.userId);
+    const effectiveHandle = isHandleDefault ? undefined : handle;
+    const effectiveName = isNameDefault ? undefined : name;
+    return effectiveHandle || effectiveName || "";
   }, [authUser]);
 
   const router = useRouter();
@@ -624,6 +631,11 @@ export default function HomePage() {
   const renderSection = () => {
     switch (activeSection) {
       case "dashboard":
+        // Helper to check if a name is a default user_* pattern
+        const isDefaultName = (name?: string) => name && (name.startsWith("user_") || name === authUser?.userId);
+        const welcomeName = (!isDefaultName(authUser?.displayName) && authUser?.displayName)
+          || (!isDefaultName(authUser?.handle) && authUser?.handle)
+          || "Student";
         return (
           <div className="space-y-8">
             {/* Header */}
@@ -636,7 +648,7 @@ export default function HomePage() {
                     onClick={() => handleNavClick("profile")}
                     className="text-rose-600 hover:text-rose-700 hover:underline decoration-2 underline-offset-4 transition-colors"
                   >
-                    {authUser?.displayName || "Student"}
+                    {welcomeName}
                   </button>
                 </h1>
                 <p className="text-slate-600">Here&apos;s your campus snapshot for today.</p>

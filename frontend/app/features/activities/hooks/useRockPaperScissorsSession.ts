@@ -52,8 +52,8 @@ function resolveStreamUrl(sessionId: string, token?: string, userId?: string): s
     const wsOrigin = currentOrigin.startsWith("https://")
       ? `wss://${currentOrigin.slice("https://".length)}`
       : currentOrigin.startsWith("http://")
-      ? `ws://${currentOrigin.slice("http://".length)}`
-      : `ws://${currentOrigin}`;
+        ? `ws://${currentOrigin.slice("http://".length)}`
+        : `ws://${currentOrigin}`;
     const prefix = CORE_BASE ? (CORE_BASE.startsWith("/") ? CORE_BASE : `/${CORE_BASE}`) : "";
     origin = `${wsOrigin}${prefix}`;
   } else {
@@ -192,10 +192,10 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
               const countdownValue = snapshot.countdown;
               const countdownObj = typeof countdownValue === "number" && countdownValue > 0
                 ? {
-                    startedAt: Date.now(),
-                    durationMs: countdownValue * 1000,
-                    endsAt: Date.now() + countdownValue * 1000,
-                  }
+                  startedAt: Date.now(),
+                  durationMs: countdownValue * 1000,
+                  endsAt: Date.now() + countdownValue * 1000,
+                }
                 : undefined;
               setState((prev) => ({
                 ...prev,
@@ -203,19 +203,19 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
                   snapshot.lobbyPhase ?? snapshot.status === "pending"
                     ? "lobby"
                     : snapshot.status === "countdown"
-                    ? "countdown"
-                    : snapshot.status === "running"
-                    ? "running"
-                    : snapshot.status === "ended"
-                    ? "ended"
-                    : prev.phase,
+                      ? "countdown"
+                      : snapshot.status === "running"
+                        ? "running"
+                        : snapshot.status === "ended"
+                          ? "ended"
+                          : prev.phase,
                 presence: snapshot.presence ?? prev.presence,
                 countdown: countdownObj ?? prev.countdown,
                 scoreboard: snapshot.participants
                   ? snapshot.participants.map((entry: { userId: string; score: number }) => ({
-                      userId: entry.userId,
-                      score: entry.score,
-                    }))
+                    userId: entry.userId,
+                    score: entry.score,
+                  }))
                   : prev.scoreboard,
                 currentRound: typeof snapshot.currentRoundIndex === "number" ? snapshot.currentRoundIndex : prev.currentRound,
               }));
@@ -253,7 +253,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
             if (type === "activity.round.started") {
               const roundIndex = payload.payload?.index ?? payload.payload?.round ?? 0;
               console.log("[RPS Hook] Round started:", roundIndex);
-              
+
               // Delay clearing round data to give UI time to show the result
               // The round result was shown when activity.round.ended arrived
               // We wait 100ms before transitioning to ensure smooth UX
@@ -423,7 +423,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     const sessionId = sessionIdRef.current;
     const selfId = selfIdRef.current;
     if (!sessionId || !selfId) return;
-    
+
     // Send leave via WebSocket first for immediate feedback
     const socket = wsRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -432,7 +432,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
         payload: { userId: selfId }
       }));
     }
-    
+
     // Also call REST API as backup
     try {
       await leaveSession(sessionId, selfId);
@@ -448,19 +448,9 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
-  // Record game outcome when finished or opponent leaves
-  useEffect(() => {
-    maybeRecordOutcome({
-      phase: state.phase,
-      leaveReason: state.leaveReason,
-      scoreboard: state.scoreboard,
-      winnerUserId: state.winnerUserId,
-      selfUserId: selfIdRef.current,
-      gameKind: 'rock_paper_scissors',
-      durationSeconds: 60,
-      outcomeRecordedRef,
-    });
-  }, [state.phase, state.scoreboard, state.winnerUserId, state.leaveReason]);
+  // NOTE: Game outcome is recorded by the backend activities-core service via WebSocket
+  // Do NOT record from frontend to avoid double-counting stats
+  // The useEffect that called maybeRecordOutcome has been removed
 
   return useMemo(
     () => ({

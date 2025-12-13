@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { fetchProfile, patchProfile } from "@/lib/identity";
-import { readAuthSnapshot } from "@/lib/auth-storage";
+import { readAuthSnapshot, storeAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SetProfilePage() {
     const [displayName, setDisplayName] = useState("");
@@ -50,6 +50,14 @@ export default function SetProfilePage() {
                 handle: handle
             });
 
+            // Update the auth snapshot with the new handle and display_name
+            // so that readAuthUser() returns the correct values on the dashboard
+            storeAuthSnapshot({
+                ...auth,
+                handle: handle,
+                display_name: displayName,
+            });
+
             router.push("/welcome");
         } catch (err: unknown) {
             console.error(err);
@@ -65,7 +73,29 @@ export default function SetProfilePage() {
     };
 
     if (loading) {
-        return <div className="flex min-h-[60vh] items-center justify-center text-slate-500">Loading...</div>;
+        return (
+            <div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+                <div className="w-full max-w-md space-y-8">
+                    {/* Skeleton header */}
+                    <div className="flex flex-col items-center">
+                        <div className="h-9 w-40 bg-slate-200 rounded-lg animate-pulse mt-6" />
+                        <div className="h-5 w-56 bg-slate-100 rounded animate-pulse mt-2" />
+                    </div>
+                    {/* Skeleton form */}
+                    <div className="mt-8 space-y-6">
+                        <div className="space-y-2">
+                            <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
+                            <div className="h-10 w-full bg-slate-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="h-4 w-28 bg-slate-200 rounded animate-pulse" />
+                            <div className="h-10 w-full bg-slate-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="h-10 w-full bg-slate-200 rounded-md animate-pulse" />
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

@@ -13,21 +13,21 @@ type Props = {
 };
 
 const MOVES: Record<RpsChoice, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  rock: { 
-    label: "Rock", 
-    icon: Circle, 
+  rock: {
+    label: "Rock",
+    icon: Circle,
     color: "text-slate-600",
     bg: "bg-slate-100"
   },
-  paper: { 
-    label: "Paper", 
-    icon: FileText, 
+  paper: {
+    label: "Paper",
+    icon: FileText,
     color: "text-blue-600",
     bg: "bg-blue-50"
   },
-  scissors: { 
-    label: "Scissors", 
-    icon: Scissors, 
+  scissors: {
+    label: "Scissors",
+    icon: Scissors,
     color: "text-rose-600",
     bg: "bg-rose-50"
   },
@@ -37,7 +37,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   const { state, readyUp, unready, submitMove, leave, restart } = useRockPaperScissorsSession({ sessionId });
   const { map: friendIdentities, authUser } = useFriendIdentities();
   const selfId = useMemo(() => getSelf(), []);
-  
+
   // Helper to resolve names
   const resolveName = useCallback(
     (userId: string) => {
@@ -124,11 +124,10 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
 
       <button
         onClick={isReady ? unready : readyUp}
-        className={`mt-8 min-w-[200px] rounded-full px-8 py-3 text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl ${
-          isReady 
-            ? "bg-slate-100 text-slate-600 hover:bg-slate-200" 
-            : "bg-rose-600 text-white hover:bg-rose-500"
-        }`}
+        className={`mt-8 min-w-[200px] rounded-full px-8 py-3 text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl ${isReady
+          ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          : "bg-rose-600 text-white hover:bg-rose-500"
+          }`}
       >
         {isReady ? "Cancel Ready" : "Ready Up"}
       </button>
@@ -145,10 +144,10 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
 
   const renderCountdown = () => {
     // Calculate seconds left from countdown object, or use 3 as default
-    const secondsLeft = state.countdown?.endsAt 
+    const secondsLeft = state.countdown?.endsAt
       ? Math.max(0, Math.ceil((state.countdown.endsAt - Date.now()) / 1000))
       : 3;
-    
+
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-rose-50">
@@ -163,30 +162,33 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
 
   const renderRoundResult = () => {
     if (!state.lastRoundMoves || state.lastRoundMoves.length < 2) return null;
-    
+
     const myMoveData = state.lastRoundMoves.find(m => m.userId === selfId);
     const opponentMoveData = state.lastRoundMoves.find(m => m.userId !== selfId);
     const myMove = myMoveData?.move as RpsChoice | undefined;
     const opponentMove = opponentMoveData?.move as RpsChoice | undefined;
-    
+
     // Debug logging
     console.log("[RPS] renderRoundResult - selfId:", selfId);
     console.log("[RPS] renderRoundResult - lastRoundWinner:", state.lastRoundWinner);
     console.log("[RPS] renderRoundResult - lastRoundMoves:", state.lastRoundMoves);
     console.log("[RPS] renderRoundResult - myMoveData:", myMoveData);
     console.log("[RPS] renderRoundResult - opponentMoveData:", opponentMoveData);
-    
+
     const iWonRound = state.lastRoundWinner === selfId;
     const opponentWonRound = state.lastRoundWinner && state.lastRoundWinner !== selfId;
-    
-    // Get round wins from scoreboard (scoreboard shows round wins during game)
-    const myRoundWins = state.scoreboard.find(s => s.userId === selfId)?.score ?? 0;
-    const opponentRoundWins = state.scoreboard.find(s => s.userId !== selfId)?.score ?? 0;
-    
+
+    // Get round wins from scoreboard (scores may be multiplied by 100 in backend)
+    const myScoreRaw = state.scoreboard.find(s => s.userId === selfId)?.score ?? 0;
+    const opponentScoreRaw = state.scoreboard.find(s => s.userId !== selfId)?.score ?? 0;
+    // Convert scores to actual round wins
+    const myRoundWins = myScoreRaw >= 100 ? Math.floor(myScoreRaw / 100) : myScoreRaw;
+    const opponentRoundWins = opponentScoreRaw >= 100 ? Math.floor(opponentScoreRaw / 100) : opponentScoreRaw;
+
     // The round that just finished (currentRound is 0-based and incremented after round ends,
     // so the round we're showing results for is currentRound, display as +1 for human-readable)
     const completedRound = state.currentRound ?? 0;
-    
+
     return (
       <div className="py-8 animate-in fade-in duration-300">
         <div className="mb-6 text-center">
@@ -256,16 +258,16 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
   const renderRunning = () => {
     const hasSubmitted = Boolean(state.submittedMove);
     const currentRound = state.currentRound ?? 0;
-    
+
     // Simple logic: if we have round moves and haven't submitted for next round yet, show result
     // submittedMove is cleared when new round starts, so this naturally transitions
     const hasRoundResult = state.lastRoundMoves && state.lastRoundMoves.length >= 2;
     const shouldShowResult = hasRoundResult && !hasSubmitted;
-    
+
     if (shouldShowResult) {
       return renderRoundResult();
     }
-    
+
     return (
       <div className="py-8">
         <div className="mb-8 text-center">
@@ -279,19 +281,18 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
             const config = MOVES[move];
             const Icon = config.icon;
             const isSelected = state.submittedMove === move;
-            
+
             return (
               <button
                 key={move}
                 onClick={() => submitMove(move)}
                 disabled={hasSubmitted}
-                className={`group relative flex flex-col items-center gap-4 rounded-2xl border-2 p-6 transition-all ${
-                  isSelected 
-                    ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-500 ring-offset-2' 
-                    : hasSubmitted
-                      ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50'
-                      : 'border-slate-200 bg-white hover:-translate-y-1 hover:border-rose-200 hover:shadow-lg'
-                }`}
+                className={`group relative flex flex-col items-center gap-4 rounded-2xl border-2 p-6 transition-all ${isSelected
+                  ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-500 ring-offset-2'
+                  : hasSubmitted
+                    ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50'
+                    : 'border-slate-200 bg-white hover:-translate-y-1 hover:border-rose-200 hover:shadow-lg'
+                  }`}
               >
                 <div className={`flex h-16 w-16 items-center justify-center rounded-full ${config.bg} transition-transform group-hover:scale-110`}>
                   <Icon className={`h-8 w-8 ${config.color}`} />
@@ -327,11 +328,22 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
     const opponentMoveData = state.lastRoundMoves?.find(m => m.userId !== selfId);
     const myMove = (myMoveData?.move ?? state.submittedMove) as RpsChoice | undefined;
     const opponentMove = opponentMoveData?.move as RpsChoice | undefined;
-    
+
     const isWinner = state.winnerUserId === selfId;
     const isDraw = !state.winnerUserId;
     const opponentLeft = state.leaveReason === "opponent_left";
-    
+
+    // Get round wins from scoreboard (scores represent round wins, may be multiplied by 100)
+    const myScoreRaw = state.scoreboard.find(s => s.userId === selfId)?.score ?? 0;
+    const opponentScoreRaw = state.scoreboard.find(s => s.userId !== selfId)?.score ?? 0;
+
+    // Convert scores to actual round wins (if scores are like 300, 0 then round wins are 3, 0)
+    const myRoundWins = myScoreRaw >= 100 ? Math.floor(myScoreRaw / 100) : myScoreRaw;
+    const opponentRoundWins = opponentScoreRaw >= 100 ? Math.floor(opponentScoreRaw / 100) : opponentScoreRaw;
+
+    // Fixed leaderboard points: 200 for winner, 50 for loser, 75 for draw
+    const earnedPoints = (isWinner || opponentLeft) ? 200 : (isDraw ? 75 : 50);
+
     return (
       <div className="py-8 text-center">
         {opponentLeft && (
@@ -341,70 +353,114 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
           </div>
         )}
 
-        <div className="mb-8">
-          {isWinner ? (
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="mb-6">
+          {isWinner || opponentLeft ? (
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
               <Trophy className="h-10 w-10" />
             </div>
           ) : isDraw ? (
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-600 ring-8 ring-slate-50">
               <Swords className="h-10 w-10" />
             </div>
           ) : (
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-rose-600 ring-8 ring-rose-50">
               <AlertCircle className="h-10 w-10" />
             </div>
           )}
-          
+
           <h2 className="text-3xl font-bold text-slate-900">
-            {isWinner ? "Victory!" : isDraw ? "It's a Draw!" : "Defeat"}
+            {isWinner || opponentLeft ? "Victory!" : isDraw ? "It's a Draw!" : "Game Over"}
           </h2>
           <p className="mt-2 text-slate-600">
-            {isWinner ? "You won the game!" : isDraw ? "The match ended in a tie." : "Better luck next time."}
+            {isWinner || opponentLeft ? "You won the game!" : isDraw ? "The match ended in a tie." : "Better luck next time!"}
           </p>
-          {state.scoreboard.length >= 2 && (
-            <div className="mt-4 flex justify-center gap-4 text-slate-600">
-              <span className="font-semibold">You: {state.scoreboard.find(s => s.userId === selfId)?.score || 0}</span>
-              <span>—</span>
-              <span className="font-semibold">{opponentName}: {state.scoreboard.find(s => s.userId !== selfId)?.score || 0}</span>
-            </div>
-          )}
         </div>
 
-        <div className="mb-12 flex items-center justify-center gap-12">
+        {/* YOUR POINTS EARNED - Large prominent display */}
+        <div className="mx-auto max-w-sm mb-8">
+          <div className={`rounded-2xl p-6 ${isWinner || opponentLeft
+            ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+            : isDraw
+              ? "bg-gradient-to-br from-amber-500 to-orange-600"
+              : "bg-gradient-to-br from-slate-600 to-slate-700"
+            } text-white shadow-xl`}>
+            <div className="text-sm font-medium uppercase tracking-wider opacity-80">
+              You Earned
+            </div>
+            <div className="mt-2 flex items-baseline justify-center gap-2">
+              <span className="text-5xl font-black">{earnedPoints}</span>
+              <span className="text-xl font-semibold opacity-80">points</span>
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-2 text-sm opacity-90">
+              {isWinner || opponentLeft ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span>+1 Win added to your stats</span>
+                </>
+              ) : isDraw ? (
+                <>
+                  <Minus className="h-4 w-4" />
+                  <span>Draw counted</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4" />
+                  <span>+1 Game played</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Final Round Wins */}
+        {state.scoreboard.length >= 2 && (
+          <div className="mb-8">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Final Round Wins</h3>
+            <div className="flex justify-center gap-4 text-lg">
+              <span className={`px-4 py-2 rounded-full ${isWinner ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                <span className="font-bold">You: {myRoundWins}</span>
+              </span>
+              <span className={`px-4 py-2 rounded-full ${!isWinner && !isDraw ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                <span className="font-bold">{opponentName}: {opponentRoundWins}</span>
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-8 flex items-center justify-center gap-12">
           {/* My Move */}
           <div className="flex flex-col items-center gap-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">You</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Your Final</p>
             {myMove && MOVES[myMove] ? (
-              <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 ${isWinner ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <div className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 ${isWinner ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
                 {(() => {
                   const Icon = MOVES[myMove].icon;
-                  return <Icon className={`h-10 w-10 ${MOVES[myMove].color}`} />;
+                  return <Icon className={`h-8 w-8 ${MOVES[myMove].color}`} />;
                 })()}
               </div>
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
-                <div className="text-4xl">?</div>
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <div className="text-3xl">?</div>
               </div>
             )}
             <p className="font-semibold text-slate-900">{myMove && MOVES[myMove] ? MOVES[myMove].label : "?"}</p>
           </div>
 
-          <div className="text-2xl font-black text-slate-300">VS</div>
+          <div className="text-xl font-black text-slate-300">VS</div>
 
           {/* Opponent Move */}
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{opponentName}</p>
             {opponentMove && MOVES[opponentMove] ? (
-              <div className={`flex h-24 w-24 items-center justify-center rounded-2xl border-2 ${!isWinner && !isDraw ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <div className={`flex h-20 w-20 items-center justify-center rounded-2xl border-2 ${!isWinner && !isDraw ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
                 {(() => {
                   const Icon = MOVES[opponentMove].icon;
-                  return <Icon className={`h-10 w-10 ${MOVES[opponentMove].color}`} />;
+                  return <Icon className={`h-8 w-8 ${MOVES[opponentMove].color}`} />;
                 })()}
               </div>
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
-                <div className="text-4xl">?</div>
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white">
+                <div className="text-3xl">?</div>
               </div>
             )}
             <p className="font-semibold text-slate-900">{opponentMove && MOVES[opponentMove] ? MOVES[opponentMove].label : "?"}</p>
@@ -441,12 +497,15 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
           <span className="text-sm font-medium text-slate-600">Scoreboard</span>
         </div>
         <div className="flex gap-6 text-sm">
-          {state.scoreboard.map((score) => (
-            <div key={score.userId} className="flex items-center gap-2">
-              <span className="font-medium text-slate-900">{resolveName(score.userId)}:</span>
-              <span className="font-bold text-rose-600">{score.score}</span>
-            </div>
-          ))}
+          {state.scoreboard.map((score) => {
+            const roundWins = score.score >= 100 ? Math.floor(score.score / 100) : score.score;
+            return (
+              <div key={score.userId} className="flex items-center gap-2">
+                <span className="font-medium text-slate-900">{resolveName(score.userId)}:</span>
+                <span className="font-bold text-rose-600">{roundWins}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

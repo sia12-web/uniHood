@@ -155,7 +155,7 @@ type PenaltyAppliedPayload = {
 	sessionId: string;
 	userId: string;
 	amount?: number;
-	incidents?: Array<{ type: string; [key: string]: unknown }>;
+	incidents?: Array<{ type: string;[key: string]: unknown }>;
 };
 
 type PongPayload = {
@@ -324,7 +324,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 						phase: payload.countdown || (nextPhase === 'countdown' && countdownActive) ? 'countdown' : nextPhase === 'running' ? 'running' : 'lobby',
 					}
 					: prev.lobby,
-					error: undefined,
+				error: undefined,
 			};
 		});
 		setSubmitted(false);
@@ -620,20 +620,20 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		wsRef.current = null;
 	}, []);
 
-		const connectStream = useCallback(
+	const connectStream = useCallback(
 		(id: string) => {
 			if (typeof window === 'undefined') {
 				return;
 			}
 			const auth = readAuthSnapshot();
-				const token = auth?.access_token;
-				const selfId = selfUserIdRef.current;
-				const url = resolveStreamUrl(id, token, selfId);
-				if (process.env.NODE_ENV !== 'production') {
-					// eslint-disable-next-line no-console
-					console.debug('[speed-typing] opening stream', url);
-				}
-				const socket = new WebSocket(url);
+			const token = auth?.access_token;
+			const selfId = selfUserIdRef.current;
+			const url = resolveStreamUrl(id, token, selfId);
+			if (process.env.NODE_ENV !== 'production') {
+				// eslint-disable-next-line no-console
+				console.debug('[speed-typing] opening stream', url);
+			}
+			const socket = new WebSocket(url);
 			wsRef.current = socket;
 			closingRef.current = false;
 
@@ -643,7 +643,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 
 			socket.addEventListener('message', handleServerMessage);
 
-				socket.addEventListener('close', (event) => {
+			socket.addEventListener('close', (event) => {
 				if (process.env.NODE_ENV !== 'production') {
 					// eslint-disable-next-line no-console
 					console.warn('[speed-typing] stream closed', { code: event.code, reason: event.reason });
@@ -651,40 +651,40 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 				if (wsRef.current === socket) {
 					wsRef.current = null;
 				}
-					// Fallback: if we missed 'session.ended', try a final snapshot to resolve winner/scoreboard
-					const currentId = sessionIdRef.current;
-					if (currentId && !closingRef.current) {
-						void fetchSessionSnapshot(currentId)
-							.then((snap) => {
-								if (!snap) return;
-								const participants = Array.isArray(snap.participants) ? snap.participants : [];
-								const roundsHolder = (snap as unknown as { rounds?: Array<{ state: string }> });
-								const rounds = Array.isArray(roundsHolder.rounds) ? roundsHolder.rounds : [];
-								const allDone = rounds.length > 0 && rounds.every((r) => r.state === 'done');
-								const statusHolder = snap as unknown as { status?: string };
-								if (allDone || statusHolder.status === 'ended') {
-									setState((prev) => {
-										const merged = mergeScoreboard(prev.scoreboard, participants);
-										const winnerId = merged[0]?.userId;
-										return {
-											...prev,
-											phase: 'ended',
-											winnerUserId: winnerId ?? prev.winnerUserId,
-											scoreboard: merged,
-											connectionQuality: undefined,
-										};
-									});
-									return;
-								}
-								// Not ended; mark as error unless already ended
-								setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
-							})
-							.catch(() => {
-								setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
-							});
-					} else {
-						setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
-					}
+				// Fallback: if we missed 'session.ended', try a final snapshot to resolve winner/scoreboard
+				const currentId = sessionIdRef.current;
+				if (currentId && !closingRef.current) {
+					void fetchSessionSnapshot(currentId)
+						.then((snap) => {
+							if (!snap) return;
+							const participants = Array.isArray(snap.participants) ? snap.participants : [];
+							const roundsHolder = (snap as unknown as { rounds?: Array<{ state: string }> });
+							const rounds = Array.isArray(roundsHolder.rounds) ? roundsHolder.rounds : [];
+							const allDone = rounds.length > 0 && rounds.every((r) => r.state === 'done');
+							const statusHolder = snap as unknown as { status?: string };
+							if (allDone || statusHolder.status === 'ended') {
+								setState((prev) => {
+									const merged = mergeScoreboard(prev.scoreboard, participants);
+									const winnerId = merged[0]?.userId;
+									return {
+										...prev,
+										phase: 'ended',
+										winnerUserId: winnerId ?? prev.winnerUserId,
+										scoreboard: merged,
+										connectionQuality: undefined,
+									};
+								});
+								return;
+							}
+							// Not ended; mark as error unless already ended
+							setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
+						})
+						.catch(() => {
+							setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
+						});
+				} else {
+					setState((prev) => ({ ...prev, phase: prev.phase === 'ended' ? prev.phase : 'error', connectionQuality: undefined }));
+				}
 				closingRef.current = false;
 			});
 
@@ -865,11 +865,11 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 							// Clear client-side session tracking so no further /leave or
 							// /ready calls are made with a stale id.
 							sessionIdRef.current = null;
-										setState((prev) => ({
-											...prev,
-											phase: 'idle',
-											sessionId: undefined,
-										}));
+							setState((prev) => ({
+								...prev,
+								phase: 'idle',
+								sessionId: undefined,
+							}));
 						}
 					})
 					.catch(() => undefined);
@@ -974,7 +974,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		const id = sessionIdRef.current;
 		const selfId = selfUserIdRef.current;
 		if (!id || !selfId) return;
-		
+
 		// Send leave via WebSocket first for immediate feedback
 		const ws = wsRef.current;
 		if (ws && ws.readyState === WebSocket.OPEN) {
@@ -983,7 +983,7 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 				payload: { userId: selfId }
 			}));
 		}
-		
+
 		// Also call REST API as backup
 		try {
 			await leaveSession(id, selfId);
@@ -1028,19 +1028,9 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		resetOutcomeGuard(outcomeRecordedRef);
 	}, [state.sessionId]);
 
-	// Record game outcome when finished or on opponent leave
-	useEffect(() => {
-		maybeRecordOutcome({
-			phase: state.phase,
-			leaveReason: state.leaveReason,
-			scoreboard: state.scoreboard,
-			winnerUserId: state.winnerUserId,
-			selfUserId: selfUserIdRef.current,
-			gameKind: 'speed_typing',
-			durationSeconds: 60,
-			outcomeRecordedRef,
-		});
-	}, [state.phase, state.scoreboard, state.winnerUserId, state.leaveReason]);
+	// NOTE: Game outcome is recorded by the backend activities-core service via WebSocket
+	// Do NOT record from frontend to avoid double-counting stats
+	// The useEffect that called maybeRecordOutcome has been removed
 
 	const remainingMs = useMemo(() => {
 		// include countdownTick to drive updates at ~150ms cadence while countdown is active

@@ -5,14 +5,120 @@ import { DEFAULT_RETRY_POLICY, computeDelayMs, shouldRetryError, shouldRetryResp
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
 
+// ========== REQUEST DEDUPLICATION & CACHING ==========
+// In-flight request deduplication: prevents duplicate concurrent requests to the same URL
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+// Short-term cache for GET requests (default 5 seconds TTL)
+interface CacheEntry {
+	data: unknown;
+	expiresAt: number;
+}
+const responseCache = new Map<string, CacheEntry>();
+const DEFAULT_CACHE_TTL_MS = 5000; // 5 seconds
+
+function getCacheKey(url: string, method: string): string {
+	return `${method}:${url}`;
+}
+
+function cleanExpiredCache(): void {
+	const now = Date.now();
+	for (const [key, entry] of responseCache) {
+		if (entry.expiresAt < now) {
+			responseCache.delete(key);
+		}
+	}
+}
+
+// Clean cache periodically (every 30 seconds)
+if (typeof window !== "undefined") {
+	setInterval(cleanExpiredCache, 30000);
+}
+
+/**
+ * Invalidate cached response for a specific URL pattern.
+ * Call this after mutations to ensure fresh data on next fetch.
+ * @param urlPattern - URL or pattern to match (uses startsWith)
+ */
+export function invalidateCache(urlPattern: string): void {
+	for (const key of responseCache.keys()) {
+		if (key.includes(urlPattern)) {
+			responseCache.delete(key);
+		}
+	}
+}
+
+/**
+ * Clear all cached responses.
+ */
+export function clearCache(): void {
+	responseCache.clear();
+}
+
 export type ApiFetchOptions = Omit<RequestInit, "body" | "headers"> & {
 	body?: unknown;
 	headers?: HeadersInit;
 	idemKey?: string;
 	retry?: Partial<RetryPolicy>;
+	/** Cache TTL in ms for GET requests. Set to 0 to disable caching. Default: 5000ms */
+	cacheTtl?: number;
+	/** Skip deduplication for this request */
+	skipDedup?: boolean;
 };
 
 export async function apiFetch<T>(input: string | URL | Request, options: ApiFetchOptions = {}): Promise<T> {
+	const {
+		idemKey,
+		retry: retryOverrides,
+		body: rawBody,
+		headers: initHeaders,
+		cacheTtl = DEFAULT_CACHE_TTL_MS,
+		skipDedup = false,
+		...rest
+	} = options;
+
+	const method = (rest.method ?? "GET").toUpperCase();
+	const resolved = resolveInput(input);
+	const resolvedUrl = typeof resolved === "string" ? resolved : resolved instanceof URL ? resolved.href : resolved.url;
+	const cacheKey = getCacheKey(resolvedUrl, method);
+
+	// ========== CACHE CHECK (GET requests only) ==========
+	if (method === "GET" && cacheTtl > 0) {
+		const cached = responseCache.get(cacheKey);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.data as T;
+		}
+	}
+
+	// ========== DEDUPLICATION (GET requests only) ==========
+	if (method === "GET" && !skipDedup) {
+		const inFlight = inFlightRequests.get(cacheKey);
+		if (inFlight) {
+			return inFlight as Promise<T>;
+		}
+	}
+
+	// Create the actual request promise
+	const requestPromise = executeApiFetch<T>(input, options, resolved, cacheKey, cacheTtl);
+
+	// Track in-flight GET requests for deduplication
+	if (method === "GET" && !skipDedup) {
+		inFlightRequests.set(cacheKey, requestPromise);
+		requestPromise.finally(() => {
+			inFlightRequests.delete(cacheKey);
+		});
+	}
+
+	return requestPromise;
+}
+
+async function executeApiFetch<T>(
+	input: string | URL | Request,
+	options: ApiFetchOptions,
+	resolved: string | URL | Request,
+	cacheKey: string,
+	cacheTtl: number
+): Promise<T> {
 	const {
 		idemKey,
 		retry: retryOverrides,
@@ -41,7 +147,7 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 
 	applyAuthHeaders(baseHeaders);
 
-	const resolved = resolveInput(input);
+	const method = (rest.method ?? "GET").toUpperCase();
 
 	let attempt = 0;
 	let refreshAttempted = false;
@@ -61,7 +167,15 @@ export async function apiFetch<T>(input: string | URL | Request, options: ApiFet
 			requestId = responseRequestId ?? requestId;
 
 			if (response.ok) {
-				return (await decodeSuccess<T>(response)) as T;
+				const data = (await decodeSuccess<T>(response)) as T;
+				// Cache successful GET responses
+				if (method === "GET" && cacheTtl > 0) {
+					responseCache.set(cacheKey, {
+						data,
+						expiresAt: Date.now() + cacheTtl,
+					});
+				}
+				return data;
 			}
 
 			if (response.status === 401 && !refreshAttempted && typeof window !== "undefined") {

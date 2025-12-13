@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useMemo, useState, useEffect, useRef, type ReactNode } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, MoreVertical, Trash2 } from "lucide-react";
@@ -67,6 +67,117 @@ function getSecondaryText(entry: ChatRosterEntry): string {
   }
   return entry.peerId.slice(0, 12);
 }
+
+// Memoized roster item to prevent re-renders when list updates
+type ChatRosterItemProps = {
+  entry: ChatRosterEntry;
+  isActive: boolean;
+  showUnreadHighlight: boolean;
+  timestamp: string | null;
+  secondaryText: string;
+  unreadLabel: string;
+  unreadCount: number;
+  isMenuOpen: boolean;
+  onSelect: (peerId: string) => void;
+  onOpenMenu: (peerId: string, button: HTMLButtonElement) => void;
+};
+
+const ChatRosterItem = React.memo(function ChatRosterItem({
+  entry,
+  isActive,
+  showUnreadHighlight,
+  timestamp,
+  secondaryText,
+  unreadLabel,
+  unreadCount,
+  isMenuOpen,
+  onSelect,
+  onOpenMenu,
+}: ChatRosterItemProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <li className="relative group" style={{ zIndex: isMenuOpen ? 20 : "auto" }}>
+      <button
+        type="button"
+        className={clsx(
+          "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition pr-10",
+          isActive ? "bg-midnight text-white" : "hover:bg-warm-sand/50",
+        )}
+        onClick={() => onSelect(entry.peerId)}
+      >
+        <div
+          className={clsx(
+            "flex h-10 w-10 flex-none items-center justify-center rounded-full text-sm font-semibold",
+            isActive ? "bg-white/20" : "bg-warm-sand text-midnight",
+          )}
+          aria-hidden="true"
+        >
+          {getInitialFor(entry)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {showUnreadHighlight ? (
+                <span className="inline-flex h-2 w-2 flex-none rounded-full bg-coral" aria-hidden />
+              ) : null}
+              <p
+                className={clsx(
+                  "truncate text-sm",
+                  isActive
+                    ? "text-white font-semibold"
+                    : showUnreadHighlight
+                      ? "text-midnight font-semibold"
+                      : "text-midnight font-medium",
+                )}
+              >
+                {entry.displayName}
+              </p>
+            </div>
+            {timestamp ? (
+              <time
+                dateTime={entry.lastMessageAt ?? undefined}
+                className={clsx("flex-none text-[11px] uppercase", isActive ? "text-slate-200" : "text-navy/50")}
+              >
+                {timestamp}
+              </time>
+            ) : null}
+          </div>
+          <p
+            className={clsx(
+              "truncate text-xs",
+              isActive ? "text-slate-200" : showUnreadHighlight ? "text-midnight/80" : "text-navy/60",
+            )}
+          >
+            {secondaryText}
+          </p>
+        </div>
+        {unreadCount > 0 ? (
+          <span className="ml-2 inline-flex min-w-[1.75rem] justify-center rounded-full bg-coral px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+            {unreadLabel}
+          </span>
+        ) : null}
+      </button>
+      <div className="absolute right-2 top-1/2 -translate-y-1/2" data-menu-container>
+        <button
+          type="button"
+          ref={buttonRef}
+          className={clsx(
+            "p-1.5 rounded-full transition-all",
+            isActive ? "text-white/70 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-600",
+            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenMenu(entry.peerId, e.currentTarget);
+          }}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+      </div>
+    </li>
+  );
+});
 
 export default function ChatLayout({ children }: { children: ReactNode }) {
   const { entries, loading, error, refresh, activePeerId, setActiveConversation, updateConversationSnapshot } = useChatRoster();
@@ -165,6 +276,15 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
     });
   }, [rosterEntries, query]);
 
+  // Memoized callbacks for roster items
+  const handleSelectConversation = useCallback((peerId: string) => {
+    setActiveConversation(peerId);
+  }, [setActiveConversation]);
+
+  const handleOpenMenu = useCallback((peerId: string, buttonEl: HTMLButtonElement) => {
+    openMenu(peerId, buttonEl);
+  }, []);
+
   const layoutHeightClass = "min-h-[calc(100vh-4rem)]";
 
   if (!hydrated) {
@@ -241,87 +361,19 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
                     const unreadLabel = unreadCount > 9 ? "9+" : String(unreadCount);
                     const showUnreadHighlight = unreadCount > 0 && !isActive;
                     return (
-                      <li key={entry.peerId} className="relative group" style={{ zIndex: openMenuPeerId === entry.peerId ? 20 : "auto" }}>
-                        <button
-                          type="button"
-                          className={clsx(
-                            "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition pr-10",
-                            isActive ? "bg-midnight text-white" : "hover:bg-warm-sand/50",
-                          )}
-                          onClick={() => setActiveConversation(entry.peerId)}
-                        >
-                          <div
-                            className={clsx(
-                              "flex h-10 w-10 flex-none items-center justify-center rounded-full text-sm font-semibold",
-                              isActive ? "bg-white/20" : "bg-warm-sand text-midnight",
-                            )}
-                            aria-hidden="true"
-                          >
-                            {getInitialFor(entry)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                {showUnreadHighlight ? (
-                                  <span className="inline-flex h-2 w-2 flex-none rounded-full bg-coral" aria-hidden />
-                                ) : null}
-                                <p
-                                  className={clsx(
-                                    "truncate text-sm",
-                                    isActive
-                                      ? "text-white font-semibold"
-                                      : showUnreadHighlight
-                                        ? "text-midnight font-semibold"
-                                        : "text-midnight font-medium",
-                                  )}
-                                >
-                                  {entry.displayName}
-                                </p>
-                              </div>
-                              {timestamp ? (
-                                <time
-                                  dateTime={entry.lastMessageAt ?? undefined}
-                                  className={clsx("flex-none text-[11px] uppercase", isActive ? "text-slate-200" : "text-navy/50")}
-                                >
-                                  {timestamp}
-                                </time>
-                              ) : null}
-                            </div>
-                            <p
-                              className={clsx(
-                                "truncate text-xs",
-                                isActive ? "text-slate-200" : showUnreadHighlight ? "text-midnight/80" : "text-navy/60",
-                              )}
-                            >
-                              {secondaryText}
-                            </p>
-                          </div>
-                          {unreadCount > 0 ? (
-                            <span className="ml-2 inline-flex min-w-[1.75rem] justify-center rounded-full bg-coral px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-                              {unreadLabel}
-                            </span>
-                          ) : null}
-                        </button>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2" data-menu-container>
-                          <button
-                            type="button"
-                            ref={(el) => {
-                              if (el) menuButtonRefs.current.set(entry.peerId, el);
-                            }}
-                            className={clsx(
-                              "p-1.5 rounded-full transition-all",
-                              isActive ? "text-white/70 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-600",
-                              openMenuPeerId === entry.peerId ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                            )}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openMenu(entry.peerId, e.currentTarget);
-                            }}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </li>
+                      <ChatRosterItem
+                        key={entry.peerId}
+                        entry={entry}
+                        isActive={isActive}
+                        showUnreadHighlight={showUnreadHighlight}
+                        timestamp={timestamp}
+                        secondaryText={secondaryText}
+                        unreadLabel={unreadLabel}
+                        unreadCount={unreadCount}
+                        isMenuOpen={openMenuPeerId === entry.peerId}
+                        onSelect={handleSelectConversation}
+                        onOpenMenu={handleOpenMenu}
+                      />
                     );
                   })}
                 </ul>

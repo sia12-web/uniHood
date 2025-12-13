@@ -19,6 +19,7 @@ type TriviaSession = {
     roundStartedAt?: number;
     leaveReason?: 'opponent_left' | 'forfeit' | null;
     createdAt: number;
+    statsRecorded?: boolean;  // Guard against duplicate stat recording
 };
 
 const QUESTION_TIME_MS = 7_000;
@@ -30,6 +31,53 @@ const sockets: Record<string, Set<WebSocket>> = {};
 const sessions: Record<string, TriviaSession> = {};
 const roundTimers: Record<string, NodeJS.Timeout | null> = {};
 const userSockets: Record<string, Map<string, WebSocket>> = {}; // sessionId -> userId -> socket
+
+// Session cleanup configuration (prevents memory leaks)
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SESSION_ENDED_TTL_MS = 60 * 60 * 1000; // 1 hour after ending
+const SESSION_PENDING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours if never started
+
+/**
+ * Cleanup stale sessions to prevent memory leaks.
+ * Removes sessions that have ended >1hr ago or been pending >24hr.
+ */
+function cleanupStaleSessions(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const sessionId of Object.keys(sessions)) {
+        const session = sessions[sessionId];
+        if (!session) continue;
+
+        const age = now - session.createdAt;
+        const shouldClean =
+            (session.status === 'ended' && age > SESSION_ENDED_TTL_MS) ||
+            (session.status === 'pending' && age > SESSION_PENDING_TTL_MS);
+
+        if (shouldClean) {
+            // Clean up all related state
+            delete sessions[sessionId];
+            delete sockets[sessionId];
+            delete questionDeck[sessionId];
+            delete roundAnswers[sessionId];
+            delete userSockets[sessionId];
+            if (roundTimers[sessionId]) {
+                clearTimeout(roundTimers[sessionId] as NodeJS.Timeout);
+                delete roundTimers[sessionId];
+            }
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[QuickTrivia] Cleaned up ${cleanedCount} stale sessions. Active: ${Object.keys(sessions).length}`);
+    }
+}
+
+// Start cleanup interval (runs every 5 minutes)
+setInterval(cleanupStaleSessions, SESSION_CLEANUP_INTERVAL_MS);
+
+
 const questionBank: TriviaQuestion[] = [
     { question: 'Capital of France?', options: ['Paris', 'Berlin', 'Rome', 'Madrid'], correctIndex: 0 },
     { question: 'Result of 7 x 8?', options: ['54', '56', '64', '48'], correctIndex: 1 },
@@ -39,9 +87,23 @@ const questionBank: TriviaQuestion[] = [
     { question: 'Primary color not in RGB?', options: ['Red', 'Green', 'Blue', 'Yellow'], correctIndex: 3 },
 ];
 
+/**
+ * Pick `count` random questions using Fisher-Yates partial shuffle.
+ * This is O(count) instead of O(N log N) for sorting the entire array.
+ */
 function pickQuestions(count: number): TriviaQuestion[] {
-    const shuffled = [...questionBank].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    const pool = [...questionBank];
+    const result: TriviaQuestion[] = [];
+    const n = Math.min(count, pool.length);
+
+    for (let i = 0; i < n; i++) {
+        const randomIndex = i + Math.floor(Math.random() * (pool.length - i));
+        // Swap
+        [pool[i], pool[randomIndex]] = [pool[randomIndex], pool[i]];
+        result.push(pool[i]);
+    }
+
+    return result;
 }
 
 const questionDeck: Record<string, TriviaQuestion[]> = {};
@@ -52,13 +114,12 @@ export function createQuickTriviaSession(creatorUserId: string, participants?: s
     const initialParticipants: Participant[] = [];
     const unique = Array.from(new Set([creatorUserId, ...(participants || [])]));
     for (const userId of unique) {
-        // Only the creator is marked as joined and ready initially
-        // Invited participants must explicitly join
+        // Creator is joined but NOT ready - all players must click Ready manually
         const isCreator = userId === creatorUserId;
         initialParticipants.push({
             userId,
             joined: isCreator,
-            ready: isCreator
+            ready: false  // Everyone must manually ready up
         });
     }
     sessions[sessionId] = {
@@ -165,11 +226,18 @@ export function leaveQuickTrivia(sessionId: string, userId: string): { sessionEn
             session.status = 'ended';
             session.leaveReason = 'opponent_left';
 
-            // Record stats asynchronously
-            (async () => {
-                await recordGameResult(winner.userId, 'quick_trivia', 'win', session.scores[winner.userId]);
-                await recordGameResult(userId, 'quick_trivia', 'loss', 0);
-            })();
+            // Record stats using fixed points (only if not already recorded)
+            if (!session.statsRecorded) {
+                session.statsRecorded = true;
+                (async () => {
+                    try {
+                        await recordGameResult(winner.userId, 'quick_trivia', 'win', 200);  // Fixed: 50 + 150
+                        await recordGameResult(userId, 'quick_trivia', 'loss', 50);  // Fixed: 50
+                    } catch (err) {
+                        console.error('[QuickTrivia] Failed to record game stats (forfeit):', err);
+                    }
+                })();
+            }
 
             // Clear round timer
             if (roundTimers[sessionId]) {
@@ -439,17 +507,38 @@ function endSession(sessionId: string) {
     const session = sessions[sessionId];
     if (!session || session.status === 'ended') return;
     session.status = 'ended';
-    const scores: ScoreEntry[] = Object.entries(session.scores).map(([userId, score]) => ({ userId, score }));
+
+    // Guard: Record stats only once per session
+    const shouldRecordStats = !session.statsRecorded;
+    if (shouldRecordStats) {
+        session.statsRecorded = true;
+    }
+
+    // Build scores for ALL participants, not just those who answered
+    const allParticipantIds = session.participants.map(p => p.userId);
+    const scores: ScoreEntry[] = allParticipantIds.map(userId => ({
+        userId,
+        score: session.scores[userId] ?? 0
+    }));
+
     const winner = scores.sort((a, b) => b.score - a.score)[0]?.userId;
 
-    // Record stats asynchronously
-    (async () => {
-        for (const { userId, score } of scores) {
-            const isWinner = userId === winner;
-            const result = isWinner ? 'win' : 'loss';
-            await recordGameResult(userId, 'quick_trivia', result, score);
-        }
-    })();
+    // Record stats for ALL participants using fixed leaderboard points (ONLY ONCE)
+    // Winner: 200 (50 played + 150 win), Loser: 50 (played only)
+    if (shouldRecordStats) {
+        (async () => {
+            try {
+                for (const userId of allParticipantIds) {
+                    const isWinner = userId === winner;
+                    const result = isWinner ? 'win' : 'loss';
+                    const fixedPoints = isWinner ? 200 : 50;
+                    await recordGameResult(userId, 'quick_trivia', result, fixedPoints);
+                }
+            } catch (err) {
+                console.error('[QuickTrivia] Failed to record game stats:', err);
+            }
+        })();
+    }
 
     sendToSession(sessionId, {
         type: 'activity.session.ended',

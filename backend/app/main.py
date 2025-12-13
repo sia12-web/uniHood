@@ -25,6 +25,7 @@ from app.api import (
 	courses,
 	discovery,
 	consent as consent_api,
+	contact as contact_api,
 	contact_discovery,
 	flags as flags_api,
 	interests,
@@ -235,6 +236,17 @@ async def manual_cors_middleware(request: Request, call_next):
 	try:
 		response = await call_next(request)
 		print(f"DEBUG: [CORS] App returned status: {response.status_code} for {request.method} {request.url}", flush=True)
+	except RuntimeError as e:
+		# Handle "No response returned" error from Starlette BaseHTTPMiddleware
+		# This can happen when client disconnects or request times out
+		if "No response returned" in str(e):
+			print(f"DEBUG: [CORS] No response returned (client may have disconnected)", flush=True)
+			response = Response(status_code=499)  # 499 = Client Closed Request
+			response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+			response.headers["Access-Control-Allow-Credentials"] = "true"
+			return response
+		print(f"DEBUG: [CORS] Runtime error: {e}", flush=True)
+		raise e
 	except Exception as e:
 		print(f"DEBUG: [CORS] App raised exception: {e}", flush=True)
 		raise e
@@ -245,10 +257,11 @@ async def manual_cors_middleware(request: Request, call_next):
 	return response
 
 if settings.environment in ["dev", "development"]:
-	# In local dev, make avatar uploads work without external object storage
+	# In local dev, make avatar uploads work without external object storage.
+	# Respect UPLOAD_BASE_URL if provided so preview URLs match the public host.
 	from app.domain.identity import s3 as _s3  # local import to avoid circulars
 
-	_s3.DEFAULT_BASE_URL = "http://localhost:8001/uploads"
+	_s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
@@ -304,12 +317,31 @@ if settings.environment in ["dev", "development"]:
 
 	@router.get("/{path:path}")
 	async def _get_upload(path: str):
+		import mimetypes
 		rel = Path(path)
 		target = (upload_root / rel).resolve()
 		if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
 			from fastapi import HTTPException
 			raise HTTPException(status_code=404, detail="not_found")
-		return FileResponse(target)
+		# Try to detect MIME type from file content for images
+		media_type = None
+		try:
+			with open(target, "rb") as f:
+				header = f.read(16)
+				if header.startswith(b'\x89PNG'):
+					media_type = "image/png"
+				elif header.startswith(b'\xff\xd8\xff'):
+					media_type = "image/jpeg"
+				elif header.startswith(b'GIF8'):
+					media_type = "image/gif"
+				elif header.startswith(b'RIFF') and b'WEBP' in header:
+					media_type = "image/webp"
+		except Exception:
+			pass
+		# Fall back to extension-based detection
+		if not media_type:
+			media_type, _ = mimetypes.guess_type(str(target))
+		return FileResponse(target, media_type=media_type)
 
 	uploads_router = router
 
@@ -330,6 +362,8 @@ sio.register_namespace(activities_namespace)
 set_activities_namespace(activities_namespace)
 communities_socketio.register(sio)
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
+# Mount the socket app to allow running 'app' directly (e.g. uvicorn app.main:app)
+app.mount("/socket.io", socketio.ASGIApp(sio, socketio_path=""))
 obs_init(app, sio)
 
 
@@ -386,5 +420,6 @@ app.include_router(legal_api.router)
 app.include_router(account_link.router)
 app.include_router(account_updates.router)
 app.include_router(contact_discovery.router)
+app.include_router(contact_api.router, tags=["contact"])
 app.include_router(communities_router)
 app.include_router(moderation_router, tags=["moderation"])

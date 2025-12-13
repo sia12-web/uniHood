@@ -50,11 +50,13 @@ export async function refreshAccessToken(): Promise<AuthSnapshot | null> {
 
   const current = readAuthSnapshot();
   const sessionId = extractSessionId(current);
-  const payload: RefreshPayload = {};
-  if (sessionId) {
-    payload.session_id = sessionId;
+  if (!sessionId) {
+    clearAuthSnapshot();
+    return null;
   }
-  const deviceLabel = (current as Record<string, unknown>).device_label;
+  const payload: RefreshPayload = {};
+  payload.session_id = sessionId;
+  const deviceLabel = current ? (current as Record<string, unknown>).device_label : undefined;
   if (typeof deviceLabel === "string" && deviceLabel.trim().length > 0) {
     payload.device_label = deviceLabel;
   }

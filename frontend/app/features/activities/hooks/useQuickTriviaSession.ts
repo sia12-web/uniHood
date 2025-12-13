@@ -190,8 +190,8 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
               const snapshotParticipants = Array.isArray(payload?.scoreboard?.participants)
                 ? payload.scoreboard.participants
                 : Array.isArray(payload?.participants)
-                ? payload.participants
-                : undefined;
+                  ? payload.participants
+                  : undefined;
               const tieBreakWinnerUserId = payload?.tieBreak?.winnerUserId || payload?.tieBreakWinnerUserId;
               const winnerFromSnapshot = tieBreakWinnerUserId || payload?.winnerUserId || payload?.scoreboard?.winnerUserId;
               setState((s) => ({
@@ -403,7 +403,7 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
       if (!state.sessionId) return;
       const self = selfRef.current;
       logQuickTrivia("info", "toggle ready", { sessionId: state.sessionId, ready });
-      void setSessionReady(state.sessionId, self, ready).catch(() => {});
+      void setSessionReady(state.sessionId, self, ready).catch(() => { });
       setState((s) => ({ ...s, presence: updatePresenceReady(s.presence, self, ready), lobbyReady: ready ? s.lobbyReady : false }));
     },
     [state.sessionId],
@@ -454,18 +454,9 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
     }
   }, [state.sessionId]);
 
-  useEffect(() => {
-    maybeRecordOutcome({
-      phase: state.phase,
-      leaveReason: state.leaveReason,
-      scoreboard: state.scoreboard,
-      winnerUserId: state.winnerUserId,
-      selfUserId: selfRef.current,
-      gameKind: "quick_trivia",
-      durationSeconds: 60,
-      outcomeRecordedRef,
-    });
-  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
+  // NOTE: Game outcome is recorded by the backend activities-core service via WebSocket
+  // Do NOT record from frontend to avoid double-counting stats
+  // The useEffect that called maybeRecordOutcome has been removed
 
   useEffect(() => {
     resetOutcomeGuard(outcomeRecordedRef);
@@ -512,8 +503,8 @@ function resolveStreamUrl(sessionId: string, token?: string, userId?: string): s
     const wsOrigin = currentOrigin.startsWith("https://")
       ? `wss://${currentOrigin.slice("https://".length)}`
       : currentOrigin.startsWith("http://")
-      ? `ws://${currentOrigin.slice("http://".length)}`
-      : `ws://${currentOrigin}`;
+        ? `ws://${currentOrigin.slice("http://".length)}`
+        : `ws://${currentOrigin}`;
     const prefix = CORE_BASE ? (CORE_BASE.startsWith("/") ? CORE_BASE : `/${CORE_BASE}`) : "";
     origin = `${wsOrigin}${prefix}`;
   } else {

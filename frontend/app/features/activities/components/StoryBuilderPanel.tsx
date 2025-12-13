@@ -108,11 +108,9 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
     // Lobby Phase
     if (status === 'pending' || status === 'countdown') {
         const storyPrompt = state.storyPrompt;
-        
+
         return (
             <div className="flex flex-col items-center justify-center gap-8 py-12 text-center max-w-2xl mx-auto">
-                <MyPointsBadge />
-
                 <div className="flex h-24 w-24 items-center justify-center rounded-full bg-violet-50 text-violet-600 shadow-inner">
                     <BookOpen className="h-12 w-12" />
                 </div>
@@ -141,91 +139,95 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                     ))}
                 </div>
 
-                {status === 'countdown' ? (
-                    <div className="flex flex-col gap-6 items-center">
-                        <div className="text-2xl font-bold text-violet-600 animate-pulse">
-                            Starting soon...
-                        </div>
-                        {storyPrompt && (
-                            <div className="w-full p-6 rounded-2xl bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 text-left animate-in fade-in slide-in-from-bottom duration-500">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Heart className="h-4 w-4 text-rose-500" />
-                                    <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today&apos;s Theme</span>
+                {
+                    status === 'countdown' ? (
+                        <div className="flex flex-col gap-6 items-center">
+                            <div className="text-2xl font-bold text-violet-600 animate-pulse">
+                                Starting soon...
+                            </div>
+                            {storyPrompt && (
+                                <div className="w-full p-6 rounded-2xl bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 text-left animate-in fade-in slide-in-from-bottom duration-500">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Heart className="h-4 w-4 text-rose-500" />
+                                        <span className="text-xs font-bold uppercase tracking-wider text-violet-600">Today&apos;s Theme</span>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900 mb-2">{storyPrompt.title}</h3>
+                                    <p className="text-sm font-serif text-slate-600 italic leading-relaxed">
+                                        &ldquo;{storyPrompt.opening}&rdquo;
+                                    </p>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">{storyPrompt.title}</h3>
-                                <p className="text-sm font-serif text-slate-600 italic leading-relaxed">
-                                    &ldquo;{storyPrompt.opening}&rdquo;
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-3 items-center">
-                        <button
-                            onClick={handleReadyClick}
-                            className={clsx(
-                                "rounded-2xl px-8 py-4 text-lg font-bold text-white shadow-lg transition-all transform hover:scale-105 active:scale-95",
-                                me?.ready ? "bg-slate-400 hover:bg-slate-500" : "bg-violet-600 hover:bg-violet-500"
                             )}
-                        >
-                            {me?.ready ? "Waiting for others..." : "I'm Ready!"}
-                        </button>
-                        <button
-                            onClick={leave}
-                            className="flex items-center gap-2 text-sm text-slate-500 hover:text-rose-600 transition-colors"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            Leave Story
-                        </button>
-                    </div>
-                )}
-
-                {/* Gender Selection Modal */}
-                {showGenderModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2 text-center">Choose Your Character</h3>
-                            <p className="text-slate-600 text-center mb-8">This helps us pick the perfect story theme for you!</p>
-                            
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <button
-                                    onClick={() => handleGenderSelect('boy')}
-                                    className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                                >
-                                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                                        <User className="h-8 w-8" />
-                                    </div>
-                                    <span className="font-bold text-slate-900 group-hover:text-blue-700">Boy</span>
-                                </button>
-                                
-                                <button
-                                    onClick={() => handleGenderSelect('girl')}
-                                    className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-pink-500 hover:bg-pink-50 transition-all group"
-                                >
-                                    <div className="h-16 w-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 group-hover:scale-110 transition-transform">
-                                        <User className="h-8 w-8" />
-                                    </div>
-                                    <span className="font-bold text-slate-900 group-hover:text-pink-700">Girl</span>
-                                </button>
-                            </div>
-                            
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3 items-center">
                             <button
-                                onClick={() => setShowGenderModal(false)}
-                                className="w-full py-3 text-slate-500 font-medium hover:text-slate-800 transition-colors"
+                                onClick={handleReadyClick}
+                                className={clsx(
+                                    "rounded-2xl px-8 py-4 text-lg font-bold text-white shadow-lg transition-all transform hover:scale-105 active:scale-95",
+                                    me?.ready ? "bg-slate-400 hover:bg-slate-500" : "bg-violet-600 hover:bg-violet-500"
+                                )}
                             >
-                                Cancel
+                                {me?.ready ? "Waiting for others..." : "I'm Ready!"}
+                            </button>
+                            <button
+                                onClick={leave}
+                                className="flex items-center gap-2 text-sm text-slate-500 hover:text-rose-600 transition-colors"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Leave Story
                             </button>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+
+                {/* Gender Selection Modal */}
+                {
+                    showGenderModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                            <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+                                <h3 className="text-2xl font-bold text-slate-900 mb-2 text-center">Choose Your Character</h3>
+                                <p className="text-slate-600 text-center mb-8">This helps us pick the perfect story theme for you!</p>
+
+                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                    <button
+                                        onClick={() => handleGenderSelect('boy')}
+                                        className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                                    >
+                                        <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                                            <User className="h-8 w-8" />
+                                        </div>
+                                        <span className="font-bold text-slate-900 group-hover:text-blue-700">Boy</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleGenderSelect('girl')}
+                                        className="flex flex-col items-center gap-4 p-6 rounded-2xl border-2 border-slate-100 hover:border-pink-500 hover:bg-pink-50 transition-all group"
+                                    >
+                                        <div className="h-16 w-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 group-hover:scale-110 transition-transform">
+                                            <User className="h-8 w-8" />
+                                        </div>
+                                        <span className="font-bold text-slate-900 group-hover:text-pink-700">Girl</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowGenderModal(false)}
+                                    className="w-full py-3 text-slate-500 font-medium hover:text-slate-800 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )
+                }
+            </div >
         );
     }
 
     // Writing Phase
     if (status === 'writing') {
         const storyPrompt = state.storyPrompt;
-        
+
         return (
             <div className="flex flex-col h-[80vh] max-w-3xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
                 {/* Header */}
@@ -248,7 +250,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-sm font-medium text-slate-500">
-                            Turn {state.turnIndex + 1} of {state.maxParagraphsPerUser * participants.length}
+                            Turn {paragraphs.length + 1} of {state.maxParagraphsPerUser * participants.length}
                         </div>
                         <button
                             onClick={leave}
@@ -275,7 +277,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                             <p className="mt-3 text-xs text-slate-500">Continue the story from here...</p>
                         </div>
                     )}
-                    
+
                     {paragraphs.length === 0 && !storyPrompt && (
                         <div className="text-center text-slate-400 italic py-10">
                             The page is blank. Start the story...
@@ -404,9 +406,13 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
     }
 
     // Ended Phase
+    // Ended Phase
     if (status === 'ended') {
-        const winner = participants.find(p => p.userId === winnerUserId);
-        const isWinner = winnerUserId === selfId;
+        const sorted = [...participants].sort((a, b) => b.score - a.score);
+        const maxScore = sorted[0]?.score ?? 0;
+        const winners = participants.filter(p => p.score === maxScore && maxScore > 0);
+        const isWinner = winners.some(w => w.userId === selfId);
+
         const storyPrompt = state.storyPrompt;
         const opponentLeft = leaveReason === 'opponent_left';
 
@@ -432,13 +438,48 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                         <Trophy className="h-12 w-12" />
                     </div>
                     <h2 className="text-4xl font-bold text-slate-900">
-                        {opponentLeft ? "You Win!" : (isWinner ? "You Won!" : "Story Complete!")}
+                        {opponentLeft ? "You Win!" : (isWinner ? (winners.length > 1 ? "It's a Tie - You Won!" : "You Won!") : "Story Complete!")}
                     </h2>
                     {!opponentLeft && (
                         <p className="text-xl text-slate-600">
-                            Winner: <span className="font-bold text-violet-600">{getDisplayName(winnerUserId || "")}</span> with {winner?.score} points!
+                            {winners.length > 1 ? "Winners: " : "Winner: "}
+                            {winners.map((w, i) => (
+                                <span key={w.userId}>
+                                    <span className="font-bold text-violet-600">{getDisplayName(w.userId)}</span>
+                                    {i < winners.length - 1 ? " & " : ""}
+                                </span>
+                            ))}
                         </p>
                     )}
+                </div>
+
+                {/* YOUR POINTS EARNED - Large prominent display */}
+                <div className="mx-auto max-w-sm">
+                    <div className={`rounded-2xl p-6 ${isWinner || opponentLeft
+                        ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+                        : "bg-gradient-to-br from-slate-600 to-slate-700"
+                        } text-white shadow-xl`}>
+                        <div className="text-sm font-medium uppercase tracking-wider opacity-80">
+                            You Earned
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-center gap-2">
+                            <span className="text-5xl font-black">{isWinner || opponentLeft ? 200 : 50}</span>
+                            <span className="text-xl font-semibold opacity-80">points</span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-center gap-2 text-sm opacity-90">
+                            {isWinner || opponentLeft ? (
+                                <>
+                                    <Check className="h-4 w-4" />
+                                    <span>+1 Win added to your stats</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Star className="h-4 w-4" />
+                                    <span>+1 Game added to your stats</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">

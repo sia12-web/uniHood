@@ -78,11 +78,49 @@ export interface StoryBuilderSession {
     winnerUserId?: string | null;
     storyPrompt?: { title: string; opening: string };
     leaveReason?: 'opponent_left' | 'forfeit' | null;
+    statsRecorded?: boolean;  // Guard against duplicate stat recording
 }
 
 const sessions: Record<string, StoryBuilderSession> = {};
 const connections: Record<string, Set<any>> = {};
 const userSockets: Record<string, Map<string, any>> = {}; // sessionId -> userId -> socket
+
+// Session cleanup configuration (prevents memory leaks)
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SESSION_ENDED_TTL_MS = 60 * 60 * 1000; // 1 hour after ending
+const SESSION_PENDING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours if never started
+
+/**
+ * Cleanup stale sessions to prevent memory leaks.
+ */
+function cleanupStaleSessions(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const sessionId of Object.keys(sessions)) {
+        const session = sessions[sessionId];
+        if (!session) continue;
+
+        const age = now - session.createdAt;
+        const shouldClean =
+            (session.status === 'ended' && age > SESSION_ENDED_TTL_MS) ||
+            (session.status === 'pending' && age > SESSION_PENDING_TTL_MS);
+
+        if (shouldClean) {
+            delete sessions[sessionId];
+            delete connections[sessionId];
+            delete userSockets[sessionId];
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[StoryBuilder] Cleaned up ${cleanedCount} stale sessions. Active: ${Object.keys(sessions).length}`);
+    }
+}
+
+// Start cleanup interval
+setInterval(cleanupStaleSessions, SESSION_CLEANUP_INTERVAL_MS);
 
 const MAX_PARAGRAPHS_PER_USER = 3;
 
@@ -220,11 +258,18 @@ export function leaveStoryBuilder(sessionId: string, userId: string): { sessionE
             session.phase = 'ended';
             session.leaveReason = 'opponent_left';
 
-            // Record stats asynchronously
-            (async () => {
-                await recordGameResult(winner.userId, 'story_builder', 'win', winner.score);
-                await recordGameResult(userId, 'story_builder', 'loss', 0);
-            })();
+            // Record stats using fixed points (only if not already recorded)
+            if (!session.statsRecorded) {
+                session.statsRecorded = true;
+                (async () => {
+                    try {
+                        await recordGameResult(winner.userId, 'story_builder', 'win', 200);  // Fixed: 50 + 150
+                        await recordGameResult(userId, 'story_builder', 'loss', 50);  // Fixed: 50
+                    } catch (err) {
+                        console.error('[StoryBuilder] Failed to record game stats (forfeit):', err);
+                    }
+                })();
+            }
 
             broadcastState(sessionId);
             return { sessionEnded: true, winnerUserId: winner.userId };
@@ -410,20 +455,29 @@ function calculateScores(sessionId: string) {
         }
     });
 
-    // Determine winner
+    // Determine winner(s)
     const sorted = [...session.participants].sort((a, b) => b.score - a.score);
-    session.winnerUserId = sorted[0]?.userId || null;
+    const maxScore = sorted[0]?.score ?? 0;
+    session.winnerUserId = sorted[0]?.userId || null; // Kept for legacy compatibility
     session.status = 'ended';
     session.phase = 'ended';
 
-    // Record stats asynchronously
-    (async () => {
-        for (const p of session.participants) {
-            const isWinner = p.userId === session.winnerUserId;
-            const result = isWinner ? 'win' : 'loss';
-            await recordGameResult(p.userId, 'story_builder', result, p.score);
-        }
-    })();
+    // Record stats using fixed points (only if not already recorded)
+    if (!session.statsRecorded) {
+        session.statsRecorded = true;
+        (async () => {
+            try {
+                for (const p of session.participants) {
+                    const isWinner = p.score === maxScore && maxScore > 0;
+                    const result = isWinner ? 'win' : 'loss';
+                    const fixedPoints = isWinner ? 200 : 50;
+                    await recordGameResult(p.userId, 'story_builder', result, fixedPoints);
+                }
+            } catch (err) {
+                console.error('[StoryBuilder] Failed to record game stats:', err);
+            }
+        })();
+    }
 
     broadcastState(sessionId);
 }

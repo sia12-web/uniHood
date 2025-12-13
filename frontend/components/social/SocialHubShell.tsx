@@ -75,8 +75,8 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
 
   return (
     <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 text-navy md:flex-row md:gap-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(77,208,225,0.18)_0%,_rgba(255,255,255,0)_65%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(255,209,102,0.16)_0%,_rgba(255,255,255,0)_70%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.18)_0%,_rgba(255,255,255,0)_65%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(255,138,101,0.16)_0%,_rgba(255,255,255,0)_70%)]" />
       <div className="relative md:hidden">
         <button
           type="button"
@@ -105,9 +105,9 @@ export function SocialHubShell({ children }: { children: ReactNode }) {
       <aside className="relative hidden w-full max-w-xs shrink-0 flex-col gap-6 rounded-3xl border border-warm-sand bg-glass p-6 shadow-soft md:flex">
         <header className="flex flex-col items-center gap-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <BrandLogo 
-              withWordmark 
-              className="text-navy" 
+            <BrandLogo
+              withWordmark
+              className="text-navy"
               logoClassName="h-[46px] w-[46px]"
               wordmarkTitleClassName="text-xl"
               tagline="Social hub"

@@ -373,10 +373,10 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       return;
     }
     connecting = true;
+    updateStatus(isReconnect ? "reconnecting" : "connecting");
     try {
       const auth = await buildAuthPayload();
       instance.auth = auth;
-      updateStatus(isReconnect ? "reconnecting" : "connecting");
       instance.connect();
     } catch (err) {
       connecting = false;

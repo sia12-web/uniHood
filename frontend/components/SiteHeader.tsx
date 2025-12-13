@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import BrandLogo from "@/components/BrandLogo";
 
 
 function isActive(pathname: string, href: string) {
@@ -75,11 +76,11 @@ export default function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-warm-sand dark:border-slate-700 bg-glass shadow-soft">
-      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
-        <div className="flex h-16 items-center">
-          <Link href="/" className="mr-8 flex items-center space-x-2">
-            <span className="text-xl font-bold tracking-tight">Radius</span>
-          </Link>
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <div className="flex h-full items-center">
+          <div className="mr-6">
+            <BrandLogo withWordmark asLink logoClassName="h-10 w-auto" wordmarkTitleClassName="text-2xl" />
+          </div>
         </div>
         <nav className="hidden items-center gap-1 md:flex">
           {visibleLinks.map((link) => (

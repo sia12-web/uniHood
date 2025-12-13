@@ -114,58 +114,54 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen w-full bg-[#f8f9fa] flex items-stretch">
-      {/* Left visual side */}
-      <section className="hidden lg:flex lg:flex-[1.3] flex-col justify-center items-center bg-gradient-to-br from-[#ffe4e6] via-[#fff1f2] to-[#ffe4e6] p-16 relative overflow-hidden text-center">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#fecdd3] to-transparent rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-white to-transparent opacity-60" />
+      {/* Left visual side - Pure white to match logo background */}
+      <section className="hidden lg:flex lg:flex-[1.3] flex-col justify-center items-center bg-white relative overflow-hidden text-center">
+        {/* Subtle accent at edges only - keeping logo area pure white */}
+        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-to-tr from-rose-50/50 to-transparent" />
+        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-bl from-slate-50/50 to-transparent" />
 
-        <div className="relative z-10 flex flex-col items-center">
-          <BrandLogo
-            withWordmark={false}
-            asLink={false}
-            backgroundTone="transparent"
-            logoWidth={400}
-            logoHeight={400}
-            className="text-[#881337] mb-12"
-            logoClassName="!h-[320px] w-auto"
-            wordmarkTitleClassName="text-7xl tracking-tight text-[#881337]"
-            taglineClassName="hidden"
-          />
-          <div className="max-w-md">
-            <h2 className="text-2xl font-medium text-slate-800 leading-snug">
-              Where your academic world <br />
-              meets your social life.
-            </h2>
+        <div className="relative z-10 flex flex-col items-center max-w-lg mx-auto">
+          {/* Logo - no blending needed since bg is pure white */}
+          <div className="mb-8">
+            <BrandLogo
+              withWordmark={false}
+              asLink={false}
+              backgroundTone="light"
+              logoWidth={400}
+              logoHeight={400}
+              disableMixBlend={true}
+              logoClassName="!h-[280px] w-auto"
+              taglineClassName="hidden"
+            />
           </div>
 
-          <div className="mt-12 grid gap-8 text-left max-w-sm w-full">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+          <div className="space-y-6">
+            <h2 className="text-4xl font-extrabold tracking-tight text-slate-900">
+              <span className="text-[#881337]">Connect.</span> <span className="text-slate-700">Play.</span> <span className="text-[#1b2a3a]">Belong.</span>
+            </h2>
+            <p className="text-lg text-slate-600 leading-relaxed font-medium">
+              The ultimate campus companion for socializing, gaming, and discovering what's happening around you.
+            </p>
+          </div>
+
+          <div className="mt-16 grid grid-cols-3 gap-6 w-full px-4">
+            <div className="flex flex-col items-center gap-3 group">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-[#1b2a3a] shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Target className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg">Live Campus Radar</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">Instantly discover classmates, events, and activities happening nearby.</p>
-              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Discover</span>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+            <div className="flex flex-col items-center gap-3 group">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-[#881337] shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Users className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg">Find Your Community</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">Connect with your crowd, join groups, and never miss a campus moment.</p>
-              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Connect</span>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffe4e6] text-[#881337]">
+            <div className="flex flex-col items-center gap-3 group">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Gamepad2 className="h-6 w-6" />
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg">Game Station</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">Play mini-games, climb leaderboards, and earn points with friends.</p>
-              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Compete</span>
             </div>
           </div>
         </div>
@@ -182,7 +178,7 @@ export default function LoginPage() {
               logoWidth={450}
               logoHeight={450}
               className="text-[#881337]"
-              logoClassName="!h-64 !w-64 object-contain"
+              logoClassName="!h-64 !w-64 object-contain mix-blend-multiply contrast-[1.1] brightness-[1.1]"
               wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
               taglineClassName="hidden"
             />

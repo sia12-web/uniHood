@@ -182,6 +182,7 @@ class VerificationStatus(BaseModel):
 	access_token: Optional[str] = None
 	refresh_token: Optional[str] = None
 	expires_in: Optional[int] = None
+	session_id: Optional[UUID] = None
 
 
 class HandleAvailability(RootModel[dict]):

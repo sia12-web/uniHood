@@ -27,8 +27,8 @@
 /* Base background setup */
 html,
 body {
-  background: radial-gradient(circle at top left, rgba(77, 208, 225, 0.28), transparent 55%),
-    radial-gradient(circle at bottom right, rgba(255, 209, 102, 0.24), transparent 60%),
+  background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.25), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(255, 138, 101, 0.22), transparent 50%),
     var(--color-cream);
   color: var(--color-ink);
 }
@@ -38,8 +38,8 @@ body {
 .dark body,
 html.dark,
 html.dark body {
-  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent 50%),
-    radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.1), transparent 50%),
+  background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(251, 113, 133, 0.15), transparent 50%),
     #020617; /* Explicit Slate 950 */
 }
 

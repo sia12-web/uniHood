@@ -105,7 +105,35 @@ export default function PassionsPage() {
 	};
 
 	if (loading) {
-		return <div className="flex min-h-[60vh] items-center justify-center text-slate-500">Loading...</div>;
+		return (
+			<div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+				<div className="w-full max-w-2xl space-y-8">
+					{/* Skeleton header */}
+					<div className="flex flex-col items-center">
+						<div className="h-9 w-44 bg-slate-200 rounded-lg animate-pulse mt-6" />
+						<div className="h-5 w-72 bg-slate-100 rounded animate-pulse mt-2" />
+						<div className="h-4 w-40 bg-slate-50 rounded animate-pulse mt-1" />
+					</div>
+					{/* Skeleton chips */}
+					<div className="mt-8 space-y-6">
+						<div className="flex flex-wrap gap-2">
+							{[1, 2, 3].map((i) => (
+								<div key={i} className="h-8 w-24 bg-slate-100 rounded-full animate-pulse" />
+							))}
+						</div>
+						<div className="flex gap-2">
+							<div className="h-10 flex-1 bg-slate-100 rounded-md animate-pulse" />
+							<div className="h-10 w-16 bg-slate-100 rounded-md animate-pulse" />
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+								<div key={i} className="h-7 w-20 bg-slate-50 rounded-full animate-pulse" />
+							))}
+						</div>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (

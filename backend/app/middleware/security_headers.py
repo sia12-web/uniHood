@@ -27,7 +27,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.enable_hsts = enable_hsts
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except RuntimeError as exc:
+            if "No response returned" in str(exc):
+                return Response(status_code=499)
+            raise exc
         
         # Prevent clickjacking
         response.headers["X-Frame-Options"] = "DENY"

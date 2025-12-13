@@ -45,6 +45,7 @@ export type VerificationResponse = {
 	access_token?: string;
 	refresh_token?: string;
 	expires_in?: number;
+	session_id?: string;
 };
 
 export type ProfilePatchPayload = {

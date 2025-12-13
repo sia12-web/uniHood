@@ -67,6 +67,7 @@ type GenericSession = {
     lastRoundWinner?: string | null;
     lastRoundMoves?: Record<string, string>;
     countdownValue?: number;
+    statsRecorded?: boolean;  // Guard against duplicate stat recording
 };
 
 const genericSessions: Record<string, GenericSession> = {};
@@ -77,23 +78,43 @@ const genericCountdowns: Record<string, NodeJS.Timeout> = {}; // Server-side cou
 // Rate limiting: track pending sessions per user
 const userPendingSessions: Record<string, Set<string>> = {}; // userId -> Set of sessionIds
 const MAX_PENDING_SESSIONS_PER_USER = 3; // Max concurrent pending sessions per user
-const SESSION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+const SESSION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes for pending sessions
+const SESSION_ENDED_TTL_MS = 60 * 60 * 1000; // 1 hour for ended sessions
 
 // Session cleanup interval
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 function cleanupExpiredSessions() {
     const now = Date.now();
+    let cleanedCount = 0;
 
-    // Cleanup generic sessions
+    // Cleanup generic sessions (RPS, Speed Typing)
     for (const [sessionId, session] of Object.entries(genericSessions)) {
-        if (session.status === 'pending' && now - session.createdAt > SESSION_EXPIRY_MS) {
+        const age = now - session.createdAt;
+        const shouldClean =
+            (session.status === 'pending' && age > SESSION_EXPIRY_MS) ||
+            (session.status === 'ended' && age > SESSION_ENDED_TTL_MS);
+
+        if (shouldClean) {
+            // Clear countdown timer if exists
+            if (genericCountdowns[sessionId]) {
+                clearInterval(genericCountdowns[sessionId]);
+                delete genericCountdowns[sessionId];
+            }
             delete genericSessions[sessionId];
+            delete genericSockets[sessionId];
+            delete genericUserSockets[sessionId];
+
             // Remove from user tracking
             for (const userId of Object.keys(userPendingSessions)) {
                 userPendingSessions[userId]?.delete(sessionId);
             }
+            cleanedCount++;
         }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[Generic] Cleaned up ${cleanedCount} stale sessions. Active: ${Object.keys(genericSessions).length}`);
     }
 }
 
@@ -295,15 +316,33 @@ function broadcastGenericStarted(sessionId: string) {
 async function broadcastGenericEnded(sessionId: string) {
     const session = genericSessions[sessionId];
     if (!session) return;
-    const scores = Object.entries(session.scores).map(([userId, score]) => ({ userId, score }));
+
+    // Guard: Record stats only once per session
+    const shouldRecordStats = !session.statsRecorded;
+    if (shouldRecordStats) {
+        session.statsRecorded = true;
+    }
+
+    // Build scores for ALL participants, not just those who submitted
+    const allParticipantIds = session.participants.map(p => p.userId);
+    const scores = allParticipantIds.map(userId => ({
+        userId,
+        score: session.scores[userId] ?? 0
+    }));
+
     const winner = session.winnerUserId || (scores.sort((a, b) => b.score - a.score)[0]?.userId ?? null);
 
-    // Record stats - await all promises
-    await Promise.all(scores.map(async ({ userId, score }) => {
-        const isWinner = userId === winner;
-        const result = isWinner ? 'win' : 'loss'; // No draw logic for generic yet
-        await recordGameResult(userId, session.activityKey, result, score);
-    }));
+    // Record stats ONLY ONCE per session - for ALL participants
+    // Use fixed scoring: 50 for playing, 150 bonus for winning = 200 total for winner, 50 for loser
+    if (shouldRecordStats) {
+        await Promise.all(allParticipantIds.map(async (userId) => {
+            const isWinner = userId === winner;
+            const result = isWinner ? 'win' : 'loss';
+            // Fixed points: winner gets 200 (50 played + 150 win), loser gets 50 (played only)
+            const fixedPoints = isWinner ? 200 : 50;
+            await recordGameResult(userId, session.activityKey, result, fixedPoints);
+        }));
+    }
 
     const payload = {
         type: 'activity.session.ended',

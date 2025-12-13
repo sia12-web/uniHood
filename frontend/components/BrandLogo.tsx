@@ -23,6 +23,7 @@ type BrandLogoProps = {
    * Set to false for login/onboarding pages where you want just the image.
    */
   asLink?: boolean;
+  disableMixBlend?: boolean;
 };
 
 export default function BrandLogo({
@@ -37,11 +38,13 @@ export default function BrandLogo({
   logoWidth = 140,
   logoHeight = 140,
   asLink = true,
+  disableMixBlend = false,
 }: BrandLogoProps) {
   const baseClasses = "inline-flex max-w-full flex-wrap items-center gap-3 text-[#1b2a3a]";
   const mergedClasses = cn(baseClasses, className);
   const mergedLogoClasses = cn(
-    "h-10 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 sm:h-12 mix-blend-multiply",
+    "h-10 w-auto max-w-full shrink-0 object-contain transition-transform duration-200 sm:h-12",
+    !disableMixBlend && "mix-blend-multiply",
     asLink && "group-hover:scale-[1.02]",
     logoClassName,
   );
@@ -78,7 +81,10 @@ export default function BrandLogo({
 
       {withWordmark ? (
         <span className={cn("flex min-w-0 flex-col leading-none text-current", wordmarkClassName)}>
-          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>uniHood</span>
+          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>
+            <span className="text-navy dark:text-indigo-400">uni</span>
+            <span className="text-coral dark:text-rose-400">Hood</span>
+          </span>
           <span
             className={cn(
               "text-[0.65rem] font-semibold uppercase tracking-[0.4em] opacity-70",

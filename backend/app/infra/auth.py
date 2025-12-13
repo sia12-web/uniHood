@@ -107,6 +107,38 @@ async def get_current_user(
 	raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token")
 
 
+async def get_optional_user(
+	request: Request,
+	x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
+	x_campus_id: Optional[str] = Header(default=None, alias="X-Campus-Id"),
+	x_user_roles: Optional[str] = Header(default=None, alias="X-User-Roles"),
+	credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+) -> Optional[AuthenticatedUser]:
+	"""Resolve the authenticated user, or return None if not authenticated.
+	
+	This is useful for endpoints that work with both authenticated and anonymous users.
+	"""
+	# Prefer bearer JWT when present
+	if credentials and credentials.scheme.lower() == "bearer":
+		try:
+			user = verify_access_jwt(credentials.credentials)
+			_enforce_signed_intent_identity(request, user)
+			return user
+		except HTTPException:
+			return None
+
+	# In dev only, allow X-User-* fallback for local tools
+	if settings.is_dev():
+		if x_user_id and x_campus_id:
+			roles = tuple(filter(None, (x_user_roles or "").split(","))) if x_user_roles else ()
+			user = AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles)
+			_enforce_signed_intent_identity(request, user)
+			return user
+
+	# No valid auth - return None instead of raising
+	return None
+
+
 async def get_admin_user(user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
 	if user.has_role("admin"):
 		return user

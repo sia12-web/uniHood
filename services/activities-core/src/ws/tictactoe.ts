@@ -27,6 +27,47 @@ const connections: Record<string, Set<any>> = {};
 const countdowns: Record<string, NodeJS.Timeout> = {};
 const userSockets: Record<string, Map<string, any>> = {}; // sessionId -> userId -> socket
 
+// Session cleanup configuration (prevents memory leaks)
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SESSION_ENDED_TTL_MS = 60 * 60 * 1000; // 1 hour after ending
+const SESSION_PENDING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours if never started
+
+/**
+ * Cleanup stale sessions to prevent memory leaks.
+ */
+function cleanupStaleSessions(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const sessionId of Object.keys(sessions)) {
+        const session = sessions[sessionId];
+        if (!session) continue;
+
+        const age = now - session.createdAt;
+        const shouldClean =
+            (session.status === 'finished' && age > SESSION_ENDED_TTL_MS) ||
+            (session.status === 'lobby' && age > SESSION_PENDING_TTL_MS);
+
+        if (shouldClean) {
+            if (countdowns[sessionId]) {
+                clearInterval(countdowns[sessionId]);
+                delete countdowns[sessionId];
+            }
+            delete sessions[sessionId];
+            delete connections[sessionId];
+            delete userSockets[sessionId];
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[TicTacToe] Cleaned up ${cleanedCount} stale sessions. Active: ${Object.keys(sessions).length}`);
+    }
+}
+
+// Start cleanup interval
+setInterval(cleanupStaleSessions, SESSION_CLEANUP_INTERVAL_MS);
+
 
 // Exported session management functions for REST API integration
 export function createSession(sessionId: string, _creatorUserId: string, _participants: string[]): GameState {
@@ -213,8 +254,12 @@ export function leaveSession(sessionId: string, userId: string): { sessionEnded:
 
             // Record stats asynchronously
             (async () => {
-                await recordGameResult(remainingPlayerId, 'tictactoe', 'win', session.scores[remainingPlayerId]);
-                await recordGameResult(userId, 'tictactoe', 'loss', 0);
+                try {
+                    await recordGameResult(remainingPlayerId, 'tictactoe', 'win', session.scores[remainingPlayerId]);
+                    await recordGameResult(userId, 'tictactoe', 'loss', 0);
+                } catch (err) {
+                    console.error('[TicTacToe] Failed to record game stats (forfeit):', err);
+                }
             })();
 
             // Clear countdown if running
@@ -511,23 +556,35 @@ export function handleRoundEnd(sessionId: string) {
             session.scores[pX] = calculatePoints(winsX, winsO);
             session.scores[pO] = 0; // Loser gets 0 points
             (async () => {
-                await recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
-                await recordGameResult(pO, 'tictactoe', 'loss', 0);
+                try {
+                    await recordGameResult(pX, 'tictactoe', 'win', session.scores[pX]);
+                    await recordGameResult(pO, 'tictactoe', 'loss', 0);
+                } catch (err) {
+                    console.error('[TicTacToe] Failed to record game stats:', err);
+                }
             })();
         } else if (session.matchWinner === pO) {
             session.scores[pO] = calculatePoints(winsO, winsX);
             session.scores[pX] = 0; // Loser gets 0 points
             (async () => {
-                await recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
-                await recordGameResult(pX, 'tictactoe', 'loss', 0);
+                try {
+                    await recordGameResult(pO, 'tictactoe', 'win', session.scores[pO]);
+                    await recordGameResult(pX, 'tictactoe', 'loss', 0);
+                } catch (err) {
+                    console.error('[TicTacToe] Failed to record game stats:', err);
+                }
             })();
         } else {
             // Draw - both get equal points
             session.scores[pX] = 150;
             session.scores[pO] = 150;
             (async () => {
-                await recordGameResult(pX, 'tictactoe', 'draw', 150);
-                await recordGameResult(pO, 'tictactoe', 'draw', 150);
+                try {
+                    await recordGameResult(pX, 'tictactoe', 'draw', 150);
+                    await recordGameResult(pO, 'tictactoe', 'draw', 150);
+                } catch (err) {
+                    console.error('[TicTacToe] Failed to record game stats (draw):', err);
+                }
             })();
         }
 

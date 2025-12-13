@@ -3,7 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Users,
   UserPlus,
@@ -51,6 +51,91 @@ type InboxProfileStub = {
   loading: boolean;
   error: string | null;
 };
+
+// Memoized friend card to prevent re-renders when list updates
+type FriendCardProps = {
+  friend: FriendRow;
+  profile: PublicProfile | null;
+  isMenuOpen: boolean;
+  onChat: (userId: string) => void;
+  onRemove: (userId: string) => void;
+  onBlock: (userId: string) => void;
+  onToggleMenu: (friendId: string) => void;
+};
+
+const FriendCard = React.memo(function FriendCard({
+  friend,
+  profile,
+  isMenuOpen,
+  onChat,
+  onRemove,
+  onBlock,
+  onToggleMenu,
+}: FriendCardProps) {
+  return (
+    <div className="group relative flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100">
+        {profile?.avatar_url ? (
+          <Image src={profile.avatar_url} alt={friend.friend_display_name || ""} fill className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-xl font-bold text-slate-400">
+            {(friend.friend_display_name || "?")[0]}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate font-bold text-slate-900">{friend.friend_display_name}</h3>
+        <p className="truncate text-sm text-slate-500">@{friend.friend_handle}</p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onChat(friend.friend_id)}
+          className="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900"
+          title="Message"
+        >
+          <MessageCircle size={18} />
+        </button>
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleMenu(friend.friend_id);
+            }}
+            className="rounded-full bg-slate-50 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="More options"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          {isMenuOpen && (
+            <div
+              className="absolute right-0 top-full z-10 mt-2 w-48 origin-top-right rounded-xl border border-slate-100 bg-white p-1 shadow-lg ring-1 ring-black/5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  onRemove(friend.friend_id);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+              >
+                <UserMinus size={16} />
+                Remove Friend
+              </button>
+              <button
+                onClick={() => {
+                  onBlock(friend.friend_id);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Ban size={16} />
+                Block User
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function FriendsPageInner() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -411,11 +496,15 @@ function FriendsPageInner() {
     [currentCampusId, currentUserId, filter, loadFriends],
   );
 
+  const router = useRouter();
+
   const handleChat = useCallback((userId: string) => {
-    const anchor = document.querySelector(`#conversation-${CSS.escape(userId)}`);
-    if (anchor instanceof HTMLElement) {
-      anchor.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    // Navigate to the chat page with this user
+    router.push(`/chat/${userId}`);
+  }, [router]);
+
+  const handleToggleMenu = useCallback((friendId: string) => {
+    setOpenMenuId((prev) => (prev === friendId ? null : friendId));
   }, []);
 
   const handleAccept = useCallback(
@@ -571,69 +660,16 @@ function FriendsPageInner() {
                 {friends.map((friend) => {
                   const profile = friendProfiles[friend.friend_id]?.profile;
                   return (
-                    <div key={friend.friend_id} className="group relative flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100">
-                        {profile?.avatar_url ? (
-                          <Image src={profile.avatar_url} alt={friend.friend_display_name || ""} fill className="object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xl font-bold text-slate-400">
-                            {(friend.friend_display_name || "?")[0]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-bold text-slate-900">{friend.friend_display_name}</h3>
-                        <p className="truncate text-sm text-slate-500">@{friend.friend_handle}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleChat(friend.friend_id)}
-                          className="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900"
-                          title="Message"
-                        >
-                          <MessageCircle size={18} />
-                        </button>
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(openMenuId === friend.friend_id ? null : friend.friend_id);
-                            }}
-                            className="rounded-full bg-slate-50 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                            aria-label="More options"
-                          >
-                            <MoreHorizontal size={18} />
-                          </button>
-                          {openMenuId === friend.friend_id && (
-                            <div
-                              className="absolute right-0 top-full z-10 mt-2 w-48 origin-top-right rounded-xl border border-slate-100 bg-white p-1 shadow-lg ring-1 ring-black/5"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                onClick={() => {
-                                  handleRemove(friend.friend_id);
-                                  setOpenMenuId(null);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
-                              >
-                                <UserMinus size={16} />
-                                Remove Friend
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleBlock(friend.friend_id);
-                                  setOpenMenuId(null);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                              >
-                                <Ban size={16} />
-                                Block User
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <FriendCard
+                      key={friend.friend_id}
+                      friend={friend}
+                      profile={profile ?? null}
+                      isMenuOpen={openMenuId === friend.friend_id}
+                      onChat={handleChat}
+                      onRemove={handleRemove}
+                      onBlock={handleBlock}
+                      onToggleMenu={handleToggleMenu}
+                    />
                   );
                 })}
               </div>

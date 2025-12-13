@@ -23,7 +23,7 @@ export function MyPointsBadge({ className }: Props) {
   return (
     <div className={`inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-700 ${className ?? ""}`}>
       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-      <span>Your Points: {displayValue}</span>
+      <span>Total Score: {displayValue}</span>
     </div>
   );
 }

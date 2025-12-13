@@ -2,21 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  ShieldAlert, 
-  Flag, 
-  Users, 
-  FileCheck, 
-  Settings, 
+import {
+  LayoutDashboard,
+  ShieldAlert,
+  Flag,
+  Users,
+  FileCheck,
+  Settings,
   Activity,
-  LogOut
+  LogOut,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Moderation", href: "/admin/mod/triage", icon: ShieldAlert },
+  { label: "Contact Messages", href: "/admin/contact", icon: Mail },
   { label: "Verification", href: "/admin/verification", icon: FileCheck },
   { label: "Feature Flags", href: "/admin/flags", icon: Flag },
   { label: "Permissions", href: "/admin/rbac", icon: Users },
@@ -59,7 +61,7 @@ export function AdminSidebar() {
           })}
 
           <div className="my-4 border-t border-slate-800 mx-3" />
-          
+
           <div className="px-3">
             <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">System</p>
             <Link
@@ -77,7 +79,7 @@ export function AdminSidebar() {
 
         {/* Footer */}
         <div className="border-t border-slate-800 p-4">
-          <Link 
+          <Link
             href="/"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white"
           >

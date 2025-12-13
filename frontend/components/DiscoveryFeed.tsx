@@ -406,21 +406,19 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   }, [sendHeartbeatSafe]);
 
   // Permanent Location Logic (Directory Mode - Campus and City)
+  // NOTE: Location is OPTIONAL for directory modes. We only update if we already have a position.
+  // We don't request location permission for campus/city mode, only for Room mode.
   const updatePermanentLocationSafe = useCallback(async () => {
     if (!authEvaluated || !goLiveAllowed || !currentUserId || !currentCampusId) return;
 
     // Only update permanent location in Directory Mode (Campus or City)
     if (discoveryMode === "room") return;
 
+    // Only update if we already have a position (from a previous Room mode session)
+    // Don't request location permission for directory modes
     if (!positionRef.current) {
-      try {
-        positionRef.current = await requestBrowserPosition();
-        setLocationNotice(null);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
-        setLocationNotice(message);
-        return;
-      }
+      // No location available, but that's OK for campus/city mode
+      return;
     }
 
     try {
@@ -1068,8 +1066,11 @@ function UserCard({
                 )}
               </div>
 
-              <p className="text-sm font-medium text-slate-200 drop-shadow-sm">
-                {user.campus_name ? `${user.campus_name} • ` : ""}{user.major || "Student"} {user.graduation_year ? `• '${String(user.graduation_year).slice(-2)}` : ""}
+              {user.campus_name && (
+                <p className="text-sm font-medium text-slate-200 drop-shadow-sm">{user.campus_name}</p>
+              )}
+              <p className="text-sm font-medium text-slate-300 drop-shadow-sm">
+                {user.major || "Student"}{user.graduation_year ? ` • '${String(user.graduation_year).slice(-2)}` : ""}
               </p>
 
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">

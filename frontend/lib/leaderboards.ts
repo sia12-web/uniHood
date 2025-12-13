@@ -1,4 +1,5 @@
 import { getBackendUrl, getDemoCampusId, getDemoUserId } from "./env";
+import { readAuthSnapshot } from "./auth-storage";
 import type {
 	LeaderboardPeriod,
 	LeaderboardResponse,
@@ -22,6 +23,13 @@ const BASE_URL = getBackendUrl();
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 	const { method = "GET", body, userId, campusId, signal } = options;
 	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	
+	// Add Authorization header if we have a token
+	const authSnapshot = readAuthSnapshot();
+	if (authSnapshot?.access_token) {
+		headers["Authorization"] = `Bearer ${authSnapshot.access_token}`;
+	}
+	
 	if (userId) {
 		headers["X-User-Id"] = userId;
 	}

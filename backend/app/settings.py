@@ -92,6 +92,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = _env_field(False, "COOKIE_SECURE")
     cookie_samesite: str = _env_field("strict", "COOKIE_SAMESITE")
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
+    upload_base_url: str = _env_field("http://localhost:8001/uploads", "UPLOAD_BASE_URL")
 
     # Email Settings
     smtp_host: str = _env_field("localhost", "SMTP_HOST")

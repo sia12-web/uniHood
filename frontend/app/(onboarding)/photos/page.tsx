@@ -3,13 +3,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Ghost, Camera, Sparkles } from "lucide-react";
 
 import { fetchProfile, presignAvatar, commitAvatar } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
-import PhotoAdjuster from "@/components/photo-adjuster/PhotoAdjuster";
-import AvatarCreator from "@/components/avatar-creator/AvatarCreator";
 import { AvatarState } from "@/components/avatar-creator/types";
+
+// Dynamic imports for heavy components - only load when needed
+const PhotoAdjuster = dynamic(() => import("@/components/photo-adjuster/PhotoAdjuster"), {
+	loading: () => <div className="w-full h-48 bg-slate-100 animate-pulse rounded-xl" />,
+	ssr: false,
+});
+
+const AvatarCreator = dynamic(() => import("@/components/avatar-creator/AvatarCreator"), {
+	loading: () => <div className="w-full h-96 bg-slate-100 animate-pulse rounded-xl" />,
+	ssr: false,
+});
 
 type PresignResponse = Awaited<ReturnType<typeof presignAvatar>>;
 
@@ -129,7 +140,26 @@ export default function PhotosPage() {
 	};
 
 	if (loading) {
-		return <div className="flex min-h-[60vh] items-center justify-center text-slate-500">Loading...</div>;
+		return (
+			<div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+				<div className="w-full max-w-2xl space-y-8">
+					{/* Skeleton header */}
+					<div className="flex flex-col items-center">
+						<div className="h-9 w-48 bg-slate-200 rounded-lg animate-pulse mt-6" />
+						<div className="h-5 w-64 bg-slate-100 rounded animate-pulse mt-2" />
+					</div>
+					{/* Skeleton avatar */}
+					<div className="mt-8 flex flex-col items-center">
+						<div className="h-32 w-32 rounded-full bg-slate-200 animate-pulse" />
+					</div>
+					{/* Skeleton options */}
+					<div className="mt-8 grid gap-8 sm:grid-cols-2">
+						<div className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+						<div className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -162,11 +192,14 @@ export default function PhotosPage() {
 					<div className="mt-8 flex flex-col items-center">
 						<div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-xl ring-1 ring-slate-100">
 							{avatarUrl ? (
-								// eslint-disable-next-line @next/next/no-img-element
-								<img
+								<Image
 									src={avatarUrl}
 									alt="Current avatar"
-									className="h-full w-full object-cover"
+									fill
+									className="object-cover"
+									sizes="128px"
+									priority
+									unoptimized
 								/>
 							) : (
 								<div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">

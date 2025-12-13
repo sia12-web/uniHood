@@ -165,24 +165,19 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
 
   const renderLobby = () => (
     <div className="space-y-8">
-      <div className="flex justify-center mb-4">
-        <MyPointsBadge />
-      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {participantCards.map((p) => (
-          <div 
-            key={p.userId} 
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${
-              p.isReady 
-                ? "border-emerald-200 bg-emerald-50/50 ring-1 ring-emerald-500/20" 
-                : "border-slate-200 bg-white"
-            }`}
+          <div
+            key={p.userId}
+            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${p.isReady
+              ? "border-emerald-200 bg-emerald-50/50 ring-1 ring-emerald-500/20"
+              : "border-slate-200 bg-white"
+              }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
-                  p.isReady ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
-                }`}>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${p.isReady ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                  }`}>
                   {p.label.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -219,11 +214,10 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
           <button
             onClick={handleReadyClick}
             disabled={readyButtonDisabled}
-            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${
-              selfPresence?.ready
-                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40"
-            }`}
+            className={`group relative flex items-center gap-2 overflow-hidden rounded-xl px-8 py-3 font-bold transition-all ${selfPresence?.ready
+              ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40"
+              }`}
           >
             {selfPresence?.ready ? (
               <>
@@ -249,16 +243,16 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
             </button>
           )}
         </div>
-        
+
         <div className="text-xs font-medium text-slate-400">
-          {lobbyArmed 
-            ? "Game starting in moments..." 
-            : allReady 
+          {lobbyArmed
+            ? "Game starting in moments..."
+            : allReady
               ? isHost ? "All players ready! You can start." : "Waiting for host to start..."
               : `Waiting for ${totalParticipants - readyCount} player(s) to ready up`
           }
         </div>
-        
+
         <button
           onClick={leave}
           className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-500 transition-colors mt-2"
@@ -281,7 +275,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
         <h3 className="text-2xl font-bold text-slate-900">Get Ready!</h3>
         <p className="text-slate-500">Keep your fingers on the home row.</p>
       </div>
-      
+
       {/* Blurred preview of text */}
       <div className="mt-12 w-full max-w-2xl select-none opacity-30 blur-sm filter">
         <UncopyableSnippet
@@ -360,7 +354,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
             data-gramm="false"
             data-gramm_editor="false"
           />
-          
+
           <div className="mt-4 flex items-center justify-between">
             <div className="flex gap-6 text-sm font-medium text-slate-600">
               <div className="flex flex-col">
@@ -395,25 +389,39 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
           {participantCards
             .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
             .map((p, i) => (
-            <div key={p.userId} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-900/5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                  {i + 1}
+              <div key={p.userId} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-900/5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                    {i + 1}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">{p.label}</div>
+                    <div className="text-xs text-slate-500">{p.score} pts</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-bold text-slate-900">{p.label}</div>
-                  <div className="text-xs text-slate-500">{p.score} pts</div>
-                </div>
+                {i === 0 && p.score > 0 && <Trophy className="h-4 w-4 text-amber-400" />}
               </div>
-              {i === 0 && p.score > 0 && <Trophy className="h-4 w-4 text-amber-400" />}
-            </div>
-          ))}
+            ))}
         </div>
       </div>
     </div>
   );
 
   const opponentLeft = state.leaveReason === 'opponent_left';
+
+  // Find the current user's score from the results
+  const selfScore = useMemo(() => {
+    const selfEntry = participantCards.find(p => p.isSelf);
+    return selfEntry?.score ?? 0;
+  }, [participantCards]);
+
+  const didWin = useMemo(() => {
+    if (!state.winnerUserId) return false;
+    return state.winnerUserId === selfUserId;
+  }, [state.winnerUserId, selfUserId]);
+
+  // Fixed points for leaderboard: 200 for winner (50 played + 150 win bonus), 50 for loser
+  const earnedPoints = (didWin || opponentLeft) ? 200 : 50;
 
   const renderResults = () => (
     <div className="text-center">
@@ -427,46 +435,91 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
           </div>
         </div>
       )}
-      
-      <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50">
+
+      {/* Trophy Icon */}
+      <div className={`mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full ring-8 ${didWin || opponentLeft
+        ? "bg-emerald-100 text-emerald-600 ring-emerald-50"
+        : "bg-rose-100 text-rose-600 ring-rose-50"
+        }`}>
         <Trophy className="h-10 w-10" />
       </div>
-      
+
+      {/* Win/Loss Status */}
       <h2 className="text-3xl font-bold text-slate-900">
-        {opponentLeft ? "You Win!" : "Duel Complete!"}
+        {opponentLeft ? "You Win!" : didWin ? "Victory!" : "Game Over"}
       </h2>
-      
+
       {!opponentLeft && winnerEntry ? (
         <div className="mt-2 text-lg text-slate-600">
           <span className="font-bold text-emerald-600">{resolveDisplayName(winnerEntry.userId, winnerEntry)}</span> won the match!
         </div>
-      ) : (
-        <div className="mt-2 text-lg text-slate-600">It was a draw!</div>
-      )}
+      ) : !opponentLeft && !didWin ? (
+        <div className="mt-2 text-lg text-slate-600">Better luck next time!</div>
+      ) : null}
 
-      <div className="mx-auto mt-12 max-w-md space-y-3">
+      {/* YOUR POINTS EARNED - Large prominent display */}
+      <div className="mt-8 mx-auto max-w-sm">
+        <div className={`rounded-2xl p-6 ${didWin || opponentLeft
+          ? "bg-gradient-to-br from-emerald-500 to-teal-600"
+          : "bg-gradient-to-br from-slate-600 to-slate-700"
+          } text-white shadow-xl`}>
+          <div className="text-sm font-medium uppercase tracking-wider opacity-80">
+            You Earned
+          </div>
+          <div className="mt-2 flex items-baseline justify-center gap-2">
+            <span className="text-5xl font-black">{earnedPoints}</span>
+            <span className="text-xl font-semibold opacity-80">points</span>
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm opacity-90">
+            {didWin || opponentLeft ? (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                <span>+1 Win added to your stats</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-4 w-4" />
+                <span>+1 Game played</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* All Participants Scores */}
+      <div className="mx-auto mt-8 max-w-md space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Final Standings</h3>
         {participantCards
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-          .map((p, i) => (
-          <div 
-            key={p.userId} 
-            className={`flex items-center justify-between rounded-xl border p-4 ${
-              i === 0 ? "border-emerald-200 bg-emerald-50/50" : "border-slate-200 bg-white"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <span className={`text-lg font-bold ${i === 0 ? "text-emerald-600" : "text-slate-400"}`}>#{i + 1}</span>
-              <div className="text-left">
-                <div className="font-bold text-slate-900">{p.label}</div>
-                <div className="text-xs text-slate-500">{p.subtitle}</div>
+          .map((p, i) => {
+            // Calculate fixed leaderboard points for each participant
+            const isWinner = p.userId === state.winnerUserId || (opponentLeft && p.isSelf);
+            const fixedPoints = isWinner ? 200 : 50;
+
+            return (
+              <div
+                key={p.userId}
+                className={`flex items-center justify-between rounded-xl border p-4 ${i === 0
+                  ? "border-emerald-200 bg-emerald-50/50"
+                  : "border-slate-200 bg-white"
+                  } ${p.isSelf ? "ring-2 ring-indigo-400 ring-offset-1" : ""}`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`text-lg font-bold ${i === 0 ? "text-emerald-600" : "text-slate-400"}`}>#{i + 1}</span>
+                  <div className="text-left">
+                    <div className="font-bold text-slate-900">
+                      {p.label} {p.isSelf && <span className="text-xs font-normal text-indigo-500">(You)</span>}
+                    </div>
+                    <div className="text-xs text-slate-500">{p.subtitle}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-lg font-bold text-slate-900">{fixedPoints}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400">Points</div>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="font-mono text-lg font-bold text-slate-900">{p.score}</div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">Points</div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
       </div>
     </div>
   );
@@ -476,12 +529,11 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
       {/* Phase Indicator */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-6">
         <div className="flex items-center gap-2">
-          <div className={`flex h-2.5 w-2.5 rounded-full ${
-            state.phase === "running" ? "animate-pulse bg-rose-500" : 
+          <div className={`flex h-2.5 w-2.5 rounded-full ${state.phase === "running" ? "animate-pulse bg-rose-500" :
             state.phase === "countdown" ? "bg-amber-500" :
-            state.phase === "ended" ? "bg-emerald-500" :
-            isConnecting ? "animate-pulse bg-slate-400" : "bg-slate-300"
-          }`} />
+              state.phase === "ended" ? "bg-emerald-500" :
+                isConnecting ? "animate-pulse bg-slate-400" : "bg-slate-300"
+            }`} />
           <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
             {isConnecting
               ? "Connecting..."
@@ -494,12 +546,12 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
                     : "Lobby"}
           </span>
         </div>
-        
+
         {state.phase === "running" && (
-           <div className="flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600">
-             <div className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" />
-             LIVE
-           </div>
+          <div className="flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600">
+            <div className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" />
+            LIVE
+          </div>
         )}
       </div>
 

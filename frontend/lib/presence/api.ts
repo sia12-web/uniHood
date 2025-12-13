@@ -61,6 +61,14 @@ export function requestBrowserPosition(): Promise<GeolocationPosition> {
           reject(new Error(LOCATION_PERMISSION_MESSAGE));
           return;
         }
+        if (error.code === error.TIMEOUT) {
+          reject(new Error("Location request timed out. Please check that location services are enabled and try again."));
+          return;
+        }
+        if (error.code === error.POSITION_UNAVAILABLE) {
+          reject(new Error("Unable to determine your location. Please ensure GPS/location services are enabled."));
+          return;
+        }
         reject(new Error(error.message || "Unable to determine your location"));
       },
       {

@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       
@@ -36,11 +36,12 @@ jobs:
           bandit -r backend/app -f json -o bandit-report.json || true
       
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bandit-security-report
           path: bandit-report.json
+          if-no-files-found: ignore
 
   node-security:
     name: Node.js Security Scan
@@ -65,11 +66,12 @@ jobs:
           npm audit --json > npm-audit.json || true
       
       - name: Upload npm audit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: npm-audit-report
           path: frontend/npm-audit.json
+          if-no-files-found: ignore
 
   docker-security:
     name: Docker Image Scan
@@ -87,7 +89,8 @@ jobs:
           output: 'trivy-results.sarif'
       
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+        continue-on-error: true

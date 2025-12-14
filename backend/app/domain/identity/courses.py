@@ -135,12 +135,22 @@ async def set_user_courses(user_id: UUID, codes: List[str], visibility: str) -> 
             if not codes:
                 return []
 
-            # Insert new courses
+            # Deduplicate and normalize course codes
+            seen = set()
+            unique_codes = []
             for code in codes:
+                normalized = code.strip().upper().replace("  ", " ")
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    unique_codes.append(normalized)
+
+            # Insert new courses (deduplicated)
+            for code in unique_codes:
                 await conn.execute(
                     """
                     INSERT INTO user_courses (user_id, course_code, visibility)
                     VALUES ($1, $2, $3)
+                    ON CONFLICT (user_id, course_code) DO NOTHING
                     """,
                     user_id,
                     code,

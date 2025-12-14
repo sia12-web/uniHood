@@ -332,6 +332,19 @@ class MeetupService:
                     joined_at=datetime.now(timezone.utc)
                 )
                 await self._room_service._repo.add_member(room, member)
+                
+                # Emit real-time event for instant participant update
+                from app.domain.rooms import sockets as room_sockets
+                await room_sockets.emit_member_event(
+                    "room:member_joined",
+                    room_id,
+                    {
+                        "room_id": room_id,
+                        "user_id": str(auth_user.id),
+                        "role": "member",
+                        "meetup_id": str(meetup_id),
+                    }
+                )
             
             # Track meetup join for leaderboard (non-blocking, anti-cheat validated)
             try:
@@ -385,6 +398,17 @@ class MeetupService:
             room = await self._room_service._repo.get_room(room_id)
             if room:
                 await self._room_service._repo.remove_member(room, str(auth_user.id))
+                
+                # Emit real-time event for instant participant update
+                from app.domain.rooms import sockets as room_sockets
+                await room_sockets.emit_member_event(
+                    "room:member_left",
+                    room_id,
+                    {
+                        "room_id": room_id,
+                        "user_id": str(auth_user.id),
+                    }
+                )
             
             # Track meetup leave for leaderboard (awards points if stayed long enough)
             try:

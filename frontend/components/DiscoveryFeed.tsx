@@ -980,7 +980,7 @@ function UserCard({
             e.stopPropagation();
             setShowDetails(!showDetails);
           }}
-          className="absolute left-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
+          className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
         >
           {showDetails ? <X size={18} /> : <Info size={18} />}
         </button>
@@ -1081,6 +1081,22 @@ function UserCard({
                   </span>
                 )}
               </div>
+
+              {/* Courses Preview */}
+              {user.courses && user.courses.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {user.courses.slice(0, 2).map((c) => (
+                    <span key={c} className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-200 ring-1 ring-emerald-500/30 backdrop-blur-sm">
+                      {c}
+                    </span>
+                  ))}
+                  {user.courses.length > 2 && (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-medium text-white/60 backdrop-blur-sm">
+                      +{user.courses.length - 2} more
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Action Button */}
               <div className="mt-4">

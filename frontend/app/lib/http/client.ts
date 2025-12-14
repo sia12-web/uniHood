@@ -68,10 +68,6 @@ export type ApiFetchOptions = Omit<RequestInit, "body" | "headers"> & {
 
 export async function apiFetch<T>(input: string | URL | Request, options: ApiFetchOptions = {}): Promise<T> {
 	const {
-		idemKey,
-		retry: retryOverrides,
-		body: rawBody,
-		headers: initHeaders,
 		cacheTtl = DEFAULT_CACHE_TTL_MS,
 		skipDedup = false,
 		...rest

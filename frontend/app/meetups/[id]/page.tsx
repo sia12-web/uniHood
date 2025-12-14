@@ -27,7 +27,7 @@ function upsertMessage(prev: RoomMessageDTO[], incoming: RoomMessageDTO): RoomMe
     if (incoming.client_msg_id && message.client_msg_id === incoming.client_msg_id) return true;
     return false;
   });
-  
+
   if (existingIndex >= 0) {
     const existing = prev[existingIndex];
     // If incoming is same as existing (same real ID), skip
@@ -99,7 +99,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
 
     const tryConnect = () => {
       if (!mounted) return;
-      
+
       try {
         socket = roomsSocket();
       } catch (err) {
@@ -121,9 +121,28 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
         joinedRoomRef.current = roomId;
       };
 
+      // Handle real-time participant updates
+      const handleMemberJoined = (payload: { room_id: string; user_id: string }) => {
+        if (payload.room_id === roomId && mounted) {
+          console.log("Member joined:", payload.user_id);
+          // Refetch meetup data to get updated participants list
+          queryClient.invalidateQueries({ queryKey: ["meetup", id] });
+        }
+      };
+
+      const handleMemberLeft = (payload: { room_id: string; user_id: string }) => {
+        if (payload.room_id === roomId && mounted) {
+          console.log("Member left:", payload.user_id);
+          // Refetch meetup data to get updated participants list
+          queryClient.invalidateQueries({ queryKey: ["meetup", id] });
+        }
+      };
+
       // Register listeners
       socket.on("room:msg:new", handleMessage);
       socket.on("connect", handleConnect);
+      socket.on("room:member_joined", handleMemberJoined);
+      socket.on("room:member_left", handleMemberLeft);
 
       // If already connected, emit room:join immediately
       if (socket.connected) {
@@ -141,13 +160,15 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       if (socket) {
         socket.off("room:msg:new");
         socket.off("connect");
+        socket.off("room:member_joined");
+        socket.off("room:member_left");
         if (joinedRoomRef.current === roomId) {
           socket.emit("room:leave", { room_id: roomId });
           joinedRoomRef.current = null;
         }
       }
     };
-  }, [meetup?.room_id, meetup?.is_joined]);
+  }, [meetup?.room_id, meetup?.is_joined, queryClient, id]);
 
   // Re-join room when socket reconnects (status changes to connected)
   useEffect(() => {
@@ -155,7 +176,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     if (roomsSocketStatus !== "connected") return;
 
     const roomId = meetup.room_id;
-    
+
     // Only rejoin if we're not already joined to this room
     if (joinedRoomRef.current === roomId) return;
 
@@ -197,7 +218,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
   useEffect(() => {
     const roomId = meetup?.room_id;
     if (!roomId || !meetup?.is_joined) return;
-    
+
     // Don't poll if there are pending messages - let the send response handle it
     if (pendingClientIds.size > 0) return;
 
@@ -206,29 +227,29 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     if (roomsSocketStatus === "connected") return;
 
     const pollInterval = 5000; // 5 seconds when disconnected
-    
+
     const pollMessages = async () => {
       // Double-check no pending messages
       if (pendingClientIds.size > 0) return;
-      
+
       try {
         const res = await fetchHistory(roomId);
         setMessages((prev) => {
           // Build a map of existing messages by their client_msg_id or id
           const existingByClientId = new Map<string, RoomMessageDTO>();
           const existingById = new Map<string, RoomMessageDTO>();
-          
+
           for (const msg of prev) {
             if (msg.client_msg_id) existingByClientId.set(msg.client_msg_id, msg);
             existingById.set(msg.id, msg);
           }
-          
+
           let merged = [...prev];
-          
+
           for (const msg of res.items) {
             // Skip if we already have this exact message
             if (existingById.has(msg.id)) continue;
-            
+
             // Check if this replaces an optimistic message
             if (msg.client_msg_id && existingByClientId.has(msg.client_msg_id)) {
               const existing = existingByClientId.get(msg.client_msg_id)!;
@@ -237,10 +258,10 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
                 merged = merged.filter(m => m.id !== existing.id);
               }
             }
-            
+
             merged = upsertMessage(merged, msg);
           }
-          
+
           return merged;
         });
       } catch (err) {
@@ -249,7 +270,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
     };
 
     const interval = setInterval(pollMessages, pollInterval);
-    
+
     return () => clearInterval(interval);
   }, [meetup?.room_id, meetup?.is_joined, roomsSocketStatus, pendingClientIds.size]);
 

@@ -66,11 +66,11 @@ const ProfileIcon = () => (
 // HeartIcon removed (unused)
 const BrandLogo = dynamic(() => import("@/components/BrandLogo"), {
   loading: () => (
-    <span className="text-2xl font-black tracking-tight">
-      <span className="text-[#2d2a8d] dark:text-[#818cf8]">uni</span>
-      <span className="text-[#ff8a65] dark:text-[#fb7185]">Hood</span>
-    </span>
+    <div className="flex h-32 w-32 items-center justify-center">
+      <div className="h-28 w-28 animate-pulse bg-slate-200 rounded-2xl" />
+    </div>
   ),
+  ssr: false,
 });
 
 const ProfileSettingsInline = dynamic(
@@ -1240,19 +1240,20 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="flex min-h-screen w-full gap-8 px-0">
-        <aside className="hidden md:flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-8 text-slate-700 dark:text-slate-300 shadow-xl">
-          <div className="flex items-center justify-center rounded-2xl bg-white/95 px-3 py-3 shadow-sm ring-1 ring-rose-100">
+        <aside className="hidden md:flex w-64 flex-col border-r border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-4 py-4 text-slate-700 dark:text-slate-300 shadow-xl">
+          <div className="flex items-center justify-center rounded-2xl bg-white/95 p-2 shadow-sm ring-1 ring-rose-100">
             <BrandLogo
               withWordmark={false}
               className="flex items-center justify-center"
-              logoClassName="!h-32 !w-32 object-contain"
+              logoClassName="!h-28 !w-28 object-contain"
               backgroundTone="light"
-              logoWidth={128}
-              logoHeight={128}
+              logoWidth={112}
+              logoHeight={112}
               asLink={false}
+              disableMixBlend={true}
             />
           </div>
-          <nav aria-label="Primary" className="mt-6 flex flex-col gap-1.5">
+          <nav aria-label="Primary" className="mt-4 flex flex-col gap-1.5">
             {navItems.map((item) => (
               <button
                 key={item.key}
@@ -1345,6 +1346,7 @@ export default function HomePage() {
               logoWidth={96}
               logoHeight={96}
               asLink={false}
+              disableMixBlend={true}
             />
           </div>
           <div className="mx-auto max-w-6xl space-y-8">{renderSection()}</div>

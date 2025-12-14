@@ -117,6 +117,29 @@ services:
         limits:
           cpus: '0.50'
           memory: 256M
+  # Optional: Log monitoring service
+  # Uncomment to enable real-time log monitoring and alerting
+  # log-monitor:
+  #   container_name: unihood-log-monitor
+  #   build: ./tools/log-monitor
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   environment:
+  #     CONTAINER_PREFIX: unihood-
+  #     CONSOLE_ONLY: "true"
+  #     METRICS_ENABLED: "true"
+  #     CPU_THRESHOLD: "80"
+  #     MEMORY_THRESHOLD: "85"
+  #     # SLACK_WEBHOOK: https://hooks.slack.com/services/...
+  #   depends_on:
+  #     - backend
+  #     - activities
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.25'
+  #         memory: 128M
 
 volumes:
   pgdata:

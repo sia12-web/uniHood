@@ -187,7 +187,6 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [openMenuPeerId, setOpenMenuPeerId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     setHydrated(true);
@@ -205,7 +204,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const openMenu = (peerId: string, buttonEl: HTMLButtonElement) => {
+  const openMenu = useCallback((peerId: string, buttonEl: HTMLButtonElement) => {
     if (openMenuPeerId === peerId) {
       setOpenMenuPeerId(null);
       setMenuPosition(null);
@@ -217,7 +216,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
       left: rect.right - 192, // 192px = w-48
     });
     setOpenMenuPeerId(peerId);
-  };
+  }, [openMenuPeerId]);
 
   const handleClearConversation = async (peerId: string) => {
     if (!confirm("Are you sure you want to clear this conversation? This cannot be undone.")) {
@@ -283,7 +282,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
 
   const handleOpenMenu = useCallback((peerId: string, buttonEl: HTMLButtonElement) => {
     openMenu(peerId, buttonEl);
-  }, []);
+  }, [openMenu]);
 
   const layoutHeightClass = "min-h-[calc(100vh-4rem)]";
 

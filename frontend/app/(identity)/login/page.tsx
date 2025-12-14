@@ -140,7 +140,7 @@ export default function LoginPage() {
               <span className="text-[#881337]">Connect.</span> <span className="text-slate-700">Play.</span> <span className="text-[#1b2a3a]">Belong.</span>
             </h2>
             <p className="text-lg text-slate-600 leading-relaxed font-medium">
-              The ultimate campus companion for socializing, gaming, and discovering what's happening around you.
+              The ultimate campus companion for socializing, gaming, and discovering what&apos;s happening around you.
             </p>
           </div>
 

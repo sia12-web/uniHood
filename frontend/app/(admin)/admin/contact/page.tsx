@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mail, Clock, Tag, User, MessageSquare, CheckCircle, XCircle, Loader2, RefreshCw, ChevronDown } from "lucide-react";
+import { Mail, Clock, Tag, User, MessageSquare, XCircle, Loader2, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/app/lib/http/client";
 import { cn } from "@/lib/utils";
 

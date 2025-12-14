@@ -350,9 +350,7 @@ export default function ProfileSettingsPage() {
 	const [courseFeedback, setCourseFeedback] = useState<string | null>(null);
 	const [activeCourseForm, setActiveCourseForm] = useState<{ mode: "create" | "edit"; targetId?: string } | null>(null);
 	const [courseFormState, setCourseFormState] = useState<CourseFormState>(emptyCourseForm());
-	const courseNameId = useId();
 	const courseCodeId = useId();
-	const courseTermId = useId();
 	const normaliseCourses = useCallback(
 		(list: ProfileCourse[] | undefined | null) => {
 			const uppercased = toCourseItems(list).map((course) => ({
@@ -688,33 +686,28 @@ export default function ProfileSettingsPage() {
 
 	const handleCourseFormSubmit = useCallback(() => {
 		const codeTrimmed = courseFormState.code.trim();
-		// Allow saving if either name OR code is present.
-		// If code is missing but name is present, that's fine.
-		// If name is missing but code is present, use code as name.
-		const nameTrimmed = courseFormState.name.trim();
-		const termTrimmed = courseFormState.term.trim();
+		// Allow saving if code is present.
 
-		if (!codeTrimmed && !nameTrimmed) {
-			setCourseErrorMessage("Course name or code is required.");
+		if (!codeTrimmed) {
+			setCourseErrorMessage("Course code is required.");
 			return;
 		}
 
-		const finalName = nameTrimmed || codeTrimmed;
-		const finalCode = codeTrimmed || null;
+		const finalCode = codeTrimmed.toUpperCase();
 
 		let nextCourses: CourseItem[];
 		if (activeCourseForm?.mode === "edit" && activeCourseForm.targetId) {
 			nextCourses = coursesDraft.map((course) =>
 				course._localId === activeCourseForm.targetId
-					? { ...course, name: finalName, code: finalCode || "", term: termTrimmed }
+					? { ...course, name: finalCode, code: finalCode, term: "" }
 					: course,
 			);
 		} else {
 			const newCourse: CourseItem = {
 				_localId: randomLocalId("new"),
-				name: finalName,
-				code: finalCode || "",
-				term: termTrimmed,
+				name: finalCode,
+				code: finalCode,
+				term: "",
 			};
 			nextCourses = [...coursesDraft, newCourse];
 		}
@@ -877,7 +870,7 @@ export default function ProfileSettingsPage() {
 						{activeCourseForm?.mode === "create" ? (
 							<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
 								<p className="text-sm font-semibold text-slate-900">Add course</p>
-								<div className="mt-3 grid gap-3 md:grid-cols-3">
+								<div className="mt-3">
 									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseCodeId}>
 										<span className="font-medium">Course code<span className="text-rose-500">*</span></span>
 										<input
@@ -885,33 +878,12 @@ export default function ProfileSettingsPage() {
 											type="text"
 											value={courseFormState.code}
 											onChange={(event) => handleCourseInputChange("code", event.target.value)}
-											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+											className="rounded border border-slate-300 px-3 py-2 text-sm uppercase focus:border-slate-500 focus:outline-none"
 											maxLength={24}
-											placeholder="e.g., CS-204"
+											placeholder="e.g., MATH 201"
+											autoFocus
 											required
-										/>
-									</label>
-									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseNameId}>
-										<span className="font-medium">Course name</span>
-										<input
-											id={courseNameId}
-											type="text"
-											value={courseFormState.name}
-											onChange={(event) => handleCourseInputChange("name", event.target.value)}
-											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-											maxLength={80}
-										/>
-									</label>
-									<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={courseTermId}>
-										<span className="font-medium">Semester / Year</span>
-										<input
-											id={courseTermId}
-											type="text"
-											value={courseFormState.term}
-											onChange={(event) => handleCourseInputChange("term", event.target.value)}
-											className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-											maxLength={40}
-											placeholder="e.g., Fall 2025"
+											onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCourseFormSubmit(); } }}
 										/>
 									</label>
 								</div>
@@ -929,7 +901,7 @@ export default function ProfileSettingsPage() {
 										disabled={courseSaving}
 										className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
 									>
-										Save course
+										Add
 									</button>
 								</div>
 							</div>
@@ -943,41 +915,20 @@ export default function ProfileSettingsPage() {
 											{isEditing ? (
 												<div>
 													<p className="text-sm font-semibold text-slate-900">Edit course</p>
-													<div className="mt-3 grid gap-3 md:grid-cols-3">
-														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseNameId}-edit`}>
-															<span className="font-medium">Course name<span className="text-rose-500">*</span></span>
-															<input
-																id={`${courseNameId}-edit`}
-																type="text"
-																value={courseFormState.name}
-																onChange={(event) => handleCourseInputChange("name", event.target.value)}
-																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-																maxLength={80}
-																required
-															/>
-														</label>
+													<div className="mt-3">
 														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseCodeId}-edit`}>
-															<span className="font-medium">Course code</span>
+															<span className="font-medium">Course code<span className="text-rose-500">*</span></span>
 															<input
 																id={`${courseCodeId}-edit`}
 																type="text"
 																value={courseFormState.code}
 																onChange={(event) => handleCourseInputChange("code", event.target.value)}
-																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+																className="rounded border border-slate-300 px-3 py-2 text-sm uppercase focus:border-slate-500 focus:outline-none"
 																maxLength={24}
-																placeholder="e.g., CS-204"
-															/>
-														</label>
-														<label className="flex flex-col gap-1 text-sm text-slate-700" htmlFor={`${courseTermId}-edit`}>
-															<span className="font-medium">Semester / Year</span>
-															<input
-																id={`${courseTermId}-edit`}
-																type="text"
-																value={courseFormState.term}
-																onChange={(event) => handleCourseInputChange("term", event.target.value)}
-																className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-																maxLength={40}
-																placeholder="e.g., Fall 2025"
+																placeholder="e.g., MATH 201"
+																autoFocus
+																required
+																onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCourseFormSubmit(); } }}
 															/>
 														</label>
 													</div>
@@ -995,27 +946,15 @@ export default function ProfileSettingsPage() {
 															disabled={courseSaving}
 															className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
 														>
-															Save changes
+															Save
 														</button>
 													</div>
 												</div>
 											) : (
-												<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-													<div>
-														<p className="text-sm font-semibold text-slate-900">{course.name}</p>
-														<div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-															{course.code ? (
-																<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-																	{course.code}
-																</span>
-															) : null}
-															{course.term ? (
-																<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-																	{course.term}
-																</span>
-															) : null}
-														</div>
-													</div>
+												<div className="flex items-center justify-between">
+													<span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200">
+														{course.code || course.name}
+													</span>
 													<div className="flex gap-2">
 														<button
 															type="button"

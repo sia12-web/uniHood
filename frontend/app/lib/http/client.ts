@@ -1,9 +1,10 @@
 import { refreshAccessToken } from "@/lib/auth-refresh";
+import { getBackendUrl } from "@/lib/env";
 import { readAuthSnapshot, resolveAuthHeaders } from "@/lib/auth-storage";
 import { AuthError, ForbiddenError, GoneError, HttpError, IdemConflictError, NetworkError, type ErrorDetail } from "./errors";
 import { DEFAULT_RETRY_POLICY, computeDelayMs, shouldRetryError, shouldRetryResponse, sleep, type RetryPolicy } from "./retry";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? getBackendUrl();
 
 // ========== REQUEST DEDUPLICATION & CACHING ==========
 // In-flight request deduplication: prevents duplicate concurrent requests to the same URL

@@ -41,6 +41,8 @@ const allowedHeaders = [
     'x-parent-span-id',
     'Accept',
     'accept',
+    'traceparent',
+    'tracestate',
 ];
 
 server.register(cors, {

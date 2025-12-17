@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import Link from "next/link";
-import { ArrowLeft, Send, CheckCircle, AlertCircle, Mail, MessageSquare, User, Tag } from "lucide-react";
+import { Send, CheckCircle, AlertCircle, Mail, MessageSquare, User, Tag } from "lucide-react";
 import { apiFetch } from "@/app/lib/http/client";
+import BackButton from "@/components/BackButton";
 
 const CATEGORIES = [
     { value: "general", label: "General Inquiry" },
@@ -74,12 +74,7 @@ export default function ContactPage() {
                             >
                                 Send Another Message
                             </button>
-                            <Link
-                                href="/"
-                                className="rounded-full border border-warm-sand px-6 py-3 font-medium text-navy transition hover:bg-warm-sand/50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-                            >
-                                Back to Home
-                            </Link>
+                            <BackButton label="Back" fallbackHref="/" className="justify-center px-6 py-3" />
                         </div>
                     </div>
                 </div>
@@ -92,13 +87,9 @@ export default function ContactPage() {
             <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
                 {/* Header */}
                 <div className="mb-8">
-                    <Link
-                        href="/"
-                        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-navy/70 transition hover:text-coral dark:text-slate-400 dark:hover:text-coral"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Home
-                    </Link>
+                    <div className="mb-4">
+                        <BackButton label="Back" fallbackHref="/" className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm" />
+                    </div>
                     <h1 className="text-3xl font-bold text-navy dark:text-slate-100 sm:text-4xl">Contact Us</h1>
                     <p className="mt-2 text-navy/70 dark:text-slate-400">
                         Have a question, found a bug, or want to share feedback? We&apos;d love to hear from you!

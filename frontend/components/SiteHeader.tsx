@@ -18,6 +18,11 @@ export default function SiteHeader() {
 
   const suppressedPrefixes = [
     "/",
+    "/contact",
+    "/legal",
+    "/privacy",
+    "/terms",
+    "/cookies",
     "/social",
     "/settings/profile",
     "/onboarding",

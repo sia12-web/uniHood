@@ -1,0 +1,333 @@
+name: Performance
+
+on:
+  # Run smoke test on PRs
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/perf.yml'
+  
+  # Run full suite nightly
+  schedule:
+    - cron: '0 4 * * *'  # 4 AM UTC daily
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Test mode (smoke, public, full)'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - public
+          - full
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # PR Smoke Test - Quick validation on critical pages
+  # ============================================================================
+  smoke-test:
+    name: Lighthouse Smoke Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Generate page inventory
+        run: node scripts/perf-inventory.js
+
+      - name: Start server
+        run: npm start &
+        env:
+          PORT: 3000
+
+      - name: Wait for server
+        run: |
+          timeout 60s bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
+
+      - name: Run Lighthouse smoke test
+        run: |
+          npx lhci autorun \
+            --collect.url="http://localhost:3000/,http://localhost:3000/login,http://localhost:3000/features" \
+            --collect.numberOfRuns=1 \
+            --upload.target=temporary-public-storage
+        continue-on-error: true
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-smoke-${{ github.sha }}
+          path: frontend/.lighthouseci
+          retention-days: 14
+
+  # ============================================================================
+  # Bundle Size Check - Track JS bundle growth
+  # ============================================================================
+  bundle-check:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and analyze bundles
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: |
+          npm run build
+          echo "## 📦 Bundle Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Top 10 largest chunks:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          npm run perf:bundle 2>/dev/null | head -15 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Nightly Full Suite - Complete performance audit
+  # ============================================================================
+  nightly-full:
+    name: Nightly Full Performance Audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Generate page inventory
+        run: node scripts/perf-inventory.js
+
+      - name: Start server
+        run: npm start &
+        env:
+          PORT: 3000
+
+      - name: Wait for server
+        run: |
+          timeout 60s bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
+
+      - name: Run Lighthouse on all public pages
+        run: |
+          # Read URLs from generated file
+          URLS=$(cat perf-results/lighthouse-urls-public.txt | tr '\n' ',' | sed 's/,$//')
+          npx lhci autorun \
+            --collect.url="$URLS" \
+            --collect.numberOfRuns=3 \
+            --upload.target=temporary-public-storage
+        continue-on-error: true
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-nightly-${{ github.run_id }}
+          path: frontend/.lighthouseci
+          retention-days: 30
+
+      - name: Generate performance report
+        run: |
+          echo "## 🚀 Nightly Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Page Inventory" >> $GITHUB_STEP_SUMMARY
+          cat perf-results/page-inventory.json | jq -r '.summary | "- Total pages: \(.total)\n- Public: \(.byAuth.public)\n- Auth required: \(.byAuth.authenticated)"' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Lighthouse results uploaded as artifact." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Playwright Performance Tests - User journeys
+  # ============================================================================
+  playwright-perf:
+    name: Playwright Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Run Playwright perf tests
+        run: |
+          npx playwright test --grep @perf --reporter=html
+        env:
+          PLAYWRIGHT_USE_BUILD: '1'
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-perf-report-${{ github.run_id }}
+          path: frontend/playwright-report
+          retention-days: 14
+
+  # ============================================================================
+  # K6 Load Test - API performance (nightly only)
+  # ============================================================================
+  k6-load-test:
+    name: K6 API Load Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: radius
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --no-root
+
+      - name: Apply migrations
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
+        run: python scripts/apply_migrations.py
+
+      - name: Seed test data
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
+        run: python scripts/seed_perf_test_data.py
+        continue-on-error: true
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key
+          SERVICE_SIGNING_KEY: test-signing-key
+          REFRESH_PEPPER: test-pepper
+          ENVIRONMENT: test
+
+      - name: Wait for backend
+        run: |
+          timeout 60s bash -c 'until curl -s http://localhost:8000/health > /dev/null; do sleep 1; done'
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run K6 smoke test
+        run: |
+          k6 run --vus 10 --duration 30s infra/k6/api_load_test.js
+        env:
+          K6_BACKEND_URL: http://localhost:8000
+        continue-on-error: true
+
+      - name: Generate K6 summary
+        run: |
+          echo "## 🔥 K6 Load Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Smoke test: 10 VUs for 30s" >> $GITHUB_STEP_SUMMARY

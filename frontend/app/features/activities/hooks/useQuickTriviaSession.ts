@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
+import { resetOutcomeGuard } from "./outcome-recorder";
 
 export interface TriviaState {
   phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";

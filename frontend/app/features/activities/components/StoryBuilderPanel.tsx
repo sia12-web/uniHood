@@ -8,7 +8,6 @@ import { readAuthUser } from "@/lib/auth-storage";
 import { getDemoUserId } from "@/lib/env";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { MyPointsBadge } from "./MyPointsBadge";
 
 export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
     const { state, toggleReady, submitParagraph, voteParagraph, leave, selfId } = useStoryBuilderSession(sessionId);
@@ -22,7 +21,6 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
         participants,
         paragraphs,
         currentTurnUserId,
-        winnerUserId,
         connected,
         error,
         leaveReason

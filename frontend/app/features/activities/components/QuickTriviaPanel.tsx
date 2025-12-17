@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuickTriviaSession, type TriviaState } from "../hooks/useQuickTriviaSession";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
 import { Trophy, Timer, Zap, Users, CheckCircle2, XCircle, AlertCircle, Clock, Lock, LogOut, AlertTriangle } from "lucide-react";
-import { MyPointsBadge } from "./MyPointsBadge";
 
 type QuickTriviaController = {
   state: TriviaState;

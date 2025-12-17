@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CheckCircle2, Loader2, Calendar } from "lucide-react";
 
-import Image from "next/image";
+
 import { useStoryInviteState } from "@/components/providers/story-invite-provider";
 import { useTypingDuelInviteState } from "@/components/providers/typing-duel-invite-provider";
 import { useTicTacToeInviteState } from "@/components/providers/tictactoe-invite-provider";
@@ -15,6 +15,7 @@ import { useQuickTriviaInviteState } from "@/components/providers/quick-trivia-i
 import { useRockPaperScissorsInviteState } from "@/components/providers/rock-paper-scissors-invite-provider";
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { useCampuses } from "@/components/providers/campus-provider";
+import SiteFooter from "@/components/SiteFooter";
 import { usePresence } from "@/hooks/presence/use-presence";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
@@ -26,6 +27,47 @@ import type { FriendRow } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 
 const iconClassName = "h-4 w-4 flex-none";
+
+const ACTIVITY_SNAPSHOT_CACHE_KEY = "unihood.activitySnapshot.v1";
+
+type CachedActivitySnapshot = {
+  totalGames: number;
+  wins: number;
+  socialScore: number;
+  rank: number | null;
+  updatedAt: string;
+};
+
+function readCachedActivitySnapshot(): CachedActivitySnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ACTIVITY_SNAPSHOT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedActivitySnapshot>;
+    if (typeof parsed.totalGames !== "number" || typeof parsed.wins !== "number" || typeof parsed.socialScore !== "number") {
+      return null;
+    }
+    return {
+      totalGames: Math.max(0, parsed.totalGames),
+      wins: Math.max(0, parsed.wins),
+      socialScore: Math.max(0, parsed.socialScore),
+      rank: typeof parsed.rank === "number" ? parsed.rank : null,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedActivitySnapshot(snapshot: Omit<CachedActivitySnapshot, "updatedAt">): void {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: CachedActivitySnapshot = { ...snapshot, updatedAt: new Date().toISOString() };
+    window.localStorage.setItem(ACTIVITY_SNAPSHOT_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore cache write failures
+  }
+}
 
 const DiscoveryIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={iconClassName} aria-hidden>
@@ -41,6 +83,15 @@ const UsersIcon = () => (
     <circle cx="9" cy="7" r="3" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const NetworkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={iconClassName} aria-hidden>
+    <circle cx="12" cy="5" r="2.5" />
+    <circle cx="5" cy="19" r="2.5" />
+    <circle cx="19" cy="19" r="2.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5v4M7 17.5l3.5-6M17 17.5l-3.5-6" />
   </svg>
 );
 
@@ -192,7 +243,7 @@ function formatChatTime(iso: string | null | undefined): string {
 }
 
 type NavKey = "dashboard" | "network" | "messages" | "games" | "profile" | "discovery" | "meetups" | "friends";
-const NAV_SECTIONS: NavKey[] = ["dashboard", "network", "games", "profile", "discovery", "meetups"];
+const NAV_SECTIONS: NavKey[] = ["dashboard", "network", "messages", "games", "profile"];
 export default function HomePage() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
@@ -379,6 +430,7 @@ export default function HomePage() {
     wins: number;
     socialScore: number;
     rank: number | null;
+    available: boolean;
     loading: boolean;
     error: string | null;
   }>({
@@ -386,13 +438,35 @@ export default function HomePage() {
     wins: 0,
     socialScore: 0,
     rank: null,
+    available: false,
     loading: true,
     error: null,
   });
 
+  // Load cached activity snapshot on mount (client-only)
+  useEffect(() => {
+    const cached = readCachedActivitySnapshot();
+    if (cached) {
+      setActivitySnapshot({
+        totalGames: cached.totalGames,
+        wins: cached.wins,
+        socialScore: cached.socialScore,
+        rank: cached.rank,
+        available: true,
+        loading: true,
+        error: null,
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     const load = async () => {
+      // Skip API call if user is not authenticated
+      if (!authUser?.userId) {
+        setActivitySnapshot((prev) => ({ ...prev, loading: false, error: null }));
+        return;
+      }
       setActivitySnapshot((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const summary = await fetchMySummary({
@@ -405,7 +479,8 @@ export default function HomePage() {
         const wins = summary.counts?.wins ?? Math.max(0, Math.round(summary.scores.overall ?? 0));
         const socialScore = Math.max(0, Math.round(summary.scores.social ?? 0));
         const rank = summary.ranks.overall ?? null;
-        setActivitySnapshot({ totalGames, wins, socialScore, rank, loading: false, error: null });
+        writeCachedActivitySnapshot({ totalGames, wins, socialScore, rank });
+        setActivitySnapshot({ totalGames, wins, socialScore, rank, available: true, loading: false, error: null });
       } catch (err) {
         if (controller.signal.aborted) return;
         const message = err instanceof Error ? err.message : "Unable to load activity snapshot";
@@ -584,10 +659,11 @@ export default function HomePage() {
       const hasAnyInvite = hasStoryInvite || hasTypingInvite || hasTicTacToeInvite || hasQuickTriviaInvite || hasRPSInvite;
       return [
         { key: "dashboard" as const, label: "Dashboard", icon: <DiscoveryIcon />, badge: null },
+        { key: "discovery" as const, label: "Discovery", icon: <UsersIcon />, badge: null },
         {
           key: "network" as const,
           label: "Network",
-          icon: <UsersIcon />,
+          icon: <NetworkIcon />,
           badge: inboundPending > 0 ? inboundPending : (hasFriendAcceptanceNotification ? "New" : null),
         },
         {
@@ -614,6 +690,10 @@ export default function HomePage() {
   );
 
   const handleNavClick = (key: NavKey) => {
+    if (key === "discovery") {
+      router.push("/discovery");
+      return;
+    }
     if (key === "meetups") {
       router.push("/meetups");
       return;
@@ -671,7 +751,7 @@ export default function HomePage() {
                   <div>
                     <p className="text-sm font-semibold text-rose-100 uppercase tracking-wider">Your Social Score</p>
                     <p className="mt-1 text-5xl font-black text-white tracking-tight">
-                      {activitySnapshot.loading ? "..." : activitySnapshot.socialScore}
+                      {activitySnapshot.loading ? "..." : activitySnapshot.available ? activitySnapshot.socialScore : "—"}
                     </p>
                   </div>
                 </div>
@@ -741,7 +821,7 @@ export default function HomePage() {
                   <div>
                     <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Games Played</p>
                     <p className="mt-2 text-3xl font-bold text-slate-900">
-                      {activitySnapshot.loading ? "..." : activitySnapshot.totalGames}
+                      {activitySnapshot.loading ? "..." : activitySnapshot.available ? activitySnapshot.totalGames : "—"}
                     </p>
                   </div>
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
@@ -753,7 +833,11 @@ export default function HomePage() {
                     🎮
                   </span>
                   <span className="group-hover:text-indigo-700 transition-colors">
-                    {activitySnapshot.wins > 0 ? `${activitySnapshot.wins} wins` : "Play to earn points"}
+                    {!activitySnapshot.available
+                      ? "Sign in to track stats"
+                      : activitySnapshot.wins > 0
+                        ? `${activitySnapshot.wins} wins`
+                        : "Play to earn points"}
                   </span>
                 </div>
               </button>
@@ -1120,7 +1204,9 @@ export default function HomePage() {
               {/* Game Points */}
               <div className="flex flex-1 flex-col items-center gap-1">
                 <span className="text-3xl font-extrabold tracking-tight text-slate-900">
-                  {activitySnapshot.loading ? "-" : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
+                  {activitySnapshot.loading || !activitySnapshot.available
+                    ? "-"
+                    : (activitySnapshot.totalGames * 50) + (activitySnapshot.wins * 150)}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Game Points</span>
               </div>
@@ -1130,7 +1216,7 @@ export default function HomePage() {
               {/* Games Played */}
               <div className="flex flex-1 flex-col items-center gap-1">
                 <span className="text-3xl font-extrabold tracking-tight text-slate-900">
-                  {activitySnapshot.loading ? "-" : activitySnapshot.totalGames}
+                  {activitySnapshot.loading || !activitySnapshot.available ? "-" : activitySnapshot.totalGames}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Played</span>
               </div>
@@ -1140,7 +1226,7 @@ export default function HomePage() {
               {/* Wins */}
               <div className="flex flex-1 flex-col items-center gap-1">
                 <span className="text-3xl font-extrabold tracking-tight text-slate-900">
-                  {activitySnapshot.loading ? "-" : activitySnapshot.wins}
+                  {activitySnapshot.loading || !activitySnapshot.available ? "-" : activitySnapshot.wins}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Wins</span>
               </div>
@@ -1352,6 +1438,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-6xl space-y-8">{renderSection()}</div>
         </section>
       </div>
+      <SiteFooter />
     </main>
   );
 }

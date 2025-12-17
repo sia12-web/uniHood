@@ -693,39 +693,35 @@ class ActivitiesService:
 	async def _get_activity_move_count(self, activity: models.Activity) -> int:
 		"""Calculate the number of meaningful moves/actions in an activity."""
 		kind = activity.kind
-		
-		if kind == models.ActivityKind.TICTACTOE:
-			# Count board moves from meta
+
+		if kind == "tictactoe":
 			board = activity.meta.get("board", [])
-			return sum(1 for cell in board if cell is not None and cell != "")
-		
-		elif kind == models.ActivityKind.TYPING_DUEL:
-			# Count typing submissions
-			rounds = await self._store.list_rounds(activity.id)
+			return sum(1 for cell in board if cell not in (None, ""))
+
+		if kind == "typing_duel":
+			rounds = await self._repo.list_rounds(activity.id)
 			if not rounds:
 				return 0
-			submissions = await self._store.list_typing_submissions(rounds[-1].id)
+			last_round = rounds[-1]
+			submissions = await self._repo.list_typing_submissions(last_round.id)
 			return len(submissions)
-		
-		elif kind == models.ActivityKind.STORY_BUILDER:
-			# Count story lines
-			lines = await self._store.list_story_lines(activity.id)
+
+		if kind == "story_builder":
+			lines = await self._repo.list_story_lines(activity.id)
 			return len(lines)
-		
-		elif kind == models.ActivityKind.QUICK_TRIVIA:
-			# Count trivia answers
-			rounds = await self._store.list_rounds(activity.id)
+
+		if kind in {"trivia", "quick_trivia"}:
+			rounds = await self._repo.list_rounds(activity.id)
 			total_answers = 0
-			for r in rounds:
-				answers = await self._store.list_trivia_answers(r.id)
+			for round_obj in rounds:
+				answers = await self._repo.list_trivia_answers(round_obj.id)
 				total_answers += len(answers)
 			return total_answers
-		
-		elif kind == models.ActivityKind.RPS:
-			# Count RPS rounds played
-			rounds = await self._store.list_rounds(activity.id)
+
+		if kind == "rps":
+			rounds = await self._repo.list_rounds(activity.id)
 			return len(rounds)
-		
+
 		return 10  # Default fallback
 
 	def _normalize_meta(

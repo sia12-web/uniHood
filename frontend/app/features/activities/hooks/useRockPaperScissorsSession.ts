@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
+import { resetOutcomeGuard } from "./outcome-recorder";
 
 export type RpsChoice = "rock" | "paper" | "scissors";
 type ScoreEntry = { userId: string; score: number };

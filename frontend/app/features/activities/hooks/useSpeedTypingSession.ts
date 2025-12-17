@@ -11,7 +11,7 @@ import {
 	setSessionReady,
 	startSession,
 } from '../api/client';
-import { maybeRecordOutcome, resetOutcomeGuard } from './outcome-recorder';
+import { resetOutcomeGuard } from './outcome-recorder';
 
 export type LobbyParticipant = {
 	userId: string;

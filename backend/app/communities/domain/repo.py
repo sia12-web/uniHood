@@ -1441,7 +1441,7 @@ class CommunitiesRepository:
 				WHERE deleted_at IS NULL
 				AND created_at >= NOW() - ($1::text || ' hours')::interval
 				""",
-				hours,
+				str(hours),
 			)
 		return [models.Post.model_validate(dict(row)) for row in rows]
 
@@ -1690,7 +1690,7 @@ class CommunitiesRepository:
 				DELETE FROM notification_entity
 				WHERE created_at < NOW() - ($1::text || ' days')::interval
 				""",
-				older_than_days,
+				str(older_than_days),
 			)
 		return int(result.split()[-1]) if result else 0
 

@@ -5,7 +5,6 @@ import { attachTypingBoxGuards } from "../guards/typingBoxGuards";
 import { useFriendIdentities } from "@/hooks/social/use-friend-identities";
 import { readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { Trophy, Timer, Users, CheckCircle2, XCircle, Play, AlertCircle, LogOut, AlertTriangle } from "lucide-react";
-import { MyPointsBadge } from "./MyPointsBadge";
 
 export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
   const {
@@ -408,12 +407,6 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
   );
 
   const opponentLeft = state.leaveReason === 'opponent_left';
-
-  // Find the current user's score from the results
-  const selfScore = useMemo(() => {
-    const selfEntry = participantCards.find(p => p.isSelf);
-    return selfEntry?.score ?? 0;
-  }, [participantCards]);
 
   const didWin = useMemo(() => {
     if (!state.winnerUserId) return false;

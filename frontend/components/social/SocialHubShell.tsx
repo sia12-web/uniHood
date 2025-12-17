@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import BrandLogo from "@/components/BrandLogo";
-
-import { readAuthUser, onAuthChange, type AuthUser } from "@/lib/auth-storage";
 
 
 const PRIMARY_LINKS = [
@@ -31,13 +29,6 @@ function isActive(pathname: string, href: string) {
 export function SocialHubShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-
-  useEffect(() => {
-    setAuthUser(readAuthUser());
-    return onAuthChange(() => setAuthUser(readAuthUser()));
-  }, []);
-
 
   const activeMap = useMemo(() => {
     return PRIMARY_LINKS.reduce<Record<string, boolean>>((acc, link) => {

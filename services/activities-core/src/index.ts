@@ -33,6 +33,12 @@ const allowedHeaders = [
     'x-session-id',
     'X-Request-Id',
     'x-request-id',
+    'X-Trace-Id',
+    'x-trace-id',
+    'X-Span-Id',
+    'x-span-id',
+    'X-Parent-Span-Id',
+    'x-parent-span-id',
     'Accept',
     'accept',
 ];

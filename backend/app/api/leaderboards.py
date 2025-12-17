@@ -94,6 +94,7 @@ async def record_game_outcome_endpoint(
 		awarded = await _service.record_activity_outcome(
 			user_ids=payload.user_ids,
 			winner_id=payload.winner_id,
+			game_kind=payload.game_kind,
 			campus_map=campus_map,
 			duration_seconds=payload.duration_seconds,
 			move_count=payload.move_count,

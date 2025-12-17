@@ -4,14 +4,24 @@ import axios from 'axios';
 const BACKEND = (process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
 
 // Resolve activities-core base URL. Add explicit dev-time debug so we can see when env var is missing.
-const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || 'http://localhost:8001';
+const DEFAULT_ACTIVITIES_CORE = 'http://localhost:3001';
+const CORE_BASE_RAW = process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL || DEFAULT_ACTIVITIES_CORE;
 const CORE_BASE = CORE_BASE_RAW.replace(/\/$/, '');
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   // eslint-disable-next-line no-console
   console.debug('[activities-core] resolved CORE_BASE =', CORE_BASE, '(raw:', CORE_BASE_RAW, ')');
+  if (!process.env.NEXT_PUBLIC_ACTIVITIES_CORE_URL) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[activities-core] NEXT_PUBLIC_ACTIVITIES_CORE_URL not set. Using default ${DEFAULT_ACTIVITIES_CORE}. ` +
+        'Start the activities-core dev server (npm run dev inside services/activities-core) or override the URL via frontend/.env.local.',
+    );
+  }
   if (CORE_BASE === '/api') {
     // eslint-disable-next-line no-console
-    console.warn('[activities-core] Using fallback /api. Set NEXT_PUBLIC_ACTIVITIES_CORE_URL=http://localhost:4005 in frontend/.env.local and restart dev server.');
+    console.warn(
+      '[activities-core] Using /api proxy. Ensure your Next.js dev server forwards /api to activities-core or set NEXT_PUBLIC_ACTIVITIES_CORE_URL=http://localhost:3001',
+    );
   }
 }
 
@@ -232,12 +242,23 @@ async function coreRequestRaw(path: string, init?: RequestInit): Promise<Respons
     });
   }
   const url = resolveCore(path);
-  const response = await fetch(url, {
-    ...(normalizedInit ?? {}),
-    method: normalizedInit?.method ?? 'GET',
-    credentials: 'include',
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...(normalizedInit ?? {}),
+      method: normalizedInit?.method ?? 'GET',
+      credentials: 'include',
+      headers,
+    });
+  } catch (err) {
+    const baseHint = CORE_BASE || DEFAULT_ACTIVITIES_CORE;
+    const message = `[activities-core] Network request failed for ${url}. ` +
+      `Ensure the activities-core service is running at ${baseHint} or set NEXT_PUBLIC_ACTIVITIES_CORE_URL.`;
+    if (err instanceof Error) {
+      throw new Error(`${message} (${err.message})`);
+    }
+    throw new Error(message);
+  }
 
   if (!response.ok) {
     // Special-case 410 Gone for session lifecycle calls so callers

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ShoppingBag, Tag, Users, Sparkles, Search } from "lucide-react";
 import type { CommunityGroup } from "@/lib/communities";
 import { listGroups } from "@/lib/communities";
-import { cn } from "@/lib/utils";
 
 export default function StudentMarketPage() {
   const [groups, setGroups] = useState<CommunityGroup[]>([]);

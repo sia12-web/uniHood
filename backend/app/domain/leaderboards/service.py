@@ -120,6 +120,7 @@ class LeaderboardService:
 		*,
 		user_ids: List[str],
 		winner_id: Optional[str] = None,
+		game_kind: str = "tictactoe",
 		campus_map: Optional[Dict[str, str]] = None,
 		duration_seconds: int = 60,  # Default to 60s if not provided
 		move_count: int = 10,        # Default to 10 moves if not provided
@@ -136,12 +137,42 @@ class LeaderboardService:
 				await cache_user_campus(uid, cid)
 		
 		# Delegate to accrual with anti-cheat checks
-		return await self._accrual.record_activity_ended(
+		awarded = await self._accrual.record_activity_ended(
 			user_ids=user_ids,
 			winner_id=winner_id,
 			duration_seconds=duration_seconds,
 			move_count=move_count,
 		)
+
+		# Persist lifetime counters to Postgres so they don't reset when Redis rolls over.
+		if awarded:
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				for uid in awarded:
+					try:
+						user_uuid = UUID(uid)
+					except Exception:
+						# Ignore malformed ids (shouldn't happen in normal flows)
+						continue
+					win_inc = 1 if winner_id and uid == winner_id else 0
+					points_inc = int(policy.W_ACT_PLAYED) + (int(policy.W_ACT_WON) if win_inc else 0)
+					await conn.execute(
+						"""
+						INSERT INTO user_game_stats (user_id, activity_key, games_played, wins, points, last_played_at)
+						VALUES ($1, $2, 1, $3, $4, NOW())
+						ON CONFLICT (user_id, activity_key) DO UPDATE
+						SET games_played = user_game_stats.games_played + 1,
+							wins = user_game_stats.wins + EXCLUDED.wins,
+							points = user_game_stats.points + EXCLUDED.points,
+							last_played_at = NOW()
+						""",
+						user_uuid,
+						game_kind,
+						win_inc,
+						points_inc,
+					)
+
+		return awarded
 
 	async def record_dm_sent(
 		self,
@@ -739,18 +770,31 @@ class LeaderboardService:
 		best_streak = int(streak_row["best"]) if streak_row else 0
 		last_active = int(streak_row["last_active_ymd"]) if streak_row else 0
 
+		# Lifetime game stats live in Postgres (Redis-only counters roll over and would reset the UI).
 		counts_map = {
 			"games_played": 0,
 			"wins": 0,
 		}
+		counters = None
+		async with pool.acquire() as conn:
+			row = await conn.fetchrow(
+				"""
+				SELECT
+					COALESCE(SUM(games_played), 0) AS games_played,
+					COALESCE(SUM(wins), 0) AS wins
+				FROM user_game_stats
+				WHERE user_id = $1
+				""",
+				user_id,
+			)
+			if row:
+				counts_map["games_played"] = int(row["games_played"])
+				counts_map["wins"] = int(row["wins"])
 
-		# If querying today, overlay live data from Redis counters
+		# If querying today, overlay live data from Redis counters for score projections (not for lifetime counts).
 		if ymd == _today_ymd():
 			day_str = f"{ymd:08d}"
 			counters = await self._accrual.get_daily_counters(day=day_str, user_id=str(user_id))
-			
-			counts_map["games_played"] = counters.acts_played
-			counts_map["wins"] = counters.acts_won
 
 			# Calculate projected streak if there's activity today
 			if counters.touched:

@@ -318,14 +318,70 @@ async def _put_upload(path: str, request: Request):
 @uploads_router.get("/{path:path}")
 async def _get_upload(path: str):
 	import mimetypes
+	from typing import Optional
 
 	rel = Path(path)
 	target = (upload_root / rel).resolve()
 	if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
 		from fastapi import HTTPException
 		raise HTTPException(status_code=404, detail="not_found")
+
+	def _sniff_media_type(file_path: Path) -> Optional[str]:
+		try:
+			with open(file_path, "rb") as fh:
+				header = fh.read(16)
+		except Exception:
+			return None
+		# JPEG
+		if header.startswith(b"\xFF\xD8\xFF"):
+			return "image/jpeg"
+		# PNG
+		if header.startswith(b"\x89PNG\r\n\x1a\n"):
+			return "image/png"
+		# WEBP: RIFF....WEBP
+		if len(header) >= 12 and header[0:4] == b"RIFF" and header[8:12] == b"WEBP":
+			return "image/webp"
+		return None
+
 	media_type, _ = mimetypes.guess_type(str(target))
-	return FileResponse(target, media_type=media_type)
+	if not media_type:
+		media_type = _sniff_media_type(target)
+	return FileResponse(target, media_type=media_type or "application/octet-stream")
+
+
+@uploads_router.head("/{path:path}")
+async def _head_upload(path: str):
+	# Some clients (including image optimizers/CDNs) perform HEAD requests.
+	# Mirror GET behavior but return an empty body.
+	import mimetypes
+	from fastapi import Response
+	from typing import Optional
+
+	rel = Path(path)
+	target = (upload_root / rel).resolve()
+	if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail="not_found")
+
+	def _sniff_media_type(file_path: Path) -> Optional[str]:
+		try:
+			with open(file_path, "rb") as fh:
+				header = fh.read(16)
+		except Exception:
+			return None
+		if header.startswith(b"\xFF\xD8\xFF"):
+			return "image/jpeg"
+		if header.startswith(b"\x89PNG\r\n\x1a\n"):
+			return "image/png"
+		if len(header) >= 12 and header[0:4] == b"RIFF" and header[8:12] == b"WEBP":
+			return "image/webp"
+		return None
+
+	media_type, _ = mimetypes.guess_type(str(target))
+	if not media_type:
+		media_type = _sniff_media_type(target)
+	# Send Content-Type so browsers accept the resource under nosniff.
+	return Response(status_code=200, headers={"Content-Type": media_type or "application/octet-stream"})
 
 # Use the same allowed origins for Socket.IO as for the REST API
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)

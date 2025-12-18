@@ -22,6 +22,15 @@ class AvatarValidationError(ValueError):
 	"""Raised when presign payloads are invalid."""
 
 
+def _mime_to_ext(mime: str) -> str:
+	mapping = {
+		"image/jpeg": ".jpg",
+		"image/png": ".png",
+		"image/webp": ".webp",
+	}
+	return mapping.get(mime.lower(), ".jpg")
+
+
 def _is_allowed_mime(mime: str) -> bool:
 	return mime.lower() in ALLOWED_MIME_TYPES
 
@@ -36,23 +45,23 @@ def validate_presign(payload: PresignRequest, *, allowed: Iterable[str] | None =
 		raise AvatarValidationError("mime_invalid")
 
 
-def build_avatar_key(user_id: str) -> str:
-	return f"{DEFAULT_BUCKET_PREFIX}/{user_id}/{ulid.new()}"
+def build_avatar_key(user_id: str, mime: str) -> str:
+	return f"{DEFAULT_BUCKET_PREFIX}/{user_id}/{ulid.new()}{_mime_to_ext(mime)}"
 
 
 def presign_avatar(user_id: str, payload: PresignRequest) -> PresignResponse:
 	validate_presign(payload)
-	key = build_avatar_key(user_id)
+	key = build_avatar_key(user_id, payload.mime)
 	url = f"{DEFAULT_BASE_URL.rstrip('/')}/{key}"
 	return PresignResponse(key=key, url=url, expires_s=DEFAULT_EXPIRES)
 
 
-def build_gallery_key(user_id: str) -> str:
-	return f"{DEFAULT_BUCKET_PREFIX}/{user_id}/gallery/{ulid.new()}"
+def build_gallery_key(user_id: str, mime: str) -> str:
+	return f"{DEFAULT_BUCKET_PREFIX}/{user_id}/gallery/{ulid.new()}{_mime_to_ext(mime)}"
 
 
 def presign_gallery(user_id: str, payload: PresignRequest) -> PresignResponse:
 	validate_presign(payload)
-	key = build_gallery_key(user_id)
+	key = build_gallery_key(user_id, payload.mime)
 	url = f"{DEFAULT_BASE_URL.rstrip('/')}/{key}"
 	return PresignResponse(key=key, url=url, expires_s=DEFAULT_EXPIRES)

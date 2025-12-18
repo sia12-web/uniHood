@@ -37,7 +37,7 @@ def _env_field(default, *env_names: str):
 
 
 class Settings(BaseSettings):
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = _env_field("redis://localhost:6379/0", "REDIS_URL")
     postgres_url: str = _env_field("postgresql://postgres:postgres@127.0.0.1:5432/unihood", "POSTGRES_URL", "DATABASE_URL")
     postgres_min_pool_size: int = _env_field(10, "POSTGRES_MIN_POOL_SIZE")
     postgres_max_pool_size: int = _env_field(50, "POSTGRES_MAX_POOL_SIZE")

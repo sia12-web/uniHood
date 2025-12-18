@@ -294,6 +294,8 @@ uploads_router = APIRouter()
 upload_root = Path(os.environ.get("UPLOAD_DIR") or os.environ.get("DIVAN_UPLOAD_ROOT") or "app/uploads").resolve()
 upload_root.mkdir(parents=True, exist_ok=True)
 
+print(f"DEBUG: uploads_router initialized (root={upload_root})", flush=True)
+
 
 @uploads_router.put("/{path:path}")
 async def _put_upload(path: str, request: Request):
@@ -373,6 +375,7 @@ app.add_middleware(
 # Enable uploads in all environments (for production, ensure persistent storage or use S3)
 if uploads_router is not None:
 	app.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
+	print("DEBUG: uploads_router included at /uploads", flush=True)
 
 app.include_router(auth.router, tags=["identity"])
 app.include_router(courses.router, tags=["identity"])

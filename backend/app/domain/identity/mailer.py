@@ -35,13 +35,18 @@ async def _send_email(to_email: str, subject: str, body_html: str) -> None:
     msg.set_content(body_html, subtype="html")
 
     try:
+        # Resend uses STARTTLS on port 587. `use_tls=True` is for implicit TLS (typically port 465).
+        # Treat SMTP_TLS=1 as "use TLS" and pick the correct mode based on port.
+        start_tls = bool(settings.smtp_tls) and int(settings.smtp_port) == 587
+        use_tls = bool(settings.smtp_tls) and int(settings.smtp_port) == 465
         await aiosmtplib.send(
             msg,
             hostname=settings.smtp_host,
             port=settings.smtp_port,
             username=settings.smtp_user,
             password=settings.smtp_password,
-            use_tls=settings.smtp_tls,
+            start_tls=start_tls,
+            use_tls=use_tls,
         )
         logger.info("Email sent to %s", mask_email(to_email))
     except Exception as e:

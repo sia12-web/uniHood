@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
     upload_base_url: str = _env_field("http://localhost:8001/uploads", "UPLOAD_BASE_URL")
 
+    # Public app URL (used to build links in transactional emails)
+    public_app_url: str = _env_field("http://localhost:3000", "PUBLIC_APP_URL", "FRONTEND_URL")
+
     # Email Settings
     smtp_host: str = _env_field("localhost", "SMTP_HOST")
     smtp_port: int = _env_field(1025, "SMTP_PORT")
@@ -192,6 +195,9 @@ def _normalise_level(level: str) -> str:
 
 settings = Settings()
 settings.obs_log_level = _normalise_level(settings.obs_log_level)
+
+# Normalise public_app_url to avoid double slashes when building links
+settings.public_app_url = (settings.public_app_url or "").rstrip("/") or "http://localhost:3000"
 
 
 # Convenience helpers

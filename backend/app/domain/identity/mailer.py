@@ -118,9 +118,7 @@ async def send_email_change_confirmation(new_email: str, token: str, *, user_id:
 
 
 async def send_email_verification(email: str, token: str, *, user_id: str | None = None) -> None:
-    # Construct verification link (assuming frontend URL structure)
-    # Ideally this should be passed in or configured
-    verify_url = f"http://localhost:3000/verify/{token}"
+    verify_url = f"{settings.public_app_url}/verify/{token}"
     
     subject = "Verify your email"
     body = f"""
@@ -186,7 +184,7 @@ async def send_friend_invite_notification(
                 <h2 style="color: #2d2a8d; margin-bottom: 16px;">You have a new friend request!</h2>
                 <p><strong>{sender_label}</strong> would like to connect with you on Divan.</p>
                 <p style="margin: 24px 0;">
-                    <a href="http://localhost:3000/friends?tab=invites" 
+                    <a href="{settings.public_app_url}/friends?tab=invites" 
                        style="display: inline-block; background-color: #3b2e7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">
                         View Invitation
                     </a>

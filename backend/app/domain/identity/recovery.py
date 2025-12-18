@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -13,9 +12,10 @@ import asyncpg
 from app.domain.identity import audit, mailer, policy, sessions
 from app.infra.password import PASSWORD_HASHER
 from app.infra.postgres import get_pool
+from app.settings import settings
 
 _PASSWORD_HASHER = PASSWORD_HASHER
-_FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+_FRONTEND_URL = settings.public_app_url
 
 
 def _now() -> datetime:

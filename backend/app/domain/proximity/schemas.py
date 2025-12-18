@@ -60,6 +60,7 @@ class NearbyUser(BaseModel):
 	passions: list[str] = Field(default_factory=list)
 	gallery: list[GalleryImage] = Field(default_factory=list)
 	courses: list[str] = Field(default_factory=list)
+	ten_year_vision: Optional[str] = None
 
 
 class NearbyResponse(BaseModel):

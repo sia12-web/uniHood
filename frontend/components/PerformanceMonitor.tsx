@@ -24,27 +24,27 @@ export default function PerformanceMonitor() {
         const cleanup = initPerformanceMonitoring({
             // Log to console in dev
             debug: isDevelopment,
-            
+
             // Send metrics to analytics endpoint in production
-            analyticsEndpoint: isProduction 
-                ? "/api/ops/ui-metrics" 
+            analyticsEndpoint: isProduction
+                ? "/api/ops/ui-metrics"
                 : undefined,
-            
+
             // 10% sampling in prod, 100% in dev for testing
             sampleRate: isProduction ? 0.1 : 1.0,
-            
+
             // Add route context to metrics
             tags: {
                 route: pathname || "/",
                 env: process.env.NODE_ENV || "development",
             },
-            
+
             // Instrument fetch for API latency tracking
             instrumentFetch: true,
-            
+
             // API latency budgets (warn if exceeded)
             apiBudgets: [
-                { pattern: /\/api\//, p95Target: 200, p99Target: 500 },
+                { endpoint: /\/api\//, maxLatencyMs: 500 },
             ],
         });
 

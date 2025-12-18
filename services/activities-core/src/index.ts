@@ -43,6 +43,8 @@ const allowedHeaders = [
     'accept',
     'traceparent',
     'tracestate',
+    'X-RUM-Sample-Rate',
+    'x-rum-sample-rate',
 ];
 
 server.register(cors, {

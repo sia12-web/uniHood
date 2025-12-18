@@ -95,7 +95,7 @@ export default function PassionsPage() {
 			}
 			// Passions are optional, allow continuing with 0
 			await patchProfile(auth.user_id, campusId, { passions });
-			router.push("/photos");
+			router.push("/vision");
 		} catch (err) {
 			console.error(err);
 			setError("Failed to save passions. Please try again.");
@@ -225,7 +225,7 @@ export default function PassionsPage() {
 						<div className="flex items-center gap-3">
 							<button
 								type="button"
-								onClick={() => router.push("/photos")}
+								onClick={() => router.push("/vision")}
 								className="text-sm font-medium text-slate-500 hover:text-slate-700"
 							>
 								Skip

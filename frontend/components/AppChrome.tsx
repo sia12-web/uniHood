@@ -13,13 +13,56 @@ const AuthenticatedAppChrome = dynamic(() => import("@/components/AuthenticatedA
   ssr: true,
 });
 
-const AUTH_CHROME_ROUTES = ["/login", "/reset-password", "/forgot-password", "/forgot-username", "/onboarding", "/verify", "/admin"];
+function matchesRoutePrefix(pathname: string, prefix: string): boolean {
+  if (prefix === "/") {
+    return pathname === "/";
+  }
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+// Routes that should not mount the authenticated chrome (and its heavy, auth-dependent hooks).
+// Includes auth/onboarding flows and public marketing/legal pages.
+const NO_AUTH_CHROME_PREFIXES = [
+  // Public marketing / legal
+  "/contact",
+  "/features",
+  "/legal",
+  "/privacy",
+  "/terms",
+  "/cookies",
+  "/join",
+  "/verify-email",
+
+  // Auth / onboarding / admin
+  "/login",
+  "/reset-password",
+  "/forgot-password",
+  "/forgot-username",
+  "/onboarding",
+  "/select-university",
+  "/major-year",
+  "/passions",
+  "/vision",
+  "/photos",
+  "/set-profile",
+  "/select-courses",
+  "/welcome",
+  "/verify",
+  "/admin",
+];
 
 export default function AppChrome({ children }: { children: ReactNode }) {
-  const pathname = usePathname() || "/";
+  let pathname = "/";
+  try {
+    pathname = usePathname() || "/";
+  } catch {
+    // In rare cases (e.g. certain error/SSR paths), Next's router context may be unavailable.
+    // Fall back to a safe default instead of crashing the entire render.
+    pathname = "/";
+  }
 
   const hideChrome = useMemo(() => {
-    return AUTH_CHROME_ROUTES.some((route) => pathname.startsWith(route));
+    return NO_AUTH_CHROME_PREFIXES.some((route) => matchesRoutePrefix(pathname, route));
   }, [pathname]);
 
   if (hideChrome) {

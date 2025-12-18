@@ -60,6 +60,7 @@ export type ProfilePatchPayload = {
 	courses?: string[];
 	campus_id?: string;
 	social_links?: SocialLinks;
+	ten_year_vision?: string | null;
 };
 
 export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;

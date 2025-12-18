@@ -83,6 +83,168 @@ function runCommand(cmd, options = {}) {
   }
 }
 
+function safeReadJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function getAuditNumericValue(lhr, auditId) {
+  const audit = lhr?.audits?.[auditId];
+  if (!audit || typeof audit.numericValue !== 'number') return null;
+  return audit.numericValue;
+}
+
+function summarizeLhciOutput(outputPath) {
+  const manifestPath = path.join(outputPath, 'manifest.json');
+  const manifest = safeReadJson(manifestPath);
+  if (!Array.isArray(manifest) || manifest.length === 0) return null;
+
+  const rows = [];
+  for (const entry of manifest) {
+    const jsonPath = entry?.jsonPath;
+    const url = entry?.url;
+    if (!jsonPath || !url) continue;
+
+    const report = safeReadJson(jsonPath);
+    const lhr = report?.lhr || report;
+    const performanceScore = typeof lhr?.categories?.performance?.score === 'number'
+      ? lhr.categories.performance.score
+      : null;
+
+    rows.push({
+      url,
+      performanceScore,
+      lcp: getAuditNumericValue(lhr, 'largest-contentful-paint'),
+      fcp: getAuditNumericValue(lhr, 'first-contentful-paint'),
+      cls: getAuditNumericValue(lhr, 'cumulative-layout-shift'),
+      tbt: getAuditNumericValue(lhr, 'total-blocking-time'),
+      ttfb: getAuditNumericValue(lhr, 'server-response-time'),
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  const byUrl = new Map();
+  for (const row of rows) {
+    if (!byUrl.has(row.url)) byUrl.set(row.url, []);
+    byUrl.get(row.url).push(row);
+  }
+
+  function average(values) {
+    const nums = values.filter((v) => typeof v === 'number' && Number.isFinite(v));
+    if (nums.length === 0) return null;
+    return nums.reduce((a, b) => a + b, 0) / nums.length;
+  }
+
+  const perUrl = Array.from(byUrl.entries()).map(([url, urlRows]) => {
+    return {
+      url,
+      runs: urlRows.length,
+      avg: {
+        performanceScore: average(urlRows.map((r) => r.performanceScore)),
+        lcp: average(urlRows.map((r) => r.lcp)),
+        fcp: average(urlRows.map((r) => r.fcp)),
+        cls: average(urlRows.map((r) => r.cls)),
+        tbt: average(urlRows.map((r) => r.tbt)),
+        ttfb: average(urlRows.map((r) => r.ttfb)),
+      },
+    };
+  });
+
+  const overall = {
+    urls: perUrl.length,
+    avg: {
+      performanceScore: average(perUrl.map((r) => r.avg.performanceScore)),
+      lcp: average(perUrl.map((r) => r.avg.lcp)),
+      fcp: average(perUrl.map((r) => r.avg.fcp)),
+      cls: average(perUrl.map((r) => r.avg.cls)),
+      tbt: average(perUrl.map((r) => r.avg.tbt)),
+      ttfb: average(perUrl.map((r) => r.avg.ttfb)),
+    },
+  };
+
+  const worstByTbt = [...perUrl]
+    .filter((r) => typeof r.avg.tbt === 'number')
+    .sort((a, b) => b.avg.tbt - a.avg.tbt)
+    .slice(0, 5);
+
+  const worstByLcp = [...perUrl]
+    .filter((r) => typeof r.avg.lcp === 'number')
+    .sort((a, b) => b.avg.lcp - a.avg.lcp)
+    .slice(0, 5);
+
+  return { overall, perUrl, worstByTbt, worstByLcp };
+}
+
+async function probeServer(baseUrl) {
+  const http = require('http');
+  const url = new URL(baseUrl);
+  const isLocalhost = url.hostname === 'localhost';
+
+  return await new Promise((resolve, reject) => {
+    const req = http.get(
+      {
+        hostname: url.hostname,
+        port: url.port || 80,
+        path: url.pathname || '/',
+        protocol: url.protocol,
+        timeout: 5000,
+        // On Windows, localhost may resolve to IPv6 (::1) while the server only listens on IPv4.
+        ...(isLocalhost ? { family: 4 } : {}),
+      },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      }
+    );
+
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('timeout'));
+    });
+  });
+}
+
+async function findReachableBaseUrl(initialBaseUrl) {
+  const url = new URL(initialBaseUrl);
+  const candidates = [initialBaseUrl];
+
+  // Common Windows / localhost resolution pitfall
+  if (url.hostname === 'localhost') {
+    const ipv4Local = new URL(initialBaseUrl);
+    ipv4Local.hostname = '127.0.0.1';
+    candidates.push(ipv4Local.toString().replace(/\/$/, ''));
+  }
+
+  // If user expects 3000 but Next moved to 3001, try that too.
+  const portNum = parseInt(url.port || '0', 10);
+  if (!Number.isNaN(portNum) && portNum === 3000) {
+    const portFallback = new URL(initialBaseUrl);
+    portFallback.port = '3001';
+    candidates.push(portFallback.toString().replace(/\/$/, ''));
+
+    if (url.hostname === 'localhost') {
+      const portFallbackIpv4 = new URL(portFallback.toString());
+      portFallbackIpv4.hostname = '127.0.0.1';
+      candidates.push(portFallbackIpv4.toString().replace(/\/$/, ''));
+    }
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await probeServer(candidate);
+      return candidate.replace(/\/$/, '');
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+
 // ============================================================================
 // MAIN FUNCTIONS
 // ============================================================================
@@ -114,21 +276,38 @@ async function runLighthousePublic(inventory) {
   fs.writeFileSync(urlsFile, urls.join('\n'));
   
   // Run Lighthouse CI
-  const lhciConfig = path.join(__dirname, '../lighthouserc.js');
   const outputPath = path.join(CONFIG.outputDir, `lighthouse-public-${timestamp()}`);
   ensureDir(outputPath);
+
+  // LHCI expects multiple --collect.url flags, not a comma-separated list.
+  const urlArgs = urls.map((u) => `--collect.url="${u}"`).join(' ');
   
   // Use custom config that reads from our URL file
   const success = runCommand(
     `npx lhci autorun ` +
-    `--collect.url="${urls.slice(0, 10).join(',')}" ` +  // Limit to 10 for demo
+    `--config=./scripts/lhci.perf-runner.config.cjs ` +
+    `${urlArgs} ` +
     `--collect.numberOfRuns=${CONFIG.numberOfRuns} ` +
     `--upload.target=filesystem ` +
     `--upload.outputDir="${outputPath}"`,
     { cwd: path.join(__dirname, '..') }
   );
-  
-  return { success, outputPath, pageCount: urls.length };
+
+  const lhciSummary = success ? summarizeLhciOutput(outputPath) : null;
+  if (lhciSummary) {
+    const summaryPath = path.join(CONFIG.outputDir, `lhci-summary-public-${timestamp()}.json`);
+    fs.writeFileSync(summaryPath, JSON.stringify(lhciSummary, null, 2));
+    log(`LHCI KPI summary: ${summaryPath}`);
+
+    if (lhciSummary.worstByTbt?.length) {
+      log('Worst pages by avg TBT (ms):');
+      for (const row of lhciSummary.worstByTbt) {
+        log(`  ${Math.round(row.avg.tbt)}ms  ${row.url}`);
+      }
+    }
+  }
+
+  return { success, outputPath, pageCount: urls.length, lhciSummary: lhciSummary || undefined };
 }
 
 async function runSmokeTest() {
@@ -137,10 +316,13 @@ async function runSmokeTest() {
   const urls = CONFIG.smokeTestPages.map(p => `${CONFIG.baseUrl}${p}`);
   const outputPath = path.join(CONFIG.outputDir, `lighthouse-smoke-${timestamp()}`);
   ensureDir(outputPath);
+
+  const urlArgs = urls.map((u) => `--collect.url="${u}"`).join(' ');
   
   const success = runCommand(
     `npx lhci autorun ` +
-    `--collect.url="${urls.join(',')}" ` +
+    `--config=./scripts/lhci.perf-runner.config.cjs ` +
+    `${urlArgs} ` +
     `--collect.numberOfRuns=1 ` +
     `--upload.target=filesystem ` +
     `--upload.outputDir="${outputPath}"`,
@@ -199,19 +381,15 @@ async function main() {
   console.log('');
   
   // Check if server is running
-  try {
-    const http = require('http');
-    await new Promise((resolve, reject) => {
-      const req = http.get(CONFIG.baseUrl, res => {
-        resolve(res.statusCode);
-      });
-      req.on('error', reject);
-      req.setTimeout(5000, () => reject(new Error('timeout')));
-    });
-  } catch (err) {
+  const reachableBaseUrl = await findReachableBaseUrl(CONFIG.baseUrl);
+  if (!reachableBaseUrl) {
     logError(`Server not reachable at ${CONFIG.baseUrl}`);
     logError('Start the server first: npm run build && npm start');
     process.exit(1);
+  }
+  if (reachableBaseUrl !== CONFIG.baseUrl) {
+    log(`Detected reachable server at ${reachableBaseUrl} (was ${CONFIG.baseUrl})`);
+    CONFIG.baseUrl = reachableBaseUrl;
   }
   
   const results = [];

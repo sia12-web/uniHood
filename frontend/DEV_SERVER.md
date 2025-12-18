@@ -17,6 +17,8 @@ pnpm install
 npm run dev        # Turbopack (recommended)
 # or
 npm run dev:legacy # Webpack dev server
+# or
+npm run dev:clean   # Cold start (clears .next)
 ```
 
 - Next.js listens on port `3000` by default.

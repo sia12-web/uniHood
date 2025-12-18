@@ -51,7 +51,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
 	rows = await pool.fetch(
 		"""
-		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions,
+		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision,
 		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
@@ -72,6 +72,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"gallery": [image.to_dict() for image in parse_profile_gallery(row.get("profile_gallery"))],
 			"passions": json.loads(row["passions"]) if isinstance(row.get("passions"), str) else (row.get("passions") or []),
 			"courses": row.get("courses") or [],
+			"ten_year_vision": row.get("ten_year_vision"),
 		}
 		for row in rows
 	}
@@ -331,6 +332,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					passions=profile.get("passions", []),
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
+					ten_year_vision=profile.get("ten_year_vision"),
 				)
 			)
 
@@ -366,6 +368,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					passions=profile["passions"],
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
+					ten_year_vision=profile.get("ten_year_vision"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -401,6 +404,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					passions=profile["passions"],
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
+					ten_year_vision=profile.get("ten_year_vision"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -440,6 +444,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					passions=profile["passions"],
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
+					ten_year_vision=profile.get("ten_year_vision"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -558,6 +563,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 				gallery=profile.get("gallery", []),
 				passions=profile.get("passions", []),
 				courses=profile.get("courses") or [],
+				ten_year_vision=profile.get("ten_year_vision"),
 			)
 		)
 

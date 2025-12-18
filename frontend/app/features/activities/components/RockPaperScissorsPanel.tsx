@@ -187,7 +187,7 @@ export function RockPaperScissorsPanel({ sessionId }: Props) {
 
     // The round that just finished (currentRound is 0-based and incremented after round ends,
     // so the round we're showing results for is currentRound, display as +1 for human-readable)
-    const completedRound = state.currentRound ?? 0;
+    const completedRound = (state.currentRound ?? 0) + 1;
 
     return (
       <div className="py-8 animate-in fade-in duration-300">

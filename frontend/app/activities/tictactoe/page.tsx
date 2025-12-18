@@ -227,43 +227,53 @@ export default function TicTacToeEntryPage() {
                   {friendsError}
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {friends.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
-                      No friends online right now.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {friends.map((friend) => (
-                        <button
-                          key={friend.friend_id}
-                          onClick={() => setFriendId(friend.friend_id)}
-                          className={`group relative flex items-center gap-4 rounded-xl border p-4 text-left transition-all hover:shadow-md ${friendId === friend.friend_id
-                            ? "border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500"
-                            : "border-slate-200 hover:border-cyan-300 hover:bg-slate-50"
-                            }`}
-                        >
-                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold transition-colors ${friendId === friend.friend_id ? "bg-cyan-100 text-cyan-700" : "bg-slate-100 text-slate-500 group-hover:bg-cyan-50 group-hover:text-cyan-600"
-                            }`}>
-                            {(friend.friend_display_name?.[0] || friend.friend_handle?.[0] || "?").toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-bold text-slate-900">
-                              {friend.friend_display_name || friend.friend_handle}
-                            </div>
-                            {friend.friend_display_name && (
-                              <div className="truncate text-xs font-medium text-slate-500">@{friend.friend_handle}</div>
-                            )}
-                          </div>
-                          {friendId === friend.friend_id && (
-                            <div className="absolute right-3 top-3 rounded-full bg-cyan-500 p-1 text-white shadow-sm">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="space-y-3">
+                  <span className="text-sm font-medium text-slate-700">Select Opponent</span>
+                  <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                    {friends.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Users className="mb-2 h-8 w-8 text-slate-300" />
+                        <p className="text-sm text-slate-500">No friends available yet.</p>
+                        <Link href="/friends" className="mt-2 text-xs font-medium text-cyan-600 hover:underline">
+                          Add friends first
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {friends.map((friend) => {
+                          const label = friend.friend_display_name || friend.friend_handle || friend.friend_id;
+                          const isSelected = friendId === friend.friend_id;
+                          return (
+                            <label
+                              key={friend.friend_id}
+                              className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-all ${isSelected
+                                ? "bg-white shadow-md ring-1 ring-cyan-500"
+                                : "hover:bg-white hover:shadow-sm"
+                                }`}
+                            >
+                              <input
+                                type="radio"
+                                name="friend"
+                                value={friend.friend_id}
+                                checked={isSelected}
+                                onChange={() => setFriendId(friend.friend_id)}
+                                className="sr-only"
+                              />
+                              <div className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-cyan-600 bg-cyan-600" : "border-slate-300"}`}>
+                                {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
+                              </div>
+                              <div>
+                                <div className={`font-medium ${isSelected ? "text-cyan-900" : "text-slate-700"}`}>{label}</div>
+                                {friend.friend_handle && (
+                                  <div className="text-xs text-slate-500">@{friend.friend_handle}</div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="border-t border-slate-100 pt-6">
                     <button

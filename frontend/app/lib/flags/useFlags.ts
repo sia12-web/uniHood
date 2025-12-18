@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
 import { apiFetch } from "@/app/lib/http/client";
+import { AuthError } from "@/app/lib/http/errors";
 import { FLAGS, type FlagKey } from "./keys";
 
 const FLAG_TTL_MS = 30_000;
@@ -164,6 +165,10 @@ async function fetchRemoteFlags(force = false): Promise<FlagDictionary | null> {
       return remote;
     } catch (error) {
       lastFetch = now;
+      // Silently ignore AuthError on public pages - user is not logged in
+      if (error instanceof AuthError) {
+        return null;
+      }
       console.warn("Failed to fetch remote flags", error);
       return null;
     } finally {

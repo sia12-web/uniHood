@@ -202,7 +202,6 @@ function calculateCompletion(profile: ProfileRecord): number {
 	const bio = (profile.bio ?? "").trim();
 	const handle = (profile.handle ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
-	const statusText = (profile.status?.text ?? "").trim();
 	const major = (profile.major ?? "").trim();
 	const checks = [
 		Boolean(profile.avatar_url),
@@ -211,7 +210,6 @@ function calculateCompletion(profile: ProfileRecord): number {
 		Boolean(major),
 		Boolean(profile.graduation_year),
 		passionsCount >= 3,
-		statusText.length > 0,
 	];
 	const filled = checks.filter(Boolean).length;
 	return Math.round((filled / checks.length) * 100);
@@ -222,7 +220,6 @@ function buildMissingTasks(profile: ProfileRecord): string[] {
 	const handle = (profile.handle ?? "").trim();
 	const bio = (profile.bio ?? "").trim();
 	const major = (profile.major ?? "").trim();
-	const statusText = (profile.status?.text ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
 	if (handle.length < 3) {
 		tasks.push("Claim your Campus handle (3+ chars) so classmates can @mention you.");
@@ -241,9 +238,6 @@ function buildMissingTasks(profile: ProfileRecord): string[] {
 	}
 	if (!profile.graduation_year) {
 		tasks.push("Set your graduation year to join the right campus cohorts.");
-	}
-	if (!statusText) {
-		tasks.push("Set a quick status so friends know when you are open to connect.");
 	}
 	return tasks.slice(0, 4);
 }
@@ -1138,7 +1132,7 @@ export default function ProfileSettingsPage() {
 									</ul>
 								) : (
 									<p className="mt-4 text-sm font-medium text-emerald-600">
-										Great work—your profile is ready for the next wave of features.
+										Great work, your profile is ready for the next wave of features.
 									</p>
 								)}
 							</section>

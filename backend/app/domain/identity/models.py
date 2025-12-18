@@ -181,6 +181,7 @@ class User:
 	social_links: dict[str, str] = field(default_factory=dict)
 	lat: Optional[float] = None
 	lon: Optional[float] = None
+	ten_year_vision: Optional[str] = None
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -207,6 +208,7 @@ class User:
 			social_links=_coerce_json_to_dict(record.get("social_links")),
 			lat=record.get("lat"),
 			lon=record.get("lon"),
+			ten_year_vision=(str(record.get("ten_year_vision", "")).strip() or None),
 		)
 
 

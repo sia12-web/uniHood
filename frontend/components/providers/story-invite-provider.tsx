@@ -13,7 +13,6 @@ import {
 import { useRouter } from "next/navigation";
 
 import { useStoryInvite, type StoryInvite } from "@/hooks/activities/use-story-invite";
-import { useToast } from "@/hooks/use-toast";
 
 export type StoryInviteContextValue = {
   hasPending: boolean;
@@ -38,7 +37,6 @@ type ProviderProps = {
 
 export function StoryInviteProvider({ children }: ProviderProps) {
   const router = useRouter();
-  const toast = useToast();
   const { invite, dismiss } = useStoryInvite();
   const [pending, setPending] = useState<StoryInvite | null>(null);
   const lastToastIdRef = useRef<string | null>(null);
@@ -52,12 +50,8 @@ export function StoryInviteProvider({ children }: ProviderProps) {
       return;
     }
     lastToastIdRef.current = invite.id;
-    toast.push({
-      id: `story-invite-${invite.id}`,
-      title: "Story invite",
-      description: "A friend wants to start a story with you.",
-    });
-  }, [invite, toast]);
+    // Toast notification removed - invites are shown in the story page inbox
+  }, [invite]);
 
   const openLatest = useCallback(() => {
     if (!pending) {

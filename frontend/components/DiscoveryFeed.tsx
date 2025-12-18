@@ -1047,6 +1047,15 @@ function UserCard({
                   </div>
                 </div>
               </div>
+
+              {user.ten_year_vision && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">10-Year Vision</p>
+                  <p className="mt-2 text-sm italic leading-relaxed text-emerald-200">
+                    &ldquo;{user.ten_year_vision}&rdquo;
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -21,6 +21,7 @@ export type NearbyUser = {
   gallery?: GalleryImage[];
   passions?: string[];
   courses?: string[];
+  ten_year_vision?: string | null;
 }; export type NearbyDiff = {
   radius_m: number;
   added: NearbyUser[];
@@ -244,6 +245,7 @@ export type ProfileRecord = {
   courses?: ProfileCourse[];
   gallery?: ProfileGalleryImage[];
   social_links?: SocialLinks;
+  ten_year_vision?: string | null;
 };
 
 // Minimal image shape used by profile gallery UI

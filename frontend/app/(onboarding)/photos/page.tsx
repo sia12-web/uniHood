@@ -259,13 +259,13 @@ export default function PhotosPage() {
 					</div>
 
 					<div className="flex items-center justify-between pt-6">
-						<button
-							type="button"
-							onClick={() => router.push("/passions")}
-							className="text-sm font-medium text-slate-600 hover:text-slate-900"
-						>
-							Back
-						</button>
+							<button
+								type="button"
+								onClick={() => router.push("/vision")}
+								className="text-sm font-medium text-slate-600 hover:text-slate-900"
+							>
+								Back
+							</button>
 						<div className="flex items-center gap-3">
 							<button
 								type="button"

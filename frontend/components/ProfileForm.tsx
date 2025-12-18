@@ -151,6 +151,13 @@ export default function ProfileForm({
 			changed = true;
 		}
 
+		const nextVision = (current.ten_year_vision ?? "").trim();
+		const oldVision = (profile.ten_year_vision ?? "").trim();
+		if (nextVision !== oldVision) {
+			patch.ten_year_vision = nextVision || null;
+			changed = true;
+		}
+
 		return { patch, changed };
 	};
 
@@ -380,6 +387,19 @@ export default function ProfileForm({
 						</button>
 					</div>
 				</section>
+
+				<label className="flex flex-col gap-1 text-sm text-slate-700">
+					<span className="font-medium">10-Year Vision</span>
+					<textarea
+						value={current.ten_year_vision || ""}
+						onChange={(event) => syncProfile({ ...current, ten_year_vision: event.target.value })}
+						maxLength={60}
+						placeholder="e.g., Founding a startup, Exploring Mars..."
+						rows={2}
+						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+					/>
+					<span className="text-xs text-slate-500">How do you see yourself in the future? (Max 60 chars)</span>
+				</label>
 
 				<section className="flex flex-col gap-4 border-t border-slate-200 pt-4">
 					<h3 className="text-sm font-medium text-slate-900">Social Links</h3>

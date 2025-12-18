@@ -184,6 +184,24 @@ async function executeApiFetch<T>(
 				}
 			}
 
+			if (response.status === 401 && typeof window !== "undefined") {
+				const path = window.location.pathname;
+				// Add common public routes to avoid redirect loops or hiding actual login errors
+				const isPublic =
+					path.startsWith("/login") ||
+					path.startsWith("/register") ||
+					path.startsWith("/reset-password") ||
+					path.startsWith("/forgot-") ||
+					path.startsWith("/verify");
+
+				if (!isPublic) {
+					const next = encodeURIComponent(path + window.location.search);
+					window.location.href = `/login?next=${next}`;
+					// Return a non-resolving promise to suspend execution while the page redirects
+					return new Promise(() => { });
+				}
+			}
+
 			if (shouldRetryResponse(response) && attempt < policy.maxAttempts) {
 				attempt += 1;
 				await sleep(computeDelayMs(attempt, policy, response));

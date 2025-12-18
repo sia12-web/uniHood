@@ -27,6 +27,9 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright/
 
+# Lighthouse CI local report output (generated)
+frontend/.lighthouseci/
+
 # ---- TypeScript / Tooling ----
 *.tsbuildinfo
 

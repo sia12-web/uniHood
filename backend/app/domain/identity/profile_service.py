@@ -84,6 +84,7 @@ def _to_profile(user: models.User, courses: Optional[list[schemas.Course]] = Non
 		social_links=schemas.SocialLinks(**(user.social_links or {})),
 		lat=user.lat,
 		lon=user.lon,
+		ten_year_vision=user.ten_year_vision,
 	)
 
 
@@ -283,6 +284,9 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 			seen_courses.add(normalized)
 			clean_courses.append(normalized)
 		courses_to_set = clean_courses
+	if "ten_year_vision" in patch_data:
+		vision = patch_data.get("ten_year_vision")
+		updates["ten_year_vision"] = (vision.strip() if isinstance(vision, str) else None) or None
 
 	policy.validate_profile_patch(updates)
 	if "handle" in updates:
@@ -324,6 +328,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					lon = $10,
 					campus_id = $12,
 					social_links = $13::jsonb,
+					ten_year_vision = $14,
 					updated_at = NOW()
 				WHERE id = $11
 				""",
@@ -340,6 +345,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				auth_user.id,
 				str(user.campus_id),
 				social_links_payload,
+				user.ten_year_vision,
 			)
 			# Persist courses after the user row update (default visibility: everyone)
 			if courses_to_set is not None:

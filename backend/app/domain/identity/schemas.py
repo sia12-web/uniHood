@@ -129,6 +129,7 @@ class ProfileOut(BaseModel):
 	social_links: SocialLinks = Field(default_factory=SocialLinks)
 	lat: Optional[float] = None
 	lon: Optional[float] = None
+	ten_year_vision: Optional[Annotated[str, Field(max_length=500)]] = None
 
 
 class ProfilePatch(BaseModel):
@@ -145,6 +146,7 @@ class ProfilePatch(BaseModel):
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 	campus_id: Optional[UUID] = None
+	ten_year_vision: Optional[Annotated[str, Field(max_length=500)]] = None
 
 
 class PresignRequest(BaseModel):

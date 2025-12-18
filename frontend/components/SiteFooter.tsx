@@ -10,13 +10,13 @@ export default function SiteFooter() {
     return (
         <footer className="w-full border-t border-warm-sand/50 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl mt-auto z-40">
             <div className="mx-auto max-w-7xl px-6 py-6 lg:px-8">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
                     {/* Logo */}
                     <div className="flex-shrink-0 rounded-xl bg-warm-sand/30 dark:bg-slate-800/50 p-3">
-                        <BrandLogo 
-                            withWordmark={false} 
-                            tagline="" 
-                            disableMixBlend={true} 
+                        <BrandLogo
+                            withWordmark={false}
+                            tagline=""
+                            disableMixBlend={true}
                             asLink={false}
                             logoClassName="h-20 w-auto sm:h-24"
                         />

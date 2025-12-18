@@ -7,7 +7,7 @@ import ulid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.domain.identity import schemas
@@ -117,6 +117,38 @@ async def upload_gallery(
     url = f"{base_url}/uploads/{key}"
 
     return schemas.LocalUploadResponse(key=key, url=url)
+
+
+@router.put("/{path:path}")
+async def upload_file_put(path: str, request: Request):
+    """Handle PUT upload for presigned URLs (S3-like behavior)."""
+    
+    # Security: ensure path doesn't escape upload directory
+    file_path = UPLOAD_DIR / path
+    try:
+        # Create parent directories
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path_resolved = file_path.resolve()
+        upload_dir_resolved = UPLOAD_DIR.resolve()
+        if not str(file_path_resolved).startswith(str(upload_dir_resolved)):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    
+    # Read the request body (the file content)
+    content = await request.body()
+    if len(content) > MAX_AVATAR_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size: {MAX_AVATAR_BYTES // 1024 // 1024}MB",
+        )
+    
+    # Write the file
+    file_path.write_bytes(content)
+    
+    return {"status": "ok", "path": path}
 
 
 @router.get("/{path:path}")

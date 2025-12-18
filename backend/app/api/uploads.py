@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.domain.identity import schemas
 from app.domain.identity.s3 import ALLOWED_MIME_TYPES, MAX_AVATAR_BYTES
@@ -116,3 +117,33 @@ async def upload_gallery(
     url = f"{base_url}/uploads/{key}"
 
     return schemas.LocalUploadResponse(key=key, url=url)
+
+
+@router.get("/{path:path}")
+async def serve_upload(path: str):
+    """Serve uploaded files."""
+    file_path = UPLOAD_DIR / path
+    
+    # Security: ensure path doesn't escape upload directory
+    try:
+        file_path = file_path.resolve()
+        upload_dir_resolved = UPLOAD_DIR.resolve()
+        if not str(file_path).startswith(str(upload_dir_resolved)):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Determine content type from extension
+    ext = file_path.suffix.lower()
+    content_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    content_type = content_types.get(ext, "application/octet-stream")
+    
+    return FileResponse(file_path, media_type=content_type)

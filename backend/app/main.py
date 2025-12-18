@@ -256,12 +256,9 @@ async def manual_cors_middleware(request: Request, call_next):
 	response.headers["Access-Control-Allow-Credentials"] = "true"
 	return response
 
-if settings.environment in ["dev", "development"]:
-	# In local dev, make avatar uploads work without external object storage.
-	# Respect UPLOAD_BASE_URL if provided so preview URLs match the public host.
-	from app.domain.identity import s3 as _s3  # local import to avoid circulars
-
-	_s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
+# Always configure upload base URL for avatar presigning
+from app.domain.identity import s3 as _s3  # local import to avoid circulars
+_s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
@@ -390,7 +387,8 @@ app.add_middleware(
 
 
 
-if settings.environment in ["dev", "development"] and uploads_router is not None:
+# Enable uploads in all environments (for production, ensure persistent storage or use S3)
+if uploads_router is not None:
 	app.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 
 app.include_router(auth.router, tags=["identity"])

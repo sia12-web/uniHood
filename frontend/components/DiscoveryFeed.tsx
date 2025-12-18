@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { applyDiff } from "@/lib/diff";
 import { formatDistance } from "@/lib/geo";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
-import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import {
+  onAuthChange,
+  readAuthSnapshot,
+  readAuthUser,
+  resolveAuthHeaders,
+  type AuthUser,
+} from "@/lib/auth-storage";
 import { getBackendUrl } from "@/lib/env";
 import {
   disconnectPresenceSocket,
@@ -114,14 +120,19 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
 
   const url = `${baseUrl}/proximity/nearby?${params.toString()}`;
 
+  const snapshot = readAuthSnapshot();
+  const headers: Record<string, string> = {
+    ...resolveAuthHeaders(snapshot),
+  };
+  // Keep explicit fallbacks for dev/test flows where snapshot may be empty.
+  headers["X-User-Id"] ||= userId;
+  headers["X-Campus-Id"] ||= campusId;
+
   let response: Response;
   try {
     response = await fetch(url, {
       credentials: "include",
-      headers: {
-        "X-User-Id": userId,
-        "X-Campus-Id": campusId,
-      },
+      headers,
     });
   } catch (err) {
     // Network error - backend might not be running

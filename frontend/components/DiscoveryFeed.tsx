@@ -117,6 +117,7 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
   let response: Response;
   try {
     response = await fetch(url, {
+      credentials: "include",
       headers: {
         "X-User-Id": userId,
         "X-Campus-Id": campusId,

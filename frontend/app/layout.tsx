@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   },
   description: "Connect with students nearby.",
   icons: {
-    icon: [],
-    shortcut: [],
-    apple: [],
+    icon: [{ url: "/radius-logo.png", type: "image/png" }],
+    shortcut: [{ url: "/radius-logo.png", type: "image/png" }],
+    apple: [{ url: "/radius-logo.png", type: "image/png" }],
   },
 };
 

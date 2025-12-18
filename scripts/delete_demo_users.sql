@@ -6,9 +6,15 @@
 -- Users:
 --   bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --   cccccccc-cccc-cccc-cccc-cccccccccccc
+-- Seeded demo users (from scripts/seed_demo_users.py):
+--   email ends with @example.com (and/or campus_id = 33333333-3333-3333-3333-333333333333)
 -- Campus (optional):
 --   c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2
 --   aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+-- NOTE:
+-- Prefer soft-delete (set deleted_at) to avoid foreign-key issues.
+-- If you truly want hard deletes, adapt dependent table deletes for your schema.
 
 BEGIN;
 
@@ -18,40 +24,41 @@ SELECT id, email, handle, campus_id FROM users WHERE id IN (
   'cccccccc-cccc-cccc-cccc-cccccccccccc'
 );
 
+-- 1b) Verify seeded demo users (generated via scripts/seed_demo_users.py)
+SELECT COUNT(*) AS seeded_demo_users
+FROM users
+WHERE email ILIKE '%@example.com'
+   OR campus_id = '33333333-3333-3333-3333-333333333333';
+
+-- 1c) Verify "Test User" demo accounts (often created during manual testing)
+SELECT COUNT(*) AS test_user_accounts
+FROM users
+WHERE display_name ILIKE 'Test User%';
+
 -- If the SELECT above returns the rows you expect, you can proceed.
 -- If you want to continue within this transaction, remove the ROLLBACK below and run COMMIT at the end.
 -- ROLLBACK; -- uncomment this line to stop after verification (recommended for a dry-run)
 
--- 2) Delete dependent rows that reference these users. Add or remove tables depending on your schema.
--- Example dependent deletions (run in this order to avoid FK errors):
+-- 2) Soft-delete demo users so they no longer show up in the app.
+-- This avoids FK constraint failures while removing them from normal queries.
+UPDATE users
+SET deleted_at = NOW()
+WHERE deleted_at IS NULL
+  AND (
+    id IN (
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    )
+    OR email ILIKE '%@example.com'
+    OR campus_id = '33333333-3333-3333-3333-333333333333'
+    OR display_name ILIKE 'Test User%'
+  );
 
-DELETE FROM sessions WHERE user_id IN (
-  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'cccccccc-cccc-cccc-cccc-cccccccccccc'
-);
-
-DELETE FROM friendships WHERE user_id IN (
-  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'cccccccc-cccc-cccc-cccc-cccccccccccc'
-) OR friend_id IN (
-  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'cccccccc-cccc-cccc-cccc-cccccccccccc'
-);
-
--- Optional: messages, deliveries, activities, presence, profiles, gallery, uploads, etc.
--- Uncomment or adapt depending on what tables your schema has.
--- DELETE FROM messages WHERE sender_id IN (... ) OR recipient_id IN (... );
--- DELETE FROM deliveries WHERE user_id IN (... );
--- DELETE FROM activities WHERE actor_id IN (... ) OR user_id IN (... );
--- DELETE FROM presence WHERE user_id IN (... );
--- DELETE FROM user_profiles WHERE user_id IN (... );
--- DELETE FROM avatars WHERE user_id IN (... );
-
--- 3) Delete the demo users
-DELETE FROM users WHERE id IN (
-  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'cccccccc-cccc-cccc-cccc-cccccccccccc'
-);
+-- Optional: also revoke sessions for these demo users (recommended).
+-- Note: keep this optional because some deployments may not have a sessions table.
+-- DELETE FROM sessions WHERE user_id IN (
+--   SELECT id FROM users WHERE deleted_at IS NOT NULL AND (email ILIKE '%@example.com' OR campus_id = '33333333-3333-3333-3333-333333333333')
+-- );
 
 -- 4) Optional: delete the demo campus (ONLY IF NO REAL USERS ARE TIED TO IT)
 -- WARNING: only run this if you're certain no production users reference this campus.

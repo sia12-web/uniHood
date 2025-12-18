@@ -42,6 +42,10 @@ $Database = ReadIfEmpty $Database "Database name"
 $demoUsers = @("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","cccccccc-cccc-cccc-cccc-cccccccccccc")
 $demoCampus = 'c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2'
 $extraCampus = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+# Seeded demo users created by scripts/seed_demo_users.py
+$seededDemoCampus = '33333333-3333-3333-3333-333333333333'
+$seededDemoEmailSuffix = '@example.com'
+$testDisplayNamePrefix = 'Test User'
 
 # Build connection string
 Write-Host "Using connection: ${User}@${DbHost}:${Port}/${Database}"
@@ -51,11 +55,10 @@ function Invoke-LocalPsql {
   param($Sql)
   $psql = Get-Command psql -ErrorAction SilentlyContinue
   if (-not $psql) { return $null }
-  $escaped = $Sql -replace '"','""'
-  $args = @("-h", $DbHost, "-p", $Port, "-U", $User, "-d", $Database, "-c", $Sql)
+  $psqlArgs = @("-h", $DbHost, "-p", $Port, "-U", $User, "-d", $Database, "-c", $Sql)
   $env:PGPASSWORD = $Password
   try {
-    & psql @args
+    & psql @psqlArgs
     return $true
   } finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
@@ -70,7 +73,7 @@ function Invoke-DockerPsql {
   $pwdWin = (Get-Location).ProviderPath
   # Use host.docker.internal so container reaches host Postgres on Windows
   $hostForContainer = if ($DbHost -eq 'localhost' -or $DbHost -eq '127.0.0.1') { 'host.docker.internal' } else { $DbHost }
-  $args = @(
+  $dockerArgs = @(
     "--rm",
     "-e", "PGPASSWORD=$Password",
     "-v", "${pwdWin}:/work",
@@ -84,36 +87,45 @@ function Invoke-DockerPsql {
     "-c", $Sql
   )
   Write-Host "Running in Docker: postgres:15 psql -h $hostForContainer -p $Port -U $User -d $Database -c \"$Sql\""
-  & docker @args | Out-Host
+  & docker @dockerArgs | Out-Host
   return $true
 }
 
 # Run verification SELECT
-$selectSql = "SELECT id, email, handle FROM users WHERE id IN ('{0}','{1}');" -f $demoUsers[0], $demoUsers[1]
-Write-Host "\n== Verification: SELECT demo users ==`n"
+$selectSql = @(
+  "SELECT id, email, handle, campus_id, deleted_at FROM users WHERE id IN ('{0}','{1}');" -f $demoUsers[0], $demoUsers[1],
+  "SELECT COUNT(*) AS seeded_demo_users FROM users WHERE email ILIKE '%{0}' OR campus_id = '{1}';" -f $seededDemoEmailSuffix, $seededDemoCampus,
+  "SELECT id, email, handle, campus_id, deleted_at FROM users WHERE email ILIKE '%{0}' OR campus_id = '{1}' ORDER BY created_at DESC NULLS LAST LIMIT 20;" -f $seededDemoEmailSuffix, $seededDemoCampus
+) -join "\n"
+
+$selectSql = @(
+  $selectSql,
+  "SELECT COUNT(*) AS test_user_accounts FROM users WHERE display_name ILIKE '{0}%';" -f $testDisplayNamePrefix,
+  "SELECT id, email, handle, campus_id, deleted_at FROM users WHERE display_name ILIKE '{0}%' ORDER BY created_at DESC NULLS LAST LIMIT 20;" -f $testDisplayNamePrefix
+) -join "\n"
+
+Write-Host "\n== Verification: demo users + seeded demo users ==`n"
 if (Invoke-LocalPsql -Sql $selectSql) { Write-Host "(Used local psql)" } 
 elseif (Invoke-DockerPsql -Sql $selectSql) { Write-Host "(Used Dockerized psql)" }
 else { Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1 }
 
 # Confirm
-$confirm = Read-Host -Prompt "Do you want to DELETE these demo users and dependent rows? Type 'yes' to proceed"
+$confirm = Read-Host -Prompt "Do you want to SOFT-DELETE (set deleted_at) demo users so they disappear from the site? Type 'yes' to proceed"
 if ($confirm -ne 'yes') { Write-Host "Aborting - no changes made."; exit 0 }
 
-# Run deletions in the safe ordering
-$deletes = @(
+# Soft-delete instead of hard-delete to avoid FK issues.
+$softDeleteSql = @(
   "BEGIN;",
-  "DELETE FROM sessions WHERE user_id IN ('{0}','{1}');" -f $demoUsers[0], $demoUsers[1],
-  "DELETE FROM friendships WHERE user_id IN ('{0}','{1}') OR friend_id IN ('{0}','{1}');" -f $demoUsers[0], $demoUsers[1],
-  "DELETE FROM users WHERE id IN ('{0}','{1}');" -f $demoUsers[0], $demoUsers[1],
+  "UPDATE users SET deleted_at = NOW() WHERE deleted_at IS NULL AND (id IN ('{0}','{1}') OR email ILIKE '%{2}' OR campus_id = '{3}' OR display_name ILIKE '{4}%');" -f $demoUsers[0], $demoUsers[1], $seededDemoEmailSuffix, $seededDemoCampus, $testDisplayNamePrefix,
   "COMMIT;"
-)
-$fullSql = $deletes -join "\n"
-Write-Host "\n== Executing deletions ==`n"
-if (Invoke-LocalPsql -Sql $fullSql) { Write-Host "(Used local psql for deletes)" }
-elseif (Invoke-DockerPsql -Sql $fullSql) { Write-Host "(Used Dockerized psql for deletes)" }
+) -join "\n"
+
+Write-Host "\n== Executing soft-deletion ==`n"
+if (Invoke-LocalPsql -Sql $softDeleteSql) { Write-Host "(Used local psql for soft-delete)" }
+elseif (Invoke-DockerPsql -Sql $softDeleteSql) { Write-Host "(Used Dockerized psql for soft-delete)" }
 else { Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1 }
 
-Write-Host "\nDeletion completed. Verify with SELECT again if needed."
+Write-Host "\nSoft-deletion completed. Verify with SELECT again if needed."
 
 # Optional: ask about deleting campus
 $campusConfirm = Read-Host -Prompt "Do you also want to DELETE the demo campus id $demoCampus ? Type 'yes' to proceed"

@@ -7,9 +7,11 @@ Thumbs.db
 *.swo
 
 # ---- Root env / logs ----
-.env
-.env.local
-.env.*.local
+# Ignore all env files by default (prod/dev/test), but keep committed examples.
+.env*
+!.env.example
+!.env.production.example
+!.env.*.example
 *.log
 logs/
 coverage/

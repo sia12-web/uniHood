@@ -4,9 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy source files
 COPY . .
@@ -21,7 +20,7 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 ENV NEXT_PUBLIC_ACTIVITIES_URL=${NEXT_PUBLIC_ACTIVITIES_URL}
 
 # Build the application
-RUN pnpm run build
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine AS runner

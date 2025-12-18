@@ -285,62 +285,16 @@ if "*" in allow_origins:
 		allow_origins = ["https://app.unihood.example"]
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Static serving for uploaded files in dev
-# Static serving for uploaded files in dev
+# Upload endpoints (PUT/GET) used by the avatar presign flow.
+# In production, set UPLOAD_DIR to a persistent disk mount (e.g. /app/uploads).
 uploads_router = None
-if settings.environment in ["dev", "development"]:
-	from fastapi import APIRouter
-	from fastapi.responses import FileResponse
-	upload_root = Path(os.environ.get("DIVAN_UPLOAD_ROOT", Path(__file__).parent / "uploads")).resolve()
-	upload_root.mkdir(parents=True, exist_ok=True)
+try:
+	from app.api import uploads as uploads_api
 
-	# Use a separate router for uploads to support both PUT and GET
-	router = APIRouter()
-
-	@router.put("/{path:path}")
-	async def _put_upload(path: str, request: Request):
-		# Naive dev-only uploader
-		rel = Path(path)
-		# Prevent path traversal
-		target = (upload_root / rel).resolve()
-		if not str(target).startswith(str(upload_root)):
-			from fastapi import HTTPException
-			raise HTTPException(status_code=400, detail="invalid_path")
-		target.parent.mkdir(parents=True, exist_ok=True)
-		data = await request.body()
-		with open(target, "wb") as fh:
-			fh.write(data)
-		return {"ok": True, "bytes": len(data)}
-
-	@router.get("/{path:path}")
-	async def _get_upload(path: str):
-		import mimetypes
-		rel = Path(path)
-		target = (upload_root / rel).resolve()
-		if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
-			from fastapi import HTTPException
-			raise HTTPException(status_code=404, detail="not_found")
-		# Try to detect MIME type from file content for images
-		media_type = None
-		try:
-			with open(target, "rb") as f:
-				header = f.read(16)
-				if header.startswith(b'\x89PNG'):
-					media_type = "image/png"
-				elif header.startswith(b'\xff\xd8\xff'):
-					media_type = "image/jpeg"
-				elif header.startswith(b'GIF8'):
-					media_type = "image/gif"
-				elif header.startswith(b'RIFF') and b'WEBP' in header:
-					media_type = "image/webp"
-		except Exception:
-			pass
-		# Fall back to extension-based detection
-		if not media_type:
-			media_type, _ = mimetypes.guess_type(str(target))
-		return FileResponse(target, media_type=media_type)
-
-	uploads_router = router
+	uploads_router = uploads_api.router
+except Exception:  # noqa: BLE001
+	# Keep optional so the app can still boot even if uploads module is absent.
+	uploads_router = None
 
 # Use the same allowed origins for Socket.IO as for the REST API
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)

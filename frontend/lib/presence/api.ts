@@ -1,6 +1,7 @@
 import { getBackendUrl, getDemoCampusId, getDemoLatitude, getDemoLongitude, getDemoUserId } from "@/lib/env";
 import { canSendHeartbeat, clampHeartbeatAccuracy } from "@/lib/geo";
 import { readAuthSnapshot, resolveAuthHeaders } from "@/lib/auth-storage";
+import { apiFetch } from "@/app/lib/http/client";
 
 const BACKEND_URL = getBackendUrl();
 const DEMO_CAMPUS_ID = getDemoCampusId();
@@ -111,16 +112,14 @@ export async function sendHeartbeat(
   headers["X-User-Id"] ||= userId;
   headers["X-Campus-Id"] ||= campusId;
 
-  const response = await fetch(`${BACKEND_URL}/presence/heartbeat`, {
+  await apiFetch<void>(`${BACKEND_URL}/presence/heartbeat`, {
     method: "POST",
-    credentials: "include",
+    cache: "no-store",
+    cacheTtl: 0,
+    skipDedup: true,
     headers,
-    body: JSON.stringify(payload),
+    body: payload,
   });
-
-  if (!response.ok) {
-    throw new Error(`Heartbeat failed (${response.status})`);
-  }
 
   // Record last successful heartbeat time for lightweight UI indicators
   try {
@@ -141,10 +140,12 @@ export async function sendOffline(userId: string, campusId: string): Promise<voi
     };
     headers["X-User-Id"] ||= userId;
     headers["X-Campus-Id"] ||= campusId;
-    await fetch(`${BACKEND_URL}/presence/offline`, {
+    await apiFetch<void>(`${BACKEND_URL}/presence/offline`, {
       method: "POST",
       keepalive: true,
-      credentials: "include",
+      cache: "no-store",
+      cacheTtl: 0,
+      skipDedup: true,
       headers,
     });
   } catch {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/app/lib/http/client";
 import { applyDiff } from "@/lib/diff";
 import { formatDistance } from "@/lib/geo";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
@@ -128,32 +129,24 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
   headers["X-User-Id"] ||= userId;
   headers["X-Campus-Id"] ||= campusId;
 
-  let response: Response;
   try {
-    response = await fetch(url, {
-      credentials: "include",
+    const body = await apiFetch<{ items?: NearbyUser[]; detail?: string }>(url, {
+      cache: "no-store",
+      cacheTtl: 0,
+      skipDedup: true,
       headers,
     });
+    return (body.items ?? []) as NearbyUser[];
   } catch (err) {
-    // Network error - backend might not be running
-    console.error("Discovery fetch network error:", err);
-    throw new Error("Unable to connect to server. Please check your connection.");
-  }
-
-  if (!response.ok) {
-    let detail: string | null = null;
-    try {
-      const body = await response.json();
-      detail = typeof body?.detail === "string" ? body.detail : null;
-    } catch { }
-    if (response.status === 400 && detail === "presence not found") {
-      // No presence data yet - return empty array (will be populated after heartbeat)
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("presence not found")) {
       return [];
     }
-    throw new Error(`Nearby request failed (${response.status})${detail ? ` - ${detail}` : ""}`);
+    if (message.toLowerCase().includes("network")) {
+      throw new Error("Unable to connect to server. Please check your connection.");
+    }
+    throw err;
   }
-  const body = await response.json();
-  return body.items as NearbyUser[];
 }
 
 export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) {

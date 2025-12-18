@@ -36,8 +36,15 @@ async def is_plausible_movement(user_id: str, lat: float, lon: float, ts_client:
         prev_lat, prev_lon, prev_ts = _parse_presence(prev)
     except (ValueError, KeyError):
         return True
-    # Use client-provided timestamp to calculate movement window for determinism in tests
-    dt_s = max(1, (ts_client - prev_ts) / 1000)
+
+    # We store prev_ts using server time (ms), but receive ts_client from the browser.
+    # If the client clock is behind the server (common on some devices/VMs),
+    # ts_client - prev_ts can go negative and would cause false "implausible" rejects.
+    dt_ms = ts_client - prev_ts
+    if dt_ms <= 0:
+        dt_ms = int(time.time() * 1000) - prev_ts
+    # Guard against pathological values; never allow a 0/negative window.
+    dt_s = max(1, dt_ms / 1000)
     distance_m = haversine(prev_lat, prev_lon, lat, lon)
     speed_mps = distance_m / dt_s
     # Allow a small tolerance to account for spherical distance vs. flat approximation

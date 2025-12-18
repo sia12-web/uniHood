@@ -6,7 +6,23 @@ import pathlib
 import time
 import psycopg2
 
+def _is_true(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _with_sslmode_require(dsn: str) -> str:
+    # psycopg2/libpq supports sslmode=require as a query param for URL DSNs.
+    if "sslmode=" in dsn:
+        return dsn
+    joiner = "&" if "?" in dsn else "?"
+    return f"{dsn}{joiner}sslmode=require"
+
+
 DSN = os.environ.get("POSTGRES_URL", "postgresql://postgres:postgres@localhost:5432/divan")
+if _is_true(os.environ.get("POSTGRES_SSL")):
+    DSN = _with_sslmode_require(DSN)
 MIGRATIONS_DIR = pathlib.Path(__file__).resolve().parent.parent / "infra" / "migrations"
 
 

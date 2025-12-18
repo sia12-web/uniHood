@@ -1,25 +1,11 @@
 // Declare process shape to appease TypeScript without requiring @types/node.
+//
+// IMPORTANT: For Next.js, `process.env.NEXT_PUBLIC_*` references are replaced at build time.
+// Avoid dynamic env lookups (e.g. `process.env[key]`) because they will not be inlined into
+// client bundles and can cause production builds to fall back to localhost.
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
-type EnvRecord = Record<string, string | undefined>;
-
-function readEnv(): EnvRecord {
-  if (typeof process !== "undefined" && process?.env) {
-    return process.env;
-  }
-  if (typeof globalThis !== "undefined") {
-    const globalProcess = (globalThis as { process?: { env?: EnvRecord } }).process;
-    if (globalProcess?.env) {
-      return globalProcess.env;
-    }
-  }
-  return {};
-}
-
-const env = readEnv();
-
-function readOptionalEnv(key: string): string | null {
-  const value = env[key];
+function readOptionalEnv(value: string | undefined): string | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -28,21 +14,24 @@ function readOptionalEnv(key: string): string | null {
 }
 
 export function getBackendUrl() {
-  return env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8001";
+  const value = readOptionalEnv(process?.env?.NEXT_PUBLIC_BACKEND_URL);
+  return value ?? "http://localhost:8001";
 }
 
 export function getDemoUserId() {
   // Allow disabling the implicit demo user fallback so that components
   // requiring an authenticated user do not silently default to the placeholder.
-  if ((env.DISABLE_DEMO_USER ?? '').trim() === '1') {
+  const disableDemo =
+    (process?.env?.NEXT_PUBLIC_DISABLE_DEMO_USER ?? process?.env?.DISABLE_DEMO_USER ?? "").trim() === "1";
+  if (disableDemo) {
     return '';
   }
-  return env.NEXT_PUBLIC_DEMO_USER_ID ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  return process?.env?.NEXT_PUBLIC_DEMO_USER_ID ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 }
 
 export function getDemoCampusId() {
   // Only McGill is available in the demo environment for now.
-  return env.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2";
+  return process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2";
 }
 
 function parseCoordinate(value: string | undefined, fallback: number): number {
@@ -54,19 +43,19 @@ function parseCoordinate(value: string | undefined, fallback: number): number {
 }
 
 export function getDemoLatitude() {
-  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LAT, 45.5048);
+  return parseCoordinate(process?.env?.NEXT_PUBLIC_DEMO_LAT, 45.5048);
 }
 
 export function getDemoLongitude() {
-  return parseCoordinate(env.NEXT_PUBLIC_DEMO_LON, -73.5772);
+  return parseCoordinate(process?.env?.NEXT_PUBLIC_DEMO_LON, -73.5772);
 }
 
 export function getDemoUserEmail() {
-  return env.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "student@mcgill.ca";
+  return process?.env?.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "student@mcgill.ca";
 }
 
 export function getDemoUserCampus(): string | null {
-  const raw = env.NEXT_PUBLIC_DEMO_USER_CAMPUS ?? env.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "";
+  const raw = process?.env?.NEXT_PUBLIC_DEMO_USER_CAMPUS ?? process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "";
   if (typeof raw !== "string") {
     return null;
   }
@@ -75,11 +64,11 @@ export function getDemoUserCampus(): string | null {
 }
 
 export function getDemoHandle(): string | null {
-  return readOptionalEnv("NEXT_PUBLIC_DEMO_HANDLE");
+  return readOptionalEnv(process?.env?.NEXT_PUBLIC_DEMO_HANDLE);
 }
 
 export function getDemoChatPeerId(): string | null {
-  return readOptionalEnv("NEXT_PUBLIC_DEMO_CHAT_PEER_ID");
+  return readOptionalEnv(process?.env?.NEXT_PUBLIC_DEMO_CHAT_PEER_ID);
 }
 
 function activityKey(kind: string): string {
@@ -87,5 +76,6 @@ function activityKey(kind: string): string {
 }
 
 export function getDemoActivityId(kind: "rps" | "story" | "trivia" | "typing" | "with"): string | null {
-  return readOptionalEnv(activityKey(kind));
+  const key = activityKey(kind);
+  return readOptionalEnv(process?.env?.[key]);
 }

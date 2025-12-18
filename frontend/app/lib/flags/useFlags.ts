@@ -94,29 +94,25 @@ function coerceToBoolean(value: Primitive): boolean {
   return false;
 }
 
-function readEnvRecord(): Record<string, unknown> {
-  if (typeof process !== "undefined" && process?.env) {
-    return process.env as Record<string, unknown>;
-  }
-  if (typeof globalThis !== "undefined") {
-    const env = (globalThis as { process?: { env?: Record<string, unknown> } }).process?.env;
-    if (env) {
-      return env;
-    }
-  }
-  return {};
-}
-
 function readEnvFlags(): FlagDictionary {
-  const env = readEnvRecord();
+  // NOTE: These must be direct `process.env.NEXT_PUBLIC_*` reads so Next can inline them.
   const entries: FlagDictionary = {};
-  for (const [envKey, flagKey] of Object.entries(ENV_FLAG_KEYS)) {
-    const raw = env[envKey];
-    if (raw === undefined) {
-      continue;
-    }
-    entries[flagKey] = toEntry(raw);
-  }
+
+  const mod = process?.env?.NEXT_PUBLIC_FLAG_UI_MOD;
+  if (mod !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_MOD] = toEntry(mod);
+
+  const safety = process?.env?.NEXT_PUBLIC_FLAG_UI_SAFETY;
+  if (safety !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_SAFETY] = toEntry(safety);
+
+  const mediaV2 = process?.env?.NEXT_PUBLIC_FLAG_UI_MEDIA_V2;
+  if (mediaV2 !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_MEDIA_V2] = toEntry(mediaV2);
+
+  const metrics = process?.env?.NEXT_PUBLIC_FLAG_UI_METRICS;
+  if (metrics !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_METRICS] = toEntry(metrics);
+
+  const blur = process?.env?.NEXT_PUBLIC_FLAG_UI_BLUR_SENSITIVE;
+  if (blur !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_BLUR_SENSITIVE] = toEntry(blur);
+
   return entries;
 }
 

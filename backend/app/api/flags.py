@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.domain.identity import flags, policy, schemas
 from app.api.security_deps import require_perms
-from app.infra.auth import AuthenticatedUser, get_current_user
+from app.infra.auth import AuthenticatedUser, get_current_user, get_optional_user
 from app.obs import audit as obs_audit
 
 router = APIRouter(prefix="/flags", tags=["flags"])
@@ -134,8 +134,12 @@ async def evaluate_flag_endpoint(
 
 @router.get("/evaluate", response_model=dict[str, bool])
 async def evaluate_all_flags_endpoint(
-	user: AuthenticatedUser = Depends(get_current_user),
+	user: Optional[AuthenticatedUser] = Depends(get_optional_user),
 ) -> dict[str, bool]:
+	# Public pages (login/register/etc) may request flags before the user is authenticated.
+	# Return an empty set instead of 401 to avoid noisy console errors.
+	if user is None:
+		return {}
 	all_flags = await flags.list_flags()
 	result = {}
 	for flag in all_flags:

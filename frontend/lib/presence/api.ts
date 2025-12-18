@@ -1,5 +1,6 @@
 import { getBackendUrl, getDemoCampusId, getDemoLatitude, getDemoLongitude, getDemoUserId } from "@/lib/env";
 import { canSendHeartbeat, clampHeartbeatAccuracy } from "@/lib/geo";
+import { readAuthSnapshot, resolveAuthHeaders } from "@/lib/auth-storage";
 
 const BACKEND_URL = getBackendUrl();
 const DEMO_CAMPUS_ID = getDemoCampusId();
@@ -101,13 +102,19 @@ export async function sendHeartbeat(
     radius_m: radius,
   };
 
+  const snapshot = readAuthSnapshot();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...resolveAuthHeaders(snapshot),
+  };
+  // Keep explicit fallbacks for dev/test flows where snapshot may be empty.
+  headers["X-User-Id"] ||= userId;
+  headers["X-Campus-Id"] ||= campusId;
+
   const response = await fetch(`${BACKEND_URL}/presence/heartbeat`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": userId,
-      "X-Campus-Id": campusId,
-    },
+    credentials: "include",
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -127,14 +134,18 @@ export async function sendHeartbeat(
 
 export async function sendOffline(userId: string, campusId: string): Promise<void> {
   try {
+    const snapshot = readAuthSnapshot();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...resolveAuthHeaders(snapshot),
+    };
+    headers["X-User-Id"] ||= userId;
+    headers["X-Campus-Id"] ||= campusId;
     await fetch(`${BACKEND_URL}/presence/offline`, {
       method: "POST",
       keepalive: true,
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Id": userId,
-        "X-Campus-Id": campusId,
-      },
+      credentials: "include",
+      headers,
     });
   } catch {
     // best-effort

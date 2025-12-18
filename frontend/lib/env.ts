@@ -30,8 +30,8 @@ export function getDemoUserId() {
 }
 
 export function getDemoCampusId() {
-  // Only McGill is available in the demo environment for now.
-  return process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2";
+  // Default to Main Campus so prod doesn't depend on a demo campus row existing.
+  return process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "33333333-3333-3333-3333-333333333333";
 }
 
 function parseCoordinate(value: string | undefined, fallback: number): number {

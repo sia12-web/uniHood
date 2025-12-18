@@ -19,6 +19,10 @@ from app.obs import metrics as obs_metrics
 VERIFICATION_TTL_SECONDS = 24 * 3600
 _PASSWORD_HASHER = PASSWORD_HASHER
 
+MAIN_CAMPUS_ID = UUID("33333333-3333-3333-3333-333333333333")
+MCGILL_CAMPUS_ID = UUID("c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2")
+EXTRA_DEMO_CAMPUS_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
 
 class IdentityServiceError(Exception):
 	"""Raised for service-level issues with optional HTTP status mapping."""
@@ -60,6 +64,31 @@ async def _fetch_campus(conn: asyncpg.Connection, campus_id: UUID) -> models.Cam
 	return models.Campus.from_record(row)
 
 
+def _is_known_demo_or_default_campus(campus_id: UUID) -> bool:
+	return campus_id in {MAIN_CAMPUS_ID, MCGILL_CAMPUS_ID, EXTRA_DEMO_CAMPUS_ID}
+
+
+async def _pick_existing_campus(conn: asyncpg.Connection, *, preferred: list[UUID]) -> models.Campus:
+	"""Pick an existing campus, preferring known IDs when present.
+
+	This is used to keep registration working if a demo/default campus id was deleted.
+	"""
+	for campus_id in preferred:
+		row = await conn.fetchrow(
+			"SELECT id, name, domain, logo_url FROM campuses WHERE id = $1",
+			str(campus_id),
+		)
+		if row:
+			return models.Campus.from_record(row)
+
+	row = await conn.fetchrow(
+		"SELECT id, name, domain, logo_url FROM campuses ORDER BY created_at ASC LIMIT 1"
+	)
+	if not row:
+		raise IdentityServiceError("campus_not_configured", status_code=500)
+	return models.Campus.from_record(row)
+
+
 def _hash_password(password: str) -> str:
 	policy.guard_password(password)
 	return _PASSWORD_HASHER.hash(password)
@@ -94,6 +123,7 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 		handle = f"user_{uuid4().hex[:12]}"
 	
 	display = payload.display_name or handle
+	campus_id_from_payload = payload.campus_id is not None
 	campus_id = payload.campus_id
 	if campus_id is None:
 		default_campus_raw = (getattr(settings, "default_campus_id", "") or "").strip()
@@ -114,8 +144,29 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 	try:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
+			campus: Optional[models.Campus] = None
 			if campus_id:
-				campus = await _fetch_campus(conn, campus_id)
+				try:
+					campus = await _fetch_campus(conn, campus_id)
+				except CampusNotFound:
+					# Keep prod signup robust: if a demo/default campus id was deleted,
+					# fall back to any existing campus instead of hard-failing.
+					if (not campus_id_from_payload) or _is_known_demo_or_default_campus(campus_id):
+						preferred = [MAIN_CAMPUS_ID]
+						default_raw = (getattr(settings, "default_campus_id", "") or "").strip()
+						try:
+							if default_raw:
+								preferred.insert(0, UUID(default_raw))
+						except ValueError:
+							pass
+						preferred.append(MCGILL_CAMPUS_ID)
+						preferred.append(EXTRA_DEMO_CAMPUS_ID)
+						campus = await _pick_existing_campus(conn, preferred=preferred)
+						campus_id = campus.id
+					else:
+						raise
+
+			if campus:
 				policy.guard_email_domain(email, campus)
 
 			async with conn.transaction():

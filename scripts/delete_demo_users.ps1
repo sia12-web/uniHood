@@ -176,8 +176,9 @@ if (-not $deleteOk) {
 Write-Host "\nSoft-deletion completed. Verify with SELECT again if needed."
 
 # Optional: ask about deleting campus
-$campusConfirm = Read-Host -Prompt "Do you also want to DELETE the demo campus id $demoCampus ? Type 'yes' to proceed"
-if ($campusConfirm -eq 'yes') {
+Write-Host "\nWARNING: Deleting campuses can break signup and existing users (campus_not_found) if the app still references these IDs." -ForegroundColor Yellow
+$campusConfirm = Read-Host -Prompt "Do you want to DELETE the campus id $demoCampus ? Type 'delete-campus' to proceed"
+if ($campusConfirm -eq 'delete-campus') {
   $campusSql = "DELETE FROM campuses WHERE id = '$demoCampus';"
   if (Invoke-LocalPsql -Sql $campusSql) { Write-Host "Deleted campus (local psql)" }
   elseif (Invoke-DockerPsql -Sql $campusSql) { Write-Host "Deleted campus (docker psql)" }
@@ -188,8 +189,8 @@ if ($campusConfirm -eq 'yes') {
 }
 
 # Optional: delete the other demo campus that appears in seeds/env files
-$extraCampusConfirm = Read-Host -Prompt "Do you want to DELETE the other demo campus id $extraCampus (used in some seeds/.env)? Type 'yes' to proceed"
-if ($extraCampusConfirm -eq 'yes') {
+$extraCampusConfirm = Read-Host -Prompt "Do you want to DELETE the campus id $extraCampus (used in some seeds/.env)? Type 'delete-campus' to proceed"
+if ($extraCampusConfirm -eq 'delete-campus') {
   $extraSql = "DELETE FROM campuses WHERE id = '$extraCampus';"
   if (Invoke-LocalPsql -Sql $extraSql) { Write-Host "Deleted extra campus (local psql)" }
   elseif (Invoke-DockerPsql -Sql $extraSql) { Write-Host "Deleted extra campus (docker psql)" }

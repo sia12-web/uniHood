@@ -16,10 +16,11 @@ USAGE (PowerShell):
 
 param(
   [string]$DbHost = $env:PGHOST,
-  [int]$Port = 0,
+  [string]$Port = $env:PGPORT,
   [string]$User = $env:PGUSER,
   [string]$Password = $env:PGPASSWORD,
-  [string]$Database = $env:PGDATABASE
+  [string]$Database = $env:PGDATABASE,
+  [string]$SslMode = $env:PGSSLMODE
 )
 
 function ReadIfEmpty([string]$value, [string]$prompt) {
@@ -32,11 +33,20 @@ function ReadIfEmpty([string]$value, [string]$prompt) {
 $DbHost = ReadIfEmpty $DbHost "Postgres host (default: localhost)"
 if ([string]::IsNullOrWhiteSpace($DbHost)) { $DbHost = 'localhost' }
 $defaultPort = if ($env:PGPORT -and ($env:PGPORT -as [int])) { [int]$env:PGPORT } else { 5432 }
-$Port = ReadIfEmpty "$Port" "Postgres port (default: $defaultPort)"
-if ([string]::IsNullOrWhiteSpace($Port)) { $Port = $defaultPort } else { $Port = [int]$Port }
+$Port = ReadIfEmpty $Port "Postgres port (default: $defaultPort)"
+if ([string]::IsNullOrWhiteSpace($Port)) {
+  $Port = $defaultPort
+} else {
+  $Port = [int]$Port
+}
 $User = ReadIfEmpty $User "DB user"
 $Password = ReadIfEmpty $Password "DB password"
 $Database = ReadIfEmpty $Database "Database name"
+
+# Render Postgres typically requires SSL for external connections.
+if ([string]::IsNullOrWhiteSpace($SslMode)) {
+  $SslMode = if ($DbHost -and $DbHost -ne 'localhost' -and $DbHost -ne '127.0.0.1') { 'require' } else { 'prefer' }
+}
 
 # Demo IDs
 $demoUsers = @("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","cccccccc-cccc-cccc-cccc-cccccccccccc")
@@ -57,11 +67,13 @@ function Invoke-LocalPsql {
   if (-not $psql) { return $null }
   $psqlArgs = @("-h", $DbHost, "-p", $Port, "-U", $User, "-d", $Database, "-c", $Sql)
   $env:PGPASSWORD = $Password
+  $env:PGSSLMODE = $SslMode
   try {
     & psql @psqlArgs
-    return $true
+    return ($LASTEXITCODE -eq 0)
   } finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:PGSSLMODE -ErrorAction SilentlyContinue
   }
 }
 
@@ -74,8 +86,10 @@ function Invoke-DockerPsql {
   # Use host.docker.internal so container reaches host Postgres on Windows
   $hostForContainer = if ($DbHost -eq 'localhost' -or $DbHost -eq '127.0.0.1') { 'host.docker.internal' } else { $DbHost }
   $dockerArgs = @(
+    "run",
     "--rm",
     "-e", "PGPASSWORD=$Password",
+    "-e", "PGSSLMODE=$SslMode",
     "-v", "${pwdWin}:/work",
     "-w", "/work",
     "postgres:15",
@@ -88,7 +102,7 @@ function Invoke-DockerPsql {
   )
   Write-Host "Running in Docker: postgres:15 psql -h $hostForContainer -p $Port -U $User -d $Database -c \"$Sql\""
   & docker @dockerArgs | Out-Host
-  return $true
+  return ($LASTEXITCODE -eq 0)
 }
 
 # Run verification SELECT
@@ -105,9 +119,26 @@ $selectSql = @(
 ) -join "\n"
 
 Write-Host "\n== Verification: demo users + seeded demo users ==`n"
-if (Invoke-LocalPsql -Sql $selectSql) { Write-Host "(Used local psql)" } 
-elseif (Invoke-DockerPsql -Sql $selectSql) { Write-Host "(Used Dockerized psql)" }
-else { Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1 }
+$selectOk = $false
+$localResult = Invoke-LocalPsql -Sql $selectSql
+if ($localResult -eq $true) {
+  $selectOk = $true
+  Write-Host "(Used local psql)"
+} elseif ($localResult -eq $false) {
+  Write-Error "Local psql failed. Fix connection/SSL and retry."; exit 1
+}
+
+if (-not $selectOk) {
+  $dockerResult = Invoke-DockerPsql -Sql $selectSql
+  if ($dockerResult -eq $true) {
+    $selectOk = $true
+    Write-Host "(Used Dockerized psql)"
+  } elseif ($dockerResult -eq $false) {
+    Write-Error "Dockerized psql failed. Ensure Docker Desktop is running and connection details are correct."; exit 1
+  } else {
+    Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1
+  }
+}
 
 # Confirm
 $confirm = Read-Host -Prompt "Do you want to SOFT-DELETE (set deleted_at) demo users so they disappear from the site? Type 'yes' to proceed"
@@ -121,9 +152,26 @@ $softDeleteSql = @(
 ) -join "\n"
 
 Write-Host "\n== Executing soft-deletion ==`n"
-if (Invoke-LocalPsql -Sql $softDeleteSql) { Write-Host "(Used local psql for soft-delete)" }
-elseif (Invoke-DockerPsql -Sql $softDeleteSql) { Write-Host "(Used Dockerized psql for soft-delete)" }
-else { Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1 }
+$deleteOk = $false
+$localDeleteResult = Invoke-LocalPsql -Sql $softDeleteSql
+if ($localDeleteResult -eq $true) {
+  $deleteOk = $true
+  Write-Host "(Used local psql for soft-delete)"
+} elseif ($localDeleteResult -eq $false) {
+  Write-Error "Local psql soft-delete failed."; exit 1
+}
+
+if (-not $deleteOk) {
+  $dockerDeleteResult = Invoke-DockerPsql -Sql $softDeleteSql
+  if ($dockerDeleteResult -eq $true) {
+    $deleteOk = $true
+    Write-Host "(Used Dockerized psql for soft-delete)"
+  } elseif ($dockerDeleteResult -eq $false) {
+    Write-Error "Dockerized psql soft-delete failed."; exit 1
+  } else {
+    Write-Error "No psql or Docker found. Install psql or Docker to run these commands."; exit 1
+  }
+}
 
 Write-Host "\nSoft-deletion completed. Verify with SELECT again if needed."
 

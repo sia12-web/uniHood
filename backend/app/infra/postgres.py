@@ -16,11 +16,12 @@ async def init_pool() -> asyncpg.pool.Pool:
 	if _pool is None:
 		# Force 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
 		dsn = settings.postgres_url.replace("localhost", "127.0.0.1")
+		ssl_mode = "require" if getattr(settings, "postgres_ssl", False) else "disable"
 		_pool = await asyncpg.create_pool(
 			dsn=dsn,
 			min_size=settings.postgres_min_pool_size,
 			max_size=settings.postgres_max_pool_size,
-			ssl='disable',  # Use 'disable' string, not False boolean
+			ssl=ssl_mode,  # asyncpg expects 'disable'/'require' (or an SSLContext)
 		)
 	return _pool
 

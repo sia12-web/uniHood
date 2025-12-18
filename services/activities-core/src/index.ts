@@ -11,6 +11,11 @@ import { recordGameResult } from './services/stats';
 
 const server = fastify({ logger: true });
 
+// Render's default health check hits GET /. Provide a simple 200 response.
+server.get('/', async () => {
+    return { status: 'ok' };
+});
+
 // Be explicit about which headers the browser can send so preflight requests succeed.
 const allowedHeaders = [
     'Content-Type',

@@ -145,36 +145,40 @@ class LeaderboardService:
 		)
 
 		# Persist lifetime counters to Postgres so they don't reset when Redis rolls over.
-		if awarded:
-			pool = await get_pool()
-			async with pool.acquire() as conn:
-				for uid in awarded:
-					try:
-						user_uuid = UUID(uid)
-					except Exception:
-						# Ignore malformed ids (shouldn't happen in normal flows)
-						continue
-					win_inc = 1 if winner_id and uid == winner_id else 0
+		# Important: even if anti-cheat blocks awarding points, we still record games played/wins.
+		# Points only accrue for users in `awarded`.
+		pool = await get_pool()
+		awarded_set = set(awarded)
+		async with pool.acquire() as conn:
+			for uid in user_ids:
+				try:
+					user_uuid = UUID(uid)
+				except Exception:
+					# Ignore malformed ids (shouldn't happen in normal flows)
+					continue
+				win_inc = 1 if winner_id and uid == winner_id else 0
+				points_inc = 0
+				if uid in awarded_set:
 					points_inc = int(policy.W_ACT_PLAYED) + (int(policy.W_ACT_WON) if win_inc else 0)
-					try:
-						await conn.execute(
-							"""
-							INSERT INTO user_game_stats (user_id, activity_key, games_played, wins, points, last_played_at)
-							VALUES ($1, $2, 1, $3, $4, NOW())
-							ON CONFLICT (user_id, activity_key) DO UPDATE
-							SET games_played = user_game_stats.games_played + 1,
-								wins = user_game_stats.wins + EXCLUDED.wins,
-								points = user_game_stats.points + EXCLUDED.points,
-								last_played_at = NOW()
-							""",
-							user_uuid,
-							game_kind,
-							win_inc,
-							points_inc,
-						)
-					except asyncpg.UndefinedTableError:
-						# DB migration not applied yet; do not fail the request.
-						pass
+				try:
+					await conn.execute(
+						"""
+						INSERT INTO user_game_stats (user_id, activity_key, games_played, wins, points, last_played_at)
+						VALUES ($1, $2, 1, $3, $4, NOW())
+						ON CONFLICT (user_id, activity_key) DO UPDATE
+						SET games_played = user_game_stats.games_played + 1,
+							wins = user_game_stats.wins + EXCLUDED.wins,
+							points = user_game_stats.points + EXCLUDED.points,
+							last_played_at = NOW()
+						""",
+						user_uuid,
+						game_kind,
+						win_inc,
+						points_inc,
+					)
+				except asyncpg.UndefinedTableError:
+					# DB migration not applied yet; do not fail the request.
+					pass
 
 		return awarded
 

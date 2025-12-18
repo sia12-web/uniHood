@@ -287,14 +287,43 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Upload endpoints (PUT/GET) used by the avatar presign flow.
 # In production, set UPLOAD_DIR to a persistent disk mount (e.g. /app/uploads).
-uploads_router = None
-try:
-	from app.api import uploads as uploads_api
+from fastapi import APIRouter
+from fastapi.responses import FileResponse
 
-	uploads_router = uploads_api.router
-except Exception:  # noqa: BLE001
-	# Keep optional so the app can still boot even if uploads module is absent.
-	uploads_router = None
+uploads_router = APIRouter()
+upload_root = Path(os.environ.get("UPLOAD_DIR") or os.environ.get("DIVAN_UPLOAD_ROOT") or "app/uploads").resolve()
+upload_root.mkdir(parents=True, exist_ok=True)
+
+
+@uploads_router.put("/{path:path}")
+async def _put_upload(path: str, request: Request):
+	rel = Path(path)
+	target = (upload_root / rel).resolve()
+	if not str(target).startswith(str(upload_root)):
+		from fastapi import HTTPException
+		raise HTTPException(status_code=400, detail="invalid_path")
+	target.parent.mkdir(parents=True, exist_ok=True)
+	data = await request.body()
+	# 5MB limit (matches avatar constraints)
+	if len(data) > 5 * 1024 * 1024:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=413, detail="too_large")
+	with open(target, "wb") as fh:
+		fh.write(data)
+	return {"ok": True, "bytes": len(data)}
+
+
+@uploads_router.get("/{path:path}")
+async def _get_upload(path: str):
+	import mimetypes
+
+	rel = Path(path)
+	target = (upload_root / rel).resolve()
+	if not str(target).startswith(str(upload_root)) or not target.exists() or not target.is_file():
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail="not_found")
+	media_type, _ = mimetypes.guess_type(str(target))
+	return FileResponse(target, media_type=media_type)
 
 # Use the same allowed origins for Socket.IO as for the REST API
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)

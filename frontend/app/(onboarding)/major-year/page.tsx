@@ -177,7 +177,7 @@ export default function MajorYearPage() {
 				graduation_year: parsedYear,
 			});
 
-			router.push("/passions");
+			router.push("/select-courses");
 		} catch (err) {
 			console.error(err);
 			setError("Failed to save your details. Please try again.");

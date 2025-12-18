@@ -25,6 +25,7 @@ vi.mock("@/lib/identity", async () => {
 
 vi.mock("@/lib/auth-storage", () => ({
 	readAuthSnapshot: () => ({ user_id: "user-1" }),
+	resolveAuthHeaders: () => ({}),
 }));
 
 describe("Onboarding MajorYearPage", () => {
@@ -38,7 +39,7 @@ describe("Onboarding MajorYearPage", () => {
 		patchProfileMock.mockResolvedValue({});
 	});
 
-	it("saves major and graduation year then navigates to passions", async () => {
+	it("saves major and graduation year then navigates to select courses", async () => {
 		render(<MajorYearPage />);
 
 		const majorInput = await screen.findByLabelText(/major or program/i);
@@ -54,6 +55,6 @@ describe("Onboarding MajorYearPage", () => {
 			major: "Computer Science",
 			graduation_year: new Date().getFullYear() + 1,
 		});
-		expect(routerPush).toHaveBeenCalledWith("/passions");
+		expect(routerPush).toHaveBeenCalledWith("/select-courses");
 	});
 });

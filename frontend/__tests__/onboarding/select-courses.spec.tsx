@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
 
 const fetchProfileMock = vi.hoisted(() => vi.fn());
 const fetchPopularCoursesMock = vi.hoisted(() => vi.fn());
+const fetchUserCoursesMock = vi.hoisted(() => vi.fn());
 const saveProfileCoursesMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/identity", async () => {
 	const actual = await vi.importActual<typeof import("@/lib/identity")>("@/lib/identity");
@@ -21,12 +22,14 @@ vi.mock("@/lib/identity", async () => {
 		...actual,
 		fetchProfile: fetchProfileMock,
 		fetchPopularCourses: fetchPopularCoursesMock,
+		fetchUserCourses: fetchUserCoursesMock,
 		saveProfileCourses: saveProfileCoursesMock,
 	};
 });
 
 vi.mock("@/lib/auth-storage", () => ({
 	readAuthSnapshot: () => ({ user_id: "user-1" }),
+	resolveAuthHeaders: () => ({}),
 }));
 
 describe("Onboarding SelectCoursesPage", () => {
@@ -39,6 +42,7 @@ describe("Onboarding SelectCoursesPage", () => {
 			{ code: "COMP 250", name: "Intro to CS" },
 			{ code: "MATH 201", name: "Calculus" },
 		]);
+		fetchUserCoursesMock.mockResolvedValue([]);
 		saveProfileCoursesMock.mockResolvedValue({});
 	});
 
@@ -62,6 +66,6 @@ describe("Onboarding SelectCoursesPage", () => {
 		await waitFor(() => expect(saveProfileCoursesMock).toHaveBeenCalled());
 		// Should dedupe and uppercase
 		expect(saveProfileCoursesMock).toHaveBeenCalledWith("user-1", "campus-1", ["COMP 250", "MATH 201"]);
-		expect(routerPush).toHaveBeenCalledWith("/set-profile");
+		expect(routerPush).toHaveBeenCalledWith("/passions");
 	});
 });

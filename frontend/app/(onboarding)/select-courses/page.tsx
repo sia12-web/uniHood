@@ -108,7 +108,7 @@ export default function SelectCoursesPage() {
             }
             await saveProfileCourses(auth.user_id, campusId, unique);
 
-            router.push("/set-profile");
+			router.push("/passions");
         } catch (err) {
             console.error(err);
             setError("Failed to save courses.");

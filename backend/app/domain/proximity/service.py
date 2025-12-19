@@ -90,6 +90,10 @@ async def _fetch_live_candidates(key: str, auth_user_id: str, *, radius: int, ce
 		sort="ASC",
 		count=1000,
 	)
+	logger.info(
+		"_fetch_live_candidates: key=%s auth_user=%s radius=%s center=(%s,%s) raw_results=%s",
+		key, auth_user_id, radius, lon_user, lat_user, len(results)
+	)
 	live: List[PresenceTuple] = []
 	# Treat entries as stale if the last heartbeat timestamp is too old,
 	# so closing a client window quickly removes users from Nearby.
@@ -98,18 +102,22 @@ async def _fetch_live_candidates(key: str, auth_user_id: str, *, radius: int, ce
 	for member_id, distance in results:
 		member_id = str(member_id)
 		if member_id == auth_user_id:
+			logger.debug("_fetch_live_candidates: skipping self %s", member_id)
 			continue
 		# Skip when key is missing (TTL == -2)
 		ttl = await redis_client.ttl(f"presence:{member_id}")
 		if ttl == -2:
+			logger.debug("_fetch_live_candidates: skipping %s - presence key expired (ttl=-2)", member_id)
 			continue
 		# Also skip when the last heartbeat is older than the stale threshold
 		ts_raw = await redis_client.hget(f"presence:{member_id}", "ts")
 		try:
 			if not ts_raw:
+				logger.debug("_fetch_live_candidates: skipping %s - no timestamp in presence", member_id)
 				continue
 			ts_ms = int(ts_raw)
 			if now_ms - ts_ms > stale_ms:
+				logger.debug("_fetch_live_candidates: skipping %s - stale (age=%sms > %sms)", member_id, now_ms - ts_ms, stale_ms)
 				continue
 		except Exception:
 			# If we cannot parse ts, err on the side of not showing the user

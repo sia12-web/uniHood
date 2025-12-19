@@ -26,6 +26,9 @@ from app.infra.rate_limit import RateLimitExceeded, allow
 from app.infra.redis import redis_client
 from app.settings import settings
 from app.obs import metrics as obs_metrics
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,6 +38,10 @@ async def heartbeat(
     payload: HeartbeatPayload,
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
+    logger.info(
+        "heartbeat: user=%s lat=%s lon=%s accuracy=%s campus=%s",
+        auth_user.id, payload.lat, payload.lon, payload.accuracy_m, payload.campus_id or auth_user.campus_id
+    )
     limit = 30
     if settings.environment == "dev":
         await allow("hb", auth_user.id, limit=300)

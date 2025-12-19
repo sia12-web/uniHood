@@ -100,3 +100,50 @@ async def test_end_session_stops_additional_refreshes():
         settings.presence_keepalive_idle_seconds = original_idle
         settings.campus_ttl_seconds = original_ttl
         await live_sessions.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_keepalive_does_not_refresh_location_timestamp_ts():
+    original_interval = settings.presence_keepalive_interval_seconds
+    original_idle = settings.presence_keepalive_idle_seconds
+    original_ttl = settings.campus_ttl_seconds
+    settings.presence_keepalive_interval_seconds = 0.05
+    settings.presence_keepalive_idle_seconds = 0.5
+    settings.campus_ttl_seconds = 1
+
+    user_id = "user-keepalive-ts"
+    campus_id = "campus-keepalive-ts"
+    initial_ts = 111
+    await redis_client.hset(
+        f"presence:{user_id}",
+        mapping={
+            "lat": 40.0,
+            "lon": -70.0,
+            "accuracy_m": 5,
+            "ts": initial_ts,
+            "device_id": "web",
+            "campus_id": campus_id,
+            "venue_id": "",
+        },
+    )
+    await redis_client.expire(f"presence:{user_id}", settings.campus_ttl_seconds)
+
+    try:
+        await live_sessions.record_heartbeat(
+            user_id,
+            campus_id,
+            lat=40.0,
+            lon=-70.0,
+            accuracy_m=5,
+            device_id="web",
+            venue_id=None,
+        )
+        await live_sessions.attach_activity(user_id)
+        await asyncio.sleep(0.12)
+        ts_after = await redis_client.hget(f"presence:{user_id}", "ts")
+        assert int(ts_after) == initial_ts
+    finally:
+        settings.presence_keepalive_interval_seconds = original_interval
+        settings.presence_keepalive_idle_seconds = original_idle
+        settings.campus_ttl_seconds = original_ttl
+        await live_sessions.shutdown()

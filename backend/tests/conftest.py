@@ -16,6 +16,7 @@ from app.domain.proximity import live_sessions
 from app.infra import postgres
 from app.infra.redis import redis_client, set_redis_client
 from app.main import app
+from app.settings import settings
 
 
 # Ensure a selector-based event loop policy on Windows to avoid Proactor issues with async IO
@@ -47,6 +48,24 @@ def patch_postgres(monkeypatch):
 
 	monkeypatch.setattr(postgres, "init_pool", _noop)
 	monkeypatch.setattr(postgres, "close_pool", _noop)
+
+
+@pytest.fixture(autouse=True)
+def force_test_settings():
+	"""Ensure a consistent test environment.
+
+	Most API tests authenticate via X-User-Id/X-Campus-Id headers, which are only
+	accepted in dev mode.
+	"""
+	original_env = settings.environment
+	original_intent_required = settings.intent_signing_required
+	settings.environment = "dev"
+	settings.intent_signing_required = False
+	try:
+		yield
+	finally:
+		settings.environment = original_env
+		settings.intent_signing_required = original_intent_required
 
 
 @pytest_asyncio.fixture

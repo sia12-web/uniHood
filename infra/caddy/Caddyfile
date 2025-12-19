@@ -10,7 +10,7 @@
     # ==========================================================================
     # API Routes -> Backend (FastAPI)
     # ==========================================================================
-    handle /api/* {
+    handle_path /api/* {
         reverse_proxy backend:8000 {
             # Health checks
             health_uri /health/live
@@ -18,6 +18,17 @@
             health_timeout 5s
             
             # Headers
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # ==========================================================================
+    # Uploads -> Backend (media served from persistent volume)
+    # ==========================================================================
+    handle /uploads/* {
+        reverse_proxy backend:8000 {
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}

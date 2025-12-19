@@ -23,7 +23,7 @@ async def test_nearby_returns_friend(monkeypatch, api_client):
 	)
 
 	await redis_client.geoadd(
-		f"geo:presence:{campus_id}",
+		"geo:presence:global",
 		{
 			user_id: (-122.0, 37.0),
 			friend_id: (-122.0001, 37.0001),
@@ -55,7 +55,7 @@ async def test_nearby_returns_friend(monkeypatch, api_client):
 
 	response = await api_client.get(
 		"/proximity/nearby",
-		params={"campus_id": campus_id, "radius_m": 50},
+		params={"campus_id": campus_id, "radius_m": 50, "mode": "room", "scope": "global"},
 		headers={"X-User-Id": user_id, "X-Campus-Id": campus_id},
 	)
 	assert response.status_code == 200

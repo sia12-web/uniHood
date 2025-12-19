@@ -117,6 +117,9 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.${DOMAIN:-localhost}}
       CORS_ALLOW_ORIGINS: https://${DOMAIN:-localhost}
 
+      # Public base URL for media links persisted in DB (avatar/gallery)
+      UPLOAD_BASE_URL: https://${DOMAIN:-localhost}/uploads
+
       # Intent signing
       INTENT_SIGNING_REQUIRED: "true"
 
@@ -208,9 +211,20 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://${DOMAIN:-localhost}/api
-        NEXT_PUBLIC_WS_URL: wss://${DOMAIN:-localhost}
-        NEXT_PUBLIC_ACTIVITIES_URL: https://${DOMAIN:-localhost}/activities
+        # Some frontend modules use NEXT_PUBLIC_BACKEND_URL, others use NEXT_PUBLIC_API_BASE_URL.
+        # Both should point at the Caddy /api prefix (Caddy strips it via handle_path).
+        NEXT_PUBLIC_BACKEND_URL: https://${DOMAIN:-localhost}/api
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN:-localhost}/api
+
+        # Socket.IO is proxied at /socket.io and should NOT include /api.
+        NEXT_PUBLIC_SOCKET_URL: https://${DOMAIN:-localhost}
+
+        # Activities service is proxied at /activities.
+        NEXT_PUBLIC_ACTIVITIES_CORE_URL: https://${DOMAIN:-localhost}/activities
+        NEXT_PUBLIC_ACTIVITIES_CORE_SOCKET_URL: https://${DOMAIN:-localhost}
+
+        # Avoid silently falling back to demo user in production.
+        NEXT_PUBLIC_DISABLE_DEMO_USER: "1"
     restart: always
     environment:
       NODE_ENV: production

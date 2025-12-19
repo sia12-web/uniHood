@@ -264,8 +264,17 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		if not user_presence:
 			raise LookupError("presence_not_found")
 		
-		lon_user = float(user_presence.get("lon"))
-		lat_user = float(user_presence.get("lat"))
+		lon_raw = user_presence.get("lon")
+		lat_raw = user_presence.get("lat")
+		try:
+			lon_user = float(lon_raw) if lon_raw is not None else None
+			lat_user = float(lat_raw) if lat_raw is not None else None
+		except (TypeError, ValueError):
+			lon_user = None
+			lat_user = None
+		if lon_user is None or lat_user is None:
+			# User has not shared location (or presence is incomplete). Treat as no nearby results.
+			return NearbyResponse(items=[], cursor=None)
 		
 		# Use global geo key for cross-campus Room mode
 		geo_key = "geo:presence:global"

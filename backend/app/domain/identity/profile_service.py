@@ -58,7 +58,11 @@ def _avatar_url(user: models.User) -> Optional[str]:
 
 def _to_gallery(images: list[models.ProfileImage]) -> list[schemas.GalleryImage]:
 	return [
-		schemas.GalleryImage(key=item.key, url=item.url, uploaded_at=item.uploaded_at or None)
+		schemas.GalleryImage(
+			key=item.key,
+			url=(f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{item.key}" if item.key else item.url),
+			uploaded_at=item.uploaded_at or None,
+		)
 		for item in images
 	]
 

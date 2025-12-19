@@ -156,19 +156,24 @@ async def _keepalive(session: LiveSession) -> None:
             key = f"presence:{session.user_id}"
             exists = bool(await redis_client.exists(key))
             now_ms = int(now * 1000)
+            last_heartbeat_ms = int(last_heartbeat * 1000)
             if not exists:
                 mapping = {
                     "lat": lat,
                     "lon": lon,
                     "accuracy_m": accuracy_m,
-                    "ts": now_ms,
+                    # IMPORTANT: ts represents the last *location* heartbeat time.
+                    # Keepalive should not make a user look "fresh" without a new
+                    # location heartbeat, otherwise stale users can appear in Room mode.
+                    "ts": last_heartbeat_ms,
                     "device_id": device_id,
                     "campus_id": campus_id,
                     "venue_id": venue_id,
                 }
                 await redis_client.hset(key, mapping=mapping)
             else:
-                await redis_client.hset(key, mapping={"ts": now_ms})
+                # Only extend TTL/online marker. Do NOT update ts here.
+                await redis_client.hset(key, mapping={"updated_at": now_ms})
             await redis_client.expire(key, settings.campus_ttl_seconds)
             await redis_client.setex(f"online:user:{session.user_id}", settings.campus_ttl_seconds, "1")
             try:

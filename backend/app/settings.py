@@ -119,6 +119,7 @@ class Settings(BaseSettings):
             env_file=".env",
             case_sensitive=False,
             env_nested_delimiter="__",
+            extra="ignore",
         )
         @field_validator("moderation_staff_ids", mode="before")
         def _split_staff_ids(cls, value):  # type: ignore[override]
@@ -169,6 +170,7 @@ class Settings(BaseSettings):
             env_file = ".env"
             case_sensitive = False
             env_nested_delimiter = "__"
+            extra = "ignore"
 
         @validator("moderation_staff_ids", pre=True)  # type: ignore[override]
         def _split_staff_ids_v1(cls, value):

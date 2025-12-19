@@ -104,7 +104,7 @@ export default function LoginPage() {
         const { fetchProfile } = await import("@/lib/identity");
         const profile = await fetchProfile(response.user_id, null);
 
-		if (isUnselectedCampusId(profile.campus_id)) {
+        if (isUnselectedCampusId(profile.campus_id)) {
           router.replace("/select-university");
           return;
         }
@@ -133,14 +133,12 @@ export default function LoginPage() {
           {/* Logo - no blending needed since bg is pure white */}
           <div className="mb-8">
             <BrandLogo
-              withWordmark={false}
               asLink={false}
               backgroundTone="light"
               logoWidth={400}
               logoHeight={400}
               disableMixBlend={true}
               logoClassName="!h-[280px] w-auto"
-              taglineClassName="hidden"
             />
           </div>
 
@@ -181,15 +179,12 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:hidden flex justify-center mb-6">
             <BrandLogo
-              withWordmark={false}
               asLink={false}
               backgroundTone="transparent"
               logoWidth={450}
               logoHeight={450}
               className="text-[#881337]"
               logoClassName="!h-64 !w-64 object-contain mix-blend-multiply contrast-[1.1] brightness-[1.1]"
-              wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
-              taglineClassName="hidden"
             />
           </div>
           <div className="text-center lg:text-left space-y-2">

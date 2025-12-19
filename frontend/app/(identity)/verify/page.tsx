@@ -19,14 +19,12 @@ export default function IdentityVerificationPage() {
 					{/* Logo - no blending needed since bg is pure white */}
 					<div className="mb-8">
 						<BrandLogo
-							withWordmark={false}
 							asLink={false}
 							backgroundTone="light"
 							logoWidth={400}
 							logoHeight={400}
 							disableMixBlend={true}
 							logoClassName="!h-[280px] w-auto"
-							taglineClassName="hidden"
 						/>
 					</div>
 
@@ -68,14 +66,12 @@ export default function IdentityVerificationPage() {
 					<div className="lg:hidden flex justify-center mb-6">
 						<div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
 							<BrandLogo
-								withWordmark={false}
 								asLink={false}
 								backgroundTone="light"
 								logoWidth={450}
 								logoHeight={450}
 								disableMixBlend={true}
 								logoClassName="!h-48 !w-48 object-contain"
-								taglineClassName="hidden"
 							/>
 						</div>
 					</div>

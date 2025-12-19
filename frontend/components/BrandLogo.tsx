@@ -4,13 +4,13 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type BrandLogoProps = {
-  withWordmark?: boolean;
+  // withWordmark removed
   className?: string;
   logoClassName?: string;
-  wordmarkClassName?: string;
-  wordmarkTitleClassName?: string;
-  taglineClassName?: string;
-  tagline?: string;
+  // wordmarkClassName removed
+  // wordmarkTitleClassName removed
+  // taglineClassName removed
+  // tagline removed
   /**
    * Indicates whether the surrounding surface is light or dark so that we can
    * pick shadows/overlays that keep the logo visible.
@@ -27,13 +27,13 @@ type BrandLogoProps = {
 };
 
 export default function BrandLogo({
-  withWordmark = false,
+  // withWordmark removed
   className,
   logoClassName,
-  wordmarkClassName,
-  wordmarkTitleClassName,
-  taglineClassName,
-  tagline = "Campus discovery",
+  // wordmarkClassName removed
+  // wordmarkTitleClassName removed
+  // taglineClassName removed
+  // tagline removed
   backgroundTone = "light",
   logoWidth = 140,
   logoHeight = 140,
@@ -79,22 +79,7 @@ export default function BrandLogo({
         />
       </span>
 
-      {withWordmark ? (
-        <span className={cn("flex min-w-0 flex-col leading-none text-current", wordmarkClassName)}>
-          <span className={cn("text-2xl font-black tracking-tight", wordmarkTitleClassName)}>
-            <span className="text-navy dark:text-indigo-400">uni</span>
-            <span className="text-coral dark:text-rose-400">Hood</span>
-          </span>
-          <span
-            className={cn(
-              "text-[0.65rem] font-semibold uppercase tracking-[0.4em] opacity-70",
-              taglineClassName,
-            )}
-          >
-            {tagline}
-          </span>
-        </span>
-      ) : null}
+
     </>
   );
 

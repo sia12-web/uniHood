@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, MessageCircle, Users, Trophy, User } from "lucide-react";
+import { Compass, MessageCircle, Users, Trophy, User, Gamepad2 } from "lucide-react";
 import { useMemo } from "react";
 
 function isActive(pathname: string, href: string) {
@@ -20,6 +20,7 @@ export default function BottomNav() {
     const navItems = useMemo(() => [
         { label: "Discover", href: "/discovery", icon: Compass },
         { label: "Chat", href: "/chat", icon: MessageCircle },
+        { label: "Games", href: "/games", icon: Gamepad2 },
         { label: "Meetups", href: "/meetups", icon: Users },
         { label: "Rank", href: "/leaderboards", icon: Trophy },
         { label: "Profile", href: "/settings/profile", icon: User },
@@ -30,7 +31,7 @@ export default function BottomNav() {
 
     return (
         <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-slate-200 bg-white/90 pb-safe backdrop-blur-lg md:hidden">
-            <div className="grid h-16 grid-cols-5 items-center justify-items-center">
+            <div className="grid h-16 grid-cols-6 items-center justify-items-center">
                 {navItems.map(({ label, href, icon: Icon }) => {
                     const active = isActive(pathname, href);
                     return (

@@ -38,17 +38,11 @@ export default function ActivitiesHubPage() {
       <section className="mx-auto flex max-w-6xl flex-col gap-4 rounded-3xl border border-amber-100 bg-white/85 p-8 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <Link href="/" className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
-              </svg>
-              Back to Dashboard
-            </Link>
-            <div className="flex items-center gap-2">
-              <p className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
-                <Sparkles className="h-4 w-4" /> Events & activities
-              </p>
-            </div>
+
+            <p className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+              <Sparkles className="h-4 w-4" /> Events & activities
+            </p>
+
             <h1 className="text-3xl font-bold text-navy dark:text-white">Pick a duel, story, or meetup</h1>
             <p className="max-w-3xl text-sm text-navy/70 dark:text-slate-400">
               This list is pulled from the activities backend so you&apos;re always seeing what&apos;s live right now.
@@ -87,12 +81,13 @@ export default function ActivitiesHubPage() {
             {activities.length === 0 && (
               <div className="col-span-full rounded-2xl border border-amber-100 bg-white/80 p-6 text-sm text-navy/70 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
                 No sessions yet—start one of the activities above to seed the feed.
+
+
               </div>
             )}
           </div>
-        )}
-      </section>
-    </main>
+        </section>
+    </main >
   );
 }
 

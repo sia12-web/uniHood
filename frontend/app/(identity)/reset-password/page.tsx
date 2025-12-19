@@ -148,15 +148,12 @@ export default function ResetPasswordPage() {
 
         <div className="relative z-10 flex flex-col items-center">
           <BrandLogo
-            withWordmark={false}
             asLink={false}
             backgroundTone="transparent"
             logoWidth={400}
             logoHeight={400}
             className="text-[#881337] mb-12"
             logoClassName="!h-[320px] w-auto"
-            wordmarkTitleClassName="text-7xl tracking-tight text-[#881337]"
-            taglineClassName="hidden"
           />
           <div className="max-w-md">
             <h2 className="text-2xl font-medium text-slate-800 leading-snug">
@@ -202,15 +199,12 @@ export default function ResetPasswordPage() {
         <div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:hidden flex justify-center mb-2">
             <BrandLogo
-              withWordmark={false}
               asLink={false}
               backgroundTone="transparent"
               logoWidth={300}
               logoHeight={300}
               className="text-[#881337]"
               logoClassName="h-44 w-auto"
-              wordmarkTitleClassName="text-4xl tracking-tight text-[#881337]"
-              taglineClassName="hidden"
             />
           </div>
           <div className="text-center lg:text-left space-y-2">

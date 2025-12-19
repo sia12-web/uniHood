@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Loader2, Zap, Trophy, Users, ArrowLeft } from "lucide-react";
+import { Loader2, Zap, Trophy, Users } from "lucide-react";
 
 import { createQuickTriviaSession, getSelf } from "@/app/features/activities/api/client";
 import { useQuickTriviaInvite } from "@/hooks/activities/use-quick-trivia-invite";
@@ -125,15 +125,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
         </div>
 
         {/* Back Button */}
-        <div className="absolute left-4 top-4 z-20 md:left-6 md:top-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </div>
+
 
         {/* How to Play Card - Responsive */}
         {/* Mobile: Relative block below image. Desktop: Absolute bottom-right overlay. */}

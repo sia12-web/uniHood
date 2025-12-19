@@ -60,6 +60,7 @@ export default function SiteHeader() {
     return [
       { label: "Discover", href: "/discovery" },
       { label: "Chat", href: "/chat" },
+      { label: "Games", href: "/games" },
       { label: "Meetups", href: "/meetups" },
       { label: "Rank", href: "/leaderboards" },
     ];
@@ -85,7 +86,7 @@ export default function SiteHeader() {
         <div className="flex h-full items-center">
           <Link href="/discovery" className="flex items-center gap-2">
             {/* Clean Logo without box */}
-            <BrandLogo withWordmark asLink={false} logoClassName="h-8 w-auto" wordmarkTitleClassName="text-xl tracking-tight font-bold text-rose-700" disableMixBlend={true} />
+            <BrandLogo asLink={false} logoClassName="h-10 sm:h-12 w-auto" disableMixBlend={true} />
           </Link>
         </div>
 

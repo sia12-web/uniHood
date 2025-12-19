@@ -14,8 +14,6 @@ export default function SiteFooter() {
                     {/* Logo */}
                     <div className="flex-shrink-0 rounded-xl bg-warm-sand/30 dark:bg-slate-800/50 p-3">
                         <BrandLogo
-                            withWordmark={false}
-                            tagline=""
                             disableMixBlend={true}
                             asLink={false}
                             logoClassName="h-20 w-auto sm:h-24"

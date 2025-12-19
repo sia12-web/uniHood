@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Swords, Users, Zap, Loader2 } from "lucide-react";
+import { Swords, Users, Zap, Loader2 } from "lucide-react";
 
 import { createRockPaperScissorsSession } from "@/app/features/activities/api/client";
 import { RockPaperScissorsPanel } from "@/app/features/activities/components/RockPaperScissorsPanel";
@@ -116,15 +116,7 @@ export default function RockPaperScissorsEntryPage({ searchParams }: PageProps) 
         </div>
 
         {/* Back Button */}
-        <div className="absolute left-4 top-4 z-20 md:left-6 md:top-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </div>
+
 
         {/* How to Play Card - Responsive */}
         {/* Mobile: Relative block below image. Desktop: Absolute bottom-right overlay. */}

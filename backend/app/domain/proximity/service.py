@@ -293,12 +293,13 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		)
 		
 		logger.warning(
-			"room mode query radius=%s effective_radius=%s center=(%s,%s) candidates=%s",
+			"room mode query radius=%s effective_radius=%s center=(%s,%s) candidates=%s candidate_ids=%s",
 			query.radius_m,
 			effective_radius,
 			lon_user,
 			lat_user,
 			len(live),
+			[uid for uid, _ in live],
 		)
 		
 		# Process results same as existing proximity mode
@@ -310,14 +311,23 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		filtered: List[Tuple[str, float, PrivacySettings, bool]] = []
 		for uid, distance_m in live:
 			if blocks_map.get(uid):
+				logger.debug("room mode: filtering out %s - blocked", uid)
 				continue
 			privacy_settings = privacy_map.get(uid, PrivacySettings())
 			is_friend = bool(friends_map.get(uid))
 			if query.filter == "friends" and not is_friend:
+				logger.debug("room mode: filtering out %s - not a friend (filter=friends)", uid)
 				continue
 			if not privacy_settings.allows_visibility(is_friend):
+				logger.debug("room mode: filtering out %s - privacy settings (is_friend=%s)", uid, is_friend)
 				continue
 			filtered.append((uid, distance_m, privacy_settings, is_friend))
+		
+		logger.info(
+			"room mode: after filtering: %s users remain (from %s candidates)",
+			len(filtered),
+			len(live),
+		)
 
 		page = filtered[: query.limit]
 		profiles = await _load_user_lite([uid for uid, *_ in page])
@@ -327,8 +337,10 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		for uid, distance_m, privacy_settings, is_friend in page:
 			profile = profiles.get(uid)
 			if not profile:
+				logger.debug("room mode: skipping %s - no profile found", uid)
 				continue
 			if profile.get("display_name") == "Deleted User" or str(profile.get("handle", "")).startswith("deleted-"):
+				logger.debug("room mode: skipping %s - deleted user", uid)
 				continue
 			distance_value = None
 			if include_distance:
@@ -353,6 +365,12 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 				)
 			)
 
+		logger.info(
+			"room mode: returning %s items for user %s: %s",
+			len(items),
+			auth_user.id,
+			[str(item.user_id) for item in items],
+		)
 		return NearbyResponse(items=items, cursor=None)
 
 	# Campus mode: Directory from DB, same campus only

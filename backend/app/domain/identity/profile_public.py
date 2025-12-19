@@ -172,7 +172,7 @@ async def rebuild_public_profile(user_id: str, *, viewer_scope: str = "everyone"
 				""",
 				user_id,
 				user_row["handle"],
-				user_row["handle"],
+				user_row["display_name"],
 				user_row["avatar_key"],
 				user_row["campus_id"],
 				user_row["bio"],

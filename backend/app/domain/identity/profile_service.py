@@ -73,7 +73,7 @@ def _to_profile(user: models.User, courses: Optional[list[schemas.Course]] = Non
 		email=user.email,
 		email_verified=user.email_verified,
 		handle=user.handle,
-		display_name=user.handle,
+		display_name=user.display_name,
 		bio=user.bio,
 		avatar_url=_avatar_url(user),
 		avatar_key=user.avatar_key,
@@ -243,6 +243,9 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 		updates["status"] = status
 	if "handle" in patch_data and payload.handle is not None:
 		updates["handle"] = policy.normalise_handle(payload.handle)
+	if "display_name" in patch_data:
+		display = patch_data.get("display_name")
+		updates["display_name"] = (display.strip() if isinstance(display, str) else None) or None
 	if "major" in patch_data:
 		major = patch_data.get("major")
 		updates["major"] = (major.strip() if isinstance(major, str) else None) or None
@@ -311,7 +314,8 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					raise policy.HandleConflict("handle_taken")
 			for key, value in updates.items():
 				setattr(user, key, value)
-			user.display_name = user.handle
+			if "display_name" in patch_data:
+				user.display_name = (patch_data.get("display_name") or "").strip() or user.display_name
 			user.status["updated_at"] = user.status.get("updated_at") or _now_iso()
 			privacy_payload = json.dumps(user.privacy or {})
 			status_payload = json.dumps(user.status or {})
@@ -337,7 +341,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				WHERE id = $11
 				""",
 				user.handle,
-				user.handle,
+				user.display_name,
 				user.bio,
 				privacy_payload,
 				status_payload,

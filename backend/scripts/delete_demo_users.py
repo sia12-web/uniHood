@@ -7,10 +7,13 @@ This script is intentionally conservative:
 
 Typical usage:
   # Dry-run: find users whose handle starts with "demo_"
-  python -m backend.scripts.delete_demo_users --handle-prefix demo_
+	python -m scripts.delete_demo_users --handle-prefix demo_
 
   # Execute: actually delete them
-  python -m backend.scripts.delete_demo_users --handle-prefix demo_ --execute
+	python -m scripts.delete_demo_users --handle-prefix demo_ --execute
+
+	# Dry-run: match by "real" names you used for test accounts (matches handle OR display_name)
+	python -m scripts.delete_demo_users --match-name siavash --match-name jack --match-name amirsalar
 
 If you are targeting production, make sure your environment variables point at the
 correct database (POSTGRES_URL / DATABASE_URL) before running.
@@ -24,6 +27,18 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable, Optional
+
+# For friendlier error messages on DB connectivity issues.
+import asyncpg
+
+# Best-effort: load environment variables from a .env file (if present)
+# so this script can run outside docker/uvicorn with the same config.
+try:  # pragma: no cover
+	from dotenv import load_dotenv  # type: ignore
+
+	load_dotenv()
+except Exception:  # pragma: no cover
+	pass
 
 from app.domain.identity import deletion
 from app.infra.auth import AuthenticatedUser
@@ -51,8 +66,20 @@ def _parse_dt(value: str) -> datetime:
 
 def _parse_args() -> argparse.Namespace:
 	p = argparse.ArgumentParser(description="Delete demo/test users (bulk)")
+	p.add_argument(
+		"--match-name",
+		action="append",
+		default=[],
+		help="Match users where handle OR display_name contains this value (repeatable)",
+	)
 	p.add_argument("--handle-prefix", default=None, help="Delete users whose handle starts with this prefix")
 	p.add_argument("--handle-regex", default=None, help="Delete users whose handle matches this regex")
+	p.add_argument(
+		"--handle-exact",
+		action="append",
+		default=[],
+		help="Delete users whose handle matches exactly (repeatable)",
+	)
 	# NOTE: argparse help text uses %-formatting internally; escape % as %%.
 	p.add_argument(
 		"--email-like",
@@ -93,8 +120,10 @@ def _parse_args() -> argparse.Namespace:
 
 def _ensure_filters(args: argparse.Namespace) -> None:
 	if (
-		not args.handle_prefix
+		not args.match_name
+		and not args.handle_prefix
 		and not args.handle_regex
+		and not args.handle_exact
 		and not args.email_like
 		and not args.email_null
 		and not args.user_id
@@ -103,7 +132,7 @@ def _ensure_filters(args: argparse.Namespace) -> None:
 	):
 		raise SystemExit(
 			"Refusing to run without any filters. Provide at least one of: "
-			"--handle-prefix/--handle-regex/--email-like/--email-null/--user-id/--created-after/--created-before"
+			"--match-name/--handle-prefix/--handle-regex/--handle-exact/--email-like/--email-null/--user-id/--created-after/--created-before"
 		)
 
 
@@ -137,9 +166,41 @@ def _build_where(args: argparse.Namespace, cols: set[str]) -> tuple[str, list[ob
 			placeholders.append(f"${len(params)}")
 		clauses.append(f"id IN ({', '.join(placeholders)})")
 
+	# Match by name across handle/display_name (repeatable), combined as OR.
+	if args.match_name:
+		name_clauses: list[str] = []
+		has_display = "display_name" in cols
+		for raw in args.match_name:
+			needle = (raw or "").strip()
+			if not needle:
+				continue
+			pattern = f"%{needle}%"
+			# Each entry becomes: (handle ILIKE $n OR display_name ILIKE $m)
+			params.append(pattern)
+			ph_handle = f"${len(params)}"
+			if has_display:
+				params.append(pattern)
+				ph_disp = f"${len(params)}"
+				name_clauses.append(f"(handle ILIKE {ph_handle} OR display_name ILIKE {ph_disp})")
+			else:
+				name_clauses.append(f"handle ILIKE {ph_handle}")
+		if name_clauses:
+			clauses.append(f"({' OR '.join(name_clauses)})")
+
 	if args.handle_prefix:
 		params.append(args.handle_prefix + "%")
 		clauses.append(f"handle ILIKE ${len(params)}")
+
+	if args.handle_exact:
+		placeholders = []
+		for value in args.handle_exact:
+			handle = (value or "").strip()
+			if not handle:
+				continue
+			params.append(handle)
+			placeholders.append(f"${len(params)}")
+		if placeholders:
+			clauses.append(f"handle IN ({', '.join(placeholders)})")
 
 	if args.handle_regex:
 		# Postgres regex is ~. Use case-insensitive by embedding (?i) in the pattern.
@@ -236,7 +297,20 @@ async def delete_demo_users() -> None:
 	args = _parse_args()
 	_ensure_filters(args)
 
-	candidates = await _list_candidates(args)
+	try:
+		candidates = await _list_candidates(args)
+	except asyncpg.exceptions.InvalidCatalogNameError as exc:
+		raise SystemExit(
+			"Postgres database does not exist for the configured POSTGRES_URL/DATABASE_URL.\n"
+			"- If running locally: start Docker Desktop, then run `docker compose up -d postgres redis` (or `docker compose up -d`).\n"
+			"- Or update POSTGRES_URL/DATABASE_URL to point at the correct database.\n"
+			"Current default DB name is often 'unihood'."
+		) from exc
+	except (OSError, ConnectionError, asyncpg.PostgresError) as exc:
+		raise SystemExit(
+			"Failed to connect to Postgres using POSTGRES_URL/DATABASE_URL.\n"
+			"Ensure Postgres is running and the URL is correct (host/port/db/user/password)."
+		) from exc
 	if not candidates:
 		print("No matching users found.")
 		return

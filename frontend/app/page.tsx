@@ -1331,10 +1331,10 @@ export default function HomePage() {
             <BrandLogo
               withWordmark={false}
               className="flex items-center justify-center"
-              logoClassName="!h-28 !w-28 object-contain"
+              logoClassName="!h-36 !w-36 object-contain"
               backgroundTone="light"
-              logoWidth={112}
-              logoHeight={112}
+              logoWidth={144}
+              logoHeight={144}
               asLink={false}
               disableMixBlend={true}
             />
@@ -1427,10 +1427,10 @@ export default function HomePage() {
             <BrandLogo
               withWordmark={false}
               className="flex items-center justify-center"
-              logoClassName="!h-24 !w-24 object-contain"
+              logoClassName="!h-32 !w-32 object-contain"
               backgroundTone="light"
-              logoWidth={96}
-              logoHeight={96}
+              logoWidth={128}
+              logoHeight={128}
               asLink={false}
               disableMixBlend={true}
             />

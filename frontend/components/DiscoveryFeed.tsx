@@ -941,7 +941,7 @@ function UserCard({
   };
 
   const distance = formatDistance(user.distance_m ?? null);
-  const initial = (user.display_name || user.handle || "?")[0].toUpperCase();
+  const initial = (user.display_name || "U")[0].toUpperCase();
 
   return (
     <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-md transition-all hover:shadow-xl">
@@ -1081,7 +1081,7 @@ function UserCard({
 
             <div className="absolute inset-x-0 bottom-0 p-5 text-white">
               <div className="mb-1 flex items-center gap-2">
-                <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || user.handle}</h3>
+                <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || "User"}</h3>
                 {isFriend && (
                   <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-sm ring-1 ring-emerald-500/40">
                     Friend

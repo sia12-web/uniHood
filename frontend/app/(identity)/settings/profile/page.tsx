@@ -31,7 +31,7 @@ import { ToastContext } from "@/components/providers/toast-provider";
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
-const DRAFT_STORAGE_KEY = "divan.profile.draft";
+const DRAFT_STORAGE_KEY = "unihood.profile.draft";
 const PROGRESS_SEGMENTS = 20;
 
 type StoredProfileDraft = {
@@ -998,9 +998,9 @@ export default function ProfileSettingsPage() {
 			<div className="mx-auto flex w-full max-w-5xl px-6 py-12 flex-col gap-6">
 				<header className="flex flex-col gap-2">
 					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
-					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your Campus identity</h1>
+					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your uniHood identity</h1>
 					<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
-						Manage how classmates discover you across Campus. Updates apply instantly to invites, rooms, and the Social Hub.
+						Manage how classmates discover you across uniHood. Updates apply instantly to invites, rooms, and the Social Hub.
 					</p>
 				</header>
 				{!isDraftMode && error ? (
@@ -1075,10 +1075,9 @@ export default function ProfileSettingsPage() {
 									<div className="flex flex-col gap-2">
 										<div>
 											<p className="text-base font-semibold text-white">{activeProfile.display_name || "You"}</p>
-											<p className="text-sm text-white/70">{activeProfile.handle ? `@${activeProfile.handle}` : "Handle pending"}</p>
 										</div>
 										<p className="text-sm text-white/70">
-											{activeProfile.bio ? activeProfile.bio : "Introduce yourself to unlock campus highlights."}
+											{activeProfile.bio ? activeProfile.bio : "Introduce yourself to unlock uniHood highlights."}
 										</p>
 										{activeProfile.passions?.length ? (
 											<ul className="flex flex-wrap gap-2 text-xs text-white/70">
@@ -1113,7 +1112,7 @@ export default function ProfileSettingsPage() {
 									))}
 								</div>
 								<p className="mt-3 text-xs text-slate-500">
-									Add your campus story to unlock more Social Hub entry points and richer recommendations.
+									Add your uniHood story to unlock more Social Hub entry points and richer recommendations.
 								</p>
 								{missingTasks.length ? (
 									<ul className="mt-4 space-y-2 text-sm text-slate-600">
@@ -1131,10 +1130,9 @@ export default function ProfileSettingsPage() {
 								)}
 							</section>
 						</aside>
-					</div >
-				) : null
-				}
-			</div >
-		</main >
+				)}
+					</div>
+		</div>
+		</main>
 	);
 }

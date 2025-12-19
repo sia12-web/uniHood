@@ -10,7 +10,7 @@ type UserResultCardProps = {
 };
 
 export default function UserResultCard({ user, actionLabel = "Invite", onAction }: UserResultCardProps) {
-	const initials = user.display_name.trim()[0]?.toUpperCase() ?? user.handle[0]?.toUpperCase() ?? "?";
+	const initials = (user.display_name?.trim()[0] || "U").toUpperCase();
 	const scoreText = user.score.toFixed(2);
 	return (
 		<div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -24,7 +24,6 @@ export default function UserResultCard({ user, actionLabel = "Invite", onAction 
 				</div>
 				<div className="space-y-1 text-sm">
 					<p className="font-semibold text-slate-900">{user.display_name}</p>
-					<p className="text-xs text-slate-500">@{user.handle}</p>
 					<p className="text-xs text-slate-500">
 						Mutual friends: {user.mutual_count} • Score {scoreText}
 					</p>

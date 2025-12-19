@@ -266,52 +266,49 @@ class LeaderboardAccrual:
 		user_list = list(user_ids)
 		awarded_users: List[str] = []
 		
+		import logging
+		logger = logging.getLogger("divan.leaderboards")
+		logger.info(f"[record_activity_ended] user_ids={user_ids} winner_id={winner_id} duration={duration_seconds}s moves={move_count}")
 		# Validate game duration
 		if not policy.validate_game_duration(duration_seconds):
-			# Game too short - just mark activity but no points
+			logger.info(f"[record_activity_ended] Game too short: duration={duration_seconds}s. No points awarded.")
 			for uid in user_list:
 				await self._touch(uid, day=day)
 			return awarded_users
-		
 		# Validate game had enough moves/actions
 		if not policy.validate_game_moves(move_count):
-			# Not enough engagement - no points
+			logger.info(f"[record_activity_ended] Not enough moves: moves={move_count}. No points awarded.")
 			for uid in user_list:
 				await self._touch(uid, day=day)
 			return awarded_users
-		
 		# For 2-player games, check per-opponent limits
 		if len(user_list) == 2:
 			user_a, user_b = user_list[0], user_list[1]
-			
 			# Check daily opponent limit
 			if not await policy.check_game_opponent_limit(user_a, user_b, day):
-				# Daily limit reached - no points
+				logger.info(f"[record_activity_ended] Daily opponent limit reached for {user_a} vs {user_b} on {day}. No points awarded.")
 				for uid in user_list:
 					await self._touch(uid, day=day)
 				return awarded_users
-			
 			# Check cooldown between games
 			if not await policy.check_game_opponent_cooldown(user_a, user_b):
-				# Too soon since last game - no points
+				logger.info(f"[record_activity_ended] Cooldown not met for {user_a} vs {user_b}. No points awarded.")
 				for uid in user_list:
 					await self._touch(uid, day=day)
 				return awarded_users
-			
 			# Update opponent tracking
 			await policy.increment_game_opponent_count(user_a, user_b, day)
 			await policy.set_game_opponent_cooldown(user_a, user_b)
-		
 		# Award points to all participants
 		for uid in user_list:
+			logger.info(f"[record_activity_ended] Awarding points to {uid}")
 			await self._hincr(_hash_key(day, uid), "acts_played", 1)
 			await self._touch(uid, day=day)
 			awarded_users.append(uid)
-		
 		# Award win bonus
 		if winner_id and winner_id in user_list:
+			logger.info(f"[record_activity_ended] Awarding win bonus to {winner_id}")
 			await self._hincr(_hash_key(day, winner_id), "acts_won", 1)
-		
 		return awarded_users
 
 	async def mark_presence_heartbeat(self, *, user_id: str, when: Optional[datetime] = None) -> None:

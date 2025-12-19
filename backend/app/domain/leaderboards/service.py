@@ -129,13 +129,16 @@ class LeaderboardService:
 		Record game/activity outcome with anti-cheat validation.
 		Returns list of user IDs that actually received points.
 		"""
+		import logging
+		logger = logging.getLogger("divan.leaderboards")
 		# Cache campus mappings for users
 		campus_map = campus_map or {}
 		for uid in user_ids:
 			cid = campus_map.get(uid)
 			if cid:
 				await cache_user_campus(uid, cid)
-		
+
+		logger.info(f"[record_activity_outcome] user_ids={user_ids} winner_id={winner_id} game_kind={game_kind} campus_map={campus_map} duration={duration_seconds}s moves={move_count}")
 		# Delegate to accrual with anti-cheat checks
 		awarded = await self._accrual.record_activity_ended(
 			user_ids=user_ids,
@@ -143,6 +146,7 @@ class LeaderboardService:
 			duration_seconds=duration_seconds,
 			move_count=move_count,
 		)
+		logger.info(f"[record_activity_outcome] awarded={awarded}")
 
 		# Persist lifetime counters to Postgres so they don't reset when Redis rolls over.
 		# Important: even if anti-cheat blocks awarding points, we still record games played/wins.
@@ -154,12 +158,13 @@ class LeaderboardService:
 				try:
 					user_uuid = UUID(uid)
 				except Exception:
-					# Ignore malformed ids (shouldn't happen in normal flows)
+					logger.warning(f"Malformed user id: {uid}")
 					continue
 				win_inc = 1 if winner_id and uid == winner_id else 0
 				points_inc = 0
 				if uid in awarded_set:
 					points_inc = int(policy.W_ACT_PLAYED) + (int(policy.W_ACT_WON) if win_inc else 0)
+				logger.info(f"[record_activity_outcome] DB write: user={uid} game={game_kind} played=1 win={win_inc} points={points_inc}")
 				try:
 					await conn.execute(
 						"""
@@ -177,7 +182,7 @@ class LeaderboardService:
 						points_inc,
 					)
 				except asyncpg.UndefinedTableError:
-					# DB migration not applied yet; do not fail the request.
+					logger.error("user_game_stats table missing!")
 					pass
 
 		return awarded

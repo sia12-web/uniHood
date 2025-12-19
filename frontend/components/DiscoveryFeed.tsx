@@ -1005,7 +1005,6 @@ function UserCard({
             <div className="mt-8 flex-1 overflow-y-auto scrollbar-hide">
               <div className="mb-6">
                 <h4 className="text-2xl font-bold">{user.display_name}</h4>
-                <p className="text-sm text-slate-400">@{user.handle}</p>
               </div>
 
               {user.bio && user.bio.trim().length > 0 && (

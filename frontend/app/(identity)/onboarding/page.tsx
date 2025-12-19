@@ -10,6 +10,7 @@ import { HttpError } from "@/app/lib/http/errors";
 import { registerIdentity, resendVerification, type RegisterPayload } from "@/lib/identity";
 
 const INITIAL_FORM = {
+  displayName: "",
   email: "",
   password: "",
   confirmPassword: "",
@@ -61,10 +62,11 @@ export default function OnboardingPage() {
   const disabled = useMemo(
     () =>
       submitting ||
+      !form.displayName.trim() ||
       !form.email.trim() ||
       !form.password ||
       !form.confirmPassword,
-    [form.email, form.password, form.confirmPassword, submitting],
+    [form.displayName, form.email, form.password, form.confirmPassword, submitting],
   );
 
   const handleChange = (field: keyof JoinForm) => (value: string) => {
@@ -85,6 +87,7 @@ export default function OnboardingPage() {
       const payload: RegisterPayload = {
         email: form.email.trim().toLowerCase(),
         password: form.password,
+        display_name: form.displayName.trim(),
       };
       await registerIdentity(payload);
 
@@ -236,6 +239,24 @@ export default function OnboardingPage() {
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="space-y-4">
+                  <div className="group relative">
+                    <input
+                      required
+                      type="text"
+                      id="displayName"
+                      autoComplete="name"
+                      placeholder=" "
+                      value={form.displayName}
+                      onChange={(event) => handleChange("displayName")(event.target.value)}
+                      className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-[#d64045]/20"
+                    />
+                    <label
+                      htmlFor="displayName"
+                      className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
+                    >
+                      Display Name
+                    </label>
+                  </div>
                   <div className="group relative">
                     <input
                       required

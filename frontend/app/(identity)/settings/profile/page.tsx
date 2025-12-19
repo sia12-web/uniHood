@@ -200,12 +200,10 @@ function applyProfilePatch(base: ProfileRecord, patch: ProfilePatchPayload): Pro
 
 function calculateCompletion(profile: ProfileRecord): number {
 	const bio = (profile.bio ?? "").trim();
-	const handle = (profile.handle ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
 	const major = (profile.major ?? "").trim();
 	const checks = [
 		Boolean(profile.avatar_url),
-		handle.length >= 3,
 		bio.length >= 40,
 		Boolean(major),
 		Boolean(profile.graduation_year),
@@ -217,13 +215,9 @@ function calculateCompletion(profile: ProfileRecord): number {
 
 function buildMissingTasks(profile: ProfileRecord): string[] {
 	const tasks: string[] = [];
-	const handle = (profile.handle ?? "").trim();
 	const bio = (profile.bio ?? "").trim();
 	const major = (profile.major ?? "").trim();
 	const passionsCount = profile.passions?.length ?? 0;
-	if (handle.length < 3) {
-		tasks.push("Claim your Campus handle (3+ chars) so classmates can @mention you.");
-	}
 	if (bio.length < 40) {
 		tasks.push("Write a bio (40+ chars) that spotlights what you want to work on.");
 	}

@@ -491,15 +491,16 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     try {
       const pos = await requestBrowserPosition();
       positionRef.current = pos;
-      setDiscoveryMode("room");
       setShowProximityPrompt(false);
 
       // Trigger immediate heartbeat with new location
       if (currentUserId && currentCampusId) {
         await sendHeartbeat(pos, currentUserId, currentCampusId, 100); // Room mode is always 100m
         sentInitialHeartbeat.current = true;
-        void refreshNearby();
       }
+      // Set mode AFTER heartbeat so the user is "live" before fetching nearby
+      // The useEffect watching refreshNearby will automatically fetch with the new mode
+      setDiscoveryMode("room");
     } catch (err) {
       const message = err instanceof Error ? err.message : LOCATION_PERMISSION_MESSAGE;
       setLocationNotice(message);
@@ -913,6 +914,7 @@ function UserCard({
 }) {
   const [imageIndex, setImageIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const images = useMemo(() => {
     if (user.gallery && user.gallery.length > 0) {
@@ -924,7 +926,12 @@ function UserCard({
     return [];
   }, [user]);
 
-  const currentImage = images.length > 0 ? images[imageIndex % images.length] : null;
+  // Reset image error state when images change
+  useEffect(() => {
+    setImageError(false);
+  }, [images]);
+
+  const currentImage = !imageError && images.length > 0 ? images[imageIndex % images.length] : null;
   const hasMultipleImages = images.length > 1;
 
   const handleImageClick = (e: React.MouseEvent) => {
@@ -955,6 +962,7 @@ function UserCard({
             alt={user.display_name}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-50 to-slate-100 text-6xl font-bold text-rose-200">

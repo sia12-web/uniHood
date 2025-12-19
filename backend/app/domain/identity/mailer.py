@@ -181,13 +181,13 @@ async def send_friend_invite_notification(
     if from_handle:
         sender_label = f"{from_display_name} (@{from_handle})"
     
-    subject = f"{from_display_name} wants to be your friend on Divan"
+    subject = f"{from_display_name} wants to be your friend on uniHood"
     body = f"""
     <html>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f1a38;">
             <div style="max-width: 500px; margin: 0 auto; padding: 24px;">
                 <h2 style="color: #2d2a8d; margin-bottom: 16px;">You have a new friend request!</h2>
-                <p><strong>{sender_label}</strong> would like to connect with you on Divan.</p>
+                <p><strong>{sender_label}</strong> would like to connect with you on uniHood.</p>
                 <p style="margin: 24px 0;">
                     <a href="{settings.public_app_url}/friends?tab=invites" 
                        style="display: inline-block; background-color: #3b2e7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">

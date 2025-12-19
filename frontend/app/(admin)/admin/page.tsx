@@ -51,7 +51,7 @@ const ADMIN_FEATURES = [
     description: "Review pending identity verifications.",
   },
   {
-    title: "Contact Messages",
+    title: "User Messages",
     href: "/admin/contact",
     icon: Mail,
     color: "text-rose-600",

@@ -12,8 +12,8 @@ export default function LegalHubPage() {
 			</header>
 
 			<div className="grid gap-4 md:grid-cols-2">
-				<LegalCard title="Privacy Policy" href="/privacy" description="How we collect, store, and share data across uniHood services." />
-				<LegalCard title="Terms of Service" href="/terms" description="Rules for using uniHood and participating in campus communities." />
+				<LegalCard title="Privacy Policy" href="/privacy" description="How we collect, store, and share data across Divan services." />
+				<LegalCard title="Terms of Service" href="/terms" description="Rules for using Divan and participating in campus communities." />
 				<LegalCard title="Cookie Policy" href="/cookies" description="How cookies are used for sessions, analytics, and preferences." />
 			</div>
 		</div>

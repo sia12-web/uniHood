@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import { Send, CheckCircle, AlertCircle, Mail, MessageSquare, User, Tag } from "lucide-react";
 import { apiFetch } from "@/app/lib/http/client";
 import BackButton from "@/components/BackButton";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = [
     { value: "general", label: "General Inquiry" },
@@ -17,6 +18,7 @@ const CATEGORIES = [
 type FormState = "idle" | "submitting" | "success" | "error";
 
 export default function ContactPage() {
+    const { push } = useToast();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [subject, setSubject] = useState("");
@@ -25,22 +27,62 @@ export default function ContactPage() {
     const [formState, setFormState] = useState<FormState>("idle");
     const [errorMessage, setErrorMessage] = useState("");
 
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+
+        // Validation
+        if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) {
+            push({
+                title: "Required Fields",
+                description: "Please fill in all required fields.",
+                variant: "error"
+            });
+            return;
+        }
+
+        if (!validateEmail(email)) {
+            push({
+                title: "Invalid Email",
+                description: "Please enter a valid email address.",
+                variant: "error"
+            });
+            return;
+        }
+
+        if (message.length < 10) {
+            push({
+                title: "Message Too Short",
+                description: "Description must be at least 10 characters long.",
+                variant: "error"
+            });
+            return;
+        }
+
         setFormState("submitting");
         setErrorMessage("");
 
         try {
-            await apiFetch("/contact", {
+            await apiFetch("/admin/messages", {
                 method: "POST",
                 body: JSON.stringify({
-                    name,
-                    email,
-                    subject,
-                    message,
+                    name: name.trim(),
+                    email: email.trim(),
+                    subject: subject.trim(),
+                    message: message.trim(),
                     category,
                 }),
             });
+
+            push({
+                title: "Message Sent",
+                description: "We've received your message and will get back to you soon!",
+                variant: "success"
+            });
+
             setFormState("success");
             // Reset form
             setName("");
@@ -50,7 +92,13 @@ export default function ContactPage() {
             setCategory("general");
         } catch (err) {
             setFormState("error");
-            setErrorMessage(err instanceof Error ? err.message : "Failed to submit. Please try again.");
+            const msg = err instanceof Error ? err.message : "Failed to submit. Please try again.";
+            setErrorMessage(msg);
+            push({
+                title: "Failed to Send",
+                description: msg,
+                variant: "error"
+            });
         }
     };
 
@@ -229,8 +277,8 @@ export default function ContactPage() {
                 <div className="mt-8 text-center text-sm text-navy/60 dark:text-slate-500">
                     <p>
                         For urgent matters, you can also reach us at{" "}
-                        <a href="mailto:support@unihood.app" className="font-medium text-coral hover:underline dark:text-indigo-400">
-                            support@unihood.app
+                        <a href="mailto:support@divan.app" className="font-medium text-coral hover:underline dark:text-indigo-400">
+                            support@divan.app
                         </a>
                     </p>
                 </div>

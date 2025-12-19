@@ -113,7 +113,7 @@ export default function ContactMessagesPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Contact Messages</h1>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">User Messages</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                         {total} total message{total !== 1 ? "s" : ""}
                     </p>
@@ -168,130 +168,162 @@ export default function ContactMessagesPage() {
                     <p className="text-sm text-slate-500 dark:text-slate-400">Contact form submissions will appear here.</p>
                 </div>
             ) : (
-                <div className="grid gap-6 lg:grid-cols-2">
-                    {/* Message List */}
-                    <div className="space-y-3">
-                        {messages.map((msg) => (
-                            <button
-                                key={msg.id}
-                                type="button"
-                                onClick={() => setSelectedMessage(msg)}
-                                className={cn(
-                                    "w-full rounded-xl border p-4 text-left transition",
-                                    selectedMessage?.id === msg.id
-                                        ? "border-violet-500 bg-violet-50 dark:border-violet-400 dark:bg-violet-950/30"
-                                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
-                                )}
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate font-semibold text-slate-900 dark:text-slate-100">{msg.subject}</p>
-                                        <p className="mt-0.5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                                            <User className="h-3.5 w-3.5" />
-                                            {msg.name}
-                                            <span className="text-slate-300 dark:text-slate-600">•</span>
-                                            {msg.email}
-                                        </p>
-                                    </div>
-                                    <StatusBadge status={msg.status} />
-                                </div>
-                                <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{msg.message}</p>
-                                <div className="mt-3 flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
-                                    <span className="flex items-center gap-1">
-                                        <Tag className="h-3 w-3" />
-                                        {CATEGORY_LABELS[msg.category] || msg.category}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {formatDate(msg.created_at)}
-                                    </span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Message Detail */}
-                    {selectedMessage ? (
-                        <div className="sticky top-24 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
-                            <div className="mb-4 flex items-start justify-between">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selectedMessage.subject}</h2>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        From {selectedMessage.name} &lt;{selectedMessage.email}&gt;
-                                    </p>
-                                </div>
-                                <StatusBadge status={selectedMessage.status} />
-                            </div>
-
-                            <div className="mb-4 flex flex-wrap gap-2 text-xs">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                    <Tag className="h-3 w-3" />
-                                    {CATEGORY_LABELS[selectedMessage.category] || selectedMessage.category}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                    <Clock className="h-3 w-3" />
-                                    {formatDate(selectedMessage.created_at)}
-                                </span>
-                                {selectedMessage.user_id && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                                        <User className="h-3 w-3" />
-                                        Registered user
-                                    </span>
-                                )}
-                            </div>
-
-                            <div className="mb-6 rounded-lg bg-slate-50 p-4 dark:bg-slate-900">
-                                <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{selectedMessage.message}</p>
-                            </div>
-
-                            {selectedMessage.admin_notes && (
-                                <div className="mb-6">
-                                    <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Admin Notes</h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400">{selectedMessage.admin_notes}</p>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                                <h3 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">Update Status</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {STATUS_OPTIONS.map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            type="button"
-                                            disabled={updating || selectedMessage.status === opt.value}
-                                            onClick={() => updateStatus(selectedMessage.id, opt.value)}
+                <div className="flex flex-col gap-6 lg:flex-row">
+                    {/* Table Section */}
+                    <div className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+                                    <tr>
+                                        <th className="px-4 py-3">User</th>
+                                        <th className="px-4 py-3">Category</th>
+                                        <th className="px-4 py-3">Subject & Preview</th>
+                                        <th className="px-4 py-3">Date</th>
+                                        <th className="px-4 py-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                    {messages.map((msg) => (
+                                        <tr
+                                            key={msg.id}
+                                            onClick={() => setSelectedMessage(msg)}
                                             className={cn(
-                                                "rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                                                selectedMessage.status === opt.value
-                                                    ? "cursor-default bg-violet-600 text-white"
-                                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600",
-                                                updating && "opacity-50"
+                                                "cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-700/50",
+                                                selectedMessage?.id === msg.id && "bg-violet-50/50 dark:bg-violet-900/10"
                                             )}
                                         >
-                                            {opt.label}
-                                        </button>
+                                            <td className="px-4 py-4">
+                                                <div className="font-medium text-slate-900 dark:text-slate-100">{msg.name}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[150px]">{msg.email}</div>
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap">
+                                                <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                                                    <Tag className="h-3 w-3" />
+                                                    {CATEGORY_LABELS[msg.category] || msg.category}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="font-medium text-slate-900 dark:text-slate-100 truncate max-w-[200px]">{msg.subject}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 max-w-[200px]">{msg.message}</div>
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {formatDate(msg.created_at)}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap">
+                                                <StatusBadge status={msg.status} />
+                                            </td>
+                                        </tr>
                                     ))}
-                                </div>
-                                <div className="mt-4">
-                                    <a
-                                        href={`mailto:${selectedMessage.email}?subject=Re: ${encodeURIComponent(selectedMessage.subject)}`}
-                                        className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Message Detail Slide-over/Box */}
+                    <div className={cn(
+                        "w-full lg:w-[450px] transition-all",
+                        !selectedMessage && "hidden lg:block lg:opacity-20 pointer-events-none"
+                    )}>
+                        {selectedMessage ? (
+                            <div className="sticky top-24 rounded-xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-700 dark:bg-slate-800">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Inquiry Details</h2>
+                                    <button
+                                        onClick={() => setSelectedMessage(null)}
+                                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-200"
                                     >
-                                        <Mail className="h-4 w-4" />
-                                        Reply via Email
-                                    </a>
+                                        <XCircle className="h-5 w-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">From</label>
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold dark:bg-violet-900/50 dark:text-violet-300">
+                                                {selectedMessage.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{selectedMessage.name}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">{selectedMessage.email}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Category</label>
+                                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                {CATEGORY_LABELS[selectedMessage.category] || selectedMessage.category}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Received</label>
+                                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                {formatDate(selectedMessage.created_at)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject</label>
+                                        <div className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                            {selectedMessage.subject}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Message</label>
+                                        <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-900 dark:text-slate-300 whitespace-pre-wrap max-h-[300px] overflow-y-auto border border-slate-100 dark:border-slate-800">
+                                            {selectedMessage.message}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                        <h3 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">Update Status</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {STATUS_OPTIONS.map((opt) => (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    disabled={updating || selectedMessage.status === opt.value}
+                                                    onClick={() => updateStatus(selectedMessage.id, opt.value)}
+                                                    className={cn(
+                                                        "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                                                        selectedMessage.status === opt.value
+                                                            ? "cursor-default bg-violet-600 text-white"
+                                                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600",
+                                                        updating && "opacity-50"
+                                                    )}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mt-4">
+                                            <a
+                                                href={`mailto:${selectedMessage.email}?subject=Re: ${encodeURIComponent(selectedMessage.subject)}`}
+                                                className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                                Reply via Email
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-300 p-12 dark:border-slate-600">
-                            <div className="text-center">
-                                <MessageSquare className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Select a message to view details</p>
+                        ) : (
+                            <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-300 p-12 dark:border-slate-600">
+                                <div className="text-center">
+                                    <MessageSquare className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Select a message to view details</p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
         </div>

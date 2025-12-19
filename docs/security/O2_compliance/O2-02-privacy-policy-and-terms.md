@@ -30,167 +30,99 @@ This document outlines the requirements for Privacy Policy and Terms of Service 
 ```markdown
 # Privacy Policy
 
-Last updated: [DATE]
+Last updated: December 19, 2025
 
-Divan ("we", "our", "us") is committed to protecting your privacy. 
-This policy explains how we collect, use, and protect your personal 
-information when you use our platform.
+Welcome to Divan ("we", "our", or "us"). We believe that the foundation of a great community is trust, and that trust starts with being transparent about how we handle your personal information. This Privacy Policy details the data we collect, why we collect it, and the robust measures we take to keep it secure.
 ```
 
 #### 2. Information We Collect
 
-| Category | Data | Source | Purpose |
-|----------|------|--------|---------|
-| **Account** | Email, name, username | User provided | Account creation |
-| **Profile** | Avatar, bio, interests | User provided | Profile display |
-| **Authentication** | Password hash, 2FA | User provided | Security |
-| **Activity** | Posts, messages, reactions | User activity | Core service |
-| **Technical** | IP, device, browser | Automatic | Security/debugging |
-| **Location** | Proximity (optional) | User permission | Discovery feature |
-
-**Must disclose:**
-- What personal information is collected
-- Whether collection is mandatory or optional
-- How it's collected (directly, automatically)
+| Category | What we collect | Purpose |
+| :--- | :--- | :--- |
+| **Account Essentials** | Email, username, password (hashed) | Authentication, account management, and security. |
+| **Profile Identity** | Display name, bio, interests, university, photo | Personalizing your profile and connecting with peers. |
+| **Community Activity** | Messages, posts, interactions, friend connections | Powering social features and community engagement. |
+| **Technical Logs** | IP address, device info, browser version | Preventing fraud, security, and optimization. |
+| **Proximity Data** | Approximate location (if enabled) | Discovery features (7-day retention). |
 
 #### 3. How We Use Information
 
-| Use Case | Data Used | Legal Basis |
-|----------|-----------|-------------|
-| Provide service | Account, profile | Contract |
-| Authenticate | Credentials, 2FA | Contract |
-| Match users | Profile, interests | Consent |
-| Location features | GPS coordinates | Consent |
-| Security | IP, device fingerprint | Legitimate interest |
-| Analytics | Aggregated usage | Legitimate interest |
-| Communications | Email | Consent |
-
-**Must explain:**
-- Each purpose for data use
-- How purposes relate to service
-- How to opt-out where applicable
+| Primary Purpose | Data Categories Used | Legal Basis |
+| :--- | :--- | :--- |
+| **Service Operation** | Account Essentials, Profile Identity | Contractual Necessity |
+| **Safety & Security** | Technical Logs, Account Essentials | Legitimate Interest |
+| **Social Matching** | Profile Identity, Interests | Consent |
+| **Proximity Features** | Proximity Data | Explicit Consent (Opt-in) |
+| **Platform Analytics** | Aggregated Activity Data (Anonymized) | Legitimate Interest |
 
 #### 4. Data Sharing
 
 ```markdown
-## When We Share Your Information
+## 3. Data Sharing
 
-We do not sell your personal information. We share data only:
+We do not sell your personal information. We only share data in these limited circumstances:
 
-1. **With your consent** — When you explicitly agree
-2. **Service providers** — Cloud hosting, email services
-3. **Legal requirements** — When required by law
-4. **Safety** — To protect users from harm
-
-### Third-Party Services
-
-| Provider | Purpose | Data Shared |
-|----------|---------|-------------|
-| AWS/GCP | Hosting | All encrypted |
-| SendGrid | Email | Email address |
-| Sentry | Error tracking | Error context |
+1. **At Your Request** — When you explicitly authorize us.
+2. **Reliable Service Providers** — Trusted partners for cloud hosting/email (under strict DPA).
+3. **Legal Obligations** — When required by a valid legal process.
+4. **Urgent Safety Matters** — To prevent imminent physical harm.
 ```
 
 #### 5. Data Retention
 
-Reference `O2-01-data-retention-and-subpoena-policy.md`:
-
-```markdown
-## How Long We Keep Your Data
-
-| Data Type | Retention Period |
-|-----------|-----------------|
-| Profile (active account) | While account active |
-| Profile (deleted account) | 30 days grace period |
-| Messages | 365 days |
-| Location history | 7 days |
-| Session logs | 180 days |
-| Analytics | 90 days |
-
-After deletion, data is permanently removed from our systems 
-and backups within 90 days.
-```
+| Data Type | Retention Period | Post-Retention Action |
+| :--- | :--- | :--- |
+| **Active Account Profile** | Duration of active account | N/A |
+| **Closed Account Data** | 30-day grace period | Permanent deletion |
+| **Chat & Messages** | 365 days | Automatic purging |
+| **Proximity Logs** | 7 days | Automatic purging |
+| **Security Logs** | 180 days | Automatic purging |
 
 #### 6. User Rights
 
-```markdown
-## Your Rights
-
-You have the right to:
-
-1. **Access** — Request a copy of your data (Settings → Privacy → Export)
-2. **Correction** — Update inaccurate information (Edit profile)
-3. **Deletion** — Delete your account (Settings → Account → Delete)
-4. **Portability** — Export in machine-readable format (JSON)
-5. **Withdraw consent** — Disable optional data collection
-6. **Complain** — Contact us or the Privacy Commissioner
-
-### How to Exercise Your Rights
-
-- **Export data:** Settings → Privacy → Export Data
-- **Delete account:** Settings → Account → Delete Account
-- **Privacy settings:** Settings → Privacy
-- **Contact us:** privacy@divan.example.com
-```
+| Your Right | What it means | How to exercise it |
+| :--- | :--- | :--- |
+| **Access & Portability** | Download a copy of your data (JSON). | Settings → Privacy → Export Data |
+| **Rectification** | Fix inaccurate profile info. | Edit Profile in Settings |
+| **Erasure** | Request complete deletion of account. | Settings → Account → Delete Account |
+| **Withdrawal** | Opt-out of optional data collection. | Settings → Privacy |
 
 #### 7. Security Measures
 
-```markdown
-## How We Protect Your Data
-
-- **Encryption in transit:** TLS 1.3 for all connections
-- **Encryption at rest:** AES-256 for stored data
-- **Password security:** Argon2id hashing (industry standard)
-- **Access control:** Role-based access, audit logging
-- **Monitoring:** 24/7 security monitoring
-- **Incident response:** Documented procedures
-
-We regularly review our security practices and work with 
-security researchers through our bug bounty program.
-```
+| Protection Layer | Security Mechanism |
+| :--- | :--- |
+| **Transport Security** | TLS 1.3 encryption for all data in transit. |
+| **Storage Security** | AES-256 encryption at rest for volumes and backups. |
+| **Credential Protection** | Argon2id password hashing. |
+| **Authentication** | Support for 2FA (TOTP) and Passkeys. |
+| **Access Control** | Strict RBAC and audit logging. |
 
 #### 8. Children's Privacy
 
 ```markdown
-## Children's Privacy
+## 7. Children's Privacy
 
-Divan is not intended for users under 18 years of age. 
-We do not knowingly collect personal information from children.
-
-If you believe a child has provided us personal information, 
-please contact us immediately.
+Divan is for adults (18+). We do not knowingly collect info from children. 
+Accounts found to be held by minors will be terminated immediately.
 ```
 
 #### 9. International Users
 
 ```markdown
-## International Data Transfers
+## 8. International Data Transfers
 
-Your data may be processed in Canada and other countries. 
-When we transfer data internationally, we ensure appropriate 
-safeguards are in place:
-
-- Standard contractual clauses
-- Adequacy decisions
-- Service provider agreements
+Data is primarily processed in Canada. International transfers are 
+protected by standard contractual clauses or similar legal safeguards.
 ```
 
 #### 10. Updates & Contact
 
 ```markdown
-## Policy Updates
-
-We may update this policy. Material changes will be:
-- Announced via email
-- Highlighted in the app
-- Effective 30 days after notice
-
-## Contact Us
+## 10. Contact Us
 
 For privacy questions:
-- Email: privacy@divan.example.com
-- Mail: [Physical address]
-- Privacy Officer: [Name]
+- Email: privacy@divan.app
+- Help Center: In-app contact option
 
 For complaints: Office of the Privacy Commissioner of Canada
 ```

@@ -16,7 +16,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.infra.postgres import get_pool
 from app.infra.auth import AuthenticatedUser, get_current_user, get_optional_user
 
-router = APIRouter(prefix="/contact", tags=["contact"])
+router = APIRouter(tags=["contact"])
 
 
 class ContactSubmission(BaseModel):
@@ -56,7 +56,8 @@ class ContactListResponse(BaseModel):
     has_more: bool
 
 
-@router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/contact", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/admin/messages", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 async def submit_contact(
     submission: ContactSubmission,
     user: AuthenticatedUser | None = Depends(get_optional_user),
@@ -87,7 +88,7 @@ async def submit_contact(
     )
 
 
-@router.get("/admin", response_model=ContactListResponse)
+@router.get("/contact/admin", response_model=ContactListResponse)
 async def list_contact_messages(
     status_filter: Optional[str] = Query(default=None, alias="status"),
     category: Optional[str] = Query(default=None),
@@ -166,7 +167,7 @@ class UpdateContactStatus(BaseModel):
     admin_notes: Optional[str] = None
 
 
-@router.patch("/admin/{message_id}", response_model=ContactMessageOut)
+@router.patch("/contact/admin/{message_id}", response_model=ContactMessageOut)
 async def update_contact_message(
     message_id: str,
     update: UpdateContactStatus,

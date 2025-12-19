@@ -1008,58 +1008,62 @@ function UserCard({
                 <p className="text-sm text-slate-400">@{user.handle}</p>
               </div>
 
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                  {user.bio || "No bio available."}
-                </p>
-              </div>
+              {user.bio && user.bio.trim().length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-200">
+                    {user.bio}
+                  </p>
+                </div>
+              )}
 
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Passions</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {user.passions && user.passions.length > 0 ? (
-                    user.passions.map((p) => (
+              {user.passions && user.passions.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Passions</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {user.passions.map((p) => (
                       <span key={p} className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20">
                         {p}
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-slate-500 italic">No passions listed</span>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Courses</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {user.courses && user.courses.length > 0 ? (
-                    user.courses.map((c) => (
+              {user.courses && user.courses.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Courses</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {user.courses.map((c) => (
                       <span key={c} className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/40">
                         {c}
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-slate-500 italic">No courses listed</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Details</p>
-                <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="block text-slate-500">Major</span>
-                    <span className="text-slate-200">{user.major || "Undeclared"}</span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500">Year</span>
-                    <span className="text-slate-200">{user.graduation_year || "Unknown"}</span>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {user.ten_year_vision && (
+              {((user.major && user.major.toLowerCase() !== "none") || user.graduation_year) && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Details</p>
+                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                    {user.major && user.major.toLowerCase() !== "none" && (
+                      <div>
+                        <span className="block text-slate-500">Major</span>
+                        <span className="text-slate-200">{user.major}</span>
+                      </div>
+                    )}
+                    {user.graduation_year && (
+                      <div>
+                        <span className="block text-slate-500">Year</span>
+                        <span className="text-slate-200">{user.graduation_year}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {user.ten_year_vision && user.ten_year_vision.trim().length > 0 && (
                 <div className="mb-6">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">10-Year Vision</p>
                   <p className="mt-2 text-sm italic leading-relaxed text-emerald-200">

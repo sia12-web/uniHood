@@ -86,7 +86,8 @@ export default function ActivitiesHubPage() {
               </div>
             )}
           </div>
-        </section>
+        )}
+      </section>
     </main >
   );
 }

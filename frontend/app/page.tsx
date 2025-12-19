@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { CheckCircle2, Loader2, Calendar } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, LogOut } from "lucide-react";
 
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { useCampuses } from "@/components/providers/campus-provider";
@@ -331,6 +331,14 @@ export default function HomePage() {
     || (!isDefaultName(authUser?.handle) && authUser?.handle)
     || "Student";
 
+  const handleSignOut = () => {
+    // Clear auth storage
+    localStorage.removeItem("auth_user");
+    sessionStorage.removeItem("auth_user");
+    // Redirect to login
+    window.location.href = "/login";
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-r from-white via-rose-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-base md:text-lg">
       <div className="mx-auto max-w-6xl px-6 py-8 md:px-10 md:py-12 pb-24 space-y-8">
@@ -349,6 +357,13 @@ export default function HomePage() {
             </h1>
             <p className="text-slate-600">Here&apos;s your campus snapshot for today.</p>
           </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
         </header>
 
         {/* Social Score Hero Card */}

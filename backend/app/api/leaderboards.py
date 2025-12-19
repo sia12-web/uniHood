@@ -42,6 +42,11 @@ async def streak_summary_endpoint(user_id: UUID) -> StreakSummarySchema:
 	return await _service.get_streak_summary(user_id)
 
 
+# Temporary fallback: map demo campus ID to McGill until frontend deploys
+_DEMO_CAMPUS_ID = UUID("33333333-3333-3333-3333-333333333333")
+_MCGILL_CAMPUS_ID = UUID("c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2")
+
+
 @router.get("/{scope}", response_model=LeaderboardResponseSchema)
 async def leaderboard_endpoint(
 	scope: LeaderboardScope,
@@ -50,11 +55,13 @@ async def leaderboard_endpoint(
 	ymd: Optional[int] = Query(default=None, description="Calendar date in YYYYMMDD"),
 	limit: int = Query(default=100, ge=1, le=500),
 ) -> LeaderboardResponseSchema:
+	# Fallback: if demo campus requested, use McGill instead
+	effective_campus_id = _MCGILL_CAMPUS_ID if campus_id == _DEMO_CAMPUS_ID else campus_id
 	try:
 		return await _service.get_leaderboard(
 			scope=scope,
 			period=period,
-			campus_id=campus_id,
+			campus_id=effective_campus_id,
 			ymd=ymd,
 			limit=limit,
 		)

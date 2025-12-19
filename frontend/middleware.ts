@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { UNSELECTED_CAMPUS_IDS } from "@/lib/onboarding";
 
 // Allow unauthenticated access to explicit public routes and static assets.
 const PUBLIC_PATHS = new Set([
@@ -15,7 +16,55 @@ const PUBLIC_PATHS = new Set([
 
 const FAVICON_PATHS = new Set([
 	"/favicon.ico",
+	"/favicon.svg",
+	"/apple-touch-icon.svg",
 ]);
+
+const ONBOARDING_PATHS = new Set([
+	"/select-university",
+	"/select-courses",
+	"/major-year",
+	"/passions",
+	"/photos",
+	"/set-profile",
+	"/vision",
+	"/welcome",
+]);
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+	const parts = token.split(".");
+	if (parts.length !== 3) return null;
+	const payload = parts[1];
+	try {
+		// base64url -> base64
+		const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+		const padded = normalized + "===".slice((normalized.length + 3) % 4);
+		const json = atob(padded);
+		return JSON.parse(json) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function getCampusIdFromToken(token: string): string | null {
+	if (!token) return null;
+	// JWT
+	if (token.split(".").length === 3) {
+		const payload = decodeJwtPayload(token);
+		const campusId = payload?.campus_id ?? payload?.campus;
+		return typeof campusId === "string" ? campusId : null;
+	}
+	// Legacy synthetic token
+	if (token.includes(";") && token.includes(":")) {
+		const campus = token
+			.split(";")
+			.map((chunk) => chunk.trim())
+			.map((chunk) => chunk.split(":", 2))
+			.find(([k]) => (k || "").trim().toLowerCase() === "campus")?.[1];
+		return campus ? campus.trim() : null;
+	}
+	return null;
+}
 
 function isPublicPath(pathname: string): boolean {
 	if (pathname === "/") return false;
@@ -50,6 +99,31 @@ export function middleware(req: NextRequest) {
 	const hasAuthHeader = req.headers.get("authorization");
 
 	if (hasAuthCookie || hasAuthHeader) {
+		// Onboarding gate: if campus is still placeholder/unselected, force university selection
+		// before allowing access to protected (non-onboarding) routes.
+		if (!ONBOARDING_PATHS.has(pathname)) {
+			let token: string | null = null;
+			const authHeader = hasAuthHeader;
+			if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+				token = authHeader.slice(7).trim();
+			} else {
+				const cookie = req.cookies.get("divan.auth")?.value ?? req.cookies.get("access_token")?.value;
+				if (cookie) {
+					try {
+						token = decodeURIComponent(cookie);
+					} catch {
+						token = cookie;
+					}
+				}
+			}
+			const campusId = token ? getCampusIdFromToken(token) : null;
+			if (campusId && UNSELECTED_CAMPUS_IDS.has(campusId)) {
+				const redirectUrl = req.nextUrl.clone();
+				redirectUrl.pathname = "/select-university";
+				redirectUrl.searchParams.set("redirect", `${pathname}${search}`);
+				return NextResponse.redirect(redirectUrl);
+			}
+		}
 		return NextResponse.next();
 	}
 
@@ -65,6 +139,6 @@ export function middleware(req: NextRequest) {
 export const config = {
 	// Apply to all routes except for API routes, Next internals, and static files we already filter.
 	matcher: [
-		"/((?!api/|_next/static|_next/image|favicon.ico|favicon-16x16.png|favicon-32x32.png|favicon-180x180.png|favicon-192x192.png|favicon-512x512.png|robots.txt|manifest.json).*)",
+		"/((?!api/|_next/static|_next/image|favicon.ico|favicon.svg|apple-touch-icon.svg|favicon-16x16.png|favicon-32x32.png|favicon-180x180.png|favicon-192x192.png|favicon-512x512.png|robots.txt|manifest.json).*)",
 	],
 };

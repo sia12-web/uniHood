@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 
-import { listCampuses, patchProfile, type CampusRow } from "@/lib/identity";
-import { readAuthSnapshot } from "@/lib/auth-storage";
+import { listCampuses, patchProfile, reissueAccessToken, type CampusRow } from "@/lib/identity";
+import { readAuthSnapshot, storeAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SelectUniversityPage() {
     const [campuses, setCampuses] = useState<CampusRow[]>([]);
@@ -48,6 +48,22 @@ export default function SelectUniversityPage() {
                 return;
             }
             await patchProfile(auth.user_id, null, { campus_id: selectedCampusId });
+
+			// Re-issue a fresh access token so campus_id claim matches the newly selected campus.
+			try {
+				const reissued = await reissueAccessToken();
+				if (reissued?.access_token) {
+					storeAuthSnapshot({
+						...(auth ?? {}),
+						...reissued,
+						token_type: "bearer",
+						expires_in: reissued.expires_in ?? auth.expires_in ?? 900,
+						stored_at: new Date().toISOString(),
+					});
+				}
+			} catch {
+				// Best-effort; user can continue onboarding even if token refresh fails.
+			}
             router.push("/major-year");
         } catch (err) {
             console.error(err);

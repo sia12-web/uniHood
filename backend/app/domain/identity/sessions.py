@@ -69,6 +69,15 @@ def _build_access_token(user: models.User, session_id: UUID) -> str:
 	return jwt_helper.encode_access(payload)
 
 
+def build_access_token_for_session(user: models.User, session_id: UUID) -> str:
+	"""Build an access token for an existing session.
+
+	This is used when user attributes (e.g., campus_id) change during onboarding,
+	and the frontend needs a fresh access token without rotating refresh tokens.
+	"""
+	return _build_access_token(user, session_id)
+
+
 async def _store_refresh_token(session_id: UUID, token: str) -> None:
 	token_hash = _h(token)
 	await redis_client.set(_refresh_store_key(session_id), token_hash, ex=REFRESH_TTL_SECONDS)

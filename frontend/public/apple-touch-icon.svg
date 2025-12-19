@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="uniHood">
+  <!-- iOS home-screen icon: add a little padding for nicer framing -->
+  <rect x="0" y="0" width="512" height="512" rx="96" ry="96" fill="#ffffff"/>
+
+  <path d="M 116 210 L 256 136" fill="none" stroke="#0f4a6d" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 256 136 L 396 210" fill="none" stroke="#8c1d2c" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="330" y="110" width="70" height="110" rx="24" ry="24" fill="#8c1d2c"/>
+
+  <path d="M 168 290 V 378 Q 168 420 210 420 H 246 Q 288 420 288 378 V 290" fill="none" stroke="#8c1d2c" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M 330 290 V 420" fill="none" stroke="#0f4a6d" stroke-width="78" stroke-linecap="round"/>
+  <path d="M 420 290 V 420" fill="none" stroke="#0f4a6d" stroke-width="78" stroke-linecap="round"/>
+  <path d="M 330 356 H 420" fill="none" stroke="#0f4a6d" stroke-width="78" stroke-linecap="round"/>
+</svg>

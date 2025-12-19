@@ -181,7 +181,9 @@ export function storeAuthSnapshot(snapshot: AuthSnapshot): void {
     return;
   }
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(snapshot));
-  const cookieValue = typeof snapshot.user_id === "string" && snapshot.user_id.trim().length > 0 ? snapshot.user_id : snapshot.access_token || null;
+  // Prefer the access token so edge middleware can decode claims (e.g., campus_id).
+  // Fall back to user_id only if access_token is missing.
+  const cookieValue = snapshot.access_token || (typeof snapshot.user_id === "string" ? snapshot.user_id : null);
   writeAuthCookie(cookieValue ?? null);
   emitAuthEvent();
 }

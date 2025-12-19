@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import secrets
 
 from app.infra import rate_limit
@@ -16,10 +16,41 @@ from app.settings import settings  # noqa: F401 - may be used for future gating
 from app.infra.cookies import set_refresh_cookies, clear_refresh_cookies
 from app.api.request_id import get_request_id
 
-from app.domain.identity import policy, schemas, service, recovery
+from app.domain.identity import policy, schemas, service, recovery, sessions, models
+from app.infra.auth import AuthenticatedUser, get_current_user
+from app.infra.postgres import get_pool
 from app.obs import metrics as obs_metrics
 
 router = APIRouter()
+
+
+@router.post("/auth/reissue", response_model=schemas.LoginResponse)
+async def reissue_access_token(
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.LoginResponse:
+	"""Reissue an access token for the current session.
+
+	Used by onboarding flows after the user selects a university (campus_id changes).
+	Does not rotate refresh tokens.
+	"""
+	if not auth_user.session_id:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="session_id_missing")
+
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", str(auth_user.id))
+		if not row:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="profile_not_found")
+		user = models.User.from_record(row)
+
+	access_token = sessions.build_access_token_for_session(user, UUID(str(auth_user.session_id)))
+	return schemas.LoginResponse(
+		user_id=user.id,
+		access_token=access_token,
+		refresh_token="",
+		session_id=UUID(str(auth_user.session_id)),
+		expires_in=sessions.ACCESS_TTL_SECONDS,
+	)
 
 
 def _client_ip(request: Request) -> str:

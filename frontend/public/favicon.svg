@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="uniHood">
+  <defs>
+    <!-- Brand-ish colors approximating the provided logo -->
+    <style>
+      .blue { stroke: #0f4a6d; }
+      .red { stroke: #8c1d2c; }
+    </style>
+  </defs>
+
+  <!-- Roof (thick rounded strokes for small-size clarity) -->
+  <path class="blue" d="M 92 198 L 256 112" fill="none" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+  <path class="red" d="M 256 112 L 424 198" fill="none" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Chimney (rounded rect) -->
+  <rect x="344" y="78" width="78" height="126" rx="26" ry="26" fill="#8c1d2c"/>
+
+  <!-- U (stroke) -->
+  <path class="red" d="M 150 284 V 384 Q 150 438 204 438 H 248 Q 302 438 302 384 V 284" fill="none" stroke-width="86" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- H (stroke) -->
+  <path class="blue" d="M 340 284 V 438" fill="none" stroke-width="86" stroke-linecap="round"/>
+  <path class="blue" d="M 444 284 V 438" fill="none" stroke-width="86" stroke-linecap="round"/>
+  <path class="blue" d="M 340 361 H 444" fill="none" stroke-width="86" stroke-linecap="round"/>
+</svg>

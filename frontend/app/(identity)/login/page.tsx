@@ -9,6 +9,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { loginIdentity } from "@/lib/identity";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
 import { HttpError } from "@/app/lib/http/errors";
+import { isUnselectedCampusId } from "@/lib/onboarding";
 
 const INITIAL_FORM = {
   email: "",
@@ -95,7 +96,7 @@ export default function LoginPage() {
         const { fetchProfile } = await import("@/lib/identity");
         const profile = await fetchProfile(response.user_id, null);
 
-        if (!profile.campus_id) {
+		if (isUnselectedCampusId(profile.campus_id)) {
           router.replace("/select-university");
           return;
         }

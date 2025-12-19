@@ -1421,7 +1421,7 @@ export default function HomePage() {
             )}
           </div>
         </aside>
-        <section className="flex-1 px-6 py-12 md:px-10">
+        <section className="flex-1 px-6 py-6 pb-24 md:px-10 md:py-12 md:pb-12">
           {/* Mobile logo header */}
           <div className="mb-8 flex justify-center md:hidden">
             <BrandLogo
@@ -1438,6 +1438,29 @@ export default function HomePage() {
           <div className="mx-auto max-w-6xl space-y-8">{renderSection()}</div>
         </section>
       </div>
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-slate-200 bg-white/90 px-2 py-2 backdrop-blur-lg dark:border-slate-800 dark:bg-slate-900/90 md:hidden">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => handleNavClick(item.key)}
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl p-2 transition ${activeSection === item.key ? "text-rose-600" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
+          >
+            <div className="relative">
+              <span className={activeSection === item.key ? "text-rose-600" : "text-slate-500 dark:text-slate-400"}>
+                {item.icon}
+              </span>
+              {item.badge ? (
+                <span className="absolute -right-2 -top-2 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+                  {item.badge}
+                </span>
+              ) : null}
+            </div>
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </button>
+        ))}
+      </nav>
       <SiteFooter />
     </main>
   );

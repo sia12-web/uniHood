@@ -39,6 +39,14 @@ export type LoginResponse = {
 	user_id: string;
 };
 
+export type ReissueResponse = {
+	access_token: string;
+	token_type?: "bearer";
+	expires_in?: number;
+	user_id?: string;
+	session_id?: string;
+};
+
 export type VerificationResponse = {
 	verified: boolean;
 	user_id: string;
@@ -96,6 +104,12 @@ export async function verifyEmailToken(token: string): Promise<VerificationRespo
 	return request<VerificationResponse>("/auth/verify-email", {
 		method: "POST",
 		body: { token },
+	});
+}
+
+export async function reissueAccessToken(): Promise<ReissueResponse> {
+	return request<ReissueResponse>("/auth/reissue", {
+		method: "POST",
 	});
 }
 

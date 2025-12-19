@@ -1,25 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="uniHood">
   <defs>
-    <!-- Brand-ish colors approximating the provided logo -->
     <style>
-      .blue { stroke: #0f4a6d; }
-      .red { stroke: #8c1d2c; }
+      .navy { fill: #1e4a6d; }
+      .crimson { fill: #a12035; }
     </style>
   </defs>
 
-  <!-- Roof (thick rounded strokes for small-size clarity) -->
-  <path class="blue" d="M 92 198 L 256 112" fill="none" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
-  <path class="red" d="M 256 112 L 424 198" fill="none" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Roof - left side (navy) -->
+  <path class="navy" d="M 60 200 L 256 80 L 256 130 L 100 230 Z"/>
+  
+  <!-- Roof - right side (crimson) -->
+  <path class="crimson" d="M 256 80 L 452 200 L 412 230 L 256 130 Z"/>
 
-  <!-- Chimney (rounded rect) -->
-  <rect x="344" y="78" width="78" height="126" rx="26" ry="26" fill="#8c1d2c"/>
+  <!-- U letter (crimson) -->
+  <path class="crimson" d="M 100 270 L 100 380 Q 100 450 180 450 L 220 450 Q 300 450 300 380 L 300 270 L 240 270 L 240 370 Q 240 400 200 400 L 180 400 Q 160 400 160 370 L 160 270 Z"/>
 
-  <!-- U (stroke) -->
-  <path class="red" d="M 150 284 V 384 Q 150 438 204 438 H 248 Q 302 438 302 384 V 284" fill="none" stroke-width="86" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- H (stroke) -->
-  <path class="blue" d="M 340 284 V 438" fill="none" stroke-width="86" stroke-linecap="round"/>
-  <path class="blue" d="M 444 284 V 438" fill="none" stroke-width="86" stroke-linecap="round"/>
-  <path class="blue" d="M 340 361 H 444" fill="none" stroke-width="86" stroke-linecap="round"/>
+  <!-- H letter (navy) -->
+  <path class="navy" d="M 320 270 L 320 450 L 375 450 L 375 380 L 425 380 L 425 450 L 480 450 L 480 270 L 425 270 L 425 330 L 375 330 L 375 270 Z"/>
 </svg>

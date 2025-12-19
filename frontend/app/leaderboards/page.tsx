@@ -7,27 +7,40 @@ import { ArrowLeft } from "lucide-react";
 import LeaderboardTable from "@/components/LeaderboardTable";
 import { fetchLeaderboard } from "@/lib/leaderboards";
 import { listCampuses } from "@/lib/identity";
-import { getDemoCampusId, getDemoUserId } from "@/lib/env";
+import { readAuthUser, onAuthChange, type AuthUser } from "@/lib/auth-storage";
 import type { LeaderboardResponse } from "@/lib/types";
 
 export default function LeaderboardsPage() {
-  const [campusId] = useState<string>(getDemoCampusId());
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authEvaluated, setAuthEvaluated] = useState(false);
   const [campusName, setCampusName] = useState<string>("Loading campus...");
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userId = getDemoUserId();
+  // Listen for auth changes
+  useEffect(() => {
+    setAuthUser(readAuthUser());
+    setAuthEvaluated(true);
+    const cleanup = onAuthChange(() => {
+      setAuthUser(readAuthUser());
+    });
+    return cleanup;
+  }, []);
+
+  const campusId = authUser?.campusId ?? null;
+  const userId = authUser?.userId ?? null;
 
   // Fetch Campus Name
   useEffect(() => {
+    if (!campusId) return;
     let cancelled = false;
     listCampuses()
       .then((campuses) => {
         if (cancelled) return;
         const current = campuses.find((c) => c.id === campusId);
-        setCampusName(current?.name || "Unknown Campus");
+        setCampusName(current?.name || "Your Campus");
       })
       .catch(() => {
         if (!cancelled) setCampusName("Campus");
@@ -39,6 +52,7 @@ export default function LeaderboardsPage() {
 
   // Fetch Leaderboard - use "social" scope which shows Social Score levels
   useEffect(() => {
+    if (!authEvaluated || !campusId) return;
     const controller = new AbortController();
     setLoading(true);
     setError(null);
@@ -54,7 +68,19 @@ export default function LeaderboardsPage() {
         setLoading(false);
       });
     return () => controller.abort();
-  }, [campusId]);
+  }, [authEvaluated, campusId]);
+
+  // Show login prompt if not authenticated
+  if (authEvaluated && !authUser) {
+    return (
+      <main className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-8 p-6 min-h-screen">
+        <h1 className="text-2xl font-bold text-slate-900">Please log in to view the leaderboard</h1>
+        <Link href="/login" className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500">
+          Log In
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-6">

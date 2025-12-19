@@ -602,6 +602,9 @@ class LeaderboardService:
 	
 	async def _calculate_live_social_scores(self, campus_id: UUID, limit: int) -> List[Tuple[str, float]]:
 		"""Calculate social scores for all users in a campus from database."""
+		import logging
+		logger = logging.getLogger(__name__)
+		
 		pool = await get_pool()
 		async with pool.acquire() as conn:
 			# Get all users in this campus with their social activity counts
@@ -642,6 +645,11 @@ class LeaderboardService:
 				limit,
 			)
 			
+			logger.info(
+				"_calculate_live_social_scores: campus_id=%s limit=%s found=%s users",
+				campus_id, limit, len(rows)
+			)
+			
 			results = []
 			for row in rows:
 				# Calculate total points
@@ -653,6 +661,12 @@ class LeaderboardService:
 				# Convert to Social Score level
 				social_score = policy.calculate_social_score_level(total_points)
 				results.append((str(row["user_id"]), float(social_score)))
+			
+			logger.info(
+				"_calculate_live_social_scores: returning %s results, top scores: %s",
+				len(results),
+				results[:5] if results else []
+			)
 			
 			return results
 

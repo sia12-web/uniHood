@@ -1130,9 +1130,9 @@ export default function ProfileSettingsPage() {
 								)}
 							</section>
 						</aside>
-				)}
 					</div>
-		</div>
+				) : null}
+			</div>
 		</main>
 	);
 }

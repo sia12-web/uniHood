@@ -17,7 +17,7 @@ type ProfileFormProps = {
 	gallerySlot?: ReactNode;
 };
 
-const HANDLE_PATTERN = /[^a-z0-9_]/g;
+// HANDLE_PATTERN was here but is no longer needed as we removed handle from the UI.
 const PASSION_LIMIT = 6;
 
 export default function ProfileForm({

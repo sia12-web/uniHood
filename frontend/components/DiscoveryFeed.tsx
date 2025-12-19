@@ -74,8 +74,8 @@ type NearbyAccumulator<T> = {
 
 // Config parallels /proximity page
 const BACKEND_URL = getBackendUrl();
-const HEARTBEAT_VISIBLE_MS = 30000;
-const HEARTBEAT_HIDDEN_MS = 120000;
+const HEARTBEAT_VISIBLE_MS = 10000; // 10 seconds for better real-time Room mode discovery
+const HEARTBEAT_HIDDEN_MS = 60000;  // 1 minute when tab is hidden
 const GO_LIVE_ENABLED =
   process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
 
@@ -379,14 +379,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     try {
       await sendHeartbeat(positionRef.current, currentUserId, currentCampusId, 100); // Room mode is always 100m
       sentInitialHeartbeat.current = true;
-      // If this was the first heartbeat, refresh nearby to get results
-      if (users.length === 0) {
-        void refreshNearby();
-      }
+      // Always refresh nearby after heartbeat in Room mode to catch new users coming online
+      void refreshNearby();
     } catch (err) {
       console.error("Heartbeat failed", err);
     }
-  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, discoveryMode, users.length, refreshNearby]);
+  }, [authEvaluated, goLiveAllowed, currentUserId, currentCampusId, discoveryMode, refreshNearby]);
 
   // Trigger heartbeat on mount and interval
   useEffect(() => {

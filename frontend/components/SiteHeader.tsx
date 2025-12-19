@@ -84,9 +84,9 @@ export default function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         {/* Logo Area */}
         <div className="flex h-full items-center">
-          <Link href="/discovery" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             {/* Clean Logo without box */}
-            <BrandLogo asLink={false} logoClassName="h-10 sm:h-12 w-auto" disableMixBlend={true} />
+            <BrandLogo asLink={false} logoClassName="h-14 sm:h-16 w-auto" disableMixBlend={true} />
           </Link>
         </div>
 

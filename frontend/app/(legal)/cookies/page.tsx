@@ -2,150 +2,209 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "Cookie Policy - Divan",
-	description: "How Divan uses cookies and similar technologies to power your experience.",
+	title: "Cookie Policy - uniHood",
+	description: "How uniHood uses cookies and similar technologies to power your experience.",
 };
 
 export default function CookiePolicyPage() {
 	return (
 		<article className="prose prose-gray dark:prose-invert max-w-none">
 			<h1>Cookie Policy</h1>
-			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 19, 2025</p>
+			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 19, 2024</p>
 
 			<p>
-				At Divan, we believe in being clear about how we collect and use data. This policy explains how we use cookies, local storage, and similar technologies to keep you signed in, remember your preferences, and understand how our platform is performing.
+				Hey there! We know legal documents can be a snooze, so we've tried to make this one as straightforward as possible.
+				Here's the deal with cookies on uniHood and why we use them.
 			</p>
 
-			<h2>1. What are Cookies?</h2>
+			<br />
+
+			<h2>What are Cookies, Anyway?</h2>
 			<p>
-				Cookies are small text files stored in your browser. They help us recognize you as you move between pages and ensure that your session remains secure. We also use local storage for similar purposes, which allows us to save preferences directly on your device.
+				Think of cookies like little sticky notes your browser keeps to remember things about you. They help us recognize
+				you when you come back, keep you logged in, and remember your preferences (like if you prefer dark mode).
 			</p>
+			<p>
+				We also use something called "local storage" which is similar but lives directly on your device instead of being
+				sent back and forth to our servers.
+			</p>
+
+			<br />
+
+			<h2>The Cookies We Use</h2>
+			<p>
+				We only use cookies that directly make your uniHood experience better. We're not tracking you around the web or
+				building creepy advertising profiles. Here's what we do use:
+			</p>
+
+			<br />
 
 			<div className="overflow-x-auto">
 				<table className="min-w-full">
 					<thead>
 						<tr>
 							<th>Cookie Type</th>
-							<th>What they do</th>
-							<th>Why we need them</th>
+							<th>What They Do</th>
+							<th>Why We Need Them</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr>
 							<td><strong>Essential</strong></td>
-							<td>Handle authentication and session management.</td>
-							<td>Without these, you wouldn't be able to stay signed in.</td>
+							<td>Keep you logged in and manage your session</td>
+							<td>Without these, you'd have to sign in every time you click a link. Not fun.</td>
 						</tr>
 						<tr>
 							<td><strong>Security</strong></td>
-							<td>Protect against cross-site request forgery (CSRF) and other attacks.</td>
-							<td>Essential for keeping your account and data safe from malicious actors.</td>
+							<td>Protect your account from attacks and unauthorized access</td>
+							<td>These are your digital bodyguards, keeping the bad guys out.</td>
 						</tr>
 						<tr>
-							<td><strong>Functional</strong></td>
-							<td>Remember UI preferences like dark mode and language settings.</td>
-							<td>These make Divan feel personal and consistent every time you visit.</td>
+							<td><strong>Preferences</strong></td>
+							<td>Remember your settings like dark mode, language, and dismissed tips</td>
+							<td>So uniHood feels like YOUR uniHood every time you visit.</td>
 						</tr>
 						<tr>
 							<td><strong>Performance</strong></td>
-							<td>Collect anonymous data on how the app is used and where errors occur.</td>
-							<td>Helps our engineering team find bugs and improve the speed of the platform.</td>
+							<td>Help us understand what's working and what's not</td>
+							<td>If something breaks, these help us figure out what happened so we can fix it faster.</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<h2>2. Why We Use Them</h2>
+			<br />
+			<br />
+
+			<h2>What Exactly Gets Stored?</h2>
 			<p>
-				We use cookies for a variety of reasons, ranging from core functionality to performance monitoring. We never use cookies to track you across the web or build a profile for advertising.
+				Transparency matters to us. Here's a breakdown of what we actually save and for how long:
 			</p>
+
+			<br />
 
 			<div className="overflow-x-auto">
 				<table className="min-w-full">
 					<thead>
 						<tr>
 							<th>Purpose</th>
-							<th>Data Stored</th>
-							<th>Retention Period</th>
+							<th>What's Stored</th>
+							<th>How Long We Keep It</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr>
 							<td><strong>Authentication</strong></td>
-							<td>Access & refresh tokens (HttpOnly)</td>
-							<td>Until you sign out or the session expires.</td>
+							<td>Access and refresh tokens (extra secure, HttpOnly cookies)</td>
+							<td>Until you sign out or your session expires</td>
 						</tr>
 						<tr>
 							<td><strong>Security</strong></td>
-							<td>CSRF tokens, rate-limit markers</td>
-							<td>Rolling 24 hours.</td>
+							<td>Anti-tampering tokens and rate-limit markers</td>
+							<td>Refreshes every 24 hours</td>
 						</tr>
 						<tr>
-							<td><strong>Application State</strong></td>
-							<td>Feature flags, UI experiment IDs</td>
-							<td>30 days or until the experiment ends.</td>
+							<td><strong>App Features</strong></td>
+							<td>Feature flags and experiment IDs for beta features</td>
+							<td>30 days or until the test ends</td>
 						</tr>
 						<tr>
-							<td><strong>User Preferences</strong></td>
-							<td>Theme (Light/Dark), Language, Dismissed tours</td>
-							<td>Until you manually clear your browser data.</td>
+							<td><strong>Your Preferences</strong></td>
+							<td>Theme (light/dark), language, onboarding tours you've completed</td>
+							<td>Until you manually clear your browser data</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<h2>3. Managing Your Cookies</h2>
+			<br />
+			<br />
+
+			<h2>You're in Control</h2>
 			<p>
-				You have full control over how cookies are stored on your device.
+				You have complete control over cookies. Here are your options:
 			</p>
+
+			<br />
+
 			<ul>
-				<li><strong>Browser Settings:</strong> You can clear cookies or block them entirely in your browser's "Privacy" or "Settings" menu.</li>
-				<li><strong>Privacy Settings:</strong> Within Divan, you can toggle optional analytics and performance monitoring in <strong>Settings → Privacy</strong>.</li>
-				<li><strong>Incognito Mode:</strong> Using a private window will prevent cookies from being saved after you close your browser.</li>
+				<li>
+					<strong>Browser Settings:</strong> You can clear cookies or block them entirely in your browser's privacy
+					settings. Just know that blocking essential cookies will break some core features (like staying signed in).
+				</li>
+				<li>
+					<strong>Privacy Dashboard:</strong> Head to <strong>Settings → Privacy</strong> in uniHood to toggle optional
+					analytics and performance monitoring on or off.
+				</li>
+				<li>
+					<strong>Private Browsing:</strong> Using incognito or private mode? Cookies won't stick around after you
+					close the window.
+				</li>
 			</ul>
 
-			<h2>4. Third-Party Providers</h2>
+			<br />
+			<br />
+
+			<h2>Do You Share Cookies with Anyone?</h2>
 			<p>
-				We prioritize first-party storage, but we do use a small number of trusted partners to help us maintain platform stability and performance.
+				We keep most things in-house, but we do work with a few trusted partners to keep uniHood running smoothly.
+				Here's who they are and what they do:
 			</p>
+
+			<br />
 
 			<div className="overflow-x-auto">
 				<table className="min-w-full">
 					<thead>
 						<tr>
-							<th>Provider</th>
-							<th>Purpose</th>
-							<th>Privacy Info</th>
+							<th>Partner</th>
+							<th>What They Help With</th>
+							<th>Their Privacy Policy</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr>
-							<td><strong>Divan Internal</strong></td>
-							<td>Core functionality and session security.</td>
-							<td><Link href="/privacy">Privacy Policy</Link></td>
+							<td><strong>uniHood (us!)</strong></td>
+							<td>All core features, authentication, and session security</td>
+							<td><Link href="/privacy">Our Privacy Policy</Link></td>
 						</tr>
 						<tr>
 							<td><strong>Sentry</strong></td>
-							<td>Error reporting and platform stability.</td>
+							<td>Error tracking so we can fix bugs quickly</td>
 							<td><a href="https://sentry.io/privacy/" target="_blank" rel="noopener noreferrer">Sentry Privacy</a></td>
 						</tr>
 						<tr>
 							<td><strong>PostHog</strong></td>
-							<td>Feature usage and product analytics (if enabled).</td>
+							<td>Product analytics to understand which features you love (totally optional)</td>
 							<td><a href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer">PostHog Privacy</a></td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<h2>5. Updates to this Policy</h2>
+			<br />
+			<br />
+
+			<h2>Will This Policy Ever Change?</h2>
 			<p>
-				We may update this policy as our technology evolves. If we make any significant changes to how we use cookies, we will notify you through the app.
+				As uniHood grows and evolves, we might need to update how we use cookies. If we make any significant changes,
+				we'll let you know through the app—no sneaky updates without a heads up.
 			</p>
 
-			<h2>6. Contact</h2>
+			<br />
+			<br />
+
+			<h2>Questions?</h2>
 			<p>
-				If you have any questions about our use of cookies, please email us at <a href="mailto:privacy@divan.app">privacy@divan.app</a> or reach out through our <Link href="/contact">Support Center</Link>.
+				We're here to help. If you have any questions about cookies or anything privacy-related, shoot us an email at{" "}
+				<a href="mailto:unihoodapp@gmail.com">unihoodapp@gmail.com</a> or visit our{" "}
+				<Link href="/contact">Support Center</Link>.
+			</p>
+
+			<br />
+
+			<p className="text-sm text-gray-500 dark:text-gray-400">
+				Thanks for being part of uniHood. We're committed to keeping your data safe and your experience awesome.
 			</p>
 		</article>
 	);

@@ -2,6 +2,7 @@
 
 import { type ReactNode } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import BottomNav from "@/components/BottomNav";
 import { StoryInviteProvider } from "@/components/providers/story-invite-provider";
 import { TypingDuelInviteProvider } from "@/components/providers/typing-duel-invite-provider";
 import { TicTacToeInviteProvider } from "@/components/providers/tictactoe-invite-provider";
@@ -27,6 +28,7 @@ export default function AuthenticatedAppChrome({ children }: { children: ReactNo
                                                 <div className="relative h-full w-full">{children}</div>
                                             </div>
                                         </main>
+                                        <BottomNav />
                                     </div>
                                 </ActivityAcceptanceProvider>
                             </RockPaperScissorsInviteProvider>
@@ -37,3 +39,4 @@ export default function AuthenticatedAppChrome({ children }: { children: ReactNo
         </DeferredFeaturesProvider>
     );
 }
+

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
+import { UserCircle } from "lucide-react";
 
 
 function isActive(pathname: string, href: string) {
@@ -17,21 +18,15 @@ export default function SiteHeader() {
   const pathname = usePathname() ?? "/";
 
   const suppressedPrefixes = [
-    "/",
+    // Landing pages often have their own header or none
     "/contact",
     "/legal",
     "/privacy",
     "/terms",
     "/cookies",
-    "/social",
-    "/settings/profile",
-    "/onboarding",
-    "/friends",
-    "/meetups",
-    "/discovery",
-    "/activities",
-    "/chat",
+    // Auth
     "/login",
+    "/onboarding",
     "/select-university",
     "/select-courses",
     "/set-profile",
@@ -39,12 +34,19 @@ export default function SiteHeader() {
     "/major-year",
     "/passions",
     "/photos",
-    "/leaderboards",
+    "/verify-email",
+    "/join",
+    "/reset-password",
+    "/forgot-password",
   ];
+
+  // Also suppress on root if it's a landing page (optional, depends on design)
+  // But generally AuthenticatedAppChrome is for auth'd users.
+
   const shouldRenderHeader = !suppressedPrefixes.some((prefix) =>
     prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
   );
-  const [menuOpen, setMenuOpen] = useState(false);
+
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -55,8 +57,12 @@ export default function SiteHeader() {
   }, [shouldRenderHeader, pathname]);
 
   const navLinks = useMemo<Array<{ href: string; label: string }>>(() => {
-    // Hide user name and profile link from the top bar; only show sign-in when logged out.
-    return [];
+    return [
+      { label: "Discover", href: "/discovery" },
+      { label: "Chat", href: "/chat" },
+      { label: "Meetups", href: "/meetups" },
+      { label: "Rank", href: "/leaderboards" },
+    ];
   }, []);
 
   const visibleLinks = hydrated ? navLinks : [];
@@ -68,78 +74,58 @@ export default function SiteHeader() {
     }, {});
   }, [pathname, navLinks]);
 
-  useEffect(() => {
-    if (!shouldRenderHeader) {
-      return;
-    }
-    setMenuOpen(false);
-  }, [pathname, shouldRenderHeader]);
-
   if (!shouldRenderHeader) {
     return null;
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-warm-sand dark:border-slate-700 bg-glass shadow-soft">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+        {/* Logo Area */}
         <div className="flex h-full items-center">
-          <div className="mr-6 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-warm-sand/30">
-            <BrandLogo withWordmark asLink logoClassName="h-10 w-auto" wordmarkTitleClassName="text-2xl" disableMixBlend={true} />
-          </div>
+          <Link href="/discovery" className="flex items-center gap-2">
+            {/* Clean Logo without box */}
+            <BrandLogo withWordmark asLink={false} logoClassName="h-8 w-auto" wordmarkTitleClassName="text-xl tracking-tight font-bold text-rose-700" disableMixBlend={true} />
+          </Link>
         </div>
-        <nav className="hidden items-center gap-1 md:flex">
+
+        {/* Desktop Nav */}
+        <nav className="hidden items-center gap-1 md:flex absolute left-1/2 -translate-x-1/2">
           {visibleLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-full px-3 py-2 text-sm font-medium transition ${activeMap[link.href]
-                ? "bg-midnight dark:bg-indigo-600 text-white shadow-soft"
-                : "text-navy dark:text-slate-200 hover:bg-warm-sand/80 dark:hover:bg-slate-700 hover:text-midnight dark:hover:text-white"
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${activeMap[link.href]
+                ? "bg-rose-50 text-rose-700"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
             >
               {link.label}
             </Link>
           ))}
         </nav>
-        {/* Hide sign-out from the top bar as requested */}
-        <button
-          type="button"
-          aria-label="Toggle navigation"
-          onClick={() => setMenuOpen((prev) => !prev)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-warm-sand dark:border-slate-600 bg-cream dark:bg-slate-800 text-navy dark:text-slate-200 md:hidden"
-        >
-          <span className="sr-only">Toggle navigation</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            className="h-5 w-5"
+
+        {/* Right Side / Profile */}
+        <div className="flex items-center gap-4">
+          {/* Desktop Profile Link */}
+          <Link
+            href="/settings/profile"
+            className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14M5 12h14M5 17h14" />
-          </svg>
-        </button>
-      </div>
-      {menuOpen ? (
-        <div className="border-t border-warm-sand dark:border-slate-700 bg-cream dark:bg-slate-900 pb-4 pt-3 md:hidden">
-          <nav className="flex flex-col gap-1 px-4">
-            {visibleLinks.map((link) => (
-              <Link
-                key={`mobile-${link.href}`}
-                href={link.href}
-                className={`rounded px-3 py-2 text-sm font-medium ${activeMap[link.href]
-                  ? "bg-midnight dark:bg-indigo-600 text-white"
-                  : "text-navy dark:text-slate-200 hover:bg-warm-sand dark:hover:bg-slate-700 hover:text-midnight dark:hover:text-white"
-                  }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          {/* Hide sign-out in mobile menu as well */}
+            <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center">
+              <UserCircle size={16} className="text-slate-500" />
+            </div>
+            <span>Profile</span>
+          </Link>
+
+          {/* Mobile Profile Icon (Visible only if header is shown on mobile, but usually BottomNav takes over) */}
+          {/* Typically we might want a settings cog or notifications here on mobile? 
+                But for now, sticking to the plan: BottomNav handles mobile nav. 
+                We can leave this empty for mobile or add a notification bell later. 
+            */}
         </div>
-      ) : null}
+      </div>
     </header>
   );
 }
+

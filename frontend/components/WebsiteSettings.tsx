@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchNotificationPreferences, updateNotificationPreferences } from "@/lib/identity";
 
@@ -121,6 +122,49 @@ export default function WebsiteSettings() {
                                 }`}
                         />
                     </button>
+                </div>
+
+                <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <p className="font-medium text-slate-900 dark:text-slate-100 mb-4">Legal & Support</p>
+                    <div className="flex flex-col gap-3">
+                        <Link href="/contact" className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                            <span>Contact Support</span>
+                            <span className="text-slate-400">→</span>
+                        </Link>
+                        <Link href="/terms" className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                            <span>Terms of Service</span>
+                            <span className="text-slate-400">→</span>
+                        </Link>
+                        <Link href="/privacy" className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                            <span>Privacy Policy</span>
+                            <span className="text-slate-400">→</span>
+                        </Link>
+                        <Link href="/cookies" className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                            <span>Cookie Policy</span>
+                            <span className="text-slate-400">→</span>
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (typeof window !== "undefined") {
+                                window.localStorage.clear();
+                                window.location.replace("/login");
+                            }
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600 transition hover:bg-rose-100 hover:border-rose-300"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                        </svg>
+                        Sign out
+                    </button>
+                    <p className="mt-4 text-center text-xs text-slate-400">
+                        Version 1.2.0 (Stable)
+                    </p>
                 </div>
             </div>
         </section>

@@ -2,7 +2,7 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const sourceImage = path.join(__dirname, '..', 'public', 'unnamed.jpg');
+const sourceImage = path.join(__dirname, '..', 'public', 'ChatGPT Image Dec 19, 2025, 02_05_56 PM.png');
 const publicDir = path.join(__dirname, '..', 'public');
 
 const sizes = [
@@ -14,7 +14,7 @@ const sizes = [
 ];
 
 async function generateFavicons() {
-    console.log('🎨 Generating favicons...');
+    console.log('🎨 Generating favicons with bigger logo...');
 
     // Check if source image exists
     if (!fs.existsSync(sourceImage)) {
@@ -23,13 +23,14 @@ async function generateFavicons() {
     }
 
     try {
-        // Generate each size
+        // Generate each size with 'cover' fit to make logo bigger
         for (const { name, size } of sizes) {
             const outputPath = path.join(publicDir, name);
 
             await sharp(sourceImage)
                 .resize(size, size, {
-                    fit: 'contain',
+                    fit: 'cover',  // Changed from 'contain' to 'cover' for bigger logo
+                    position: 'center',
                     background: { r: 255, g: 255, b: 255, alpha: 0 }
                 })
                 .png()
@@ -42,7 +43,8 @@ async function generateFavicons() {
         const icoPath = path.join(publicDir, 'favicon.ico');
         await sharp(sourceImage)
             .resize(32, 32, {
-                fit: 'contain',
+                fit: 'cover',  // Changed from 'contain' to 'cover' for bigger logo
+                position: 'center',
                 background: { r: 255, g: 255, b: 255, alpha: 0 }
             })
             .toFormat('png')
@@ -50,10 +52,12 @@ async function generateFavicons() {
 
         console.log(`✅ Generated favicon.ico (32x32)`);
 
-        console.log('\n🎉 All favicons generated successfully!');
-        console.log('\n📝 Next steps:');
-        console.log('   1. Check the generated files in the public directory');
-        console.log('   2. You can delete unnamed.jpg if you no longer need it');
+        console.log('\n🎉 All favicons generated successfully with bigger UH logo!');
+        console.log('\n📝 Files generated:');
+        sizes.forEach(({ name, size }) => {
+            console.log(`   - ${name} (${size}x${size})`);
+        });
+        console.log('   - favicon.ico (32x32)');
 
     } catch (error) {
         console.error('❌ Error generating favicons:', error.message);

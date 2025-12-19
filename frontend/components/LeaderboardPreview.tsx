@@ -63,9 +63,6 @@ export function LeaderboardPreview() {
                   <span className="text-sm font-medium leading-none text-slate-900">
                     {leader.display_name || "Anonymous"}
                   </span>
-                  {leader.handle && (
-                    <span className="text-xs text-slate-500">@{leader.handle}</span>
-                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5">

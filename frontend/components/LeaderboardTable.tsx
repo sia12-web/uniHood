@@ -44,8 +44,8 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
         <tbody className="divide-y divide-slate-200">
           {items.map((row) => {
             const isMine = highlightUserId ? row.user_id === highlightUserId : false;
-            // Prefer display_name, then handle, then truncated UUID as fallback
-            const displayName = row.display_name || row.handle || `${row.user_id.slice(0, 8)}…${row.user_id.slice(-4)}`;
+            // Prefer display_name, then truncated UUID as fallback
+            const displayName = row.display_name || `${row.user_id.slice(0, 8)}…${row.user_id.slice(-4)}`;
             // For social scope, display as integer (the Social Score)
             const scoreDisplay = scope === "social"
               ? Math.floor(row.score).toString()

@@ -36,27 +36,35 @@ const describeLoginError = (error: unknown): string => {
       case "email_unverified":
         return "Verify your email before signing in. Check your inbox for the link.";
       case "invalid_credentials":
-        return "Incorrect email or password.";
+        return "No account found with this email, or the password is incorrect.";
       case "account_locked":
         return "Too many attempts. Please try again later.";
       case "register_rate":
       case "login_rate":
+      case "rate_limited_ip":
+      case "rate_limited_id":
         return "Too many login attempts. Wait a moment and try again.";
+      case "password_missing":
+        return "This account uses a different sign-in method (e.g., Google or passkey).";
       default:
         break;
     }
     if (error.status === 401) {
-      return "Incorrect email or password.";
+      return "No account found with this email, or the password is incorrect.";
     }
     if (error.status === 429) {
       return "Too many login attempts. Wait a moment and try again.";
     }
-    return error.message || "Unable to sign in.";
+    return error.message || "Unable to sign in. Please try again.";
   }
   if (error instanceof Error) {
-    return error.message || "Unable to sign in.";
+    // Handle network/fetch errors more gracefully
+    if (error.message.toLowerCase().includes("network") || error.message.toLowerCase().includes("fetch")) {
+      return "Unable to connect to the server. Please check your internet connection and try again.";
+    }
+    return error.message || "Unable to sign in. Please try again.";
   }
-  return "Unable to sign in.";
+  return "Unable to sign in. Please try again.";
 };
 
 export default function LoginPage() {

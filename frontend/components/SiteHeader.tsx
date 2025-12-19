@@ -83,8 +83,8 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-warm-sand dark:border-slate-700 bg-glass shadow-soft">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <div className="flex h-full items-center">
-          <div className="mr-6">
-            <BrandLogo withWordmark asLink logoClassName="h-10 w-auto" wordmarkTitleClassName="text-2xl" />
+          <div className="mr-6 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-warm-sand/30">
+            <BrandLogo withWordmark asLink logoClassName="h-10 w-auto" wordmarkTitleClassName="text-2xl" disableMixBlend={true} />
           </div>
         </div>
         <nav className="hidden items-center gap-1 md:flex">

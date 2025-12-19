@@ -66,16 +66,18 @@ export default function IdentityVerificationPage() {
 			<section className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-white shadow-2xl z-20">
 				<div className="w-full max-w-[420px] space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 					<div className="lg:hidden flex justify-center mb-6">
-						<BrandLogo
-							withWordmark={false}
-							asLink={false}
-							backgroundTone="light"
-							logoWidth={450}
-							logoHeight={450}
-							disableMixBlend={true}
-							logoClassName="!h-64 !w-64 object-contain"
-							taglineClassName="hidden"
-						/>
+						<div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+							<BrandLogo
+								withWordmark={false}
+								asLink={false}
+								backgroundTone="light"
+								logoWidth={450}
+								logoHeight={450}
+								disableMixBlend={true}
+								logoClassName="!h-48 !w-48 object-contain"
+								taglineClassName="hidden"
+							/>
+						</div>
 					</div>
 					<div className="text-center lg:text-left space-y-2">
 						<h2 className="text-3xl font-bold text-slate-900 tracking-tight">Identity Verification</h2>

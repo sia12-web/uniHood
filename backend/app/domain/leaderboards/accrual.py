@@ -120,6 +120,14 @@ class LeaderboardAccrual:
 		await self._touch(user_b, day=day)
 		return True
 
+	async def record_friendship_removed(self, *, user_a: str, user_b: str, when: Optional[datetime] = None) -> None:
+		"""Record friendship removal for scoring deduction."""
+		day = _day_stamp(when)
+		await self._hincr(_hash_key(day, user_a), "friends_removed", 1)
+		await self._hincr(_hash_key(day, user_b), "friends_removed", 1)
+		await self._touch(user_a, day=day)
+		await self._touch(user_b, day=day)
+
 	async def record_dm_sent(self, *, from_user_id: str, to_user_id: str, when: Optional[datetime] = None) -> bool:
 		"""
 		Record DM sent for scoring.

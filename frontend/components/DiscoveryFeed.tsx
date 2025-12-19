@@ -1094,7 +1094,10 @@ function UserCard({
                 <p className="text-sm font-medium text-slate-200 drop-shadow-sm">{user.campus_name}</p>
               )}
               <p className="text-sm font-medium text-slate-300 drop-shadow-sm">
-                {user.major || "Student"}{user.graduation_year ? ` • '${String(user.graduation_year).slice(-2)}` : ""}
+                {[
+                  user.major && user.major.toLowerCase() !== "none" ? user.major : null,
+                  user.graduation_year ? `'${String(user.graduation_year).slice(-2)}` : null
+                ].filter(Boolean).join(" • ")}
               </p>
 
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">

@@ -1,23 +1,23 @@
-# uniHood
+# Divan
 
-![uniHood Hero](docs/screenshots/hero.png)
+![Divan Hero](docs/screenshots/hero.png)
 
-> **Live Demo:** [unihood.app](https://unihood.app) _(Interviewers: feel free to create an account and poke around!)_
+> **Live Demo:** [divan.app](https://divan.app) _(Interviewers: feel free to create an account and poke around!)_
 
-uniHood is a real-time, campus-based social platform designed to bring the university "third place" into the digital age. It's not just a chat app; it's a living, breathing digital campus where you can bump into friends, challenge rivals to quick games, and find your community.
+Divan is a real-time, campus-based social platform designed to bring the university "third place" into the digital age. It's not just a chat app; it's a living, breathing digital campus where you can bump into friends, challenge rivals to quick games, and find your community.
 
 ## Why I Built This
 
-I built uniHood because I felt that modern social networks have lost the magic of _place_. On a real campus, you don't just "send connection requests"—you see people in the library, you join a pickup game on the quad, or you debate a topic in the student union. Serendipity is key.
+I built Divan because I felt that modern social networks have lost the magic of _place_. On a real campus, you don't just "send connection requests"—you see people in the library, you join a pickup game on the quad, or you debate a topic in the student union. Serendipity is key.
 
-I wanted to recreate that feeling of **presence**. That's why uniHood is built around "Activities" and "Rooms" rather than just static feeds. When you're online, you're _somewhere_. You can be active in a Trivia lobby, waiting for a challenger in Rock Paper Scissors, or co-writing a story with a friend.
+I wanted to recreate that feeling of **presence**. That's why Divan is built around "Activities" and "Rooms" rather than just static feeds. When you're online, you're _somewhere_. You can be active in a Trivia lobby, waiting for a challenger in Rock Paper Scissors, or co-writing a story with a friend.
 
 This project was also my playground to prove that a complex, real-time microservices architecture can feel seamless and snappy on the frontend. I wanted to build something that didn't just work, but felt _alive_.
 
 ## Features
 
 ### 🎮 Real-time Activities Hub
-The heart of uniHood. A dedicated microservice powers a suite of live, interactive games. No refreshing required—everything pushes instantly via WebSockets.
+The heart of Divan. A dedicated microservice powers a suite of live, interactive games. No refreshing required—everything pushes instantly via WebSockets.
 - **Quick Trivia:** 1v1 speed battles. First to answer correctly wins the edge.
 - **Rock Paper Scissors:** The classic settler of disputes, reimagined with a tense "reveal" mechanic.
 - **Speed Typing:** Test your WPM against a friend in a live race.
@@ -65,8 +65,8 @@ Want to spin this up locally? I've containerized the entire stack so you don't n
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/sia12-web/Divan.git unihood
-   cd unihood
+   git clone https://github.com/sia12-web/Divan.git divan
+   cd divan
    ```
 
 2. **Start the backend & services**

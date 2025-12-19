@@ -586,8 +586,7 @@ class ForgotPasswordRequest(BaseModel):
 	email: EmailStr
 
 
-class ForgotUsernameRequest(BaseModel):
-	email: EmailStr
+
 
 
 VerificationMethod = Literal["sso", "doc"]

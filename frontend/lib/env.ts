@@ -51,7 +51,7 @@ export function getDemoLongitude() {
 }
 
 export function getDemoUserEmail() {
-  return process?.env?.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "student@mcgill.ca";
+  return process?.env?.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "unihoodapp@gmail.com";
 }
 
 export function getDemoUserCampus(): string | null {

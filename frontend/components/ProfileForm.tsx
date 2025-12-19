@@ -30,7 +30,6 @@ export default function ProfileForm({
 }: ProfileFormProps) {
 	const toast = useContext(ToastContext);
 	const [current, setCurrent] = useState<ProfileRecord>(profile);
-	const [handle, setHandle] = useState<string>(profile.handle ?? "");
 	const [displayName, setDisplayName] = useState<string>(profile.display_name ?? "");
 	const [bio, setBio] = useState<string>(profile.bio ?? "");
 	const [visibility, setVisibility] = useState<"everyone" | "friends" | "none">(
@@ -61,7 +60,6 @@ export default function ProfileForm({
 
 	const syncProfile = useCallback((next: ProfileRecord) => {
 		setCurrent(next);
-		setHandle(next.handle ?? "");
 		setDisplayName(next.display_name ?? "");
 		setBio(next.bio ?? "");
 		setVisibility(next.privacy.visibility);
@@ -87,7 +85,6 @@ export default function ProfileForm({
 		const patch: ProfilePatchPayload = {};
 		let changed = false;
 		const trimmedBio = bio.trim();
-		const nextHandle = handle.trim().toLowerCase();
 		const trimmedMajor = major.trim();
 		const trimmedGraduationYear = graduationYear.trim();
 
@@ -99,10 +96,7 @@ export default function ProfileForm({
 			patch.privacy = { visibility, ghost_mode: ghostMode };
 			changed = true;
 		}
-		if (nextHandle && nextHandle !== current.handle) {
-			patch.handle = nextHandle;
-			changed = true;
-		}
+
 		const trimmedDisplayName = displayName.trim();
 		if (trimmedDisplayName !== (current.display_name ?? "")) {
 			patch.display_name = trimmedDisplayName || undefined;
@@ -273,19 +267,6 @@ export default function ProfileForm({
 				<p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
 			) : null}
 			<form onSubmit={handleSubmitForm} className="flex flex-col gap-4">
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Username</span>
-					<input
-						type="text"
-						value={handle}
-						maxLength={20}
-						onChange={(event) =>
-							setHandle(event.target.value.toLowerCase().replace(HANDLE_PATTERN, ""))
-						}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-					<span className="text-xs text-slate-500">Lowercase letters, numbers, underscores only.</span>
-				</label>
 				<label className="flex flex-col gap-1 text-sm text-slate-700">
 					<span className="font-medium">Display Name</span>
 					<input

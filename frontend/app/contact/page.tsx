@@ -277,8 +277,8 @@ export default function ContactPage() {
                 <div className="mt-8 text-center text-sm text-navy/60 dark:text-slate-500">
                     <p>
                         For urgent matters, you can also reach us at{" "}
-                        <a href="mailto:support@divan.app" className="font-medium text-coral hover:underline dark:text-indigo-400">
-                            support@divan.app
+                        <a href="mailto:unihoodapp@gmail.com" className="font-medium text-coral hover:underline dark:text-indigo-400">
+                            unihoodapp@gmail.com
                         </a>
                     </p>
                 </div>

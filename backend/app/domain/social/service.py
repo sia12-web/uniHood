@@ -587,7 +587,9 @@ async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> Frie
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		await policy.assert_can_block(conn, blocker_id, target_id)
+		
 		async with conn.transaction():
+			was_friends = await policy.are_friends(conn, blocker_id, target_id)
 			await conn.execute(
 				"""
 				INSERT INTO friendships (user_id, friend_id, status)
@@ -598,6 +600,12 @@ async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> Frie
 				blocker_id,
 				target_id,
 			)
+			if was_friends:
+				try:
+					await _leaderboards.record_friendship_removed(user_a=blocker_id, user_b=target_id)
+				except Exception:
+					logger.exception("Failed to record friendship removal (block) for leaderboards")
+
 			await policy.cancel_other_open_between_pair(conn, blocker_id, target_id, exclude=[])
 			row = await conn.fetchrow(
 				"""
@@ -646,14 +654,23 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 	async with pool.acquire() as conn:
 		await policy.ensure_users_exist_conn(conn, user_id, target_id)
 		async with conn.transaction():
-			await policy.delete_friendship(conn, user_id, target_id)
-			await policy.delete_friendship(conn, target_id, user_id)
-	await audit.log_friend_event(
-		"removed",
-		{"user_id": user_id, "friend_id": target_id, "status": "none"},
-	)
-	await _emit_friend_update_pair(user_id, target_id, "none")
-	# Invalidate friends cache for both users
-	await _invalidate_friends_cache(user_id)
-	await _invalidate_friends_cache(target_id)
+			# Only deduct points if they were actually friends
+			if await policy.are_friends(conn, user_id, target_id):
+				d1 = await policy.delete_friendship(conn, user_id, target_id)
+				d2 = await policy.delete_friendship(conn, target_id, user_id)
+				
+				if d1 or d2:
+					try:
+						await _leaderboards.record_friendship_removed(user_a=user_id, user_b=target_id)
+					except Exception:
+						logger.exception("Failed to record friendship removal for leaderboards")
+				
+					await audit.log_friend_event(
+						"removed",
+						{"user_id": user_id, "friend_id": target_id, "status": "none"},
+					)
+					await _emit_friend_update_pair(user_id, target_id, "none")
+					# Invalidate friends cache for both users
+					await _invalidate_friends_cache(user_id)
+					await _invalidate_friends_cache(target_id)
 

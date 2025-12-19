@@ -189,12 +189,13 @@ async def upsert_friendships_bidirectional(
 	)
 
 
-async def delete_friendship(conn: asyncpg.Connection, user_id: str, friend_id: str) -> None:
-	await conn.execute(
+async def delete_friendship(conn: asyncpg.Connection, user_id: str, friend_id: str) -> bool:
+	status = await conn.execute(
 		"DELETE FROM friendships WHERE user_id = $1 AND friend_id = $2",
 		user_id,
 		friend_id,
 	)
+	return status != "DELETE 0"
 
 
 async def ensure_user_exists(conn: asyncpg.Connection, user_id: str) -> None:

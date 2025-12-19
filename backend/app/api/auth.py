@@ -241,13 +241,7 @@ async def forgot_password(payload: schemas.ForgotPasswordRequest, request: Reque
 	return {"detail": "If an account exists, an email has been sent."}
 
 
-@router.post("/auth/forgot-username", status_code=status.HTTP_202_ACCEPTED)
-async def forgot_username(payload: schemas.ForgotUsernameRequest, request: Request):
-	try:
-		await recovery.request_username_recovery(payload.email)
-	except policy.IdentityPolicyError as exc:
-		raise _map_policy_error(exc) from None
-	return {"detail": "If an account exists, an email has been sent."}
+
 
 
 @router.post("/auth/reset-password")

@@ -212,7 +212,7 @@ async def lifespan(app: FastAPI):
 		await postgres.close_pool()
 
 
-app = FastAPI(title="uniHood Proximity Core", lifespan=lifespan)
+app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
 custom_openapi(app)
 install_error_handlers(app)
 
@@ -262,7 +262,7 @@ _s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/upload
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
-	allow_origins = ["http://localhost:3000"] if settings.environment in ["dev", "development"] else ["https://app.unihood.example"]
+	allow_origins = ["http://localhost:3000"] if settings.environment in ["dev", "development"] else ["https://app.divan.app"]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:
@@ -282,7 +282,7 @@ if "*" in allow_origins:
 			"https://127.0.0.1:3001",
 		]
 	else:
-		allow_origins = ["https://app.unihood.example"]
+		allow_origins = ["https://app.divan.app"]
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Upload endpoints (PUT/GET) used by the avatar presign flow.

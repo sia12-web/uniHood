@@ -274,7 +274,7 @@ export default function PrivacyPolicyPage() {
 					If you have questions about this policy, want to exercise your rights, or just want to chat about how we handle data, reach out to us:
 				</p>
 				<ul>
-					<li>Email: <a href="mailto:privacy@divan.app">privacy@divan.app</a></li>
+					<li>Email: <a href="mailto:unihoodapp@gmail.com">unihoodapp@gmail.com</a></li>
 					<li>Help Center: Use the &quot;Contact Support&quot; option in your dashboard.</li>
 				</ul>
 				<p>

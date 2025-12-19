@@ -150,6 +150,32 @@ async def _apply_deletion(auth_user: AuthenticatedUser, mark_requested: bool, fo
 			await conn.execute("DELETE FROM rooms WHERE owner_id = $1", user_id)
 			
 			# Social/friends related
+			# Identify friends to penalize before deleting the relationships (treat account deletion as unfriend)
+			try:
+				friends_rows = await conn.fetch(
+					"""
+					SELECT friend_id FROM friendships WHERE user_id = $1 AND status = 'accepted'
+					UNION
+					SELECT user_id FROM friendships WHERE friend_id = $1 AND status = 'accepted'
+					""",
+					user_id
+				)
+				if friends_rows:
+					from app.domain.leaderboards.service import LeaderboardService
+					lb_service = LeaderboardService()
+					for row in friends_rows:
+						friend_id = str(row[0])
+						try:
+							await lb_service.record_friendship_removed(user_a=user_id, user_b=friend_id)
+							# Invalidate friends cache for the survivor
+							for status in ("accepted", "blocked", "pending"):
+								await redis_client.delete(f"friends:list:{friend_id}:{status}")
+						except Exception:
+							pass
+			except Exception:
+				# Don't fail deletion if scoring fails
+				pass
+
 			await conn.execute("DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1", user_id)
 			await conn.execute("DELETE FROM invitations WHERE from_user_id = $1 OR to_user_id = $1", user_id)
 			await conn.execute("DELETE FROM blocks WHERE user_id = $1 OR blocked_id = $1", user_id)

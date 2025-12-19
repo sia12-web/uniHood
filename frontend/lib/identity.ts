@@ -127,12 +127,7 @@ export async function forgotPassword(email: string): Promise<void> {
 	});
 }
 
-export async function forgotUsername(email: string): Promise<void> {
-	await request<void>("/auth/forgot-username", {
-		method: "POST",
-		body: { email },
-	});
-}
+
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
 	await request<void>("/auth/reset-password", {

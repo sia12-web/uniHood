@@ -39,6 +39,7 @@ class DailyCounters:
 	rooms_created: int = 0
 	uniq_senders: int = 0
 	uniq_invite_accept_from: int = 0
+	friends_removed: int = 0
 	touched: int = 0
 
 	@classmethod
@@ -74,6 +75,7 @@ class DailyCounters:
 			rooms_created=_get_int("rooms_created"),
 			uniq_senders=_get_int("uniq_senders"),
 			uniq_invite_accept_from=_get_int("uniq_invite_accept_from"),
+			friends_removed=_get_int("friends_removed"),
 			touched=_get_int("touched"),
 		)
 
@@ -91,6 +93,7 @@ class DailyCounters:
 			"rooms_created": self.rooms_created,
 			"uniq_senders": self.uniq_senders,
 			"uniq_invite_accept_from": self.uniq_invite_accept_from,
+			"friends_removed": self.friends_removed,
 			"touched": self.touched,
 		}
 

@@ -8,7 +8,6 @@ import { readAuthSnapshot, storeAuthSnapshot } from "@/lib/auth-storage";
 
 export default function SetProfilePage() {
     const [displayName, setDisplayName] = useState("");
-    const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [campusId, setCampusId] = useState<string | null>(null);
@@ -26,7 +25,6 @@ export default function SetProfilePage() {
                 const profile = await fetchProfile(auth.user_id, null);
                 setCampusId(profile.campus_id || null);
                 setDisplayName(profile.display_name || "");
-                setHandle(profile.handle || "");
             } catch (err) {
                 console.error("Failed to load profile", err);
                 setError("Unable to load profile.");
@@ -45,16 +43,14 @@ export default function SetProfilePage() {
             const auth = readAuthSnapshot();
             if (!auth?.user_id) return;
 
+            // Only update display_name. Unused handle is kept internally.
             await patchProfile(auth.user_id, campusId, {
                 display_name: displayName,
-                handle: handle
             });
 
-            // Update the auth snapshot with the new handle and display_name
-            // so that readAuthUser() returns the correct values on the dashboard
+            // Update the auth snapshot with the new display_name
             storeAuthSnapshot({
                 ...auth,
-                handle: handle,
                 display_name: displayName,
             });
 
@@ -62,11 +58,7 @@ export default function SetProfilePage() {
         } catch (err: unknown) {
             console.error(err);
             const message = err instanceof Error ? err.message : String(err);
-            if (message.includes("handle_taken")) {
-                setError("Username is already taken.");
-            } else {
-                setError("Failed to update profile.");
-            }
+            setError("Failed to update profile.");
         } finally {
             setSubmitting(false);
         }
@@ -85,10 +77,6 @@ export default function SetProfilePage() {
                     <div className="mt-8 space-y-6">
                         <div className="space-y-2">
                             <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
-                            <div className="h-10 w-full bg-slate-100 rounded-md animate-pulse" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="h-4 w-28 bg-slate-200 rounded animate-pulse" />
                             <div className="h-10 w-full bg-slate-100 rounded-md animate-pulse" />
                         </div>
                         <div className="h-10 w-full bg-slate-200 rounded-md animate-pulse" />
@@ -116,24 +104,6 @@ export default function SetProfilePage() {
                             {error}
                         </div>
                     )}
-
-                    <div>
-                        <label htmlFor="handle" className="block text-sm font-medium text-slate-700">
-                            Username (Handle)
-                        </label>
-                        <input
-                            id="handle"
-                            name="handle"
-                            type="text"
-                            required
-                            pattern="[a-z0-9_]{3,20}"
-                            title="3-20 characters, lowercase letters, numbers, and underscores only."
-                            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
-                            value={handle}
-                            onChange={(e) => setHandle(e.target.value.toLowerCase())}
-                        />
-                        <p className="mt-1 text-xs text-slate-500">Unique identifier, e.g. @john_doe</p>
-                    </div>
 
                     <div>
                         <label htmlFor="displayName" className="block text-sm font-medium text-slate-700">

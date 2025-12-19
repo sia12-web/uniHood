@@ -74,3 +74,5 @@ test_*.txt
 build_*.txt
 lint_*.txt
 build.log
+search_results_filtered.csv
+search_results.csv

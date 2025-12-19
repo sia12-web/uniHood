@@ -79,6 +79,7 @@ class LeaderboardService:
 		social = (
 			policy.W_INVITE_ACCEPT * counters.invites_accepted
 			+ policy.W_FRIEND_NEW * counters.friends_new
+			+ policy.W_FRIEND_REMOVED * counters.friends_removed
 			+ policy.W_DM_SENT * counters.dm_sent
 			+ policy.W_ROOM_SENT * counters.room_sent
 			+ policy.W_ROOM_JOIN * counters.rooms_joined
@@ -213,6 +214,18 @@ class LeaderboardService:
 		Returns True if points were awarded, False if blocked.
 		"""
 		return await self._accrual.record_friendship_accepted(
+			user_a=user_a,
+			user_b=user_b,
+		)
+
+	async def record_friendship_removed(
+		self,
+		*,
+		user_a: str,
+		user_b: str,
+	) -> None:
+		"""Record friendship removal (deducts points)."""
+		await self._accrual.record_friendship_removed(
 			user_a=user_a,
 			user_b=user_b,
 		)

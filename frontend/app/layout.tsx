@@ -11,10 +11,10 @@ const PerformanceMonitor = dynamic(() => import("@/components/PerformanceMonitor
 
 export const metadata: Metadata = {
   title: {
-    default: "uniHood",
-    template: "%s | uniHood",
+    default: "Divan",
+    template: "%s | Divan",
   },
-  description: "Connect with students nearby.",
+  description: "Connect with students nearby on Divan.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`
             (function() {
               try {
-                var stored = localStorage.getItem('unihood.website.settings');
+                var stored = localStorage.getItem('divan.website.settings');
                 var theme = stored ? JSON.parse(stored).theme : 'system';
                 // Map old 'light' to 'system' for backwards compatibility
                 if (theme === 'light') theme = 'system';

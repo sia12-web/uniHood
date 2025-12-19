@@ -13,8 +13,13 @@ from argon2 import exceptions as argon_exc
 from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer
 from app.infra.password import PASSWORD_HASHER, check_needs_rehash
 from app.infra.postgres import get_pool
+import re
+import string
+from app.infra.postgres import get_pool
 from app.settings import settings
 from app.obs import metrics as obs_metrics
+
+HANDLE_ALLOWED_RE = re.compile(r"[^a-z0-9-]")
 
 VERIFICATION_TTL_SECONDS = 24 * 3600
 _PASSWORD_HASHER = PASSWORD_HASHER
@@ -115,14 +120,30 @@ async def _upsert_verification(conn: asyncpg.Connection, user_id: UUID) -> str:
 	return token
 
 
+def _generate_handle_candidate(display_name: str) -> str:
+	"""Generate a handle candidate from display name + random suffix."""
+	# 1. Lowercase
+	base = display_name.lower().strip()
+	# 2. Replace spaces with hyphens
+	base = base.replace(" ", "-")
+	# 3. Remove special characters (keep a-z, 0-9, hyphen)
+	base = HANDLE_ALLOWED_RE.sub("", base)
+	# 4. Truncate to reasonable length (e.g. 20 chars max for base) to allow suffix
+	if not base:
+		base = "user"
+	base = base[:20]
+	
+	# 5. Append random 4-6 char suffix
+	suffix_len = secrets.choice([4, 5, 6])
+	suffix = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(suffix_len))
+	
+	return f"{base}-{suffix}"
+
+
+
 async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> schemas.RegisterResponse:
 	email = policy.normalise_email(payload.email)
-	if payload.handle:
-		handle = policy.normalise_handle(payload.handle)
-	else:
-		handle = f"user_{uuid4().hex[:12]}"
-	
-	display = payload.display_name or handle
+	display = payload.display_name
 	campus_id_from_payload = payload.campus_id is not None
 	campus_id = payload.campus_id
 	if campus_id is None:
@@ -132,15 +153,48 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 				campus_id = UUID(default_campus_raw)
 			except ValueError as exc:
 				raise IdentityServiceError("campus_not_configured", status_code=500) from exc
-	# if campus_id is None:
-	# 	raise policy.IdentityPolicyError("campus_required")
 
 	await policy.enforce_register_rate(ip_address)
-	policy.guard_handle_format(handle)
-	password_hash = _hash_password(payload.password)
+	
+	# Auto-generate handle with retries
+	handle = ""
+	reserved = False
+	
+	# Try up to 5 times to generate a unique handle
+	for attempt in range(5):
+		candidate = _generate_handle_candidate(display)
+		policy.guard_handle_format(candidate)
+		try:
+			# Optimistically reserve in Redis (short TTL) to prevent parallel races
+			await policy.reserve_handle(candidate, str(uuid4()))
+			
+			# Check DB existence (users table)
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				exists = await conn.fetchval(
+					"SELECT 1 FROM users WHERE handle = $1 AND deleted_at IS NULL", 
+					candidate
+				)
+				if not exists:
+					handle = candidate
+					reserved = True
+					break
+			
+			# If exists in DB, release redis reservation and retry
+			await policy.release_handle(candidate)
+		except policy.HandleConflict:
+			# Redis reservation failed, retry
+			continue
 
-	await policy.reserve_handle(handle, str(uuid4()))
+	if not handle:
+		# Fallback if we fail to generate unique (unlikely)
+		handle = f"user-{uuid4().hex[:8]}"
+		await policy.reserve_handle(handle, str(uuid4()))
+		reserved = True
+
+	password_hash = _hash_password(payload.password)
 	token = ""
+
 	try:
 		pool = await get_pool()
 		async with pool.acquire() as conn:
@@ -227,8 +281,10 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 				# 	await conn.execute("UPDATE users SET email_verified = TRUE WHERE id = $1", str(user_id))
 
 				token = await _upsert_verification(conn, user_id)
+				token = await _upsert_verification(conn, user_id)
 	finally:
-		await policy.release_handle(handle)
+		if reserved:
+			await policy.release_handle(handle)
 
 	obs_metrics.inc_identity_register()
 	

@@ -15,6 +15,7 @@ from app.infra.redis import redis_client
 # Friends Category
 W_INVITE_ACCEPT = 30.0   # Accepting a friend invite
 W_FRIEND_NEW = 50.0      # Making a new friend
+W_FRIEND_REMOVED = -50.0 # Losing a friend
 W_DM_SENT = 2.0          # Sending a direct message (capped)
 W_ROOM_SENT = 1.0        # Sending a message in a room (capped)
 

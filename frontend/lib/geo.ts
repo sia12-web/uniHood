@@ -16,7 +16,7 @@ export function roundToBucket(distance: number, bucket: number): number {
 }
 
 export function formatDistance(distance: number | null | undefined): string | null {
-	if (distance == null) return 'Approx';
+	if (distance == null) return null;
 	return `${distance}m`;
 }
 

@@ -33,7 +33,7 @@ export default function SiteFooter() {
                     {/* Socials & Copyright */}
                     <div className="flex items-center gap-4">
                         <Link
-                            href="https://instagram.com/unihood.app"
+                            href="https://instagram.com/divan.app"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-navy/60 hover:text-coral dark:text-slate-400 dark:hover:text-coral transition-colors"

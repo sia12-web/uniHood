@@ -121,7 +121,7 @@ protected by standard contractual clauses or similar legal safeguards.
 ## 10. Contact Us
 
 For privacy questions:
-- Email: privacy@divan.app
+- **Contact us:** unihoodapp@gmail.com
 - Help Center: In-app contact option
 
 For complaints: Office of the Privacy Commissioner of Canada

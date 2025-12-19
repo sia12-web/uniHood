@@ -1424,16 +1424,18 @@ export default function HomePage() {
         <section className="flex-1 px-6 py-6 pb-24 md:px-10 md:py-12 md:pb-12">
           {/* Mobile logo header */}
           <div className="mb-8 flex justify-center md:hidden">
-            <BrandLogo
-              withWordmark={false}
-              className="flex items-center justify-center"
-              logoClassName="!h-32 !w-32 object-contain"
-              backgroundTone="light"
-              logoWidth={128}
-              logoHeight={128}
-              asLink={false}
-              disableMixBlend={true}
-            />
+            <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+              <BrandLogo
+                withWordmark={false}
+                className="flex items-center justify-center"
+                logoClassName="!h-32 !w-32 object-contain"
+                backgroundTone="light"
+                logoWidth={128}
+                logoHeight={128}
+                asLink={false}
+                disableMixBlend={true}
+              />
+            </div>
           </div>
           <div className="mx-auto max-w-6xl space-y-8">{renderSection()}</div>
         </section>

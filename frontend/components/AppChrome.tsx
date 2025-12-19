@@ -55,6 +55,7 @@ const NO_AUTH_CHROME_PREFIXES = [
 export default function AppChrome({ children }: { children: ReactNode }) {
   let pathname = "/";
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     pathname = usePathname() || "/";
   } catch {
     // In rare cases (e.g. certain error/SSR paths), Next's router context may be unavailable.

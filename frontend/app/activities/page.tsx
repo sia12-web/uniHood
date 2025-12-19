@@ -34,7 +34,7 @@ export default function ActivitiesHubPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-slate-50 px-4 py-6 md:py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:px-6 lg:px-12">
+    <main className="min-h-[100dvh] bg-gradient-to-b from-amber-50 via-white to-slate-50 px-4 py-6 md:py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:px-6 lg:px-12">
       <section className="mx-auto flex max-w-6xl flex-col gap-4 rounded-3xl border border-amber-100 bg-white/85 p-8 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">

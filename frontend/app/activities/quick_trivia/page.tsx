@@ -108,24 +108,24 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-20">
+    <main className="min-h-[100dvh] bg-slate-50 pb-20">
       {/* Hero Section with Full Image */}
-      <div className="relative overflow-hidden shadow-xl">
+      <div className="relative overflow-hidden shadow-xl bg-slate-900">
         {/* Full Background Image */}
-        <div className="relative aspect-[21/9] w-full">
+        <div className="relative h-[300px] w-full md:aspect-[21/9] md:h-auto">
           <Image
             src="/activities/trivia.svg"
             alt="Quick Trivia"
             fill
-            className="object-cover"
+            className="object-cover opacity-90"
             priority
           />
           {/* Gradient overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-black/40" />
         </div>
 
         {/* Back Button */}
-        <div className="absolute left-6 top-6 z-10">
+        <div className="absolute left-4 top-4 z-20 md:left-6 md:top-6">
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-full bg-black/30 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/50"
@@ -135,9 +135,10 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
           </Link>
         </div>
 
-        {/* How to Play Card - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-10 max-w-md">
-          <div className="rounded-2xl bg-black/40 p-6 ring-1 ring-white/10 backdrop-blur-md">
+        {/* How to Play Card - Responsive */}
+        {/* Mobile: Relative block below image. Desktop: Absolute bottom-right overlay. */}
+        <div className="relative z-10 bg-slate-900 px-6 pb-6 md:absolute md:bottom-6 md:right-6 md:bg-transparent md:p-0 md:pb-0 pointer-events-none">
+          <div className="pointer-events-auto max-w-md ml-auto md:ml-0 rounded-2xl bg-slate-800/50 p-6 ring-1 ring-white/10 backdrop-blur-md md:bg-black/40">
             <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
               <Zap className="h-6 w-6 text-amber-400" />
               How to Play

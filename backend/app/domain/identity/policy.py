@@ -13,7 +13,7 @@ from app.domain.identity.models import Campus
 from app.infra.redis import redis_client
 from app.settings import settings
 
-HANDLE_REGEX = re.compile(r"^[a-z0-9_]{3,20}$")
+HANDLE_REGEX = re.compile(r"^[a-z0-9_-]{3,30}$")
 PASSWORD_MIN_LEN = 8
 BIO_MAX_LEN = 500
 DISPLAY_MAX_LEN = 80

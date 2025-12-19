@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, RootModel
 
-HANDLE_PATTERN = r"^[a-z0-9_]{3,20}$"
+HANDLE_PATTERN = r"^[a-z0-9_-]{3,30}$"
 
 
 class GalleryImage(BaseModel):

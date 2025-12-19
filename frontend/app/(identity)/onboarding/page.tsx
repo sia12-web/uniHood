@@ -39,6 +39,8 @@ const describeJoinError = (error: unknown): string => {
         return "Please choose a stronger password.";
       case "register_rate":
         return "Too many sign-up attempts. Wait a minute and try again.";
+      case "handle_invalid":
+        return "We couldn't generate a valid handle for your name. Try a different display name.";
       default:
         break;
     }

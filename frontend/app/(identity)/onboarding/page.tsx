@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import Link from "next/link";
-import { Target, Users, Gamepad2 } from "lucide-react";
+import { Target, Users, Gamepad2, MapPin } from "lucide-react";
 
 import BrandLogo from "@/components/BrandLogo";
 import { HttpError } from "@/app/lib/http/errors";
@@ -148,7 +148,7 @@ export default function OnboardingPage() {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-3 gap-6 w-full px-4">
+          <div className="mt-16 grid grid-cols-4 gap-6 w-full px-4">
             <div className="flex flex-col items-center gap-3 group">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-[#1b2a3a] shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Target className="h-6 w-6" />
@@ -166,6 +166,12 @@ export default function OnboardingPage() {
                 <Gamepad2 className="h-6 w-6" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Compete</span>
+            </div>
+            <div className="flex flex-col items-center gap-3 group" title="Find people within 100m. Best for gyms, libraries, or events.">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-emerald-500 shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
+                <MapPin className="h-6 w-6" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Room (Live)</span>
             </div>
           </div>
         </div>

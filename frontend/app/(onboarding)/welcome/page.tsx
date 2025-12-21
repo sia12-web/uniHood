@@ -21,7 +21,7 @@ export default function WelcomePage() {
                 <div className="mt-8 flex flex-col gap-3">
                     <button
                         onClick={() => router.push("/")}
-                        className="inline-flex w-full justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2"
+                        className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2"
                     >
                         Go to Dashboard
                     </button>

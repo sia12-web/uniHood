@@ -96,21 +96,26 @@ function coerceToBoolean(value: Primitive): boolean {
 
 function readEnvFlags(): FlagDictionary {
   // NOTE: These must be direct `process.env.NEXT_PUBLIC_*` reads so Next can inline them.
+  // Guard against process being undefined in browser environment
   const entries: FlagDictionary = {};
 
-  const mod = process?.env?.NEXT_PUBLIC_FLAG_UI_MOD;
+  if (typeof process === 'undefined') {
+    return entries;
+  }
+
+  const mod = process.env?.NEXT_PUBLIC_FLAG_UI_MOD;
   if (mod !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_MOD] = toEntry(mod);
 
-  const safety = process?.env?.NEXT_PUBLIC_FLAG_UI_SAFETY;
+  const safety = process.env?.NEXT_PUBLIC_FLAG_UI_SAFETY;
   if (safety !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_SAFETY] = toEntry(safety);
 
-  const mediaV2 = process?.env?.NEXT_PUBLIC_FLAG_UI_MEDIA_V2;
+  const mediaV2 = process.env?.NEXT_PUBLIC_FLAG_UI_MEDIA_V2;
   if (mediaV2 !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_MEDIA_V2] = toEntry(mediaV2);
 
-  const metrics = process?.env?.NEXT_PUBLIC_FLAG_UI_METRICS;
+  const metrics = process.env?.NEXT_PUBLIC_FLAG_UI_METRICS;
   if (metrics !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_METRICS] = toEntry(metrics);
 
-  const blur = process?.env?.NEXT_PUBLIC_FLAG_UI_BLUR_SENSITIVE;
+  const blur = process.env?.NEXT_PUBLIC_FLAG_UI_BLUR_SENSITIVE;
   if (blur !== undefined) entries[ENV_FLAG_KEYS.NEXT_PUBLIC_FLAG_UI_BLUR_SENSITIVE] = toEntry(blur);
 
   return entries;

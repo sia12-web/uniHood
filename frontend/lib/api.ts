@@ -2,9 +2,9 @@ import axios from "axios";
 import { readAuthSnapshot } from "./auth-storage";
 
 const API_BASE =
-	process.env.NEXT_PUBLIC_COMMUNITIES_API_BASE ??
-	process.env.NEXT_PUBLIC_API_BASE_URL ??
-	process.env.API_BASE_URL ??
+	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_COMMUNITIES_API_BASE : undefined) ??
+	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_API_BASE_URL : undefined) ??
+	(typeof process !== 'undefined' ? process.env?.API_BASE_URL : undefined) ??
 	"http://localhost:8001";
 
 export const api = axios.create({
@@ -26,7 +26,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
 	(response) => response,
 	(error) => {
-		if (process.env.NODE_ENV !== "production") {
+		if (typeof process !== 'undefined' && process.env?.NODE_ENV !== "production") {
 			console.warn("communities api error", error);
 		}
 		return Promise.reject(error);

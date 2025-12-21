@@ -57,7 +57,6 @@ export default function SetProfilePage() {
             router.push("/welcome");
         } catch (err: unknown) {
             console.error(err);
-            const message = err instanceof Error ? err.message : String(err);
             setError("Failed to update profile.");
         } finally {
             setSubmitting(false);

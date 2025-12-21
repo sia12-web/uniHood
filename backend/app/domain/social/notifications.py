@@ -163,8 +163,8 @@ class NotificationService:
             link=link,
         )
 
-    async def get_my_notifications(self, user_id: str) -> List[Notification]:
-        return await self._repo.list_for_user(user_id)
+    async def get_my_notifications(self, user_id: str, *, limit: int = 50) -> List[Notification]:
+        return await self._repo.list_for_user(user_id, limit=limit)
 
     async def mark_read(self, user_id: str, notification_id: str) -> None:
         await self._repo.mark_read(user_id, notification_id)

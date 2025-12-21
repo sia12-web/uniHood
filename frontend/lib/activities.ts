@@ -187,12 +187,12 @@ type RpsRevealPayload = {
 	nonce: string;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE = (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_API_BASE_URL : undefined) ?? "";
 // Activity HTTP endpoints live on the main backend (FastAPI); keep the core service URL for legacy session flows only.
-const ACTIVITIES_BASE = (process.env.NEXT_PUBLIC_BACKEND_URL ?? API_BASE ?? "").replace(/\/$/, "");
+const ACTIVITIES_BASE = ((typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_BACKEND_URL : undefined) ?? API_BASE ?? "").replace(/\/$/, "");
 const SOCKET_BASE =
-	process.env.NEXT_PUBLIC_ACTIVITIES_CORE_SOCKET_URL ??
-	process.env.NEXT_PUBLIC_SOCKET_URL ??
+	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_ACTIVITIES_CORE_SOCKET_URL : undefined) ??
+	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_SOCKET_URL : undefined) ??
 	ACTIVITIES_BASE;
 
 let socketInstance: ActivitiesSocket | null = null;

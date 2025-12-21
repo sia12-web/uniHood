@@ -185,7 +185,7 @@ export function useTicTacToeSession(sessionId: string) {
         }).catch((err) => {
             console.error('Failed to record game outcome:', err);
         });
-    }, [state.status, state.players, state.matchWinner, state.winner, state.board]);
+    }, [sessionId, state.status, state.players, state.matchWinner, state.winner, state.board, state.roundIndex]);
 
     const makeMove = useCallback((index: number) => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

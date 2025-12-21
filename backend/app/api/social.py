@@ -245,10 +245,11 @@ async def remove_friend(
 
 @router.get("/notifications", response_model=List[dict])
 async def list_notifications(
+	limit: int = Query(default=20, ge=1, le=100),
 	auth_user: AuthenticatedUser = Depends(get_current_user),
 ) -> List[dict]:
 	service = notifications.NotificationService()
-	items = await service.get_my_notifications(auth_user.id)
+	items = await service.get_my_notifications(auth_user.id, limit=limit)
 	return [item.to_dict() for item in items]
 
 
@@ -260,3 +261,12 @@ async def mark_notification_read(
 	service = notifications.NotificationService()
 	await service.mark_read(auth_user.id, notification_id)
 	return {"status": "ok"}
+
+
+@router.get("/notifications/unread")
+async def unread_notifications(
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> dict:
+	service = notifications.NotificationService()
+	count = await service.get_unread_count(auth_user.id)
+	return {"unread": count}

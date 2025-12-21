@@ -69,7 +69,7 @@ export default function BrandLogo({
         )}
       >
         <Image
-          src="/radius-logo.png"
+          src="/unihood-logo.png"
           alt="uniHood"
           width={logoWidth}
           height={logoHeight}

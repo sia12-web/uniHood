@@ -13,25 +13,31 @@ function readOptionalEnv(value: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function safeEnv(key: string): string | undefined {
+  if (typeof process === 'undefined' || !process.env) {
+    return undefined;
+  }
+  return process.env[key];
+}
+
 export function getBackendUrl() {
-  const value = readOptionalEnv(process?.env?.NEXT_PUBLIC_BACKEND_URL);
-  return value ?? "http://localhost:8001";
+  const value = readOptionalEnv(safeEnv('NEXT_PUBLIC_BACKEND_URL'));
+  return value ?? "http://127.0.0.1:8001";
 }
 
 export function getDemoUserId() {
-  // Allow disabling the implicit demo user fallback so that components
-  // requiring an authenticated user do not silently default to the placeholder.
   const disableDemo =
-    (process?.env?.NEXT_PUBLIC_DISABLE_DEMO_USER ?? process?.env?.DISABLE_DEMO_USER ?? "").trim() === "1";
+    (readOptionalEnv(safeEnv('NEXT_PUBLIC_DISABLE_DEMO_USER')) ??
+      readOptionalEnv(safeEnv('DISABLE_DEMO_USER')) ??
+      "").trim() === "1";
   if (disableDemo) {
     return '';
   }
-  return process?.env?.NEXT_PUBLIC_DEMO_USER_ID ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  return safeEnv('NEXT_PUBLIC_DEMO_USER_ID') ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 }
 
 export function getDemoCampusId() {
-  // Default to Main Campus so prod doesn't depend on a demo campus row existing.
-  return process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "33333333-3333-3333-3333-333333333333";
+  return safeEnv('NEXT_PUBLIC_DEMO_CAMPUS_ID') ?? "33333333-3333-3333-3333-333333333333";
 }
 
 function parseCoordinate(value: string | undefined, fallback: number): number {
@@ -43,19 +49,19 @@ function parseCoordinate(value: string | undefined, fallback: number): number {
 }
 
 export function getDemoLatitude() {
-  return parseCoordinate(process?.env?.NEXT_PUBLIC_DEMO_LAT, 45.5048);
+  return parseCoordinate(safeEnv('NEXT_PUBLIC_DEMO_LAT'), 45.5048);
 }
 
 export function getDemoLongitude() {
-  return parseCoordinate(process?.env?.NEXT_PUBLIC_DEMO_LON, -73.5772);
+  return parseCoordinate(safeEnv('NEXT_PUBLIC_DEMO_LON'), -73.5772);
 }
 
 export function getDemoUserEmail() {
-  return process?.env?.NEXT_PUBLIC_DEMO_USER_EMAIL ?? "unihoodapp@gmail.com";
+  return safeEnv('NEXT_PUBLIC_DEMO_USER_EMAIL') ?? "unihoodapp@gmail.com";
 }
 
 export function getDemoUserCampus(): string | null {
-  const raw = process?.env?.NEXT_PUBLIC_DEMO_USER_CAMPUS ?? process?.env?.NEXT_PUBLIC_DEMO_CAMPUS_ID ?? "";
+  const raw = safeEnv('NEXT_PUBLIC_DEMO_USER_CAMPUS') ?? safeEnv('NEXT_PUBLIC_DEMO_CAMPUS_ID') ?? "";
   if (typeof raw !== "string") {
     return null;
   }
@@ -64,18 +70,15 @@ export function getDemoUserCampus(): string | null {
 }
 
 export function getDemoHandle(): string | null {
-  return readOptionalEnv(process?.env?.NEXT_PUBLIC_DEMO_HANDLE);
+  return readOptionalEnv(safeEnv('NEXT_PUBLIC_DEMO_HANDLE'));
 }
 
 export function getDemoChatPeerId(): string | null {
-  return readOptionalEnv(process?.env?.NEXT_PUBLIC_DEMO_CHAT_PEER_ID);
-}
-
-function activityKey(kind: string): string {
-  return `NEXT_PUBLIC_DEMO_${kind.toUpperCase()}_ID`;
+  return readOptionalEnv(safeEnv('NEXT_PUBLIC_DEMO_CHAT_PEER_ID'));
 }
 
 export function getDemoActivityId(kind: "rps" | "story" | "trivia" | "typing" | "with"): string | null {
-  const key = activityKey(kind);
-  return readOptionalEnv(process?.env?.[key]);
+  const kindUpper = kind.toUpperCase();
+  const key = `NEXT_PUBLIC_DEMO_${kindUpper}_ID`;
+  return readOptionalEnv(safeEnv(key));
 }

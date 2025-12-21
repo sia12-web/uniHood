@@ -92,3 +92,17 @@ async def emit_discovery_match(user_id: str, payload: dict) -> None:
 		return
 	obs_metrics.socket_event(_namespace.namespace, "discovery:match")
 	await _namespace.emit("discovery:match", payload, room=SocialNamespace.user_room(user_id))
+
+
+async def emit_notification_new(user_id: str, payload: dict) -> None:
+	if _namespace is None:
+		return
+	obs_metrics.socket_event(_namespace.namespace, "notification:new")
+	await _namespace.emit("notification:new", payload, room=SocialNamespace.user_room(user_id))
+
+
+async def emit_notification_read(user_id: str, payload: dict) -> None:
+	if _namespace is None:
+		return
+	obs_metrics.socket_event(_namespace.namespace, "notification:read")
+	await _namespace.emit("notification:read", payload, room=SocialNamespace.user_room(user_id))

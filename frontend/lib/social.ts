@@ -121,12 +121,29 @@ export type Notification = {
 	created_at: string;
 };
 
-export async function fetchNotifications(userId: string, campusId: string | null): Promise<Notification[]> {
-	return request<Notification[]>("/notifications", userId, campusId);
+type NotificationUnreadResponse = {
+	unread: number;
+};
+
+export async function fetchNotifications(
+	userId: string,
+	campusId: string | null,
+	limit?: number,
+): Promise<Notification[]> {
+	const params = new URLSearchParams();
+	if (typeof limit === "number") {
+		params.set("limit", String(limit));
+	}
+	const suffix = params.toString();
+	const path = suffix ? `/notifications?${suffix}` : "/notifications";
+	return request<Notification[]>(path, userId, campusId);
 }
 
 export async function markNotificationRead(userId: string, campusId: string | null, notificationId: string): Promise<void> {
 	await request(`/notifications/${notificationId}/read`, userId, campusId, { method: "POST" });
 }
 
-
+export async function fetchNotificationUnreadCount(userId: string, campusId: string | null): Promise<number> {
+	const response = await request<NotificationUnreadResponse>("/notifications/unread", userId, campusId);
+	return typeof response.unread === "number" ? response.unread : 0;
+}

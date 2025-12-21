@@ -1,7 +1,6 @@
 "use client";
 
 import DiscoveryFeed from "@/components/DiscoveryFeed";
-import Link from "next/link";
 
 export default function DiscoveryPage() {
   return (

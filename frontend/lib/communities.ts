@@ -1,10 +1,10 @@
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.API_BASE_URL ??
-  (typeof window === "undefined" ? `http://localhost:${process.env.PORT ?? "3000"}` : "");
+  (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_API_BASE_URL : undefined) ??
+  (typeof process !== 'undefined' ? process.env?.API_BASE_URL : undefined) ??
+  (typeof window === "undefined" && typeof process !== 'undefined' ? `http://localhost:${process.env?.PORT ?? "3000"}` : "");
 const DEFAULT_HEADERS: Record<string, string> = { "Content-Type": "application/json" };
 
-const STUB_ENABLED = process.env.NEXT_PUBLIC_COMMUNITIES_STUB === "1";
+const STUB_ENABLED = (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_COMMUNITIES_STUB : undefined) === "1";
 const NOW = new Date().toISOString();
 const STUB_GROUPS = [
   {
@@ -377,7 +377,7 @@ const STUB_EVENTS: Record<string, EventDetail> = {
     waitlist_count: 1,
     my_status: "interested",
     my_guests: 0,
-  tags: ["hardware", "design"],
+    tags: ["hardware", "design"],
     status: "scheduled",
     cover_image_url: null,
     created_at: NOW,
@@ -415,7 +415,7 @@ const STUB_EVENTS: Record<string, EventDetail> = {
     waitlist_count: 0,
     my_status: "going",
     my_guests: 0,
-  tags: ["mentorship"],
+    tags: ["mentorship"],
     status: "scheduled",
     cover_image_url: null,
     created_at: NOW,
@@ -605,7 +605,7 @@ export async function listGroups(params?: { limit?: number; offset?: number }): 
     const data = await apiFetch<CommunityListResponse>(path, { method: "GET" });
     return data.items;
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== "production") {
       console.warn("communities.listGroups failed", error);
     }
     return [];

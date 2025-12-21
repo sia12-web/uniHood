@@ -165,7 +165,7 @@ export default function ChatWindow({
 
   return (
     <div
-      className="relative flex h-full w-full flex-1 min-h-0 flex-col bg-[#f8f9fc] text-sm overflow-hidden"
+      className="relative flex h-full w-full flex-1 min-h-0 flex-col bg-slate-50 text-sm overflow-hidden"
       aria-label={`Conversation with ${peerName ?? "friend"}${peerStatusText ? ` (${peerStatusText})` : ""}`}
     >
 

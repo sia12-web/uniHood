@@ -32,8 +32,9 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, X, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, MessageCircle, UserPlus } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, X, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, MessageCircle, UserPlus, Home, GraduationCap, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 
 type DiscoveryFeedProps = {
   variant?: "full" | "mini";
@@ -152,6 +153,7 @@ async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode
 export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) {
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("campus"); // Default to campus
   const [users, setUsers] = useState<NearbyUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid');
   const [swipeIndex, setSwipeIndex] = useState(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -518,9 +520,9 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           {/* Top Row: Title & Status */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Discovery</h1>
-              <p className="text-sm font-medium text-slate-500">
-                {loading ? "Scanning..." : `${filteredUsers.length} students found`}
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Discovery: Find Your Connections</h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Explore students by proximity, campus, or city. {loading ? "Scanning..." : `${filteredUsers.length} student${filteredUsers.length === 1 ? '' : 's'} found matching your filters.`}
               </p>
             </div>
 
@@ -579,54 +581,66 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 
             {/* Radius Control */}
-            <div className="relative flex-1 space-y-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <MapPin className="h-4 w-4 text-rose-500" />
-                    Search Radius
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowInfo(!showInfo)}
-                    className="rounded-full text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
-                    aria-label="More info"
-                  >
-                    <Info size={16} />
-                  </button>
-                </div>
+            {/* Mode Selector */}
+            <div className="relative flex-1 rounded-2xl bg-white p-2 sm:p-4 shadow-sm ring-1 ring-slate-100">
+              {/* Informational Tooltips (Static for visuals as per request) */}
+              <div className="hidden lg:block absolute -left-4 top-1/2 -translate-x-full -translate-y-1/2 w-40 text-right text-[10px] text-slate-500 font-medium bg-white p-2 rounded-lg shadow-sm border border-slate-100">
+                Love in one glimpse. See real people physically around you.
+                <div className="absolute top-1/2 -right-1.5 w-3 h-3 bg-white border-t border-r border-slate-100 rotate-45 -translate-y-1/2"></div>
               </div>
 
+              <button
+                type="button"
+                onClick={() => setShowInfo(!showInfo)}
+                className="absolute right-3 top-3 z-10 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                title="What do these modes mean?"
+              >
+                <Info size={14} />
+              </button>
+
               {showInfo && (
-                <div className="absolute left-4 top-12 z-50 w-64 rounded-xl bg-slate-800 p-4 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95">
-                  <div className="absolute -top-1.5 left-24 h-3 w-3 rotate-45 bg-slate-800"></div>
-                  <p className="mb-3">
-                    Use <span className="font-bold text-white">Room</span> mode to see people within 100m of you. Perfect for spotting your gym crush or classmates! 👀
-                  </p>
-                  <div className="border-t border-white/10 pt-2">
-                    <p className="mb-1"><span className="font-bold text-white">Campus:</span> See students from your university.</p>
-                    <p><span className="font-bold text-white">City:</span> Discover students from all universities nearby.</p>
-                  </div>
+                <div className="absolute left-1/2 -translate-x-1/2 mt-12 top-0 z-50 w-72 rounded-xl bg-slate-900 p-5 text-xs leading-relaxed text-slate-300 shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95">
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-slate-900 ring-1 ring-white/10 border-l border-t border-white/10"></div>
+                  <h4 className="font-bold text-white mb-3 text-sm">Discovery Modes</h4>
+                  <ul className="space-y-3">
+                    <li className="flex gap-2">
+                      <div className="mt-0.5"><Home size={12} className="text-rose-400" /></div>
+                      <div><strong className="text-white block">Room (Live)</strong>Find people within 100m. Best for gyms, libraries, or events.</div>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-0.5"><GraduationCap size={12} className="text-blue-400" /></div>
+                      <div><strong className="text-white block">Campus</strong>Directory of students at your university.</div>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="mt-0.5"><Building2 size={12} className="text-purple-400" /></div>
+                      <div><strong className="text-white block">City</strong>Browse students from all universities in the area.</div>
+                    </li>
+                  </ul>
                 </div>
               )}
 
-              <div className="flex justify-between gap-2">
-                {DISCOVERY_MODES.map((modeOption) => (
-                  <button
-                    type="button"
-                    key={modeOption.mode}
-                    onClick={() => handleModeSelect(modeOption.mode)}
-                    className={cn(
-                      "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-medium transition-all",
-                      discoveryMode === modeOption.mode
-                        ? "bg-white text-rose-600 shadow-sm ring-1 ring-rose-200"
-                        : "text-slate-500 hover:bg-white hover:text-slate-700 hover:shadow-sm"
-                    )}
-                  >
-                    <span className="text-xl mb-1">{modeOption.emoji}</span>
-                    {modeOption.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1 p-1 bg-slate-50 rounded-xl">
+                {DISCOVERY_MODES.map((modeOption) => {
+                  const isSelected = discoveryMode === modeOption.mode;
+                  const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
+
+                  return (
+                    <button
+                      type="button"
+                      key={modeOption.mode}
+                      onClick={() => handleModeSelect(modeOption.mode)}
+                      className={cn(
+                        "flex flex-1 flex-col items-center justify-center gap-1.5 rounded-lg py-4 transition-all duration-200",
+                        isSelected
+                          ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-md shadow-blue-200"
+                          : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700"
+                      )}
+                    >
+                      <Icon size={24} className={cn(isSelected ? "text-white" : "text-rose-400 opacity-80")} />
+                      <span className="text-xs font-semibold">{modeOption.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -744,6 +758,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 isInvited={invitedIds.has(user.user_id)}
                 onInvite={() => handleInvite(user.user_id)}
                 onChat={() => handleChat(user.user_id)}
+                onProfileClick={() => setSelectedUser(user)}
                 invitePending={invitePendingId === user.user_id}
               />
             ))}
@@ -773,6 +788,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                       setSwipeIndex((prev) => prev + 1);
                     }}
                     onChat={() => handleChat(filteredUsers[swipeIndex].user_id)}
+                    onProfileClick={() => setSelectedUser(filteredUsers[swipeIndex])}
                     invitePending={invitePendingId === filteredUsers[swipeIndex].user_id}
                   />
 
@@ -891,6 +907,18 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           </div>
         </div>
       )}
+
+      {/* Profile Detail Pop-up */}
+      <ProfileDetailModal
+        user={selectedUser}
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        isFriend={selectedUser ? friendIds.has(selectedUser.user_id) : false}
+        isInvited={selectedUser ? invitedIds.has(selectedUser.user_id) : false}
+        onInvite={() => selectedUser && handleInvite(selectedUser.user_id)}
+        onChat={() => selectedUser && handleChat(selectedUser.user_id)}
+        invitePending={selectedUser ? invitePendingId === selectedUser.user_id : false}
+      />
     </div>
   );
 }
@@ -901,6 +929,7 @@ function UserCard({
   isInvited,
   onInvite,
   onChat,
+  onProfileClick,
   invitePending
 }: {
   user: NearbyUser;
@@ -908,10 +937,10 @@ function UserCard({
   isInvited: boolean;
   onInvite: () => void;
   onChat: () => void;
+  onProfileClick: () => void;
   invitePending: boolean;
 }) {
   const [imageIndex, setImageIndex] = useState(0);
-  const [showDetails, setShowDetails] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const images = useMemo(() => {
@@ -930,29 +959,17 @@ function UserCard({
   }, [images]);
 
   const currentImage = !imageError && images.length > 0 ? images[imageIndex % images.length] : null;
-  const hasMultipleImages = images.length > 1;
-
-  const handleImageClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (hasMultipleImages) {
-      setImageIndex((prev) => (prev + 1) % images.length);
-    }
-  };
 
   const distance = formatDistance(user.distance_m ?? null);
   const initial = (user.display_name || "U")[0].toUpperCase();
 
   return (
-    <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-md transition-all hover:shadow-xl">
+    <div
+      className="group relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-md transition-all hover:shadow-xl cursor-pointer"
+      onClick={onProfileClick}
+    >
       {/* Image / Avatar Area */}
-      <div
-        className={cn(
-          "relative h-full w-full",
-          hasMultipleImages && "cursor-pointer"
-        )}
-        onClick={handleImageClick}
-      >
+      <div className="relative h-full w-full">
         {currentImage ? (
           <Image
             key={currentImage}
@@ -968,211 +985,101 @@ function UserCard({
           </div>
         )}
 
-        {/* Image Indicators */}
-        {hasMultipleImages && !showDetails && (
-          <div className="absolute left-0 right-0 top-3 z-10 flex justify-center gap-1.5 px-4">
-            {images.map((_, idx) => (
-              <div
-                key={idx}
+        {/* Content Overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+          <div className="mb-1 flex items-center gap-2">
+            <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || "User"}</h3>
+            {isFriend && (
+              <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white shadow-sm">
+                Friend
+              </span>
+            )}
+          </div>
+
+          {user.campus_name && (
+            <p className="text-sm font-medium text-slate-200 drop-shadow-sm">{user.campus_name}</p>
+          )}
+          <p className="text-sm font-medium text-slate-300 drop-shadow-sm">
+            {[
+              user.major && user.major.toLowerCase() !== "none" ? user.major : null,
+              user.graduation_year ? `'${String(user.graduation_year).slice(-2)}` : null
+            ].filter(Boolean).join(" • ")}
+          </p>
+
+          <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+            {distance && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 text-rose-400" />
+                {distance} away
+              </span>
+            )}
+          </div>
+
+          {/* Courses Preview */}
+          {user.courses && user.courses.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {user.courses.slice(0, 2).map((c) => (
+                <span key={c} className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-200 ring-1 ring-emerald-500/30 backdrop-blur-sm">
+                  {c}
+                </span>
+              ))}
+              {user.courses.length > 2 && (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-medium text-white/60 backdrop-blur-sm">
+                  +{user.courses.length - 2} more
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Action Button */}
+          <div className="mt-4 pointer-events-auto">
+            {isFriend ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChat();
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-black/60 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-black/70 active:scale-95 border border-white/10"
+              >
+                <MessageCircle size={16} />
+                Message
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isInvited) onInvite();
+                }}
+                disabled={invitePending || isInvited}
                 className={cn(
-                  "h-1 flex-1 rounded-full shadow-sm backdrop-blur-md transition-all",
-                  idx === (imageIndex % images.length)
-                    ? "bg-white"
-                    : "bg-white/40"
+                  "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed",
+                  isInvited
+                    ? "bg-slate-100 text-slate-500 cursor-default"
+                    : "bg-[#4f46e5] text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-700"
                 )}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Info Toggle Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDetails(!showDetails);
-          }}
-          className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-2.5 text-white backdrop-blur-md transition hover:bg-black/40 hover:scale-105 active:scale-95"
-        >
-          {showDetails ? <X size={18} /> : <Info size={18} />}
-        </button>
-
-        {/* Details Overlay */}
-        {showDetails && (
-          <div
-            className="absolute inset-0 z-10 flex flex-col bg-slate-900/95 p-6 text-white animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mt-8 flex-1 overflow-y-auto scrollbar-hide">
-              <div className="mb-6">
-                <h4 className="text-2xl font-bold">{user.display_name}</h4>
-              </div>
-
-              {user.bio && user.bio.trim().length > 0 && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                    {user.bio}
-                  </p>
-                </div>
-              )}
-
-              {user.passions && user.passions.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Passions</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {user.passions.map((p) => (
-                      <span key={p} className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20">
-                        {p}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {user.courses && user.courses.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Courses</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {user.courses.map((c) => (
-                      <span key={c} className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/40">
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {((user.major && user.major.toLowerCase() !== "none") || user.graduation_year) && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Details</p>
-                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                    {user.major && user.major.toLowerCase() !== "none" && (
-                      <div>
-                        <span className="block text-slate-500">Major</span>
-                        <span className="text-slate-200">{user.major}</span>
-                      </div>
-                    )}
-                    {user.graduation_year && (
-                      <div>
-                        <span className="block text-slate-500">Year</span>
-                        <span className="text-slate-200">{user.graduation_year}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {user.ten_year_vision && user.ten_year_vision.trim().length > 0 && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">10-Year Vision</p>
-                  <p className="mt-2 text-sm italic leading-relaxed text-emerald-200">
-                    &ldquo;{user.ten_year_vision}&rdquo;
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Content Overlay (Hidden when details shown) */}
-        {!showDetails && (
-          <>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-              <div className="mb-1 flex items-center gap-2">
-                <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || "User"}</h3>
-                {isFriend && (
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-sm ring-1 ring-emerald-500/40">
-                    Friend
-                  </span>
-                )}
-              </div>
-
-              {user.campus_name && (
-                <p className="text-sm font-medium text-slate-200 drop-shadow-sm">{user.campus_name}</p>
-              )}
-              <p className="text-sm font-medium text-slate-300 drop-shadow-sm">
-                {[
-                  user.major && user.major.toLowerCase() !== "none" ? user.major : null,
-                  user.graduation_year ? `'${String(user.graduation_year).slice(-2)}` : null
-                ].filter(Boolean).join(" • ")}
-              </p>
-
-              <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
-                {distance && (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 text-rose-400" />
-                    {distance} away
-                  </span>
-                )}
-              </div>
-
-              {/* Courses Preview */}
-              {user.courses && user.courses.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {user.courses.slice(0, 2).map((c) => (
-                    <span key={c} className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-200 ring-1 ring-emerald-500/30 backdrop-blur-sm">
-                      {c}
-                    </span>
-                  ))}
-                  {user.courses.length > 2 && (
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-medium text-white/60 backdrop-blur-sm">
-                      +{user.courses.length - 2} more
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Action Button */}
-              <div className="mt-4">
-                {isFriend ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChat();
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
-                  >
-                    <MessageCircle size={16} />
-                    Message
-                  </button>
+              >
+                {invitePending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : isInvited ? (
+                  <>
+                    <span className="text-slate-500">Pending</span>
+                  </>
                 ) : (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isInvited) onInvite();
-                    }}
-                    disabled={invitePending || isInvited}
-                    className={cn(
-                      "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed",
-                      isInvited
-                        ? "bg-slate-100 text-slate-500 cursor-default"
-                        : "bg-rose-600 text-white shadow-lg shadow-rose-900/20 hover:bg-rose-500"
-                    )}
-                  >
-                    {invitePending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : isInvited ? (
-                      <>
-                        <span className="text-slate-500">Pending</span>
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={16} />
-                        Connect
-                      </>
-                    )}
-                  </button>
+                  <>
+                    <UserPlus size={16} />
+                    Connect
+                  </>
                 )}
-              </div>
-            </div>
-          </>
-        )}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-    </div >
+    </div>
   );
 }

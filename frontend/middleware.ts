@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+﻿import { NextResponse, type NextRequest } from "next/server";
 import { UNSELECTED_CAMPUS_IDS } from "@/lib/onboarding";
 
 // Allow unauthenticated access to explicit public routes and static assets.
@@ -79,7 +79,7 @@ function isPublicPath(pathname: string): boolean {
 	if (pathname.startsWith("/brand/")) return true; // Allow brand assets
 
 	if (FAVICON_PATHS.has(pathname)) return true;
-	if (pathname === "/robots.txt" || pathname === "/manifest.json" || pathname === "/radius-logo.png") return true;
+	if (pathname === "/robots.txt" || pathname === "/manifest.json" || pathname === "/radius-logo.png" || pathname === "/unihood-logo.png" || pathname === "/site.webmanifest") return true;
 	return false;
 }
 

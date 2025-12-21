@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Gamepad2, Info, MessageSquare, ThumbsUp, UserPlus } from "lucide-react";
+
+import { useRouter, usePathname } from "next/navigation";
+import { Bell, Gamepad2, Info, MessageSquare, ThumbsUp, UserPlus, LogOut } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
-import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
+import { onAuthChange, readAuthUser, type AuthUser, clearAuthSnapshot } from "@/lib/auth-storage";
 import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, type Notification } from "@/lib/social";
 import { fetchProfile } from "@/lib/identity";
 import type { ProfileRecord } from "@/lib/types";
@@ -76,6 +77,7 @@ function resolveNotificationIcon(kind: string) {
 }
 
 export default function SiteHeader() {
+  const router = useRouter();
   const pathname = usePathname() ?? "/";
 
   const suppressedPrefixes = [
@@ -145,6 +147,14 @@ export default function SiteHeader() {
   const [panelOpen, setPanelOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const bellRef = useRef<HTMLButtonElement | null>(null);
+
+  const handleSignOut = useCallback(() => {
+    clearAuthSnapshot();
+    setAuthUser(null);
+    setNotifications([]);
+    setUnreadCount(0);
+    router.replace("/login");
+  }, [router]);
 
   useEffect(() => {
     const hydrate = () => {
@@ -410,6 +420,14 @@ export default function SiteHeader() {
         <div className="flex items-center gap-3">
           {authUser?.userId ? (
             <>
+              <button
+                onClick={handleSignOut}
+                className="hidden sm:flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                title="Sign Out"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
               <div className="relative">
                 <button
                   ref={bellRef}
@@ -464,16 +482,14 @@ export default function SiteHeader() {
                               key={entry.id}
                               type="button"
                               onClick={() => handleNotificationSelect(entry)}
-                              className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left text-xs transition ${
-                                unread
-                                  ? "border-indigo-100 bg-indigo-50/70"
-                                  : "border-transparent hover:bg-slate-50"
-                              }`}
+                              className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left text-xs transition ${unread
+                                ? "border-indigo-100 bg-indigo-50/70"
+                                : "border-transparent hover:bg-slate-50"
+                                }`}
                             >
                               <span
-                                className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full ${
-                                  unread ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
-                                }`}
+                                className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full ${unread ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
+                                  }`}
                               >
                                 <Icon className="h-4 w-4" />
                               </span>
@@ -494,8 +510,8 @@ export default function SiteHeader() {
                 ) : null}
               </div>
 
-              <a
-                href="https://unihood.app/settings/profile"
+              <Link
+                href="/settings/profile"
                 className="relative h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-50 shadow-sm transition hover:border-slate-300"
                 aria-label={profileName ? `${profileName} profile` : "Profile"}
               >
@@ -513,7 +529,7 @@ export default function SiteHeader() {
                     {avatarInitials}
                   </span>
                 )}
-              </a>
+              </Link>
             </>
           ) : null}
         </div>

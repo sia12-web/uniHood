@@ -37,6 +37,23 @@ async def my_summary_endpoint(
 		raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.get("/users/{user_id}/summary", response_model=MySummarySchema)
+async def user_summary_endpoint(
+	user_id: UUID,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+	campus_id: UUID = Query(default=None),
+	ymd: Optional[int] = Query(default=None),
+) -> MySummarySchema:
+	try:
+		effective_campus_id = campus_id or (UUID(auth_user.campus_id) if auth_user.campus_id else None)
+		if effective_campus_id == _DEMO_CAMPUS_ID:
+			effective_campus_id = _MCGILL_CAMPUS_ID
+			
+		return await _service.get_my_summary(user_id=user_id, campus_id=effective_campus_id, ymd=ymd)
+	except ValueError as exc:
+		raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.get("/streaks/{user_id}", response_model=StreakSummarySchema)
 async def streak_summary_endpoint(user_id: UUID) -> StreakSummarySchema:
 	return await _service.get_streak_summary(user_id)

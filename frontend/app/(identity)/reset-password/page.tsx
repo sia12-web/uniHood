@@ -152,6 +152,7 @@ export default function ResetPasswordPage() {
             backgroundTone="transparent"
             logoWidth={400}
             logoHeight={400}
+            disableMixBlend={true}
             className="text-[#881337] mb-12"
             logoClassName="!h-[320px] w-auto"
           />
@@ -203,6 +204,7 @@ export default function ResetPasswordPage() {
               backgroundTone="transparent"
               logoWidth={300}
               logoHeight={300}
+              disableMixBlend={true}
               className="text-[#881337]"
               logoClassName="h-44 w-auto"
             />

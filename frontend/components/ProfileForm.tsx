@@ -242,85 +242,82 @@ export default function ProfileForm({
 	);
 
 	return (
-		<section className="flex flex-col gap-6">
-			<section className="flex flex-col gap-2 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-				<p>
-					<strong>Email:</strong> {current.email || "Not set"}
-				</p>
-				<p>
-					<strong>Verified:</strong> {current.email_verified ? "Yes" : "Pending"}
-				</p>
-				<p>
-					<strong>Campus:</strong> {campusName || "Not set"}
-				</p>
-			</section>
-			<AvatarUploader
-				avatarUrl={current.avatar_url ?? null}
-				onUpload={handleAvatarChange}
-				disabled={saving}
-				onChange={(next) => syncProfile(next)}
-			/>
+		<section>
+			<h2 className="text-xl font-bold text-slate-900 mb-6">General</h2>
+
 			{feedback ? (
-				<p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{feedback}</p>
+				<p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-medium">{feedback}</p>
 			) : null}
 			{error ? (
-				<p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+				<p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 font-medium">{error}</p>
 			) : null}
-			<form onSubmit={handleSubmitForm} className="flex flex-col gap-4">
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Display Name</span>
-					<input
-						type="text"
-						value={displayName}
-						maxLength={50}
-						onChange={(event) => setDisplayName(event.target.value)}
-						placeholder="Your name as shown to others"
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-					<span className="text-xs text-slate-500">This is how your name appears on your profile and in chats.</span>
-				</label>
-				{gallerySlot ? <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">{gallerySlot}</div> : null}
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">Bio</span>
-					<textarea
-						value={bio}
-						onChange={(event) => setBio(event.target.value)}
-						maxLength={500}
-						rows={4}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-					/>
-					<span className="text-xs text-slate-500">{characterCount}</span>
-				</label>
-				<div className="grid gap-4 md:grid-cols-2">
-					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Major or Program</span>
+
+			<form onSubmit={handleSubmitForm} className="flex flex-col gap-6">
+				<div className="flex flex-col md:flex-row gap-8">
+					<div className="shrink-0">
+						<AvatarUploader
+							avatarUrl={current.avatar_url ?? null}
+							onUpload={handleAvatarChange}
+							disabled={saving}
+							onChange={(next) => syncProfile(next)}
+						/>
+					</div>
+
+					<div className="flex-1 flex flex-col gap-4">
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-semibold text-slate-900">Display Name</span>
+							<input
+								type="text"
+								value={displayName}
+								maxLength={50}
+								onChange={(event) => setDisplayName(event.target.value)}
+								placeholder="Your name"
+								className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							/>
+						</label>
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-semibold text-slate-900">Bio</span>
+							<textarea
+								value={bio}
+								onChange={(event) => setBio(event.target.value)}
+								maxLength={500}
+								rows={3}
+								className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition resize-none"
+							/>
+							<span className="text-xs text-slate-400 text-right">{characterCount}</span>
+						</label>
+					</div>
+				</div>
+
+				<div className="grid gap-6 md:grid-cols-2 pt-2">
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Major or Program</span>
 						<input
 							type="text"
 							value={major}
 							onChange={(event) => setMajor(event.target.value)}
 							maxLength={80}
 							placeholder="e.g., Computer Science"
-							className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 						/>
-						<span className="text-xs text-slate-500">Share what you&apos;re studying to guide collaboration suggestions.</span>
 					</label>
-					<label className="flex flex-col gap-1 text-sm text-slate-700">
-						<span className="font-medium">Graduation Year</span>
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Graduation Year</span>
 						<input
 							type="number"
 							value={graduationYear}
 							onChange={(event) => setGraduationYear(event.target.value)}
 							min={gradYearMin}
 							max={gradYearMax}
-							placeholder={`${gradYearMin + 3}`}
-							className="rounded border border-slate-300 px-3 py-2 text-sm focus-border-slate-500 focus:outline-none"
+							placeholder="2027"
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 						/>
-						<span className="text-xs text-slate-500">Use the year you expect to finish your degree.</span>
 					</label>
 				</div>
-				<section className="flex flex-col gap-2 text-sm text-slate-700">
+
+				<section className="flex flex-col gap-2 pt-2">
 					<div className="flex flex-col gap-1">
-						<span className="font-medium">Passions</span>
+						<span className="text-sm font-semibold text-slate-900">Passions</span>
 						<p className="text-xs text-slate-500">
 							Highlight up to {PASSION_LIMIT} areas you care about.{" "}
 							{passionSlots > 0
@@ -328,145 +325,134 @@ export default function ProfileForm({
 								: "All slots used."}
 						</p>
 					</div>
-					{passions.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
-							{passions.map((item) => (
-								<span
-									key={item.toLowerCase()}
-									className="group inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
+					<div className="flex flex-wrap gap-2 mb-2">
+						{passions.map((item) => (
+							<span
+								key={item.toLowerCase()}
+								className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 border border-slate-200"
+							>
+								{item}
+								<button
+									type="button"
+									onClick={() => removePassion(item)}
+									className="text-slate-400 hover:text-rose-500 transition"
+									aria-label={`Remove ${item}`}
 								>
-									{item}
-									<button
-										type="button"
-										onClick={() => removePassion(item)}
-										className="text-slate-500 transition hover:text-rose-500"
-										aria-label={`Remove ${item}`}
-									>
-										×
-									</button>
-								</span>
-							))}
-						</div>
-					) : null}
-					<div className="flex flex-wrap gap-2">
+									×
+								</button>
+							</span>
+						))}
+					</div>
+					<div className="flex gap-2">
 						<input
 							type="text"
 							value={passionDraft}
 							onChange={(event) => setPassionDraft(event.target.value.slice(0, 40))}
 							onKeyDown={handlePassionKeyDown}
 							maxLength={40}
-							placeholder={passions.length === 0 ? "e.g., Hackathons" : "Add another passion"}
-							className="grow rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+							placeholder="Add more..."
+							className="grow rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 						/>
-						<button
-							type="button"
-							onClick={() => addPassion(passionDraft)}
-							disabled={passionDraft.trim().length === 0}
-							className="rounded border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							Add
-						</button>
 					</div>
 				</section>
 
-				<label className="flex flex-col gap-1 text-sm text-slate-700">
-					<span className="font-medium">10-Year Vision</span>
-					<textarea
+				<label className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
+					<span className="font-semibold text-slate-900">10-Year Vision</span>
+					<input
+						type="text"
 						value={current.ten_year_vision || ""}
 						onChange={(event) => syncProfile({ ...current, ten_year_vision: event.target.value })}
 						maxLength={60}
-						placeholder="e.g., Founding a startup, Exploring Mars..."
-						rows={2}
-						className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+						placeholder="How do you see yourself in the future? (Max 60 chars)"
+						className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 					/>
-					<span className="text-xs text-slate-500">How do you see yourself in the future? (Max 60 chars)</span>
 				</label>
 
-				<section className="flex flex-col gap-4 border-t border-slate-200 pt-4">
-					<h3 className="text-sm font-medium text-slate-900">Social Links</h3>
-					<div className="grid gap-4 md:grid-cols-2">
-						<label className="flex flex-col gap-1 text-sm text-slate-700">
-							<span className="font-medium">Instagram</span>
+				{gallerySlot}
+
+				<div className="pt-6 border-t border-slate-100">
+					<h3 className="text-sm font-semibold text-slate-900 mb-4">Social Links</h3>
+					<p className="text-xs text-slate-500 mb-4">Connect your profiles.</p>
+					<div className="grid gap-x-6 gap-y-4 md:grid-cols-4">
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-medium text-xs text-slate-500 uppercase">Instagram</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.instagram || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
 									maxLength={30}
-									placeholder="username"
-									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 								/>
 							</div>
 						</label>
-						<label className="flex flex-col gap-1 text-sm text-slate-700">
-							<span className="font-medium">Twitter / X</span>
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-medium text-xs text-slate-500 uppercase">Twitter / X</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.twitter || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
 									maxLength={30}
-									placeholder="username"
-									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 								/>
 							</div>
 						</label>
-						<label className="flex flex-col gap-1 text-sm text-slate-700">
-							<span className="font-medium">TikTok</span>
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-medium text-xs text-slate-500 uppercase">TikTok</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2 text-slate-400">@</span>
+								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.tiktok || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
 									maxLength={30}
-									placeholder="username"
-									className="w-full rounded border border-slate-300 py-2 pl-7 pr-3 text-sm focus:border-slate-500 focus:outline-none"
+									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 								/>
 							</div>
 						</label>
-						<label className="flex flex-col gap-1 text-sm text-slate-700">
-							<span className="font-medium">LinkedIn</span>
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+							<span className="font-medium text-xs text-slate-500 uppercase">LinkedIn</span>
 							<input
 								type="text"
 								value={socialLinks.linkedin || ""}
 								onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
 								maxLength={100}
-								placeholder="Profile URL or username"
-								className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+								placeholder="https://"
+								className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 							/>
 						</label>
-						<label className="flex flex-col gap-1 text-sm text-slate-700 md:col-span-2">
-							<span className="font-medium">Website</span>
+						<label className="flex flex-col gap-1.5 text-sm text-slate-700 md:col-span-4 mt-2">
+							<span className="font-medium text-xs text-slate-500 uppercase">Website</span>
 							<input
 								type="url"
 								value={socialLinks.website || ""}
 								onChange={(e) => setSocialLinks({ ...socialLinks, website: e.target.value })}
 								maxLength={200}
-								placeholder="https://your-site.com"
-								className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+								placeholder="https://"
+								className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
 							/>
 						</label>
 					</div>
-				</section>
+				</div>
 
-				<div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-					<button
-						type="submit"
-						disabled={saving}
-						className="w-fit rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-					>
-						{saving ? "Saving changes…" : "Save changes"}
-					</button>
+				<div className="flex items-center justify-between pt-8 pb-2">
 					<button
 						type="button"
 						onClick={() => onRequestDeletion?.()}
-						className="w-fit rounded border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+						className="text-sm font-medium text-rose-500 hover:text-rose-700 transition"
 						disabled={!onRequestDeletion || deleteLoading}
 					>
 						{deleteLoading ? "Processing…" : "Delete account"}
+					</button>
+					<button
+						type="submit"
+						disabled={saving}
+						className="rounded-lg bg-[#4f46e5] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+					>
+						{saving ? "Saving changes…" : "Save changes"}
 					</button>
 				</div>
 			</form>

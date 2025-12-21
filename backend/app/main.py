@@ -216,45 +216,7 @@ app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
 custom_openapi(app)
 install_error_handlers(app)
 
-print("DEBUG: Registering Manual CORS Middleware")
-@app.middleware("http")
-async def manual_cors_middleware(request: Request, call_next):
-	origin = request.headers.get("origin")
-	print(f"DEBUG: [CORS] Incoming {request.method} {request.url} | Origin: {origin}", flush=True)
 
-	if request.method == "OPTIONS":
-		print(f"DEBUG: [CORS] Handling OPTIONS manually for {request.url}", flush=True)
-		requested_headers = request.headers.get("access-control-request-headers")
-		allow_headers = requested_headers if requested_headers else "*"
-		response = Response(status_code=200)
-		response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-		response.headers["Access-Control-Allow-Methods"] = "POST, GET, PUT, DELETE, OPTIONS, PATCH"
-		response.headers["Access-Control-Allow-Headers"] = allow_headers
-		response.headers["Access-Control-Allow-Credentials"] = "true"
-		return response
-
-	try:
-		response = await call_next(request)
-		print(f"DEBUG: [CORS] App returned status: {response.status_code} for {request.method} {request.url}", flush=True)
-	except RuntimeError as e:
-		# Handle "No response returned" error from Starlette BaseHTTPMiddleware
-		# This can happen when client disconnects or request times out
-		if "No response returned" in str(e):
-			print(f"DEBUG: [CORS] No response returned (client may have disconnected)", flush=True)
-			response = Response(status_code=499)  # 499 = Client Closed Request
-			response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-			response.headers["Access-Control-Allow-Credentials"] = "true"
-			return response
-		print(f"DEBUG: [CORS] Runtime error: {e}", flush=True)
-		raise e
-	except Exception as e:
-		print(f"DEBUG: [CORS] App raised exception: {e}", flush=True)
-		raise e
-
-	# Add CORS headers to normal responses
-	response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-	response.headers["Access-Control-Allow-Credentials"] = "true"
-	return response
 
 # Always configure upload base URL for avatar presigning
 from app.domain.identity import s3 as _s3  # local import to avoid circulars
@@ -262,7 +224,12 @@ _s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/upload
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
 if not allow_origins:
-	allow_origins = ["http://localhost:3000"] if settings.environment in ["dev", "development"] else ["https://app.divan.app"]
+	allow_origins = [
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+		"https://localhost:3000",
+		"https://127.0.0.1:3000",
+	] if settings.environment in ["dev", "development"] else ["https://app.divan.app"]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:
@@ -284,6 +251,14 @@ if "*" in allow_origins:
 	else:
 		allow_origins = ["https://app.divan.app"]
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Upload endpoints (PUT/GET) used by the avatar presign flow.
 # In production, set UPLOAD_DIR to a persistent disk mount (e.g. /app/uploads).

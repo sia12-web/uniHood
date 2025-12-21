@@ -111,34 +111,38 @@ export default function AvatarUploader({
 				</div>
 			)}
 
-			<div className="flex items-center gap-4">
-				<div className="relative h-20 w-20 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+			<div className="flex items-start gap-5">
+				<button
+					type="button"
+					onClick={handlePick}
+					disabled={disabled || uploading}
+					className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-50 transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+					aria-label="Upload photo"
+				>
 					{previewUrl ? (
-						<Image src={previewUrl} alt="Profile avatar" fill className="object-cover" sizes="80px" />
+						<Image src={previewUrl} alt="Avatar" fill className="object-cover transition group-hover:opacity-75" sizes="96px" />
 					) : (
-						<div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No avatar</div>
+						<div className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-400">
+							<span className="text-2xl">📷</span>
+							<span className="text-[10px] font-medium uppercase text-slate-500">Upload</span>
+						</div>
 					)}
-				</div>
-				<div className="flex flex-col gap-2 text-sm">
-					<div className="flex gap-2">
-						<button
-							type="button"
-							onClick={handlePick}
-							disabled={disabled || uploading}
-							className="w-fit rounded bg-white px-3 py-2 font-medium text-slate-900 shadow disabled:opacity-50"
-						>
-							{uploading ? "Uploading…" : "Upload photo"}
-						</button>
-						<button
-							type="button"
-							onClick={() => setShowCreator(true)}
-							disabled={disabled || uploading}
-							className="flex items-center gap-2 w-fit rounded bg-indigo-50 px-3 py-2 font-medium text-indigo-700 shadow-sm hover:bg-indigo-100 disabled:opacity-50"
-						>
-							<Sparkles className="h-4 w-4" />
-							Create Avatar
-						</button>
-					</div>
+					{uploading && (
+						<div className="absolute inset-0 flex items-center justify-center bg-black/30 text-white">
+							<div className="h-5 w-5 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+						</div>
+					)}
+				</button>
+				<div className="flex flex-col gap-2 pt-2">
+					<button
+						type="button"
+						onClick={() => setShowCreator(true)}
+						disabled={disabled || uploading}
+						className="flex items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:opacity-50"
+					>
+						<Sparkles className="h-4 w-4" />
+						Create Avatar
+					</button>
 					<p className="text-xs text-slate-500">JPEG, PNG, or WebP up to 5MB.</p>
 				</div>
 			</div>

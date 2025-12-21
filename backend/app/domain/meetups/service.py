@@ -61,6 +61,13 @@ class MeetupService:
                 ) THEN
                     ALTER TABLE meetups ADD COLUMN capacity INTEGER NOT NULL DEFAULT 10;
                 END IF;
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetups' AND column_name = 'location'
+                ) THEN
+                    ALTER TABLE meetups ADD COLUMN location TEXT;
+                END IF;
             END
             $$;
             """
@@ -94,9 +101,9 @@ class MeetupService:
                     """
                     INSERT INTO meetups (
                         creator_user_id, campus_id, title, description, category,
-                        start_at, duration_min, status, room_id, visibility, capacity
+                        start_at, duration_min, status, room_id, visibility, capacity, location
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                     RETURNING *
                     """,
                     UUID(auth_user.id),
@@ -109,7 +116,8 @@ class MeetupService:
                     schemas.MeetupStatus.UPCOMING,
                     UUID(room.id),
                     payload.visibility.value,
-                    payload.capacity
+                    payload.capacity,
+                    payload.location
                 )
                 
                 # Insert host participant
@@ -137,7 +145,8 @@ class MeetupService:
         self, 
         auth_user: AuthenticatedUser, 
         campus_id: str, 
-        category: Optional[schemas.MeetupCategory] = None
+        category: Optional[schemas.MeetupCategory] = None,
+        participant_id: Optional[str] = None
     ) -> List[schemas.MeetupResponse]:
         pool = await self._get_pool()
         
@@ -145,21 +154,48 @@ class MeetupService:
         # We use time-based filtering for status to be accurate
         now = datetime.now(timezone.utc)
         
-        # Visibility Logic:
-        # - GLOBAL: Visible to everyone
-        # - PRIVATE: Visible if (creator == me OR me is friend of creator)
+        params = [UUID(campus_id), UUID(auth_user.id)]
         
+        # Base Query Construction
         query = """
             SELECT m.*, 
                    (SELECT COUNT(*) FROM meetup_participants mp WHERE mp.meetup_id = m.id AND mp.status = 'JOINED') as participants_count,
                    mp.role as my_role,
-                   mp.status as my_status
+                   mp.status as my_status,
+                   COALESCE(NULLIF(u.display_name, ''), u.handle) as creator_name,
+                   u.avatar_url as creator_avatar_url,
+                   ARRAY(
+                        SELECT u2.avatar_url 
+                        FROM meetup_participants mp2 
+                        JOIN users u2 ON mp2.user_id = u2.id 
+                        WHERE mp2.meetup_id = m.id 
+                        AND mp2.status = 'JOINED'
+                        AND u2.avatar_url IS NOT NULL 
+                        LIMIT 3
+                   ) as recent_participants_avatars
             FROM meetups m
+            LEFT JOIN users u ON m.creator_user_id = u.id
             LEFT JOIN meetup_participants mp ON m.id = mp.meetup_id AND mp.user_id = $2
-            WHERE m.campus_id = $1
-            AND m.status != 'CANCELLED'
-            AND (m.start_at + (m.duration_min || ' minutes')::interval) > $3
-            AND (
+        """
+        
+        where_conditions = ["m.campus_id = $1", "m.status != 'CANCELLED'"]
+        
+        if participant_id:
+            # Sort by recent descending, show past meetups too
+            query += " JOIN meetup_participants mp_filter ON m.id = mp_filter.meetup_id "
+            params.append(UUID(participant_id))
+            p_idx = len(params)
+            where_conditions.append(f"mp_filter.user_id = ${p_idx}")
+            where_conditions.append("mp_filter.status = 'JOINED'")
+        else:
+            # Default feed: Upcoming only
+            params.append(now)
+            n_idx = len(params)
+            where_conditions.append(f"(m.start_at + (m.duration_min || ' minutes')::interval) > ${n_idx}")
+        
+        # Visibility Logic
+        where_conditions.append("""
+            (
                 m.visibility = 'GLOBAL' 
                 OR m.creator_user_id = $2
                 OR EXISTS (
@@ -169,18 +205,23 @@ class MeetupService:
                     AND f.status = 'accepted'
                 )
             )
-        """
-        params = [UUID(campus_id), UUID(auth_user.id), now]
+        """)
         
         if category:
-            query += " AND m.category = $4"
             params.append(category)
+            c_idx = len(params)
+            where_conditions.append(f"m.category = ${c_idx}")
             
-        query += " ORDER BY m.start_at ASC"
+        full_query = query + " WHERE " + " AND ".join(where_conditions)
+        
+        if participant_id:
+            full_query += " ORDER BY m.start_at DESC LIMIT 10"
+        else:
+            full_query += " ORDER BY m.start_at ASC"
         
         async with pool.acquire() as conn:
             await self._ensure_schema(conn)
-            rows = await conn.fetch(query, *params)
+            rows = await conn.fetch(full_query, *params)
             
         return [
             self._map_row_to_response(
@@ -464,6 +505,7 @@ class MeetupService:
             campus_id=row["campus_id"],
             title=row["title"],
             description=row["description"],
+            location=row.get("location"),
             category=row["category"],
             start_at=row["start_at"],
             duration_min=row["duration_min"],
@@ -477,6 +519,9 @@ class MeetupService:
             my_role=my_role,
             current_user_id=current_user_id,
             visibility=row.get("visibility", schemas.MeetupVisibility.GLOBAL.value),
-            capacity=row.get("capacity", 10)
+            capacity=row.get("capacity", 10),
+            creator_name=row.get("creator_name"),
+            creator_avatar_url=row.get("creator_avatar_url"),
+            recent_participants_avatars=row.get("recent_participants_avatars", [])
         )
 

@@ -24,6 +24,7 @@ export interface MeetupResponse {
   campus_id: string;
   title: string;
   description?: string;
+  location?: string;
   category: MeetupCategory;
   start_at: string;
   duration_min: number;
@@ -38,6 +39,9 @@ export interface MeetupResponse {
   current_user_id?: string;
   visibility: MeetupVisibility;
   capacity: number;
+  creator_name?: string;
+  creator_avatar_url?: string;
+  recent_participants_avatars?: string[];
 }
 
 export interface MeetupDetailResponse extends MeetupResponse {
@@ -47,6 +51,7 @@ export interface MeetupDetailResponse extends MeetupResponse {
 export interface MeetupCreateRequest {
   title: string;
   description?: string;
+  location?: string;
   category: MeetupCategory;
   start_at: string; // ISO string
   duration_min: number;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+
 
 import { cn } from "@/lib/utils";
 
@@ -68,14 +68,13 @@ export default function BrandLogo({
           emblemBackdropClasses,
         )}
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/unihood-logo.png"
           alt="uniHood"
           width={logoWidth}
           height={logoHeight}
           className={mergedLogoClasses}
-          priority
-          unoptimized
         />
       </span>
 

@@ -99,7 +99,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       PORT: 3001
     ports:
-      - "3001:3001"
+      - "3011:3001"
     depends_on:
       redis:
         condition: service_started

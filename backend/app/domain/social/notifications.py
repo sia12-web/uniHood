@@ -10,6 +10,7 @@ from typing import List, Optional
 import asyncpg
 
 from app.infra.postgres import get_pool
+from app.domain.social import sockets
 
 
 @dataclass
@@ -155,16 +156,50 @@ class NotificationService:
         kind: str,
         link: Optional[str] = None,
     ) -> Notification:
-        return await self._repo.create(
+        notif = await self._repo.create(
             user_id=user_id,
             title=title,
             body=body,
             kind=kind,
             link=link,
         )
+        try:
+            await sockets.emit_notification_new(user_id, notif.to_dict())
+        except Exception:
+            pass # Socket failure shouldn't fail notification creation
+        return notif
 
     async def get_my_notifications(self, user_id: str, *, limit: int = 50) -> List[Notification]:
         return await self._repo.list_for_user(user_id, limit=limit)
 
     async def mark_read(self, user_id: str, notification_id: str) -> None:
         await self._repo.mark_read(user_id, notification_id)
+
+    async def get_unread_count(self, user_id: str) -> int:
+        """Get count of unread notifications for a user."""
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # Ensure table exists
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id UUID PRIMARY KEY,
+                    user_id UUID NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    link TEXT,
+                    read_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL
+                );
+                """
+            )
+            row = await conn.fetchrow(
+                """
+                SELECT COUNT(*) as count
+                FROM notifications
+                WHERE user_id = $1 AND read_at IS NULL
+                """,
+                user_id,
+            )
+            return row["count"] if row else 0

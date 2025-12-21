@@ -110,9 +110,9 @@ export default function GamesPage() {
                             <Link
                                 key={game.key}
                                 href={game.href}
-                                className="group relative flex flex-col overflow-hidden rounded-3xl border border-[#191b2c] bg-gradient-to-br from-[#1f2336] via-[#14182b] to-[#070910] text-white shadow-[0_15px_40px_rgba(7,9,16,0.3)] transition hover:-translate-y-1 hover:shadow-[0_25px_60px_rgba(7,9,16,0.5)]"
+                                className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                             >
-                                <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">
                                     <span className="flex gap-1">
                                         <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
                                         <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
@@ -125,23 +125,22 @@ export default function GamesPage() {
                                     style={
                                         game.image
                                             ? {
-                                                backgroundImage: `linear-gradient(120deg, rgba(255,255,255,0.05), rgba(6,7,15,0.92)), url(${game.image})`,
+                                                backgroundImage: `linear-gradient(to bottom, transparent, rgba(0,0,0,0.2)), url(${game.image})`,
                                                 backgroundSize: "cover",
                                                 backgroundPosition: "center",
                                             }
                                             : undefined
                                     }
                                 >
-                                    {game.image ? <div className="absolute inset-0 bg-gradient-to-t from-[#04060f] via-transparent to-transparent" /> : null}
+                                    {/* No dark gradient overlay needed for light theme, or maybe subtle top shadow */}
                                 </div>
                                 <div className="flex flex-1 flex-col gap-3 px-5 py-5">
                                     <div>
-                                        <h3 className="text-lg font-bold text-white mb-1">{game.title}</h3>
-                                        <p className="text-sm text-white/70">{game.description}</p>
+                                        <h3 className="text-lg font-bold text-slate-900 mb-1">{game.title}</h3>
+                                        <p className="text-sm text-slate-500">{game.description}</p>
                                     </div>
-
                                     <div className="mt-auto pt-2 flex gap-2">
-                                        <span className={`inline-flex flex-1 items-center justify-center rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg transition ${highlight ? "bg-emerald-500 shadow-emerald-500/30 group-hover:bg-emerald-600" : "bg-rose-600 shadow-rose-600/30 group-hover:bg-rose-700"}`}>
+                                        <span className={`inline-flex flex-1 items-center justify-center rounded-xl px-4 py-3 text-sm font-bold text-white shadow-sm transition ${highlight ? "bg-emerald-500 hover:bg-emerald-600" : "bg-[#4f46e5] hover:bg-indigo-700"}`}>
                                             {highlight ? "Join pending session" : "Play Now"}
                                         </span>
                                         {highlight && (
@@ -155,7 +154,7 @@ export default function GamesPage() {
                                                     if (game.key === "quick_trivia") dismissQuickTrivia();
                                                     if (game.key === "rps") dismissRPS();
                                                 }}
-                                                className="inline-flex items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                                                className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
                                             >
                                                 Dismiss
                                             </button>
@@ -167,6 +166,6 @@ export default function GamesPage() {
                     })}
                 </div>
             </div>
-        </main>
+        </main >
     );
 }

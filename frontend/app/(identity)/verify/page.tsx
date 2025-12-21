@@ -71,7 +71,7 @@ export default function IdentityVerificationPage() {
 								logoWidth={450}
 								logoHeight={450}
 								disableMixBlend={true}
-								logoClassName="!h-48 !w-48 object-contain"
+								logoClassName="!h-48 !w-auto object-contain"
 							/>
 						</div>
 					</div>

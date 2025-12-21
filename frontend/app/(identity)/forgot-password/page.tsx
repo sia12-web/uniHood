@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
               logoWidth={450}
               logoHeight={450}
               disableMixBlend={true}
-              logoClassName="!h-64 !w-64 object-contain"
+              logoClassName="!h-48 !w-auto object-contain"
             />
           </div>
           <div className="text-center lg:text-left space-y-2">

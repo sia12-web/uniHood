@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+
 
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
 import { useCampuses } from "@/components/providers/campus-provider";
@@ -12,9 +12,9 @@ import { usePresence } from "@/hooks/presence/use-presence";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
-import { fetchFriends } from "@/lib/social";
+import { fetchFriends, fetchInviteInbox, acceptInvite } from "@/lib/social";
 import { listMeetups, type MeetupResponse } from "@/lib/meetups";
-import type { FriendRow } from "@/lib/types";
+import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 
@@ -76,6 +76,7 @@ export default function HomePage() {
   const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
   const [, setMeetupsLoading] = useState(true);
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
+  const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
 
   // Meetup notifications (unused directly here, but keeps hook active)
   const { } = useMeetupNotifications();
@@ -239,6 +240,33 @@ export default function HomePage() {
     }
   }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
+  useEffect(() => {
+    const loadInvites = async () => {
+      if (!authUser?.userId || !authUser?.campusId) return;
+      try {
+        const inbox = await fetchInviteInbox(authUser.userId, authUser.campusId);
+        // Filter for 'sent' status (pending)
+        setPendingInvites(inbox.filter(i => i.status === "sent"));
+      } catch (err) {
+        console.error("Failed to load invites", err);
+      }
+    };
+    if (authHydrated) {
+      void loadInvites();
+    }
+  }, [authHydrated, authUser?.campusId, authUser?.userId]);
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    if (!authUser?.userId || !authUser?.campusId) return;
+    try {
+      await acceptInvite(authUser.userId, authUser.campusId, inviteId);
+      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+      // Refresh friends list if needed, or let standard revalidation handle it
+    } catch (err) {
+      console.error("Failed to accept invite", err);
+    }
+  };
+
   type ActivityItem =
     | { type: "friend"; date: Date; id: string; data: FriendRow }
     | { type: "meetup"; date: Date; id: string; data: MeetupResponse; action: "joined" | "created" };
@@ -296,13 +324,7 @@ export default function HomePage() {
     || (!isDefaultName(authUser?.handle) && authUser?.handle)
     || "Student";
 
-  const handleSignOut = () => {
-    // Clear auth storage
-    localStorage.removeItem("auth_user");
-    sessionStorage.removeItem("auth_user");
-    // Redirect to login
-    window.location.href = "/login";
-  };
+
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-base md:text-lg pb-12">
@@ -453,6 +475,9 @@ export default function HomePage() {
                   >
                     Invites {inboundPending > 0 && <span className="ml-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 text-[10px]">{inboundPending}</span>}
                   </button>
+                  <Link href="/friends" className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 pb-2">
+                    Manage Friends
+                  </Link>
                 </div>
 
                 <div className="flex-1 overflow-y-auto max-h-[300px] scrollbar-hide space-y-4">
@@ -484,20 +509,42 @@ export default function HomePage() {
                       )}
                     </div>
                   ) : (
+
                     <div className="space-y-4">
-                      {inboundPending === 0 ? (
+                      {pendingInvites.length === 0 ? (
                         <div className="text-center py-6 text-slate-500">
                           <p className="text-sm">No pending invites.</p>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-4">
-                          <div className="mb-2 h-12 w-12 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-500 flex items-center justify-center">
-                            <span className="font-bold text-lg">{inboundPending}</span>
-                          </div>
-                          <p className="text-sm text-slate-900 dark:text-white font-medium">Pending Requests</p>
-                          <Link href="/friends" className="mt-3 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 text-xs font-bold shadow hover:scale-105 transition-transform">
-                            Review Requests
-                          </Link>
+                        <div className="space-y-3">
+                          {pendingInvites.map((invite) => (
+                            <div key={invite.id} className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+                                  {invite.from_display_name?.[0]?.toUpperCase() || "?"}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                    {invite.from_display_name || "Student"}
+                                  </p>
+                                  <p className="text-xs text-slate-500 truncate">
+                                    {invite.from_handle ? `@${invite.from_handle}` : "Pending request"}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleAcceptInvite(invite.id)}
+                                className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all"
+                              >
+                                Accept
+                              </button>
+                            </div>
+                          ))}
+                          {pendingInvites.length > 3 && (
+                            <Link href="/friends" className="block text-center text-xs font-bold text-indigo-600 pt-2 hover:underline">
+                              View all {pendingInvites.length} requests
+                            </Link>
+                          )}
                         </div>
                       )}
                     </div>
@@ -589,7 +636,7 @@ export default function HomePage() {
         </div>
 
         <SiteFooter />
-      </div>
-    </main>
+      </div >
+    </main >
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+
 import { useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Image as ImageIcon, BookOpen, Settings } from "lucide-react";
@@ -793,7 +793,7 @@ export default function ProfileSettingsPage() {
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2 }}
-						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
 					>
 						<ProfileForm
 							profile={activeProfile}
@@ -811,7 +811,7 @@ export default function ProfileSettingsPage() {
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2 }}
-						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
 					>
 						<ProfileGalleryManager
 							images={galleryImages}
@@ -832,7 +832,7 @@ export default function ProfileSettingsPage() {
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2 }}
-						className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur"
+						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
 					>
 						<header className="flex flex-wrap items-center justify-between gap-3">
 							<div>
@@ -993,145 +993,100 @@ export default function ProfileSettingsPage() {
 	};
 
 	return (
-		<main className="relative min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
-			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(148,163,184,0.18),_transparent_60%)]" />
-			<div className="mx-auto flex w-full max-w-5xl px-6 py-12 flex-col gap-6">
-				<header className="flex flex-col gap-2">
-					<p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Profile settings</p>
-					<h1 className="text-3xl font-semibold text-slate-900 dark:text-white sm:text-4xl">Shape your uniHood identity</h1>
-					<p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
+		<main className="min-h-screen bg-[#f8f9fa]">
+			{/* Header */}
+			<div className="bg-white pb-8 pt-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)] lg:pt-14">
+				<div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
+					<h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+						Shape your uniHood identity
+					</h1>
+					<p className="mt-2 text-base text-slate-600">
 						Manage how classmates discover you across uniHood. Updates apply instantly to invites, rooms, and the Social Hub.
 					</p>
-				</header>
-				{!isDraftMode && error ? (
-					<div className="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 shadow-sm">
-						<p className="font-semibold">Something went wrong</p>
-						<p className="mt-1 text-rose-600">{error}</p>
-						<button
-							onClick={retryFetch}
-							className="mt-3 w-fit rounded-full bg-white px-4 py-2 text-xs font-semibold text-rose-700 shadow hover:bg-rose-100"
-						>
-							Retry
-						</button>
-					</div>
-				) : null}
-				{loading && !activeProfile ? (
-					<p className="text-sm text-slate-500">Loading profile…</p>
-				) : null}
-				{deleteNotice ? (
-					<p className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
-						{deleteNotice}
-					</p>
-				) : null}
-				{activeProfile ? (
-					<div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-						<div className="flex flex-col gap-6">
-							<div className="flex gap-2 overflow-x-auto pb-2">
-								{TABS.map((tab) => {
-									const isActive = activeTab === tab.id;
-									const Icon = tab.icon;
-									return (
-										<button
-											key={tab.id}
-											onClick={() => setActiveTab(tab.id)}
-											className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${isActive
-												? "bg-slate-900 text-white shadow-md"
-												: "bg-white text-slate-600 hover:bg-slate-50"
-												}`}
-										>
-											<Icon className="h-4 w-4" />
-											{tab.label}
-										</button>
-									);
-								})}
-							</div>
-							<AnimatePresence mode="wait">
-								{renderContent()}
-							</AnimatePresence>
-						</div>
-						<aside className="flex flex-col gap-5">
-							<section className="rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white shadow-lg">
-								<header className="flex items-center justify-between">
-									<h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">Profile preview</h2>
-									<span className="text-xs text-white/60">Live draft</span>
-								</header>
-								<div className="mt-5 flex items-start gap-4">
-									<div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/40 bg-white/10">
-										{activeProfile.avatar_url ? (
-											<Image
-												src={activeProfile.avatar_url}
-												alt="Profile avatar preview"
-												fill
-												sizes="56px"
-												className="object-cover"
-												unoptimized
-											/>
-										) : (
-											<div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-widest text-white/60">
-												{(activeProfile.display_name || "You").slice(0, 2)}
-											</div>
-										)}
-									</div>
-									<div className="flex flex-col gap-2">
-										<div>
-											<p className="text-base font-semibold text-white">{activeProfile.display_name || "You"}</p>
-										</div>
-										<p className="text-sm text-white/70">
-											{activeProfile.bio ? activeProfile.bio : "Introduce yourself to unlock uniHood highlights."}
-										</p>
-										{activeProfile.passions?.length ? (
-											<ul className="flex flex-wrap gap-2 text-xs text-white/70">
-												{activeProfile.passions.slice(0, 3).map((item) => (
-													<li key={item.toLowerCase()} className="rounded-full bg-white/15 px-3 py-1">
-														{item}
-													</li>
-												))}
-											</ul>
-										) : null}
-										{activeProfile.status?.text ? (
-											<p className="text-xs text-white/80">
-												<span className="mr-1">{activeProfile.status.emoji || "💡"}</span>
-												{activeProfile.status.text}
-											</p>
-										) : null}
-									</div>
-								</div>
-							</section>
-							<section className="rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
-								<header className="flex items-center justify-between">
-									<h2 className="text-sm font-semibold text-slate-900">Profile completeness</h2>
-									<span className="text-sm font-semibold text-slate-600">{completion}%</span>
-								</header>
-								<div className="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-slate-200">
-									{Array.from({ length: PROGRESS_SEGMENTS }).map((_, index) => (
-										<span
-											key={index}
-											className={`flex-1 transition-colors duration-300 ${index < activeSegments ? "bg-emerald-500" : "bg-transparent"
+				</div>
+			</div>
+
+			<div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+				<div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-x-12">
+					{/* Left Sidebar Navigation */}
+					<aside className="flex flex-col gap-8 lg:col-span-1">
+						<nav className="space-y-1">
+							{TABS.map((tab) => {
+								const isActive = activeTab === tab.id;
+								const Icon = tab.icon;
+								return (
+									<button
+										key={tab.id}
+										onClick={() => setActiveTab(tab.id)}
+										className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${isActive
+											? "bg-[#4f46e5] text-white shadow-sm"
+											: "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+											}`}
+									>
+										<Icon
+											className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-500"
 												}`}
 										/>
-									))}
-								</div>
-								<p className="mt-3 text-xs text-slate-500">
-									Add your uniHood story to unlock more Social Hub entry points and richer recommendations.
-								</p>
-								{missingTasks.length ? (
-									<ul className="mt-4 space-y-2 text-sm text-slate-600">
-										{missingTasks.map((task) => (
-											<li key={task} className="flex items-start gap-2">
-												<span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-												{task}
-											</li>
-										))}
-									</ul>
-								) : (
-									<p className="mt-4 text-sm font-medium text-emerald-600">
-										Great work, your profile is ready for the next wave of features.
+										{tab.label}
+									</button>
+								);
+							})}
+						</nav>
+
+						{/* Account Info in Sidebar */}
+						{activeProfile && (
+							<div className="flex flex-col gap-2 rounded-lg border border-transparent px-3 text-xs text-slate-500">
+								<p className="font-semibold text-slate-900 mb-1">Account Info</p>
+								<div className="flex flex-col gap-1">
+									<p className="truncate">
+										Email: <span className="text-slate-700 font-medium">{activeProfile.email || "N/A"}</span>
+										{activeProfile.email_verified && <span className="ml-1 text-emerald-500">✓</span>}
 									</p>
-								)}
-							</section>
-						</aside>
+									<p>Verified: <span className="text-slate-700">{activeProfile.email_verified ? "Yes" : "No"}</span></p>
+									<p>Campus: <span className="text-slate-700">McGill University</span></p>
+								</div>
+							</div>
+						)}
+					</aside>
+
+					{/* Main Content Area */}
+					<div className="mt-6 lg:mt-0">
+						{/* Notices */}
+						<div className="mb-6 space-y-4">
+							{!isDraftMode && error ? (
+								<div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
+									<p className="font-semibold">Something went wrong</p>
+									<p className="mt-1">{error}</p>
+									<button
+										onClick={retryFetch}
+										className="mt-2 w-fit rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 shadow border border-rose-100 hover:bg-rose-50"
+									>
+										Retry
+									</button>
+								</div>
+							) : null}
+							{loading && !activeProfile ? (
+								<div className="flex items-center gap-3 rounded-xl bg-white p-6 shadow-sm">
+									<div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-indigo-600" />
+									<p className="text-sm font-medium text-slate-500">Loading your profile...</p>
+								</div>
+							) : null}
+							{deleteNotice ? (
+								<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 border-l-4 border-l-amber-500">
+									{deleteNotice}
+								</div>
+							) : null}
+						</div>
+
+						{activeProfile ? (
+							<div className="min-w-0">
+								<AnimatePresence mode="wait">
+									{renderContent()}
+								</AnimatePresence>
+							</div>
+						) : null}
 					</div>
-				) : null}
+				</div>
 			</div>
 		</main>
 	);

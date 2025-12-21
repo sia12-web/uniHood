@@ -43,6 +43,13 @@ class FriendRow(BaseModel):
 	friend_display_name: Optional[str] = None
 
 
+class MutualFriend(BaseModel):
+	user_id: UUID
+	display_name: str
+	handle: str
+	avatar_url: Optional[str] = None
+
+
 class FriendUpdatePayload(BaseModel):
 	user_id: UUID
 	friend_id: UUID

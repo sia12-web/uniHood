@@ -18,6 +18,20 @@ const nextConfig = (() => {
 		console.warn("Invalid NEXT_PUBLIC_BACKEND_URL for image configuration", error);
 	}
 
+	// Always allow localhost and 127.0.0.1 for development
+	remotePatterns.push({
+		protocol: "http",
+		hostname: "localhost",
+		port: "8001",
+		pathname: "/uploads/**",
+	});
+	remotePatterns.push({
+		protocol: "http",
+		hostname: "127.0.0.1",
+		port: "8001",
+		pathname: "/uploads/**",
+	});
+
 	remotePatterns.push({
 		protocol: "https",
 		hostname: "images.unsplash.com",

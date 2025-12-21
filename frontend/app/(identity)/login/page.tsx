@@ -183,8 +183,8 @@ export default function LoginPage() {
               backgroundTone="transparent"
               logoWidth={450}
               logoHeight={450}
-              className="text-[#881337]"
-              logoClassName="!h-64 !w-64 object-contain mix-blend-multiply contrast-[1.1] brightness-[1.1]"
+              disableMixBlend={true}
+              logoClassName="!h-48 !w-auto object-contain"
             />
           </div>
           <div className="text-center lg:text-left space-y-2">

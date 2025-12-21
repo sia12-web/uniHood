@@ -17,11 +17,12 @@ from app.domain.social.exceptions import (
 	InviteNotFound,
 )
 from app.domain.social.models import INVITE_EXPIRES_DAYS, InvitationStatus
-from app.domain.social.schemas import FriendRow, FriendUpdatePayload, InviteSummary, InviteUpdatePayload
+from app.domain.social.schemas import FriendRow, FriendUpdatePayload, InviteSummary, InviteUpdatePayload, MutualFriend
 from app.infra.auth import AuthenticatedUser
 from app.domain.leaderboards.service import LeaderboardService
 from app.domain.identity import mailer as identity_mailer
 from app.domain.identity import notifications as identity_notifications
+from app.domain.social.notifications import NotificationService
 
 logger = logging.getLogger(__name__)
 _leaderboards = LeaderboardService()
@@ -246,6 +247,19 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 		await _emit_invite_new(summary)
 		# Send email notification to recipient (non-blocking)
 		await _send_invite_email_notification(summary)
+		
+		# Create persistent notification
+		try:
+			await NotificationService().notify_user(
+				user_id=target_id,
+				title="New Friend Request",
+				body=f"{summary.from_display_name or 'Someone'} sent you a friend request.",
+				kind="friend_request",
+				link="/friends"
+			)
+		except Exception:
+			logger.exception("Failed to create notification for invite")
+
 		return summary
 
 
@@ -328,6 +342,19 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 	# Invalidate friends cache for both users
 	await _invalidate_friends_cache(str(summary.from_user_id))
 	await _invalidate_friends_cache(str(summary.to_user_id))
+
+	# Notify sender that invite was accepted
+	try:
+		await NotificationService().notify_user(
+			user_id=str(summary.from_user_id),
+			title="Friend Request Accepted",
+			body=f"{summary.to_display_name or 'Someone'} accepted your friend request.",
+			kind="friend_accepted",
+			link=f"/profile/{summary.to_handle}" if summary.to_handle else "/friends"
+		)
+	except Exception:
+		logger.exception("Failed to create notification for invite acceptance")
+
 	return summary
 
 
@@ -578,6 +605,35 @@ async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List
 		pass  # Non-critical - don't fail request if cache write fails
 	
 	return result
+
+
+async def list_mutual_friends(auth_user: AuthenticatedUser, target_user_id: str, limit: int = 5) -> List[MutualFriend]:
+	user_id = str(auth_user.id)
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		rows = await conn.fetch(
+			"""
+			SELECT u.id, u.display_name, u.handle, u.avatar_url
+			FROM users u
+			JOIN friendships f1 ON f1.friend_id = u.id
+			JOIN friendships f2 ON f2.friend_id = u.id
+			WHERE f1.user_id = $1 AND f1.status = 'accepted'
+			  AND f2.user_id = $2 AND f2.status = 'accepted'
+			  AND u.deleted_at IS NULL
+			LIMIT $3
+			""",
+			user_id,
+			target_user_id,
+			limit
+		)
+	return [
+		MutualFriend(
+			user_id=row["id"],
+			display_name=row["display_name"] or row["handle"],
+			handle=row["handle"],
+			avatar_url=row["avatar_url"]
+		) for row in rows
+	]
 
 
 async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> FriendRow:

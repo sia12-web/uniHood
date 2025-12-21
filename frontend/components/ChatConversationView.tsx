@@ -353,8 +353,8 @@ export default function ChatConversationView({ peerId }: Props) {
 
   return (
     <div className="w-full px-3 py-4 sm:px-4">
-      <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-warm-sand dark:border-slate-700 bg-gradient-to-b from-white via-cream to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 p-3.5 shadow-lg">
-        <header className="flex items-center gap-3 rounded-lg border border-warm-sand/70 dark:border-slate-600 bg-white/85 dark:bg-slate-800/85 px-3 py-2.5">
+      <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-100 p-1 md:p-3.5">
+        <header className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-midnight/10 dark:bg-indigo-500/20 text-base font-semibold text-midnight dark:text-indigo-300">
             {peerEntry?.displayName?.charAt(0).toUpperCase() ?? validPeer.slice(0, 1).toUpperCase()}
           </div>
@@ -381,7 +381,7 @@ export default function ChatConversationView({ peerId }: Props) {
           />
         </div>
 
-        <footer className="mt-2 flex items-center justify-between rounded-lg border border-warm-sand/70 dark:border-slate-600 bg-white/85 dark:bg-slate-800/85 px-3.5 py-2 text-[10px] text-slate-500 dark:text-slate-400">
+        <footer className="mt-2 flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3.5 py-2 text-[10px] text-slate-500">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
             <span>Live delivery enabled</span>

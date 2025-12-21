@@ -23,7 +23,7 @@ from app.domain.social.exceptions import (
 	InviteRateLimitExceeded,
 	InviteSelfError,
 )
-from app.domain.social.schemas import FriendRow, InviteSendRequest, InviteSummary
+from app.domain.social.schemas import FriendRow, InviteSendRequest, InviteSummary, MutualFriend
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.infra import idempotency
 from app.infra.idempotency import IdempotencyConflictError, IdempotencyUnavailableError
@@ -270,3 +270,12 @@ async def unread_notifications(
 	service = notifications.NotificationService()
 	count = await service.get_unread_count(auth_user.id)
 	return {"unread": count}
+
+
+@router.get("/friends/{target_id}/mutual", response_model=List[MutualFriend])
+async def mutual_friends(
+	target_id: UUID,
+	limit: int = 5,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> List[MutualFriend]:
+	return await service.list_mutual_friends(auth_user, str(target_id), limit)

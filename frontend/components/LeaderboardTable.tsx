@@ -51,7 +51,7 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
               ? Math.floor(row.score).toString()
               : formatScore(row.score);
             return (
-              <tr key={row.user_id} className={isMine ? "bg-amber-50" : "bg-white"}>
+              <tr key={row.user_id} className={isMine ? "bg-indigo-50" : "bg-white"}>
                 <td className="whitespace-nowrap px-4 py-2 text-sm font-semibold text-slate-700">#{row.rank}</td>
                 <td className="px-4 py-2 text-sm text-slate-700">
                   {displayName}

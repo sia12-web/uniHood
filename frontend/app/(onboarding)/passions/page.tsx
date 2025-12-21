@@ -166,7 +166,7 @@ export default function PassionsPage() {
 								<button
 									type="button"
 									onClick={() => removePassion(item)}
-									className="text-slate-500 transition hover:text-rose-500"
+									className="text-slate-500 transition hover:text-indigo-600"
 									aria-label={`Remove ${item}`}
 								>
 									×
@@ -188,7 +188,7 @@ export default function PassionsPage() {
 							}}
 							maxLength={40}
 							placeholder={passions.length === 0 ? "e.g., Hackathons" : "Add another passion"}
-							className="grow rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045]"
+							className="grow rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600"
 						/>
 						<button
 							type="button"
@@ -206,7 +206,7 @@ export default function PassionsPage() {
 								key={item}
 								type="button"
 								onClick={() => addPassion(item)}
-								className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-[#d64045] hover:text-[#d64045]"
+								className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-indigo-600 hover:text-indigo-600"
 								disabled={passions.length >= PASSION_LIMIT}
 							>
 								{item}
@@ -233,7 +233,7 @@ export default function PassionsPage() {
 							<button
 								type="submit"
 								disabled={submitting}
-								className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
+								className="group relative flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2 disabled:opacity-70"
 							>
 								{submitting ? "Saving..." : "Continue"}
 							</button>

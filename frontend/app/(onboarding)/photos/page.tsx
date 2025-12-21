@@ -278,7 +278,7 @@ export default function PhotosPage() {
 								type="button"
 								onClick={handleContinue}
 								disabled={saving || !canContinue}
-								className="group relative flex justify-center rounded-md bg-[#d64045] px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+								className="group relative flex justify-center rounded-md bg-indigo-600 px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
 							>
 								{saving ? "Saving..." : "Continue"}
 							</button>

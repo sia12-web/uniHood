@@ -254,7 +254,7 @@ export default function MajorYearPage() {
 									}}
 									onFocus={() => setIsMajorOpen(true)}
 									maxLength={120}
-									className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
+									className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
 									placeholder="Search for your major..."
 									autoComplete="off"
 								/>
@@ -277,14 +277,14 @@ export default function MajorYearPage() {
 											<li
 												key={m}
 												className={cn(
-													"relative cursor-pointer select-none px-4 py-2 transition-colors hover:bg-[#fff0f1] hover:text-[#d64045]",
-													major === m ? "bg-[#fff0f1] text-[#d64045] font-medium" : "text-slate-900"
+													"relative cursor-pointer select-none px-4 py-2 transition-colors hover:bg-indigo-50 hover:text-indigo-600",
+													major === m ? "bg-indigo-50 text-indigo-600 font-medium" : "text-slate-900"
 												)}
 												onClick={() => handleSelectMajor(m)}
 											>
 												<span className="block truncate">{m}</span>
 												{major === m && (
-													<span className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#d64045]">
+													<span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600">
 														<Check className="h-4 w-4" />
 													</span>
 												)}
@@ -309,7 +309,7 @@ export default function MajorYearPage() {
 								required
 								value={gradYear}
 								onChange={(e) => setGradYear(e.target.value)}
-								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
+								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
 								placeholder={`${YEAR_MIN + 3}`}
 							/>
 							<p className="mt-1 text-xs text-slate-500">{gradYearHelp}</p>
@@ -327,7 +327,7 @@ export default function MajorYearPage() {
 						<button
 							type="submit"
 							disabled={submitting}
-							className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
+							className="group relative flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2 disabled:opacity-70"
 						>
 							{submitting ? "Saving..." : "Continue"}
 						</button>

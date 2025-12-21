@@ -108,7 +108,7 @@ export default function SelectCoursesPage() {
             }
             await saveProfileCourses(auth.user_id, campusId, unique);
 
-			router.push("/passions");
+            router.push("/passions");
         } catch (err) {
             console.error(err);
             setError("Failed to save courses.");
@@ -179,7 +179,7 @@ export default function SelectCoursesPage() {
                                 <input
                                     type="text"
                                     id="custom-course"
-                                    className="block w-full rounded-md border-slate-200 pl-10 pr-3 py-3 text-slate-900 placeholder:text-slate-400 focus:border-[#d64045] focus:ring-[#d64045] sm:text-sm bg-slate-50"
+                                    className="block w-full rounded-md border-slate-200 pl-10 pr-3 py-3 text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm bg-slate-50"
                                     placeholder="Add a course (e.g. MATH 201)"
                                     value={customInput}
                                     onChange={(e) => setCustomInput(e.target.value)}
@@ -211,13 +211,13 @@ export default function SelectCoursesPage() {
                                 {Array.from(selectedCodes).map(code => (
                                     <span
                                         key={code}
-                                        className="inline-flex items-center gap-1 rounded-full bg-[#d64045]/10 px-3 py-1 text-sm font-medium text-[#d64045] ring-1 ring-inset ring-[#d64045]/20"
+                                        className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-600 ring-1 ring-inset ring-indigo-600/20"
                                     >
                                         {code}
                                         <button
                                             type="button"
                                             onClick={() => removeCourse(code)}
-                                            className="group relative -mr-1 h-3.5 w-3.5 rounded-sm hover:bg-[#d64045]/20"
+                                            className="group relative -mr-1 h-3.5 w-3.5 rounded-sm hover:bg-indigo-600/20"
                                         >
                                             <span className="sr-only">Remove {code}</span>
                                             <X className="h-3.5 w-3.5" />
@@ -242,7 +242,7 @@ export default function SelectCoursesPage() {
                                         className={`
                                             inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-all
                                             ${isSelected
-                                                ? 'bg-[#d64045] text-white shadow-md transform scale-105'
+                                                ? 'bg-indigo-600 text-white shadow-md transform scale-105'
                                                 : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300'
                                             }
                                         `}
@@ -262,7 +262,7 @@ export default function SelectCoursesPage() {
                         <button
                             onClick={handleSubmit}
                             disabled={submitting}
-                            className="w-full rounded-md bg-[#d64045] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#d64045]/20 transition-all hover:bg-[#c7343a] hover:shadow-[#d64045]/40 focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full rounded-md bg-indigo-600 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700 hover:shadow-indigo-600/40 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {submitting ? "Saving..." : "Continue"}
                         </button>

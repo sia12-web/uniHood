@@ -144,7 +144,7 @@ export default function LoginPage() {
 
           <div className="space-y-6">
             <h2 className="text-4xl font-extrabold tracking-tight text-slate-900">
-              <span className="text-[#881337]">Connect.</span> <span className="text-slate-700">Play.</span> <span className="text-[#1b2a3a]">Belong.</span>
+              <span className="text-indigo-600">Connect.</span> <span className="text-rose-500">Play.</span> <span className="text-emerald-500">Belong.</span>
             </h2>
             <p className="text-lg text-slate-600 leading-relaxed font-medium">
               The ultimate campus companion for socializing, gaming, and discovering what&apos;s happening around you.
@@ -159,13 +159,13 @@ export default function LoginPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Discover</span>
             </div>
             <div className="flex flex-col items-center gap-3 group">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-[#881337] shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-indigo-600 shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Users className="h-6 w-6" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Connect</span>
             </div>
             <div className="flex flex-col items-center gap-3 group">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-rose-500 shadow-sm ring-1 ring-slate-100 transition-all group-hover:-translate-y-1 group-hover:shadow-md">
                 <Gamepad2 className="h-6 w-6" />
               </div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Compete</span>
@@ -212,7 +212,7 @@ export default function LoginPage() {
                   placeholder=" "
                   value={form.email}
                   onChange={(event) => handleChange("email")(event.target.value)}
-                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-[#d64045]/20"
+                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-indigo-500/20"
                 />
                 <label
                   htmlFor="email"
@@ -231,7 +231,7 @@ export default function LoginPage() {
                   placeholder=" "
                   value={form.password}
                   onChange={(event) => handleChange("password")(event.target.value)}
-                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-[#d64045]/20"
+                  className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-indigo-500/20"
                 />
                 <label
                   htmlFor="password"
@@ -244,10 +244,10 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#d64045] focus:ring-[#d64045]" />
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                 <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800">Remember me</span>
               </label>
-              <Link href="/forgot-password" className="text-sm font-bold text-[#b7222d] hover:text-[#991b1b] hover:underline decoration-2 underline-offset-4">
+              <Link href="/forgot-password" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 hover:underline decoration-2 underline-offset-4">
                 Forgot Password?
               </Link>
             </div>
@@ -255,7 +255,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={disabled}
-              className="mt-2 w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+              className="mt-2 w-full rounded-xl bg-indigo-600 py-3.5 text-lg font-bold text-white shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -281,7 +281,7 @@ export default function LoginPage() {
           <div className="text-center">
             <p className="text-slate-600 font-medium">
               Don&apos;t have an account yet?{" "}
-              <Link href="/onboarding" className="text-[#b7222d] font-bold hover:underline decoration-2 underline-offset-4">
+              <Link href="/onboarding" className="text-indigo-600 font-bold hover:underline decoration-2 underline-offset-4">
                 Create an account
               </Link>
             </p>

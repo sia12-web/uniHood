@@ -1,0 +1,56 @@
+# Workspace Rules for Divan Project
+
+## 🌳 Branch Management
+- **Production Branch**: `main`
+  - 🛑 NEVER push directly to `main` without testing.
+  - 🔒 `main` is for deployed, production-ready code only.
+- **Development Branch**: `dev-01`
+  - 🛠️ All active development happens here.
+  - 🔀 Merge `dev-01` into `main` only when ready for release.
+- **Feature Branches**: Create off `dev-01` (e.g., `feat/my-feature`), merge back to `dev-01`.
+
+## 🚀 Workflow Protocols
+- **Always** run linting/type-checking before committing.
+- **Always** check `git status` before pushing to ensure you are on the correct branch.
+- **Use Workflows**: Use defined workflows (e.g. `/deploy-dev`) for complex tasks.
+
+## ⚖️ Environment Differences (Dev vs Prod)
+| Feature | Development (`dev-01`) | Production (`main`) |
+| :--- | :--- | :--- |
+| **Env File** | `.env.development` (Local/Staging) | `.env.production` (Live) |
+| **Database** | Local Postgres / Staging DB | **Production DB** (⚠️ STRICT READ-ONLY) |
+| **Logging** | Verbose / Debug mode enabled | Minimal / Error-only |
+| **Data** | Mock data / Seeds allowed | **Real User Data** (⚠️ NO DELETIONS) |
+| **Performance** | Hot-reloading enabled | Minified & Optimized builds |
+
+## � Consistency & Standards
+- **Naming Conventions**:
+  - **Frontend (TS/TSX)**: `camelCase` for vars/functions, `PascalCase` for Components (`UserProfile.tsx`), `kebab-case` for CSS classes.
+  - **Backend (Python)**: `snake_case` for vars/functions, `PascalCase` for Classes (`UserProfile`), `UPPER_CASE` for constants.
+  - **Files**: Match the language standard (e.g., `user_profile.py` vs `UserProfile.tsx`).
+- **Structure**:
+  - Keep related files together (Colocation).
+  - Use `index.ts` only for public API exports from a module (Barrel files).
+- **Formatting**:
+  - Prettier (Frontend) and Black/Ruff (Backend) configuration MUST be respected.
+
+## �🛠️ Tech Stack Constraints
+- **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Shadcn/UI, Lucide React.
+  - ❌ No new CSS frameworks (Bootstrap, Material UI).
+  - ❌ No Class Components (Functional with Hooks only).
+- **Backend**: Python 3.12, FastAPI, Pydantic v2, PostgreSQL (asyncpg), Redis.
+  - ❌ No Django/Flask unless explicitly asked.
+  - ❌ No ORM bloat; keep queries efficient.
+
+## 📏 Coding Standards
+- **TypeScript**: Strict mode. Avoid `any`. Use interfaces/types for all props.
+- **Python**: Type hints are mandatory. Use Pydantic models for validation.
+- **Commits**: Follow Conventional Commits (e.g., `feat: add login`, `fix: header alignment`).
+- **Icons**: Use `lucide-react` exclusively.
+
+## 📂 Project Structure
+- `frontend/app`: App Router pages.
+- `frontend/components/ui`: Reusable atomic components (buttons, inputs).
+- `frontend/components`: Feature-specific components.
+- `backend/app/api`: API route endpoints.
+- `backend/app/domain`: Core business logic and schemas.

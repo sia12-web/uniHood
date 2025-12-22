@@ -164,7 +164,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 							<div className="flex flex-col gap-4 space-y-3">
 								<Link
 									href={redirectPath}
-									className="w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100"
+									className="w-full rounded-xl bg-indigo-600 py-3.5 text-lg font-bold text-white shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-indigo-100"
 								>
 									{redirectPath === "/login" ? "Go to Sign In" : "Continue"}
 								</Link>
@@ -181,7 +181,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 								</p>
 								<Link
 									href="/onboarding"
-									className="w-full rounded-xl bg-[#c1272d] py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-900/20 transition-all hover:bg-[#a01e23] hover:shadow-xl hover:shadow-rose-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-rose-100"
+									className="w-full rounded-xl bg-indigo-600 py-3.5 text-lg font-bold text-white shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-900/30 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-indigo-100"
 								>
 									Back to Onboarding
 								</Link>
@@ -190,7 +190,7 @@ export default function VerifyPage({ params }: VerifyPageProps) {
 
 						{status === "loading" && (
 							<div className="flex justify-center">
-								<svg className="animate-spin h-8 w-8 text-[#c1272d]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
 									<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 								</svg>

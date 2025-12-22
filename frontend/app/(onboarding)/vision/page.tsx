@@ -218,7 +218,7 @@ export default function VisionPage() {
 							rows={4}
 							maxLength={500}
 							placeholder="e.g., Working in an office • Building a startup • Game developer • Directing films"
-							className="mt-1 block w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-[#d64045] focus:outline-none focus:ring-[#d64045] sm:text-sm"
+							className="mt-1 block w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
 						/>
 						<div className="flex items-center justify-between text-xs text-slate-500">
 							<span>Optional</span>
@@ -251,7 +251,7 @@ export default function VisionPage() {
 											key={suggestion}
 											type="button"
 											onClick={() => setVision(suggestion)}
-											className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-[#d64045] hover:text-[#d64045]"
+											className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-indigo-600 hover:text-indigo-600"
 										>
 											{suggestion}
 										</button>
@@ -263,7 +263,7 @@ export default function VisionPage() {
 								<button
 									type="button"
 									onClick={handleSurpriseMe}
-									className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-[#d64045] hover:text-[#d64045]"
+									className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-indigo-600 hover:text-indigo-600"
 								>
 									Surprise me
 								</button>
@@ -299,7 +299,7 @@ export default function VisionPage() {
 							<button
 								type="submit"
 								disabled={submitting}
-								className="group relative flex justify-center rounded-md border border-transparent bg-[#d64045] px-4 py-2 text-sm font-medium text-white hover:bg-[#c7343a] focus:outline-none focus:ring-2 focus:ring-[#f2b8bf] focus:ring-offset-2 disabled:opacity-70"
+								className="group relative flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:ring-offset-2 disabled:opacity-70"
 							>
 								{submitting ? "Saving..." : "Continue"}
 							</button>

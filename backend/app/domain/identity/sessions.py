@@ -63,6 +63,7 @@ def _build_access_token(user: models.User, session_id: UUID) -> str:
 		"scp": ["user"],
 		"handle": user.handle,
 		"name": user.display_name,
+		"roles": user.roles,
 		"exp": exp,
 		"iat": now,
 	}

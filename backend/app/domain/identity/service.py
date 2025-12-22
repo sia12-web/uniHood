@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 import asyncpg
 from argon2 import exceptions as argon_exc
 
-from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer
+from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer, rbac
 from app.infra.password import PASSWORD_HASHER, check_needs_rehash
 from app.infra.postgres import get_pool
 import re
@@ -326,6 +326,8 @@ async def verify_email(
 			)
 			row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", str(verification.user_id))
 			user = models.User.from_record(row)
+			user_roles = await rbac.list_user_roles(str(user.id))
+			user.roles = [r.role_name for r in user_roles]
 
 	obs_metrics.inc_identity_verify()
 	tokens = await sessions.issue_session_tokens(
@@ -389,6 +391,10 @@ async def login(
 			raise LoginFailed("invalid_credentials") from exc
 		if not user.email_verified:
 			raise LoginFailed("email_unverified")
+
+		user_roles = await rbac.list_user_roles(str(user.id))
+		user.roles = [r.role_name for r in user_roles]
+
 		twofa_row = await conn.fetchrow("SELECT enabled FROM twofa WHERE user_id = $1", str(user.id))
 		twofa_enabled = bool(twofa_row and twofa_row.get("enabled"))
 	if twofa_enabled:
@@ -460,6 +466,8 @@ async def refresh(
 		if row.get("revoked"):
 			raise policy.IdentityPolicyError("session_revoked")
 		user = models.User.from_record(row)
+		user_roles = await rbac.list_user_roles(str(user.id))
+		user.roles = [r.role_name for r in user_roles]
 		result = await sessions.refresh_session(
 		user,
 		session_id=payload.session_id,

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { NearbyUser } from "@/lib/types";
 import { getMutualFriends, getUserSummary, getUserMeetups, MutualFriend, UserSummary } from "@/lib/profile-service";
 import { MeetupResponse } from "@/lib/meetups";
+import { usePresenceForUser } from "@/hooks/presence/use-presence";
 
 interface ProfileDetailModalProps {
     user: NearbyUser | null;
@@ -43,6 +44,8 @@ export function ProfileDetailModal({
 }: ProfileDetailModalProps) {
     const [isClosing, setIsClosing] = useState(false);
     const [activeTab, setActiveTab] = useState("About");
+    const presence = usePresenceForUser(user?.user_id);
+    const isOnline = presence?.online ?? user?.is_online ?? false;
 
     // Data States
     const [mutuals, setMutuals] = useState<MutualFriend[]>([]);
@@ -80,7 +83,6 @@ export function ProfileDetailModal({
 
     if (!isOpen || !user) return null;
 
-    const bannerUrl = user.banner_url || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000&auto=format&fit=crop";
     const avatarUrl = user.avatar_url || "";
     const initial = (user.display_name || "U")[0].toUpperCase();
 
@@ -105,21 +107,15 @@ export function ProfileDetailModal({
                     isClosing ? "scale-95 opacity-0" : "animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
                 )}
             >
-                {/* Banner Image */}
-                <div className="relative h-48 w-full shrink-0 bg-slate-200 sm:h-64">
+                {/* Header Banner - Sleek Gradient */}
+                <div className="relative h-40 w-full shrink-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 sm:h-48">
                     <button
                         onClick={handleClose}
-                        className="absolute right-4 top-4 z-50 rounded-full bg-black/30 p-2 text-white backdrop-blur-md hover:bg-black/50 transition"
+                        className="absolute right-4 top-4 z-50 rounded-full bg-black/20 p-2 text-white backdrop-blur-md hover:bg-black/40 transition"
                     >
                         <X size={20} />
                     </button>
-                    <Image
-                        src={bannerUrl}
-                        alt="Banner"
-                        fill
-                        className="object-cover"
-                        priority
-                    />
+                    {/* Nature banner removed as requested */}
                 </div>
 
                 {/* Header Content Area */}
@@ -135,7 +131,10 @@ export function ProfileDetailModal({
                                 </div>
                             )}
                         </div>
-                        <div className="absolute bottom-2 right-2 h-6 w-6 rounded-full border-[3px] border-white bg-emerald-500"></div>
+                        <div className={cn(
+                            "absolute bottom-2 right-2 h-6 w-6 rounded-full border-[3px] border-white transition-colors duration-500",
+                            isOnline ? "bg-emerald-500" : "bg-slate-300"
+                        )}></div>
                     </div>
 
                     {/* Name & Actions Header */}
@@ -143,9 +142,15 @@ export function ProfileDetailModal({
                         <div>
                             <div className="flex items-center gap-2">
                                 <h2 className="text-2xl font-bold text-slate-900">{user.display_name}</h2>
-                                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-                                    Online
+                                <span className={cn(
+                                    "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-colors duration-500",
+                                    isOnline ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                                )}>
+                                    <div className={cn(
+                                        "h-1.5 w-1.5 rounded-full",
+                                        isOnline ? "bg-emerald-500" : "bg-slate-400"
+                                    )}></div>
+                                    {isOnline ? "Online" : "Away"}
                                 </span>
                                 <CheckCircle2 size={18} className="text-blue-500 fill-blue-50" />
                             </div>

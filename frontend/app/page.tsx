@@ -382,7 +382,7 @@ export default function HomePage() {
                   </div>
                 ) : (
                   discoveryPreviewList.map((person) => (
-                    <div key={person.userId} className="group relative flex flex-col items-center gap-3 min-w-[100px] flex-shrink-0 cursor-pointer transition transform hover:-translate-y-0.5">
+                    <div key={person.userId} className="group relative flex flex-col items-center gap-3 min-w-[100px] flex-shrink-0 transition transform">
                       <div className={`relative h-20 w-20 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600"}`}>
                         <div className="h-full w-full rounded-full bg-white dark:bg-slate-900 p-1">
                           <div className="h-full w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">

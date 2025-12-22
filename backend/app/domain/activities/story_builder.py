@@ -141,20 +141,42 @@ class StoryBuilderManager:
                     break
             
             if all_voted:
-                activity.state = "completed" # or 'ended'
+                activity.state = "completed"
                 story_meta["phase"] = "ended"
-                # Calculate winner
-                scores = {uid: 0 for uid in participants}
-                for p in paragraphs:
-                    p_score = sum(p.get("votes", {}).values())
-                    scores[p["userId"]] += p_score
                 
-                winner_id = max(scores, key=scores.get)
+                # Each user's total score is the sum of points across ALL their paragraphs
+                user_scores = {uid: 0.0 for uid in participants}
+                for p in paragraphs:
+                    pts = float(sum(p.get("votes", {}).values()))
+                    user_scores[p["userId"]] += pts
+                
+                # Determine winner (handle ties)
+                best_score = max(user_scores.values()) if user_scores else 0
+                winner_id = None
+                winners = [uid for uid, s in user_scores.items() if s == best_score and best_score > 0]
+                if len(winners) == 1:
+                    winner_id = winners[0]
+                
                 story_meta["winnerUserId"] = winner_id
-                story_meta["scores"] = scores
+                story_meta["scores"] = user_scores
 
-            activity.meta["story"] = story_meta
-            await self.service._persist(activity)
+                # Create a proper ScoreBoard object for the activity system
+                scoreboard = models.ScoreBoard(activity.id)
+                scoreboard.totals = {uid: float(s) for uid, s in user_scores.items()}
+                # Populate per-round breakdown for secondary display
+                for idx, p in enumerate(paragraphs):
+                    scoreboard.add_score(idx + 1, p["userId"], float(sum(p.get("votes", {}).values())))
+                
+                activity.meta["scoreboard"] = scoreboard.to_payload()
+                activity.meta["story"] = story_meta
+                
+                # Persist and record outcome
+                await self.service._persist(activity)
+                await self.service._record_leaderboard_outcome(activity, scoreboard)
+            else:
+                activity.meta["story"] = story_meta
+                await self.service._persist(activity)
+            
             await self._broadcast_state(session_id, activity)
 
     async def _broadcast_state(self, session_id: str, activity: models.Activity):

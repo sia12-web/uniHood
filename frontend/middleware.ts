@@ -11,7 +11,9 @@ const PUBLIC_PATHS = new Set([
 	"/reset-password",
 	"/forgot-password",
 	"/select-university",
+	"/select-university",
 	"/select-courses",
+	"/admin-login",
 ]);
 
 const FAVICON_PATHS = new Set([
@@ -117,6 +119,18 @@ export function middleware(req: NextRequest) {
 				}
 			}
 			const campusId = token ? getCampusIdFromToken(token) : null;
+
+			// Admin Gate
+			if (pathname.startsWith("/admin")) {
+				const payload = token ? decodeJwtPayload(token) : null;
+				const roles = (payload?.roles as string[]) || [];
+				if (!roles.includes("admin")) {
+					const redirectUrl = req.nextUrl.clone();
+					redirectUrl.pathname = "/";
+					return NextResponse.redirect(redirectUrl);
+				}
+			}
+
 			if (campusId && UNSELECTED_CAMPUS_IDS.has(campusId)) {
 				const redirectUrl = req.nextUrl.clone();
 				redirectUrl.pathname = "/select-university";

@@ -205,17 +205,17 @@ export default function VerificationWizard({ userId, campusId }: VerificationWiz
 							<button
 								type="submit"
 								disabled={ssoStep === "starting"}
-								className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+								className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
 							>
 								{ssoStep === "starting" ? "Completing…" : "Complete SSO"}
 							</button>
 							<button
 								type="button"
 								onClick={() => {
-								setPendingSso(null);
-								setSsoStep("idle");
-								setSsoError(null);
-							}}
+									setPendingSso(null);
+									setSsoStep("idle");
+									setSsoError(null);
+								}}
 								className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
 							>
 								Cancel

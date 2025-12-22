@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
-import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface StoryParagraph {
     userId: string;
@@ -80,13 +79,13 @@ export function useStoryBuilderSession(sessionId: string) {
 
     useEffect(() => {
         if (!sessionId) return;
-        
+
         const socketUrl = resolveSocketUrl(sessionId);
         if (!socketUrl) {
             setState((s) => ({ ...s, error: "unresolved_socket" }));
             return;
         }
-        
+
         setState(s => ({ ...s, debugUrl: socketUrl }));
         const ws = new WebSocket(socketUrl);
         wsRef.current = ws;
@@ -153,7 +152,7 @@ export function useStoryBuilderSession(sessionId: string) {
     const leave = useCallback(async () => {
         const selfId = selfRef.current;
         if (!sessionId || !selfId) return;
-        
+
         // Send leave via WebSocket first for immediate feedback
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
@@ -161,7 +160,7 @@ export function useStoryBuilderSession(sessionId: string) {
                 payload: { userId: selfId }
             }));
         }
-        
+
         // Also call REST API as backup
         try {
             await leaveSession(sessionId, selfId);
@@ -170,32 +169,6 @@ export function useStoryBuilderSession(sessionId: string) {
         }
     }, [sessionId]);
 
-    // Record game outcome when finished
-    useEffect(() => {
-        if (state.status !== 'ended' || outcomeRecordedRef.current) {
-            return;
-        }
-        outcomeRecordedRef.current = true;
-
-        // Get participants
-        const participants = state.participants.map(p => p.userId);
-        if (participants.length < 1) {
-            return;
-        }
-
-        // Determine winner
-        const winnerId = state.winnerUserId ?? null;
-
-        // Record the outcome
-        recordGameOutcome({
-            userIds: participants,
-            winnerId,
-            gameKind: 'story_builder',
-            durationSeconds: 60, // Default estimate
-        }).catch((err) => {
-            console.error('Failed to record game outcome:', err);
-        });
-    }, [state.status, state.participants, state.winnerUserId]);
 
     return {
         state,

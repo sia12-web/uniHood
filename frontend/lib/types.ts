@@ -24,6 +24,7 @@ export type NearbyUser = {
   social_links?: SocialLinks;
   banner_url?: string | null;
   ten_year_vision?: string | null;
+  is_online?: boolean;
 }; export type NearbyDiff = {
   radius_m: number;
   added: NearbyUser[];

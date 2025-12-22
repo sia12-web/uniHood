@@ -37,6 +37,7 @@ export type LoginResponse = {
 	token_type: "bearer";
 	expires_in: number;
 	user_id: string;
+	roles?: string[];
 };
 
 export type ReissueResponse = {

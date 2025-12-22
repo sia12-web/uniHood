@@ -182,6 +182,7 @@ class User:
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 	ten_year_vision: Optional[str] = None
+	roles: list[str] = field(default_factory=list)
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":

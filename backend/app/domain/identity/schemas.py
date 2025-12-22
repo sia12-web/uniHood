@@ -99,6 +99,7 @@ class StatusSettings(BaseModel):
 	text: Annotated[str, Field(default="", max_length=120)] = ""
 	emoji: Annotated[str, Field(default="", max_length=4)] = ""
 	updated_at: Optional[str] = None
+	banner_url: Optional[str] = None
 
 
 class SocialLinks(BaseModel):

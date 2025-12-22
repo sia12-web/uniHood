@@ -21,6 +21,8 @@ export type NearbyUser = {
   gallery?: GalleryImage[];
   passions?: string[];
   courses?: string[];
+  social_links?: SocialLinks;
+  banner_url?: string | null;
   ten_year_vision?: string | null;
 }; export type NearbyDiff = {
   radius_m: number;
@@ -217,6 +219,7 @@ export type ProfileStatus = {
   text: string;
   emoji: string;
   updated_at: string;
+  banner_url?: string | null;
 };
 
 export type SocialLinks = {

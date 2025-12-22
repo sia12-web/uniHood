@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.domain.identity.schemas import GalleryImage
+from app.domain.identity.schemas import GalleryImage, SocialLinks
 
 
 class HeartbeatPayload(BaseModel):
@@ -60,6 +60,8 @@ class NearbyUser(BaseModel):
 	passions: list[str] = Field(default_factory=list)
 	gallery: list[GalleryImage] = Field(default_factory=list)
 	courses: list[str] = Field(default_factory=list)
+	social_links: SocialLinks = Field(default_factory=SocialLinks)
+	banner_url: Optional[str] = None
 	ten_year_vision: Optional[str] = None
 
 

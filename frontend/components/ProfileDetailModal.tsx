@@ -80,7 +80,7 @@ export function ProfileDetailModal({
 
     if (!isOpen || !user) return null;
 
-    const bannerUrl = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000&auto=format&fit=crop";
+    const bannerUrl = user.banner_url || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000&auto=format&fit=crop";
     const avatarUrl = user.avatar_url || "";
     const initial = (user.display_name || "U")[0].toUpperCase();
 
@@ -242,20 +242,29 @@ export function ProfileDetailModal({
                                     </div>
                                 )}
 
-                                <div>
-                                    <h3 className="font-bold text-slate-900 mb-3">Social Links</h3>
-                                    <div className="flex gap-3">
-                                        <div className="rounded-lg bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-2 text-white">
-                                            <Instagram size={20} />
-                                        </div>
-                                        <div className="rounded-lg bg-[#0077b5] p-2 text-white">
-                                            <Linkedin size={20} />
-                                        </div>
-                                        <div className="rounded-lg bg-slate-200 p-2 text-slate-600">
-                                            <Globe size={20} />
+                                {user.social_links && (Object.values(user.social_links).some(v => !!v)) && (
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 mb-3">Social Links</h3>
+                                        <div className="flex flex-wrap gap-3">
+                                            {user.social_links.instagram && (
+                                                <a href={`https://instagram.com/${user.social_links.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-2 text-white hover:opacity-90 transition">
+                                                    <Instagram size={20} />
+                                                </a>
+                                            )}
+                                            {user.social_links.linkedin && (
+                                                <a href={user.social_links.linkedin} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-[#0077b5] p-2 text-white hover:opacity-90 transition">
+                                                    <Linkedin size={20} />
+                                                </a>
+                                            )}
+                                            {user.social_links.website && (
+                                                <a href={user.social_links.website} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-slate-200 p-2 text-slate-600 hover:bg-slate-300 transition">
+                                                    <Globe size={20} />
+                                                </a>
+                                            )}
+                                            {/* Add other social links as needed */}
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                             </div>
 

@@ -2,11 +2,13 @@
 
 import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import Image from "next/image";
 import AvatarUploader from "./AvatarUploader";
 import type { ProfilePatchPayload } from "@/lib/identity";
 import { getCampusById } from "@/lib/identity";
 import type { ProfileRecord, SocialLinks } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
+import { cn } from "@/lib/utils";
 
 type ProfileFormProps = {
 	profile: ProfileRecord;
@@ -46,17 +48,18 @@ export default function ProfileForm({
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [campusName, setCampusName] = useState<string | null>(null);
+	const [bannerUrl, setBannerUrl] = useState<string>(profile.status.banner_url ?? "");
 
-	// Fetch campus name from API instead of showing raw UUID
-	useEffect(() => {
-		if (!current.campus_id) return;
-		getCampusById(current.campus_id)
-			.then((data) => {
-				if (data?.name) setCampusName(data.name);
-			})
-			.catch(() => { });
-	}, [current.campus_id]);
+	const NATURE_BANNERS = [
+		"https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000&auto=format&fit=crop", // Default
+		"https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=1000&auto=format&fit=crop", // Trees
+		"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1000&auto=format&fit=crop", // Forest
+		"https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1000&auto=format&fit=crop", // Mountains
+		"https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1000&auto=format&fit=crop", // Nature
+		"https://images.unsplash.com/photo-1511497584788-876760111969?w=1000&auto=format&fit=crop", // Forest 2
+	];
+
+
 
 	const syncProfile = useCallback((next: ProfileRecord) => {
 		setCurrent(next);
@@ -68,6 +71,7 @@ export default function ProfileForm({
 		setGraduationYear(next.graduation_year ? String(next.graduation_year) : "");
 		setPassions(next.passions ?? []);
 		setSocialLinks(next.social_links ?? {});
+		setBannerUrl(next.status.banner_url ?? "");
 		setPassionDraft("");
 	}, []);
 
@@ -149,6 +153,14 @@ export default function ProfileForm({
 		const oldVision = (profile.ten_year_vision ?? "").trim();
 		if (nextVision !== oldVision) {
 			patch.ten_year_vision = nextVision || null;
+			changed = true;
+		}
+
+		if (bannerUrl !== (current.status.banner_url ?? "")) {
+			patch.status = {
+				...(patch.status || {}),
+				banner_url: bannerUrl || null
+			};
 			changed = true;
 		}
 
@@ -254,13 +266,38 @@ export default function ProfileForm({
 
 			<form onSubmit={handleSubmitForm} className="flex flex-col gap-6">
 				<div className="flex flex-col md:flex-row gap-8">
-					<div className="shrink-0">
+					<div className="shrink-0 flex flex-col gap-4">
 						<AvatarUploader
 							avatarUrl={current.avatar_url ?? null}
 							onUpload={handleAvatarChange}
 							disabled={saving}
 							onChange={(next) => syncProfile(next)}
 						/>
+
+						<div className="flex flex-col gap-2">
+							<span className="text-sm font-semibold text-slate-900">Profile Banner</span>
+							<p className="text-xs text-slate-500 max-w-[200px]">Select a nature vibes cover image.</p>
+							<div className="grid grid-cols-2 gap-2 w-[200px]">
+								{NATURE_BANNERS.map((url) => (
+									<button
+										key={url}
+										type="button"
+										onClick={() => setBannerUrl(url)}
+										className={cn(
+											"relative h-16 w-full rounded-md overflow-hidden border-2 transition hover:opacity-100",
+											bannerUrl === url ? "border-indigo-600 opacity-100 ring-2 ring-indigo-200" : "border-transparent opacity-70 hover:border-slate-300"
+										)}
+									>
+										<Image src={url} alt="Banner option" fill className="object-cover" />
+										{bannerUrl === url && (
+											<div className="absolute inset-0 bg-indigo-900/20 flex items-center justify-center">
+												<div className="h-2 w-2 rounded-full bg-white shadow-sm" />
+											</div>
+										)}
+									</button>
+								))}
+							</div>
+						</div>
 					</div>
 
 					<div className="flex-1 flex flex-col gap-4">

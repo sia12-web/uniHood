@@ -14,6 +14,7 @@ from app.domain.identity.models import parse_profile_gallery
 from app.domain.proximity.models import PrivacySettings
 from app.domain.proximity.privacy import load_blocks, load_friendship_flags, load_privacy
 from app.domain.proximity.schemas import NearbyQuery, NearbyResponse, NearbyUser
+from app.domain.identity import schemas as identity_schemas
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 from app.infra.rate_limit import RateLimitExceeded, allow
@@ -51,7 +52,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
 	rows = await pool.fetch(
 		"""
-		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision,
+		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision, u.social_links, u.status,
 		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
@@ -60,6 +61,15 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 		""",
 		list({uid for uid in user_ids}),
 	)
+	
+	def _parse_dict(val):
+		if isinstance(val, str):
+			try:
+				return json.loads(val)
+			except:
+				return {}
+		return val or {}
+
 	return {
 		str(row["id"]): {
 			"display_name": row["display_name"],
@@ -73,6 +83,8 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"passions": json.loads(row["passions"]) if isinstance(row.get("passions"), str) else (row.get("passions") or []),
 			"courses": row.get("courses") or [],
 			"ten_year_vision": row.get("ten_year_vision"),
+			"social_links": _parse_dict(row.get("social_links")),
+			"status": _parse_dict(row.get("status")),
 		}
 		for row in rows
 	}
@@ -362,6 +374,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
 					ten_year_vision=profile.get("ten_year_vision"),
+					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
+					banner_url=(profile.get("status") or {}).get("banner_url"),
 				)
 			)
 
@@ -404,6 +418,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
 					ten_year_vision=profile.get("ten_year_vision"),
+					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
+					banner_url=(profile.get("status") or {}).get("banner_url"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -440,6 +456,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
 					ten_year_vision=profile.get("ten_year_vision"),
+					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
+					banner_url=(profile.get("status") or {}).get("banner_url"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -480,6 +498,8 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					courses=profile.get("courses") or [],
 					campus_name=profile.get("campus_name"),
 					ten_year_vision=profile.get("ten_year_vision"),
+					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
+					banner_url=(profile.get("status") or {}).get("banner_url"),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)

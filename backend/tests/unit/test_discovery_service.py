@@ -1,5 +1,6 @@
 import pytest
 from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock
 
 from app.domain.discovery import service
 from app.domain.discovery.schemas import DiscoveryFeedResponse
@@ -36,6 +37,9 @@ async def test_feed_filters_out_liked_and_passed(fake_redis, monkeypatch):
 	await fake_redis.sadd("discovery:pass:user-a", str(nearby_users[2].user_id))
 
 	monkeypatch.setattr(service, "get_nearby", fake_get_nearby)
+	
+	# Mock the database pool to return None (no DB available)
+	monkeypatch.setattr(service, "get_pool", AsyncMock(return_value=None))
 
 	resp: DiscoveryFeedResponse = await service.list_feed(user, cursor=None, limit=10)
 

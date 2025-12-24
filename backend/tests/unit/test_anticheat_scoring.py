@@ -803,9 +803,19 @@ class TestServiceLayerAntiCheat:
 		assert isinstance(result, bool)
 
 	@pytest.mark.asyncio
-	async def test_record_activity_outcome_returns_list(self, fake_redis):
+	async def test_record_activity_outcome_returns_list(self, fake_redis, monkeypatch):
 		"""Service record_activity_outcome should return list of awarded users."""
 		service = LeaderboardService()
+		
+		# Mock the database pool
+		mock_conn = MagicMock()
+		mock_conn.execute = AsyncMock()
+		mock_acquire = MagicMock()
+		mock_acquire.__aenter__ = AsyncMock(return_value=mock_conn)
+		mock_acquire.__aexit__ = AsyncMock(return_value=None)
+		mock_pool = MagicMock()
+		mock_pool.acquire = MagicMock(return_value=mock_acquire)
+		monkeypatch.setattr("app.domain.leaderboards.service.get_pool", AsyncMock(return_value=mock_pool))
 		
 		awarded = await service.record_activity_outcome(
 			user_ids=["user-a", "user-b"],

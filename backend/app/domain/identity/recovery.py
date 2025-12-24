@@ -105,4 +105,17 @@ async def consume_password_reset(token: str, new_password: str, *, ip: Optional[
 	await audit.log_event("pwreset_success", user_id=user_id, meta={"token": "redacted"})
 
 
+async def request_username_recovery(email: str) -> None:
+	"""Send username reminder email to user."""
+	normalised = policy.normalise_email(email)
+	await policy.enforce_pwreset_request_rate(normalised)
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		user = await conn.fetchrow(
+			"SELECT id, email, handle FROM users WHERE email = $1", normalised
+		)
+		if not user:
+			# Silently return to avoid leaking user existence
+			return
+		await mailer.send_username_reminder(normalised, user["handle"])
 

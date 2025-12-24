@@ -1,0 +1,626 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.4, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\shahb\myApplications\uniHood\backend
+configfile: pyproject.toml
+plugins: anyio-4.12.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 76 items / 67 deselected / 9 selected
+run-last-failure: rerun previous 9 failures (skipped 58 files)
+
+tests\api\test_passkeys.py F                                             [ 11%]
+tests\unit\test_anticheat_scoring.py F                                   [ 22%]
+tests\unit\test_discovery_service.py F                                   [ 33%]
+tests\unit\test_identity_deletion.py F                                   [ 44%]
+tests\unit\test_identity_policy.py F                                     [ 55%]
+tests\unit\test_identity_recovery.py F                                   [ 66%]
+tests\unit\test_leaderboards_policy.py F                                 [ 77%]
+tests\unit\test_legal_compliance.py F                                    [ 88%]
+tests\unit\test_phase_b_hardening.py F                                   [100%]
+
+================================== FAILURES ===================================
+_________________ test_passkey_auth_flow_returns_reauth_token _________________
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 79, in collapse_excgroups
+  |     yield
+  |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |   File "C:\Users\shahb\OneDrive\Desktop\uniHood\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\runner.py", line 353, in from_call
+    |     result: TResult | None = func()
+    |                              ^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\runner.py", line 245, in <lambda>
+    |     lambda: runtest_hook(item=item, **kwds),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_hooks.py", line 512, in __call__
+    |     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    |     raise exception
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\logging.py", line 850, in pytest_runtest_call
+    |     yield
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\capture.py", line 900, in pytest_runtest_call
+    |     return (yield)
+    |             ^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\skipping.py", line 268, in pytest_runtest_call
+    |     return (yield)
+    |             ^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 121, in _multicall
+    |     res = hook_impl.function(*args)
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\runner.py", line 179, in pytest_runtest_call
+    |     item.runtest()
+    |   File "C:\Users\shahb\OneDrive\Desktop\uniHood\backend\.venv\Lib\site-packages\pytest_asyncio\plugin.py", line 469, in runtest
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\python.py", line 1720, in runtest
+    |     self.ihook.pytest_pyfunc_call(pyfuncitem=self)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_hooks.py", line 512, in __call__
+    |     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    |     raise exception
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 53, in run_old_style_hookwrapper
+    |     return result.get_result()
+    |            ^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_result.py", line 103, in get_result
+    |     raise exc.with_traceback(tb)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 38, in run_old_style_hookwrapper
+    |     res = yield
+    |           ^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\pluggy\_callers.py", line 121, in _multicall
+    |     res = hook_impl.function(*args)
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\_pytest\python.py", line 166, in pytest_pyfunc_call
+    |     result = testfunction(**testargs)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\OneDrive\Desktop\uniHood\backend\.venv\Lib\site-packages\pytest_asyncio\plugin.py", line 716, in inner
+    |   File "C:\Users\shahb\anaconda3\Lib\asyncio\runners.py", line 118, in run
+    |     return self._loop.run_until_complete(task)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\anaconda3\Lib\asyncio\base_events.py", line 687, in run_until_complete
+    |     return future.result()
+    |            ^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\tests\api\test_passkeys.py", line 110, in test_passkey_auth_flow_returns_reauth_token
+    |     verify = await api_client.post(
+    |              ^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1859, in post
+    |     return await self.request(
+    |            ^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1540, in request
+    |     return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1629, in send
+    |     response = await self._send_handling_auth(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    |     response = await self._send_handling_redirects(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    |     response = await self._send_single_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    |     response = await transport.handle_async_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_transports\asgi.py", line 170, in handle_async_request
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1135, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\applications.py", line 107, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |   File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\middleware\security_headers.py", line 31, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_signed_intent.py", line 110, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_idempotency.py", line 39, in __call__
+    |     await self.app(scope, receive, send_with_header)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |   File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_request_id.py", line 20, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |   File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\obs\middleware.py", line 108, in dispatch
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\obs\middleware.py", line 76, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    |     await responder(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    |     await self.app(scope, receive, self.send_with_compression)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\shahb\myApplications\uniHood\backend\app\api\passkeys.py", line 125, in passkey_auth_verify
+    |     result = await webauthn.auth_verify(
+    |                    ^^^^^^^^^^^^^^^^^^^^^
+    | TypeError: test_passkey_auth_flow_returns_reauth_token.<locals>.fake_auth_verify() got an unexpected keyword argument 'fingerprint'
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shahb\myApplications\uniHood\backend\tests\api\test_passkeys.py", line 110, in test_passkey_auth_flow_returns_reauth_token
+    verify = await api_client.post(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\httpx\_transports\asgi.py", line 170, in handle_async_request
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1135, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\middleware\security_headers.py", line 31, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_signed_intent.py", line 110, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_idempotency.py", line 39, in __call__
+    await self.app(scope, receive, send_with_header)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\api\middleware_request_id.py", line 20, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+  File "C:\Users\shahb\anaconda3\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\obs\middleware.py", line 108, in dispatch
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\obs\middleware.py", line 76, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\api\passkeys.py", line 125, in passkey_auth_verify
+    result = await webauthn.auth_verify(
+                   ^^^^^^^^^^^^^^^^^^^^^
+TypeError: test_passkey_auth_flow_returns_reauth_token.<locals>.fake_auth_verify() got an unexpected keyword argument 'fingerprint'
+
+The above exception was the direct cause of the following exception:
+tests\api\test_passkeys.py:110: in test_passkey_auth_flow_returns_reauth_token
+    verify = await api_client.post(
+.venv\Lib\site-packages\httpx\_client.py:1859: in post
+    return await self.request(
+.venv\Lib\site-packages\httpx\_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv\Lib\site-packages\httpx\_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv\Lib\site-packages\httpx\_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx\_transports\asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\applications.py:1135: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv\Lib\site-packages\starlette\middleware\cors.py:85: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+..\..\..\anaconda3\Lib\contextlib.py:158: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\starlette\_utils.py:85: in collapse_excgroups
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\middleware\security_headers.py:31: in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\middleware\base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+.venv\Lib\site-packages\starlette\middleware\base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+app\api\middleware_signed_intent.py:110: in __call__
+    await self.app(scope, receive, send)
+app\api\middleware_idempotency.py:39: in __call__
+    await self.app(scope, receive, send_with_header)
+.venv\Lib\site-packages\starlette\middleware\base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+..\..\..\anaconda3\Lib\contextlib.py:158: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\starlette\_utils.py:85: in collapse_excgroups
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\api\middleware_request_id.py:20: in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\middleware\base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+.venv\Lib\site-packages\starlette\middleware\base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+.venv\Lib\site-packages\starlette\middleware\base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+..\..\..\anaconda3\Lib\contextlib.py:158: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\starlette\_utils.py:85: in collapse_excgroups
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\obs\middleware.py:108: in dispatch
+    raise exc
+app\obs\middleware.py:76: in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\middleware\base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+.venv\Lib\site-packages\starlette\middleware\base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+.venv\Lib\site-packages\starlette\middleware\gzip.py:29: in __call__
+    await responder(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\gzip.py:130: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\gzip.py:46: in __call__
+    await self.app(scope, receive, self.send_with_compression)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:736: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:290: in handle
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:118: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:104: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\routing.py:428: in app
+    raw_response = await run_endpoint_function(
+.venv\Lib\site-packages\fastapi\routing.py:314: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\api\passkeys.py:125: in passkey_auth_verify
+    result = await webauthn.auth_verify(
+E   TypeError: test_passkey_auth_flow_returns_reauth_token.<locals>.fake_auth_verify() got an unexpected keyword argument 'fingerprint'
+---------------------------- Captured stderr call -----------------------------
+{"ts":"2025-12-24T02:51:33.810310+00:00","level":"info","msg":"http_request","logger":"divan.http","service":"divan-api","env":"dev","commit":"unknown","request_id":"42aa1e80-74e0-4aaf-aa76-f3056e3ba506","route":"/passkeys/auth/options","ip":"127.0.0.1","name":"divan.http","taskName":"starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro","status":200,"method":"POST","latency_ms":"[redacted]"}
+{"ts":"2025-12-24T02:51:33.819199+00:00","level":"error","msg":"http_request_error","logger":"divan.http","service":"divan-api","env":"dev","commit":"unknown","request_id":"8aafd62c-81ef-4edd-aa6a-8a1f43bee67d","route":"/passkeys/auth/verify","ip":"127.0.0.1","exc_info":"Traceback (most recent call last):\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\app\\obs\\middleware.py\", line 76, in dispatch\n    response = await call_next(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py\", line 168, in call_next\n    raise app_exc from app_exc.__cause__ or app_exc.__context__\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py\", line 144, in coro\n    await self.app(scope, receive_or_disconnect, send_no_error)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py\", line 29, in __call__\n    await responder(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py\", line 130, in __call__\n    await super().__call__(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py\", line 46, in __call__\n    await self.app(scope, receive, self.send_with_compression)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\middleware\\exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\fastapi\\middleware\\asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\routing.py\", line 716, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\routing.py\", line 736, in app\n    await route.handle(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\routing.py\", line 290, in handle\n    await self.app(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\fastapi\\routing.py\", line 118, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\fastapi\\routing.py\", line 104, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\fastapi\\routing.py\", line 428, in app\n    raw_response = await run_endpoint_function(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\.venv\\Lib\\site-packages\\fastapi\\routing.py\", line 314, in run_endpoint_function\n    return await dependant.call(**values)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\shahb\\myApplications\\uniHood\\backend\\app\\api\\passkeys.py\", line 125, in passkey_auth_verify\n    result = await webauthn.auth_verify(\n                   ^^^^^^^^^^^^^^^^^^^^^\nTypeError: test_passkey_auth_flow_returns_reauth_token.<locals>.fake_auth_verify() got an unexpected keyword argument 'fingerprint'","name":"divan.http","taskName":"starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro","method":"POST","path":"/passkeys/auth/verify"}
+------------------------------ Captured log call ------------------------------
+INFO     divan.http:middleware.py:104 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/passkeys/auth/options "HTTP/1.1 200 OK"
+ERROR    divan.http:middleware.py:79 http_request_error
+Traceback (most recent call last):
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\obs\middleware.py", line 76, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\.venv\Lib\site-packages\fastapi\routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shahb\myApplications\uniHood\backend\app\api\passkeys.py", line 125, in passkey_auth_verify
+    result = await webauthn.auth_verify(
+                   ^^^^^^^^^^^^^^^^^^^^^
+TypeError: test_passkey_auth_flow_returns_reauth_token.<locals>.fake_auth_verify() got an unexpected keyword argument 'fingerprint'
+INFO     divan.http:middleware.py:104 http_request
+_____ TestServiceLayerAntiCheat.test_record_activity_outcome_returns_list _____
+tests\unit\test_anticheat_scoring.py:810: in test_record_activity_outcome_returns_list
+    awarded = await service.record_activity_outcome(
+app\domain\leaderboards\service.py:155: in record_activity_outcome
+    pool = await get_pool()
+           ^^^^^^^^^^^^^^^^
+app\infra\postgres.py:37: in get_pool
+    assert _pool is not None
+           ^^^^^^^^^^^^^^^^^
+E   AssertionError
+------------------------------ Captured log call ------------------------------
+INFO     divan.leaderboards:service.py:142 [record_activity_outcome] user_ids=['user-a', 'user-b'] winner_id=user-a game_kind=tictactoe campus_map={} duration=120s moves=10
+INFO     divan.leaderboards:accrual.py:279 [record_activity_ended] user_ids=['user-a', 'user-b'] winner_id=user-a duration=120s moves=10
+INFO     divan.leaderboards:accrual.py:312 [record_activity_ended] Awarding points to user-a
+INFO     divan.leaderboards:accrual.py:312 [record_activity_ended] Awarding points to user-b
+INFO     divan.leaderboards:accrual.py:318 [record_activity_ended] Awarding win bonus to user-a
+INFO     divan.leaderboards:service.py:150 [record_activity_outcome] awarded=['user-a', 'user-b']
+___________________ test_feed_filters_out_liked_and_passed ____________________
+tests\unit\test_discovery_service.py:40: in test_feed_filters_out_liked_and_passed
+    resp: DiscoveryFeedResponse = await service.list_feed(user, cursor=None, limit=10)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\domain\discovery\service.py:85: in list_feed
+    priority_cards = await _fetch_priority_candidates(auth_user, limit=limit)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\domain\discovery\service.py:185: in _fetch_priority_candidates
+    pool = await get_pool()
+           ^^^^^^^^^^^^^^^^
+app\infra\postgres.py:37: in get_pool
+    assert _pool is not None
+           ^^^^^^^^^^^^^^^^^
+E   AssertionError
+___________ test_confirm_deletion_revokes_sessions_and_clears_token ___________
+tests\unit\test_identity_deletion.py:159: in test_confirm_deletion_revokes_sessions_and_clears_token
+    assert status.requested_at == request_status.requested_at
+E   assert datetime.datetime(2025, 12, 24, 2, 51, 34, 913897, tzinfo=datetime.timezone.utc) == datetime.datetime(2025, 12, 24, 2, 51, 34, 912204, tzinfo=datetime.timezone.utc)
+E    +  where datetime.datetime(2025, 12, 24, 2, 51, 34, 913897, tzinfo=datetime.timezone.utc) = DeletionStatus(requested_at=datetime.datetime(2025, 12, 24, 2, 51, 34, 913897, tzinfo=datetime.timezone.utc), confirme...nfo=datetime.timezone.utc), purged_at=datetime.datetime(2025, 12, 24, 2, 51, 34, 913897, tzinfo=datetime.timezone.utc)).requested_at
+E    +  and   datetime.datetime(2025, 12, 24, 2, 51, 34, 912204, tzinfo=datetime.timezone.utc) = DeletionStatus(requested_at=datetime.datetime(2025, 12, 24, 2, 51, 34, 912204, tzinfo=datetime.timezone.utc), confirmed_at=datetime.datetime(2025, 12, 24, 2, 51, 34, 912204, tzinfo=datetime.timezone.utc), purged_at=None).requested_at
+__________________________ test_register_rate_limit ___________________________
+tests\unit\test_identity_policy.py:48: in test_register_rate_limit
+    with pytest.raises(policy.IdentityRateLimitExceeded):
+E   Failed: DID NOT RAISE <class 'app.domain.identity.policy.IdentityRateLimitExceeded'>
+___________________ test_request_username_recovery_success ____________________
+tests\unit\test_identity_recovery.py:57: in test_request_username_recovery_success
+    await recovery.request_username_recovery("test@example.com")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'app.domain.identity.recovery' has no attribute 'request_username_recovery'
+________________________ test_clamp_and_score_formula _________________________
+tests\unit\test_leaderboards_policy.py:92: in test_clamp_and_score_formula
+    assert math.isclose(scores.social, expected_social, rel_tol=1e-6)
+E   assert False
+E    +  where False = <built-in function isclose>(860.0, 260.0, rel_tol=1e-06)
+E    +    where <built-in function isclose> = math.isclose
+E    +    and   860.0 = ScoreBreakdown(social=860.0, engagement=300.0, popularity=400.0, overall_raw=1560.0, streak_multiplier=1.2413793103448276, overall=1936.5517241379312).social
+____________ TestRequestLogService.test_generate_compliance_report ____________
+tests\unit\test_legal_compliance.py:295: in test_generate_compliance_report
+    report = await service.generate_compliance_report(start, end)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\domain\legal\requests.py:266: in generate_compliance_report
+    response_stats = await conn.fetchrow(
+tests\unit\test_legal_compliance.py:49: in fetchrow
+    return rows[0] if rows else None
+           ^^^^^^^
+E   KeyError: 0
+__________________ test_purge_soft_deleted_aggregates_counts __________________
+tests\unit\test_phase_b_hardening.py:58: in test_purge_soft_deleted_aggregates_counts
+    counts = await retention.purge_soft_deleted(batch=50)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\maintenance\retention.py:96: in purge_soft_deleted
+    held_users = await _get_users_under_hold()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\maintenance\retention.py:30: in _get_users_under_hold
+    table_exists = await conn.fetchval(
+                         ^^^^^^^^^^^^^
+E   AttributeError: 'StubConnection' object has no attribute 'fetchval'
+============================== warnings summary ===============================
+app\api\legal.py:51
+  C:\Users\shahb\myApplications\uniHood\backend\app\api\legal.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class HoldResponse(BaseModel):
+
+app\api\legal.py:98
+  C:\Users\shahb\myApplications\uniHood\backend\app\api\legal.py:98: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RequestResponse(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/api/test_passkeys.py::test_passkey_auth_flow_returns_reauth_token
+FAILED tests/unit/test_anticheat_scoring.py::TestServiceLayerAntiCheat::test_record_activity_outcome_returns_list
+FAILED tests/unit/test_discovery_service.py::test_feed_filters_out_liked_and_passed
+FAILED tests/unit/test_identity_deletion.py::test_confirm_deletion_revokes_sessions_and_clears_token
+FAILED tests/unit/test_identity_policy.py::test_register_rate_limit - Failed:...
+FAILED tests/unit/test_identity_recovery.py::test_request_username_recovery_success
+FAILED tests/unit/test_leaderboards_policy.py::test_clamp_and_score_formula
+FAILED tests/unit/test_legal_compliance.py::TestRequestLogService::test_generate_compliance_report
+FAILED tests/unit/test_phase_b_hardening.py::test_purge_soft_deleted_aggregates_counts
+================ 9 failed, 67 deselected, 2 warnings in 1.68s =================

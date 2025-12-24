@@ -5,7 +5,6 @@ import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect
 import Image from "next/image";
 import AvatarUploader from "./AvatarUploader";
 import type { ProfilePatchPayload } from "@/lib/identity";
-import { getCampusById } from "@/lib/identity";
 import type { ProfileRecord, SocialLinks } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
 import { cn } from "@/lib/utils";

@@ -16,6 +16,7 @@ class LeaderboardRowSchema(BaseModel):
 	score: float
 	display_name: Optional[str] = None
 	handle: Optional[str] = None
+	avatar_url: Optional[str] = None
 
 
 class LeaderboardResponseSchema(BaseModel):

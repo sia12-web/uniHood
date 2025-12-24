@@ -22,6 +22,23 @@ X-Campus-Id: your-campus-id
 X-User-Roles: admin
 ```
 
+#### Development Admin Login
+There is no default admin account set up in the system for security reasons. The admin panel is restricted to users who have been explicitly granted the admin role in the database.
+
+For development, you can use the test account in `test_login.json`:
+- Email: `test@test.com`
+- Password: `test123`
+
+Important: Promoting yourself to admin
+Even with the credentials above, you will not be able to access the admin panel until that user is granted the admin role in the database.
+
+Run the helper script from the repo root (it also marks the test account as email-verified for local use):
+```bash
+python promote_admin.py
+```
+
+Once complete, log in at `/admin-login`.
+
 ---
 
 ## Dashboard Overview (`/admin`)

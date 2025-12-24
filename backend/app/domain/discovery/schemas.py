@@ -10,6 +10,36 @@ from pydantic import BaseModel, Field, HttpUrl
 from app.domain.identity.schemas import GalleryImage
 
 
+class DiscoveryPrompt(BaseModel):
+	id: UUID
+	category: str
+	question: str
+	field_key: str
+	type: str = "text"
+	options: Optional[list[str]] = None
+
+
+class DiscoveryProfile(BaseModel):
+	user_id: UUID
+	core_identity: dict = Field(default_factory=dict)
+	personality: dict = Field(default_factory=dict)
+	campus_life: dict = Field(default_factory=dict)
+	dating_adjacent: dict = Field(default_factory=dict)
+	taste: dict = Field(default_factory=dict)
+	playful: dict = Field(default_factory=dict)
+	auto_tags: list[str] = Field(default_factory=list)
+	compatibility_signals: list[str] = Field(default_factory=list)
+
+
+class DiscoveryProfileUpdate(BaseModel):
+	core_identity: Optional[dict] = None
+	personality: Optional[dict] = None
+	campus_life: Optional[dict] = None
+	dating_adjacent: Optional[dict] = None
+	taste: Optional[dict] = None
+	playful: Optional[dict] = None
+
+
 class DiscoveryCard(BaseModel):
 	user_id: UUID
 	display_name: str = ""
@@ -25,6 +55,10 @@ class DiscoveryCard(BaseModel):
 	gallery: list[GalleryImage] = Field(default_factory=list)
 	is_friend: bool = False
 	is_friend_of_friend: bool = False
+	# New fields for social discovery
+	vibe_tags: list[str] = Field(default_factory=list)
+	top_prompts: list[dict] = Field(default_factory=list) # [{question: ..., answer: ...}]
+	compatibility_hint: Optional[str] = None
 
 
 class DiscoveryFeedResponse(BaseModel):

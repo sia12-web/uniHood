@@ -2,10 +2,11 @@
 
 from fastapi import APIRouter
 
-from . import appeals, audit, cases, policies, reports, quarantine, hashes_admin, linkage, reputation, restrictions, self_restrictions
+from . import appeals, audit, cases, policies, reports, quarantine, hashes_admin, linkage, reputation, restrictions, self_restrictions, me
 from .admin import admin_cases, admin_audit, admin_dashboard, admin_export, tools as admin_tools
 
 router = APIRouter()
+router.include_router(me.router)
 router.include_router(reports.router)
 router.include_router(cases.router)
 router.include_router(appeals.router)

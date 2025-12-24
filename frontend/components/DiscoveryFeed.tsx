@@ -1,20 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/app/lib/http/client";
 import { applyDiff } from "@/lib/diff";
-import { formatDistance } from "@/lib/geo";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
 import {
   onAuthChange,
-  readAuthSnapshot,
   readAuthUser,
-  resolveAuthHeaders,
   type AuthUser,
 } from "@/lib/auth-storage";
-import { getBackendUrl } from "@/lib/env";
 import {
   disconnectPresenceSocket,
   getPresenceSocket,
@@ -32,9 +27,13 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, X, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, MessageCircle, UserPlus, Home, GraduationCap, Building2 } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, Home, GraduationCap, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
+import { DiscoveryOnboardingModal } from "@/components/DiscoveryOnboardingModal";
+import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
+import { DiscoveryProfile, DiscoveryFeedResponse } from "@/lib/types";
+import { fetchUserCourses } from "@/lib/identity";
 
 type DiscoveryFeedProps = {
   variant?: "full" | "mini";
@@ -74,7 +73,6 @@ type NearbyAccumulator<T> = {
 };
 
 // Config parallels /proximity page
-const BACKEND_URL = getBackendUrl();
 const HEARTBEAT_VISIBLE_MS = 10000; // 10 seconds for better real-time Room mode discovery
 const HEARTBEAT_HIDDEN_MS = 60000;  // 1 minute when tab is hidden
 const GO_LIVE_ENABLED =
@@ -98,54 +96,22 @@ function getYearLabel(gradYear: number): string {
 
 
 
-async function fetchNearby(userId: string, campusId: string, mode: DiscoveryMode) {
-  // Build the URL safely
-  const baseUrl = BACKEND_URL.replace(/\/$/, '');
-  const params = new URLSearchParams({
-    campus_id: campusId,
-  });
+async function fetchFeed(mode: DiscoveryMode = "campus", cursor?: string | null, limit: number = 10) {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  params.set("limit", String(limit));
+  params.set("mode", mode);
 
-  // Mode-based configuration
-  if (mode === "room") {
-    // Room mode: live proximity within 100m (uses Redis geosearch, all campuses)
-    params.set("radius_m", "100");
-    params.set("mode", "room");
-  } else if (mode === "campus") {
-    // Campus mode: directory of same campus users
-    params.set("radius_m", "50000");
-    params.set("mode", "campus");
-  } else if (mode === "city") {
-    // City mode: all users across all campuses
-    params.set("radius_m", "50000");
-    params.set("mode", "city");
-  }
-
-  const url = `${baseUrl}/proximity/nearby?${params.toString()}`;
-
-  const snapshot = readAuthSnapshot();
-  const headers: Record<string, string> = {
-    ...resolveAuthHeaders(snapshot),
-  };
-  // Keep explicit fallbacks for dev/test flows where snapshot may be empty.
-  headers["X-User-Id"] ||= userId;
-  headers["X-Campus-Id"] ||= campusId;
+  // Set radius based on mode
+  if (mode === "room") params.set("radius_m", "100");
+  else if (mode === "campus") params.set("radius_m", "50000");
+  else if (mode === "city") params.set("radius_m", "100000");
 
   try {
-    const body = await apiFetch<{ items?: NearbyUser[]; detail?: string }>(url, {
-      cache: "no-store",
-      cacheTtl: 0,
-      skipDedup: true,
-      headers,
-    });
-    return (body.items ?? []) as NearbyUser[];
+    const data = await apiFetch<DiscoveryFeedResponse>(`/discovery/feed?${params.toString()}`);
+    return data;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("presence not found")) {
-      return [];
-    }
-    if (message.toLowerCase().includes("network")) {
-      throw new Error("Unable to connect to server. Please check your connection.");
-    }
+    console.error("Feed fetch failed", err);
     throw err;
   }
 }
@@ -156,6 +122,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid');
   const [swipeIndex, setSwipeIndex] = useState(0);
+
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -167,6 +134,8 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [showProximityPrompt, setShowProximityPrompt] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [myCourses, setMyCourses] = useState<string[]>([]);
 
   // Filters
   const [filterMajor, setFilterMajor] = useState<string>("all");
@@ -194,9 +163,10 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     });
   }, [users, filterMajor, filterYear]);
 
+  // Reset swipe index when filters change, but not when user data (like is_friend) updates
   useEffect(() => {
     setSwipeIndex(0);
-  }, [filteredUsers]);
+  }, [filterMajor, filterYear, discoveryMode]);
 
   const uniqueMajors = useMemo(() => {
     const userMajors = users
@@ -223,6 +193,16 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     setAuthEvaluated(true);
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (authUser && authUser.userId) {
+      fetchUserCourses(authUser.userId, authUser.campusId)
+        .then(courses => setMyCourses(courses.map(c => c.code || c.name || "").filter(Boolean)))
+        .catch(err => console.error("Failed to fetch my courses", err));
+    } else {
+      setMyCourses([]);
+    }
+  }, [authUser]);
 
   const loadFriends = useCallback(async () => {
     if (!authEvaluated || !currentUserId || !currentCampusId) {
@@ -332,7 +312,9 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
     setLoading(true);
     try {
-      const items = await fetchNearby(currentUserId, currentCampusId, discoveryMode);
+      // Use the new Discovery Feed endpoint for social-first discovery
+      const response = await fetchFeed(discoveryMode);
+      const items = response.items || [];
       const patched = withFriendStatus(items);
       setUsers(patched);
       usersRef.current = patched;
@@ -341,19 +323,32 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       });
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to load nearby classmates.";
-      // If presence not found, it means we haven't sent a heartbeat yet. 
-      // We'll ignore this error as the auto-heartbeat will fix it shortly.
-      // In Directory Mode (campus/city), we don't expect presence errors anyway.
-      if (!message.includes("presence not found")) {
-        setError(message);
-      }
+      const message = err instanceof Error ? err.message : "Unable to load discovery feed.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   }, [authEvaluated, currentCampusId, currentUserId, discoveryMode, withFriendStatus]);
 
-  // Initial nearby fetch
+  // Check for onboarding status
+  useEffect(() => {
+    if (!currentUserId || !authEvaluated) return;
+
+    const checkOnboarding = async () => {
+      try {
+        const profile = await apiFetch<DiscoveryProfile>("/discovery/profile");
+        if (!profile.auto_tags || profile.auto_tags.length === 0) {
+          setShowOnboarding(true);
+        }
+      } catch (err) {
+        console.warn("Failed to check onboarding status", err);
+      }
+    };
+
+    void checkOnboarding();
+  }, [currentUserId, authEvaluated]);
+
+  // Initial Load
   useEffect(() => {
     if (authEvaluated) {
       void refreshNearby();
@@ -527,6 +522,13 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowOnboarding(true)}
+                className="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-200 hover:shadow-lg transition active:scale-95"
+              >
+                <Users size={14} className="opacity-75" /> Update Vibe
+              </button>
+
               {/* View Toggle */}
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 ring-1 ring-slate-200">
                 <button
@@ -751,7 +753,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
         ) : viewMode === 'grid' ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredUsers.map((user) => (
-              <UserCard
+              <ParallaxProfileCard
                 key={user.user_id}
                 user={user}
                 isFriend={friendIds.has(user.user_id)}
@@ -760,6 +762,8 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 onChat={() => handleChat(user.user_id)}
                 onProfileClick={() => setSelectedUser(user)}
                 invitePending={invitePendingId === user.user_id}
+                variant="preview"
+                myCourses={myCourses}
               />
             ))}
           </div>
@@ -778,7 +782,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 </button>
 
                 <div className="w-full max-w-sm">
-                  <UserCard
+                  <ParallaxProfileCard
                     key={filteredUsers[swipeIndex].user_id}
                     user={filteredUsers[swipeIndex]}
                     isFriend={friendIds.has(filteredUsers[swipeIndex].user_id)}
@@ -790,6 +794,8 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                     onChat={() => handleChat(filteredUsers[swipeIndex].user_id)}
                     onProfileClick={() => setSelectedUser(filteredUsers[swipeIndex])}
                     invitePending={invitePendingId === filteredUsers[swipeIndex].user_id}
+                    variant="full"
+                    myCourses={myCourses}
                   />
 
                   {/* Mobile Navigation Controls (Below Card) */}
@@ -919,167 +925,10 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
         onChat={() => selectedUser && handleChat(selectedUser.user_id)}
         invitePending={selectedUser ? invitePendingId === selectedUser.user_id : false}
       />
+
+      <DiscoveryOnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 }
 
-function UserCard({
-  user,
-  isFriend,
-  isInvited,
-  onInvite,
-  onChat,
-  onProfileClick,
-  invitePending
-}: {
-  user: NearbyUser;
-  isFriend: boolean;
-  isInvited: boolean;
-  onInvite: () => void;
-  onChat: () => void;
-  onProfileClick: () => void;
-  invitePending: boolean;
-}) {
-  const [imageIndex, setImageIndex] = useState(0);
-  const [imageError, setImageError] = useState(false);
 
-  const images = useMemo(() => {
-    if (user.gallery && user.gallery.length > 0) {
-      return user.gallery.map((g) => g.url).filter(Boolean) as string[];
-    }
-    if (user.avatar_url) {
-      return [user.avatar_url];
-    }
-    return [];
-  }, [user]);
-
-  // Reset image error state when images change
-  useEffect(() => {
-    setImageError(false);
-  }, [images]);
-
-  const currentImage = !imageError && images.length > 0 ? images[imageIndex % images.length] : null;
-
-  const distance = formatDistance(user.distance_m ?? null);
-  const initial = (user.display_name || "U")[0].toUpperCase();
-
-  return (
-    <div
-      className="group relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-md transition-all hover:shadow-xl cursor-pointer"
-      onClick={onProfileClick}
-    >
-      {/* Image / Avatar Area */}
-      <div className="relative h-full w-full">
-        {currentImage ? (
-          <Image
-            key={currentImage}
-            src={currentImage}
-            alt={user.display_name}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-50 to-slate-100 text-6xl font-bold text-rose-200">
-            {initial}
-          </div>
-        )}
-
-        {/* Content Overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-          <div className="mb-1 flex items-center gap-2">
-            <h3 className="text-xl font-bold leading-tight drop-shadow-sm">{user.display_name || "User"}</h3>
-            {isFriend && (
-              <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white shadow-sm">
-                Friend
-              </span>
-            )}
-          </div>
-
-          {user.campus_name && (
-            <p className="text-sm font-medium text-slate-200 drop-shadow-sm">{user.campus_name}</p>
-          )}
-          <p className="text-sm font-medium text-slate-300 drop-shadow-sm">
-            {[
-              user.major && user.major.toLowerCase() !== "none" ? user.major : null,
-              user.graduation_year ? `'${String(user.graduation_year).slice(-2)}` : null
-            ].filter(Boolean).join(" • ")}
-          </p>
-
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
-            {distance && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-rose-400" />
-                {distance} away
-              </span>
-            )}
-          </div>
-
-          {/* Courses Preview */}
-          {user.courses && user.courses.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {user.courses.slice(0, 2).map((c) => (
-                <span key={c} className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-200 ring-1 ring-emerald-500/30 backdrop-blur-sm">
-                  {c}
-                </span>
-              ))}
-              {user.courses.length > 2 && (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-medium text-white/60 backdrop-blur-sm">
-                  +{user.courses.length - 2} more
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Action Button */}
-          <div className="mt-4 pointer-events-auto">
-            {isFriend ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChat();
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-black/60 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-black/70 active:scale-95 border border-white/10"
-              >
-                <MessageCircle size={16} />
-                Message
-              </button>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!isInvited) onInvite();
-                }}
-                disabled={invitePending || isInvited}
-                className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition active:scale-95 disabled:opacity-100 disabled:cursor-not-allowed",
-                  isInvited
-                    ? "bg-slate-100 text-slate-500 cursor-default"
-                    : "bg-[#4f46e5] text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-700"
-                )}
-              >
-                {invitePending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : isInvited ? (
-                  <>
-                    <span className="text-slate-500">Pending</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus size={16} />
-                    Connect
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

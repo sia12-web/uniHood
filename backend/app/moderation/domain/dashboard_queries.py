@@ -21,102 +21,77 @@ async def fetch_kpis(
 ) -> dict[str, Any]:
     campuses = _ensure_iter(campus_filter)
     params: list[Any] = []
-    campus_clause_cases = ""
-    campus_clause_reports = ""
-    campus_clause_actions = ""
-    campus_clause_appeals = ""
+    campus_clause = ""
     if campuses:
         params.append(campuses)
-        bind = len(params)
-        campus_clause_cases = f"WHERE CAST(c.campus_id AS text) = ANY(${bind}::text[])"
-        campus_clause_reports = (
-            f"AND CAST(c.campus_id AS text) = ANY(${bind}::text[])"
-        )
-        campus_clause_actions = (
-            f"AND CAST(c.campus_id AS text) = ANY(${bind}::text[])"
-        )
-        campus_clause_appeals = (
-            f"AND CAST(c.campus_id AS text) = ANY(${bind}::text[])"
-        )
+        campus_clause = f"AND CAST(c.campus_id AS text) = ANY(${len(params)}::text[])"
+
     row = await conn.fetchrow(
         f"""
-        WITH first_actions AS (
-            SELECT c.id, MIN(a.created_at) AS first_action_at
-            FROM mod_case c
-            JOIN mod_action a ON a.case_id = c.id
-            {campus_clause_cases}
-            GROUP BY c.id
-        ),
-        actions_7d AS (
-            SELECT COUNT(*) AS total
-            FROM mod_action a
-            JOIN mod_case c ON c.id = a.case_id
-            WHERE a.created_at >= now() - interval '7 days'
-            {campus_clause_actions}
-        ),
-        appeals AS (
-            SELECT
-                COUNT(*) FILTER (WHERE ap.created_at >= now() - interval '7 days') AS opened,
-                COUNT(*) FILTER (WHERE ap.status = 'accepted' AND ap.reviewed_at >= now() - interval '7 days') AS accepted
-            FROM mod_appeal ap
-            JOIN mod_case c ON c.id = ap.case_id
-            WHERE ap.created_at >= now() - interval '7 days'
-            {campus_clause_appeals}
-        )
         SELECT
-            (SELECT COUNT(*) FROM mod_case c {campus_clause_cases})::bigint AS open_cases,
+            (SELECT COUNT(*) FROM mod_case c WHERE status = 'open' {campus_clause})::int AS open_cases,
+            (SELECT COUNT(*) FROM mod_case c WHERE status = 'escalated' {campus_clause})::int AS escalated_count,
+            (
+                SELECT COUNT(*)
+                FROM mod_case c
+                WHERE c.status IN ('actioned', 'dismissed')
+                  AND c.updated_at >= now() - interval '24 hours'
+                  {campus_clause}
+            )::int AS resolved_today,
+            (
+                SELECT COUNT(*)
+                FROM mod_appeal a
+                JOIN mod_case c ON c.id = a.case_id
+                WHERE a.status = 'pending'
+                  {campus_clause}
+            )::int AS pending_appeals,
+            COALESCE(
+                (
+                    SELECT AVG(EXTRACT(EPOCH FROM (c.updated_at - c.created_at)) / 3600.0)
+                    FROM mod_case c
+                    WHERE c.status IN ('actioned', 'dismissed')
+                      AND c.updated_at >= now() - interval '7 days'
+                      {campus_clause}
+                ),
+                0
+            )::double precision AS avg_resolution_hours,
+            -- Keep original fields for backward compatibility/other views
             (
                 SELECT COUNT(*)
                 FROM mod_report r
                 JOIN mod_case c ON c.id = r.case_id
                 WHERE r.created_at >= now() - interval '24 hours'
-                {campus_clause_reports}
-            )::bigint AS new_reports_24h,
+                {campus_clause}
+            )::int AS new_reports_24h,
             (
                 SELECT COUNT(*)
                 FROM mod_action a
                 JOIN mod_case c ON c.id = a.case_id
                 WHERE a.created_at >= now() - interval '24 hours'
-                {campus_clause_actions}
-            )::bigint AS actions_24h,
-            COALESCE(
-                (
-                    SELECT percentile_cont(0.5) WITHIN GROUP (
-                        ORDER BY EXTRACT(EPOCH FROM (fa.first_action_at - c.created_at)) / 60.0
-                    )
-                    FROM mod_case c
-                    JOIN first_actions fa ON fa.id = c.id
-                    WHERE c.created_at >= now() - interval '7 days'
-                ),
-                0
-            )::double precision AS median_tta_minutes_7d,
-            COALESCE((SELECT opened FROM appeals), 0)::double precision AS appeals_opened_7d,
-            COALESCE((SELECT accepted FROM appeals), 0)::double precision AS appeals_accepted_7d,
-            COALESCE((SELECT total FROM actions_7d), 0)::double precision AS actions_7d
+                {campus_clause}
+            )::int AS actions_24h
         """,
         *params,
     )
-    if row is None:
+    if not row:
         return {
             "open_cases": 0,
+            "resolved_today": 0,
+            "avg_resolution_hours": 0.0,
+            "pending_appeals": 0,
+            "escalated_count": 0,
             "new_reports_24h": 0,
             "actions_24h": 0,
-            "median_tta_minutes_7d": 0.0,
-            "appeal_rate_7d": 0.0,
-            "reversal_rate_7d": 0.0,
         }
-    appeals = float(row["appeals_opened_7d"])
-    appeals_accepted = float(row["appeals_accepted_7d"])
-    actions_7d = float(row["actions_7d"]) or 0.0
-    appeal_rate = appeals / actions_7d if actions_7d else 0.0
-    reversal_rate = appeals_accepted / actions_7d if actions_7d else 0.0
+
     return {
-        "open_cases": int(row["open_cases"] or 0),
-        "new_reports_24h": int(row["new_reports_24h"] or 0),
-        "actions_24h": int(row["actions_24h"] or 0),
-        "median_tta_minutes_7d": float(row["median_tta_minutes_7d"] or 0.0),
-        "appeal_rate_7d": round(appeal_rate, 6),
-        "reversal_rate_7d": round(reversal_rate, 6),
+        "open_cases": row["open_cases"] or 0,
+        "resolved_today": row["resolved_today"] or 0,
+        "avg_resolution_hours": float(row["avg_resolution_hours"] or 0.0),
+        "pending_appeals": row["pending_appeals"] or 0,
+        "escalated_count": row["escalated_count"] or 0,
+        "new_reports_24h": row["new_reports_24h"] or 0,
+        "actions_24h": row["actions_24h"] or 0,
     }
 
 

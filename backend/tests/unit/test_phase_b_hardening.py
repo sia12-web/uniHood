@@ -22,7 +22,7 @@ class StubConnection:
         self.fetch_queries: list[str] = []
         self.execute_calls: list[tuple[str, object]] = []
 
-    async def fetch(self, query: str):
+    async def fetch(self, query: str, *args):
         self.fetch_queries.append(query)
         if "FROM messages" in query:
             return [1, 2, 3]
@@ -30,9 +30,18 @@ class StubConnection:
             return [1]
         if "FROM invitations" in query:
             return []
+        if "FROM legal_holds" in query:
+            return []
         raise AssertionError(f"unexpected query: {query}")
 
-    async def execute(self, query: str, param: object):
+    async def fetchval(self, query: str, *args):
+        self.fetch_queries.append(query)
+        if "information_schema.tables" in query:
+            return True
+        return None
+
+    async def execute(self, query: str, *args):
+        param = args[0] if len(args) == 1 else args
         self.execute_calls.append((query, param))
         return "UPDATE 1"
 
@@ -57,7 +66,7 @@ async def test_purge_soft_deleted_aggregates_counts(monkeypatch):
 
     counts = await retention.purge_soft_deleted(batch=50)
 
-    assert counts == {"messages": 3, "sessions": 1, "invitations": 0}
+    assert counts == {"messages": 3, "sessions": 1, "invitations": 0, "skipped_holds": 0}
     assert any("LIMIT 50" in q for q in conn.fetch_queries)
     message_query = next(q for q in conn.fetch_queries if "FROM messages" in q)
     assert f"INTERVAL '{retention.MESSAGES_RETENTION_DAYS} days'" in message_query

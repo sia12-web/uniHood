@@ -93,7 +93,7 @@ async def test_passkey_auth_flow_returns_reauth_token(api_client, monkeypatch):
 		reauth_token="reauth-123",
 	)
 
-	async def fake_auth_verify(payload, *, ip, user_agent, device_label):
+	async def fake_auth_verify(payload, *, ip, user_agent, device_label, fingerprint):
 		assert payload.assertion_response["challengeId"] == "cid"
 		return login
 

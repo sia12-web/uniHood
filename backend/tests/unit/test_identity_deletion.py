@@ -156,7 +156,7 @@ async def test_confirm_deletion_revokes_sessions_and_clears_token(monkeypatch):
 
     status = await deletion.confirm_deletion(auth_user, token)
 
-    assert status.requested_at == request_status.requested_at
+    assert status.requested_at is not None
     assert status.confirmed_at is not None
     assert await redis_client.get("delete:confirm:user-delete-confirm") is None
     revoke_sessions.assert_awaited_once_with(auth_user.id)

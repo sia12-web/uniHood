@@ -161,6 +161,19 @@ class ActivitiesRepository:
 		pool = await self._pool_or_none()
 		if pool is None:
 			return await _MEMORY.create_activity(activity)
+
+		# Analytics tracking
+		from app.domain.identity import audit
+		await audit.append_db_event(
+			user_id=activity.user_a, # Initiator
+			event="activity.create",
+			meta={
+				"activity_id": activity.id,
+				"kind": activity.kind,
+				"opponent_id": activity.user_b
+			}
+		)
+
 		async with pool.acquire() as conn:
 			await conn.execute(
 				"""
@@ -687,6 +700,22 @@ class ActivitiesService:
 				duration_seconds=duration_seconds,
 				move_count=move_count,
 			)
+			
+			# Analytics tracking - Activity Finish
+			from app.domain.identity import audit
+			for uid in user_ids:
+				await audit.append_db_event(
+					user_id=uid,
+					event="activity.finish",
+					meta={
+						"activity_id": activity.id,
+						"kind": activity.kind,
+						"winner_id": winner_id,
+						"is_winner": (uid == winner_id),
+						"duration_s": duration_seconds
+					}
+				)
+
 		except Exception:
 			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})
 

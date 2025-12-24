@@ -1,4 +1,5 @@
 import { getBackendUrl } from "./env";
+import { readAuthSnapshot, resolveAuthHeaders } from "./auth-storage";
 import type { FeatureFlagRow, FlagEvaluationResultRow, FlagOverrideRow } from "./types";
 
 type HttpMethod = "GET" | "POST" | "DELETE";
@@ -6,27 +7,33 @@ type HttpMethod = "GET" | "POST" | "DELETE";
 type RequestOptions = {
 	method?: HttpMethod;
 	body?: unknown;
+	signal?: AbortSignal;
 	userId?: string;
 	campusId?: string | null;
-	signal?: AbortSignal;
 };
 
 const BASE_URL = getBackendUrl();
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, userId, campusId, signal } = options;
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
-	if (userId) {
-		headers["X-User-Id"] = userId;
-	}
-	if (campusId) {
-		headers["X-Campus-Id"] = campusId;
-	}
+	const { method = "GET", body, signal, userId, campusId } = options;
+
+	const snapshot = readAuthSnapshot();
+	const authHeaders = resolveAuthHeaders(snapshot);
+
+	const headers: Record<string, string> = {
+		...authHeaders,
+		"Content-Type": "application/json",
+	};
+
+	if (userId) headers["X-User-Id"] = userId;
+	if (campusId) headers["X-Campus-Id"] = campusId;
+
 	const response = await fetch(`${BASE_URL}${path}`, {
 		method,
 		headers,
 		body: body ? JSON.stringify(body) : undefined,
 		signal,
+		credentials: "include",
 	});
 	if (!response.ok) {
 		const detail = await response.text();
@@ -38,11 +45,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 	return (await response.json()) as T;
 }
 
-export async function fetchFlags(adminId: string, campusId?: string | null): Promise<FeatureFlagRow[]> {
-	return request<FeatureFlagRow[]>("/flags", {
-		userId: adminId,
-		campusId: campusId ?? null,
-	});
+export async function fetchFlags(userId?: string, campusId?: string | null): Promise<FeatureFlagRow[]> {
+	return request<FeatureFlagRow[]>("/flags", { userId, campusId });
 }
 
 export async function upsertFlag(
@@ -52,22 +56,22 @@ export async function upsertFlag(
 ): Promise<FeatureFlagRow> {
 	return request<FeatureFlagRow>("/flags", {
 		method: "POST",
-		userId: adminId,
-		campusId: campusId ?? null,
 		body: {
 			key: payload.key,
 			kind: payload.kind,
 			description: payload.description ?? "",
 			payload: payload.payload ?? {},
 		},
+		userId: adminId,
+		campusId,
 	});
 }
 
-export async function deleteFlag(adminId: string, key: string, campusId?: string | null): Promise<void> {
+export async function deleteFlag(userId: string, key: string, campusId?: string | null): Promise<void> {
 	await request<void>(`/flags/${encodeURIComponent(key)}`, {
 		method: "DELETE",
-		userId: adminId,
-		campusId: campusId ?? null,
+		userId,
+		campusId,
 	});
 }
 
@@ -92,35 +96,35 @@ export async function fetchOverrides(
 	const suffix = params.toString();
 	const path = suffix ? `/flags/${encodeURIComponent(key)}/overrides?${suffix}` : `/flags/${encodeURIComponent(key)}/overrides`;
 	return request<FlagOverrideRow[]>(path, {
-		userId: adminId,
-		campusId: query.campusId ?? null,
 		signal: query.signal,
+		userId: adminId,
+		campusId: query.campusId,
 	});
 }
 
 export async function upsertOverride(
-	adminId: string,
+	userId: string,
 	payload: { key: string; value: Record<string, unknown>; user_id?: string; campus_id?: string | null },
 	campusId?: string | null,
 ): Promise<FlagOverrideRow> {
 	return request<FlagOverrideRow>("/flags/overrides", {
 		method: "POST",
-		userId: adminId,
-		campusId: campusId ?? null,
 		body: payload,
+		userId,
+		campusId,
 	});
 }
 
 export async function deleteOverride(
-	adminId: string,
+	userId: string,
 	payload: { key: string; user_id?: string; campus_id?: string | null },
 	campusId?: string | null,
 ): Promise<void> {
 	await request<void>("/flags/overrides", {
 		method: "DELETE",
-		userId: adminId,
-		campusId: campusId ?? null,
 		body: payload,
+		userId,
+		campusId,
 	});
 }
 
@@ -135,11 +139,14 @@ export async function evaluateFlag(key: string, options: EvaluateOptions): Promi
 	if (options.campusId) {
 		params.set("campus_id", options.campusId);
 	}
+	if (options.userId) {
+		params.set("user_id", options.userId);
+	}
 	const suffix = params.toString();
 	const path = suffix ? `/flags/${encodeURIComponent(key)}/evaluate?${suffix}` : `/flags/${encodeURIComponent(key)}/evaluate`;
 	return request<FlagEvaluationResultRow>(path, {
-		userId: options.userId,
-		campusId: options.campusId ?? null,
 		signal: options.signal,
+		userId: options.userId,
+		campusId: options.campusId,
 	});
 }

@@ -27,7 +27,7 @@ class StaffContext:
 
     @property
     def is_admin(self) -> bool:
-        return STAFF_ADMIN_SCOPE in self.scopes
+        return STAFF_ADMIN_SCOPE in self.scopes or "admin" in self.scopes
 
     @property
     def is_moderator(self) -> bool:
@@ -38,9 +38,12 @@ def resolve_staff_context(user: AuthenticatedUser, *, campus_ids: Sequence[str] 
     """Return the staff context while applying optional request campus scoping."""
 
     scopes: tuple[str, ...] = tuple(user.roles)
-    if not scopes or (STAFF_ADMIN_SCOPE not in scopes and STAFF_MODERATOR_SCOPE not in scopes):
+    # Support both subsystem-specific 'staff' roles and the global 'admin' role
+    is_global_admin = "admin" in scopes
+    if not scopes or (STAFF_ADMIN_SCOPE not in scopes and STAFF_MODERATOR_SCOPE not in scopes and not is_global_admin):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="staff_scope_required")
-    if STAFF_ADMIN_SCOPE in scopes:
+    
+    if STAFF_ADMIN_SCOPE in scopes or is_global_admin:
         allowed = tuple(campus_ids) if campus_ids else tuple()
     else:
         base = tuple(filter(None, (user.campus_id,)))

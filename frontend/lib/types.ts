@@ -25,7 +25,48 @@ export type NearbyUser = {
   banner_url?: string | null;
   ten_year_vision?: string | null;
   is_online?: boolean;
-}; export type NearbyDiff = {
+  vibe_tags?: string[];
+  top_prompts?: { question: string; answer: string }[];
+  compatibility_hint?: string;
+};
+
+export type DiscoveryProfile = {
+  user_id: string;
+  core_identity: Record<string, unknown>;
+  personality: Record<string, unknown>;
+  campus_life: Record<string, unknown>;
+  dating_adjacent: Record<string, unknown>;
+  taste: Record<string, unknown>;
+  playful: Record<string, unknown>;
+  auto_tags: string[];
+  compatibility_signals: string[];
+};
+
+export type DiscoveryProfileUpdate = {
+  core_identity?: Record<string, unknown>;
+  personality?: Record<string, unknown>;
+  campus_life?: Record<string, unknown>;
+  dating_adjacent?: Record<string, unknown>;
+  taste?: Record<string, unknown>;
+  playful?: Record<string, unknown>;
+};
+
+export type DiscoveryPrompt = {
+  id: string;
+  category: string;
+  question: string;
+  field_key: string;
+  type: string;
+  options?: string[];
+};
+
+export type DiscoveryFeedResponse = {
+  items: NearbyUser[];
+  cursor: string | null;
+  exhausted: boolean;
+};
+
+export type NearbyDiff = {
   radius_m: number;
   added: NearbyUser[];
   removed: string[];
@@ -69,6 +110,7 @@ export type LeaderboardRow = {
   score: number;
   display_name?: string | null;
   handle?: string | null;
+  avatar_url?: string | null;
 };
 
 export type LeaderboardResponse = {

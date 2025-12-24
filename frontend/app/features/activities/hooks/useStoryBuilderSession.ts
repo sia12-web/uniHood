@@ -75,7 +75,6 @@ export function useStoryBuilderSession(sessionId: string) {
 
     const wsRef = useRef<WebSocket | null>(null);
     const selfRef = useRef<string>(getSelf());
-    const outcomeRecordedRef = useRef(false);
 
     useEffect(() => {
         if (!sessionId) return;

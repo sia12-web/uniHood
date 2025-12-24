@@ -34,10 +34,10 @@ const ONBOARDING_PATHS = new Set([
 ]);
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
-	const parts = token.split(".");
-	if (parts.length !== 3) return null;
-	const payload = parts[1];
 	try {
+		// handle URI encoded token if necessary
+		const clean = token.includes("%") ? decodeURIComponent(token) : token;
+		const payload = clean.split(".")[1];
 		// base64url -> base64
 		const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
 		const padded = normalized + "===".slice((normalized.length + 3) % 4);
@@ -123,8 +123,15 @@ export function middleware(req: NextRequest) {
 			// Admin Gate
 			if (pathname.startsWith("/admin")) {
 				const payload = token ? decodeJwtPayload(token) : null;
-				const roles = (payload?.roles as string[]) || [];
-				if (!roles.includes("admin")) {
+				const rolesClaim = payload?.roles ?? payload?.role ?? payload?.scp;
+				let roles: string[] = [];
+				if (Array.isArray(rolesClaim)) {
+					roles = rolesClaim.map(String);
+				} else if (typeof rolesClaim === "string") {
+					roles = rolesClaim.split(",").map((r) => r.trim());
+				}
+
+				if (!roles.includes("admin") && !roles.includes("staff.admin")) {
 					const redirectUrl = req.nextUrl.clone();
 					redirectUrl.pathname = "/";
 					return NextResponse.redirect(redirectUrl);

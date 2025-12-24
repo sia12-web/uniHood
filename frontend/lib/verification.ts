@@ -1,4 +1,5 @@
 import { getBackendUrl } from "./env";
+import { readAuthSnapshot, resolveAuthHeaders } from "./auth-storage";
 import type {
 	AdminVerificationDecision,
 	TrustProfileSummary,
@@ -15,7 +16,9 @@ const BASE_URL = getBackendUrl();
 type RequestOptions = {
 	method?: HttpMethod;
 	body?: unknown;
-	headers?: Record<string, string>;
+	signal?: AbortSignal;
+	userId?: string;
+	campusId?: string | null;
 };
 
 async function decodeError(response: Response): Promise<never> {
@@ -34,22 +37,32 @@ async function decodeError(response: Response): Promise<never> {
 				message = text;
 			}
 		} catch {
-			// fall through with default message
+			// fall through
 		}
 	}
 	throw new Error(message);
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-	const { method = "GET", body, headers = {} } = options;
+	const { method = "GET", body, signal, userId, campusId } = options;
+
+	const snapshot = readAuthSnapshot();
+	const authHeaders = resolveAuthHeaders(snapshot);
+
+	const headers: Record<string, string> = {
+		...authHeaders,
+		"Content-Type": "application/json",
+	};
+
+	if (userId) headers["X-User-Id"] = userId;
+	if (campusId) headers["X-Campus-Id"] = campusId;
+
 	const response = await fetch(`${BASE_URL}${path}`, {
 		method,
-		headers: {
-			...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-			...headers,
-		},
-		body: body !== undefined ? JSON.stringify(body) : undefined,
-		cache: "no-store",
+		headers,
+		body: body ? JSON.stringify(body) : undefined,
+		signal,
+		credentials: "include",
 	});
 	if (!response.ok) {
 		await decodeError(response);
@@ -66,18 +79,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 	return (await response.text()) as unknown as T;
 }
 
-function authHeaders(userId: string, campusId: string | null, roles?: string[]): Record<string, string> {
-	return {
-		"X-User-Id": userId,
-		...(campusId ? { "X-Campus-Id": campusId } : {}),
-		...(roles?.length ? { "X-User-Roles": roles.join(",") } : {}),
-	};
-}
-
-export async function fetchVerificationStatus(userId: string, campusId: string | null): Promise<VerificationStatus> {
-	return request<VerificationStatus>("/verify/status", {
-		headers: authHeaders(userId, campusId),
-	});
+export async function fetchVerificationStatus(userId?: string, campusId?: string | null): Promise<VerificationStatus> {
+	return request<VerificationStatus>("/verify/status", { userId, campusId });
 }
 
 export async function startSsoVerification(
@@ -89,7 +92,8 @@ export async function startSsoVerification(
 	const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : "";
 	return request<VerificationSsoStart>(`/verify/sso/${provider}/start${query}`, {
 		method: "POST",
-		headers: authHeaders(userId, campusId),
+		userId,
+		campusId,
 	});
 }
 
@@ -113,7 +117,8 @@ export async function presignVerificationDocument(
 	return request<VerificationDocPresign>("/verify/doc/presign", {
 		method: "POST",
 		body: { mime, bytes },
-		headers: authHeaders(userId, campusId),
+		userId,
+		campusId,
 	});
 }
 
@@ -126,24 +131,26 @@ export async function submitVerificationDocument(
 	return request<VerificationEntry>("/verify/doc/submit", {
 		method: "POST",
 		body: { key, mime },
-		headers: authHeaders(userId, campusId),
+		userId,
+		campusId,
 	});
 }
 
 export async function listVerificationQueue(
-	adminUserId: string,
-	campusId: string | null,
+	adminId?: string,
+	campusId?: string | null,
 	state: string = "pending",
 	limit: number = 50,
 ): Promise<VerificationEntry[]> {
 	const query = `?state=${encodeURIComponent(state)}&limit=${limit}`;
 	return request<VerificationEntry[]>(`/admin/verify/queue${query}`, {
-		headers: authHeaders(adminUserId, campusId, ["admin"]),
+		userId: adminId,
+		campusId,
 	});
 }
 
 export async function decideVerification(
-	adminUserId: string,
+	adminId: string,
 	campusId: string | null,
 	verificationId: string,
 	payload: AdminVerificationDecision,
@@ -151,7 +158,8 @@ export async function decideVerification(
 	return request<VerificationEntry>(`/admin/verify/${verificationId}/decide`, {
 		method: "POST",
 		body: payload,
-		headers: authHeaders(adminUserId, campusId, ["admin"]),
+		userId: adminId,
+		campusId,
 	});
 }
 

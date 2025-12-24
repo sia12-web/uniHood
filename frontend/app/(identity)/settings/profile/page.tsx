@@ -1,12 +1,13 @@
 "use client";
 
 
-import { useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useId, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Image as ImageIcon, BookOpen, Settings } from "lucide-react";
+import { User, Image as ImageIcon, BookOpen, Settings, Zap } from "lucide-react";
 
 import ProfileForm from "@/components/ProfileForm";
 import ProfileGalleryManager from "@/components/ProfileGalleryManager";
+import DiscoverySettings from "@/components/DiscoverySettings";
 import WebsiteSettings from "@/components/WebsiteSettings";
 import {
 	commitAvatar,
@@ -32,7 +33,6 @@ import { ToastContext } from "@/components/providers/toast-provider";
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
 const DRAFT_STORAGE_KEY = "unihood.profile.draft";
-const PROGRESS_SEGMENTS = 20;
 
 type StoredProfileDraft = {
 	id: string;
@@ -198,44 +198,6 @@ function applyProfilePatch(base: ProfileRecord, patch: ProfilePatchPayload): Pro
 	return next;
 }
 
-function calculateCompletion(profile: ProfileRecord): number {
-	const bio = (profile.bio ?? "").trim();
-	const passionsCount = profile.passions?.length ?? 0;
-	const major = (profile.major ?? "").trim();
-	const checks = [
-		Boolean(profile.avatar_url),
-		bio.length >= 40,
-		Boolean(major),
-		Boolean(profile.graduation_year),
-		passionsCount >= 3,
-	];
-	const filled = checks.filter(Boolean).length;
-	return Math.round((filled / checks.length) * 100);
-}
-
-function buildMissingTasks(profile: ProfileRecord): string[] {
-	const tasks: string[] = [];
-	const bio = (profile.bio ?? "").trim();
-	const major = (profile.major ?? "").trim();
-	const passionsCount = profile.passions?.length ?? 0;
-	if (bio.length < 40) {
-		tasks.push("Write a bio (40+ chars) that spotlights what you want to work on.");
-	}
-	if (!profile.avatar_url) {
-		tasks.push("Add an avatar to boost trust in invites and room requests.");
-	}
-	if (passionsCount < 3) {
-		tasks.push("Share at least three passions to unlock tailored recommendations.");
-	}
-	if (!major) {
-		tasks.push("Tell us your major or focus area so we can match study buddies.");
-	}
-	if (!profile.graduation_year) {
-		tasks.push("Set your graduation year to join the right campus cohorts.");
-	}
-	return tasks.slice(0, 4);
-}
-
 type CourseItem = {
 	_localId: string;
 	id?: string;
@@ -319,7 +281,7 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 
 export default function ProfileSettingsPage() {
 	const toast = useContext(ToastContext);
-	const [activeTab, setActiveTab] = useState<"general" | "gallery" | "courses" | "settings">("general");
+	const [activeTab, setActiveTab] = useState<"general" | "gallery" | "courses" | "discovery" | "settings">("general");
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -360,12 +322,6 @@ export default function ProfileSettingsPage() {
 
 	const isDraftMode = profile === null && draftProfile !== null;
 	const activeProfile = profile ?? draftProfile;
-	const completion = useMemo(() => (activeProfile ? calculateCompletion(activeProfile) : 0), [activeProfile]);
-	const activeSegments = useMemo(() => {
-		const clamped = Math.min(Math.max(completion, 0), 100);
-		return Math.round((clamped / 100) * PROGRESS_SEGMENTS);
-	}, [completion]);
-	const missingTasks = useMemo(() => (activeProfile ? buildMissingTasks(activeProfile) : []), [activeProfile]);
 
 	useEffect(() => {
 		setCoursesDraft(normaliseCourses(activeProfile?.courses));
@@ -777,6 +733,7 @@ export default function ProfileSettingsPage() {
 
 	const TABS = [
 		{ id: "general", label: "General", icon: User },
+		{ id: "discovery", label: "Discovery Vibe", icon: Zap },
 		{ id: "gallery", label: "Gallery", icon: ImageIcon },
 		{ id: "courses", label: "Courses", icon: BookOpen },
 		{ id: "settings", label: "Settings", icon: Settings },
@@ -974,6 +931,18 @@ export default function ProfileSettingsPage() {
 						{courseFeedback && !courseErrorMessage ? (
 							<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>
 						) : null}
+					</motion.div>
+				);
+			case "discovery":
+				return (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						transition={{ duration: 0.2 }}
+						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
+					>
+						<DiscoverySettings />
 					</motion.div>
 				);
 			case "settings":

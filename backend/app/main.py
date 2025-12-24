@@ -45,6 +45,7 @@ from app.api import (
 	social,
 	verify,
 )
+from app.domain.analytics import api as analytics_api
 from app.communities import router as communities_router
 from app.communities.infra.scheduler import FeedScheduler
 from app.communities.infra import socketio as communities_socketio
@@ -250,14 +251,8 @@ if "*" in allow_origins:
 		]
 	else:
 		allow_origins = ["https://app.divan.app"]
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # Upload endpoints (PUT/GET) used by the avatar presign flow.
@@ -401,6 +396,15 @@ app.add_middleware(
 )
 
 
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=allow_origins,
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
+
+
 
 
 # Enable uploads in all environments (for production, ensure persistent storage or use S3)
@@ -438,3 +442,4 @@ app.include_router(contact_discovery.router)
 app.include_router(contact_api.router, tags=["contact"])
 app.include_router(communities_router)
 app.include_router(moderation_router, tags=["moderation"])
+app.include_router(analytics_api.router)

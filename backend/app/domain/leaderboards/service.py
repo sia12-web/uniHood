@@ -607,6 +607,7 @@ class LeaderboardService:
 				score=float(score),
 				display_name=user_info.get(user_id, {}).get("display_name"),
 				handle=user_info.get(user_id, {}).get("handle"),
+				avatar_url=user_info.get(user_id, {}).get("avatar_url"),
 			) 
 			for idx, (user_id, score) in enumerate(items)
 		]
@@ -696,7 +697,7 @@ class LeaderboardService:
 		async with pool.acquire() as conn:
 			rows = await conn.fetch(
 				"""
-				SELECT id, display_name, handle
+				SELECT id, display_name, handle, avatar_url
 				FROM users
 				WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
 				""",
@@ -706,6 +707,7 @@ class LeaderboardService:
 			str(row["id"]): {
 				"display_name": row.get("display_name") or row.get("handle", ""),
 				"handle": row.get("handle", ""),
+				"avatar_url": row.get("avatar_url"),
 			}
 			for row in rows
 		}

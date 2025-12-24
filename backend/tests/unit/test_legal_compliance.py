@@ -280,11 +280,11 @@ class TestRequestLogService:
             {"request_type": "subpoena", "count": 5},
             {"request_type": "warrant", "count": 2},
         ])
-        fake_conn.set_return("COUNT(*) as total", {
+        fake_conn.set_return("COUNT(*) as total", [{
             "total": 7,
             "responded": 6,
             "avg_response_seconds": 86400,
-        })
+        }])
         fake_conn.set_return("COUNT(DISTINCT", 10)
 
         with patch("app.domain.legal.requests.get_pool", return_value=fake_pool):

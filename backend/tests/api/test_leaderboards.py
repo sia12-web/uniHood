@@ -7,12 +7,19 @@ from app.domain.leaderboards.schemas import MySummarySchema, StreakSummarySchema
 
 
 @pytest.mark.asyncio
-async def test_leaderboard_endpoint_returns_rows(api_client, fake_redis):
+async def test_leaderboard_endpoint_returns_rows(api_client, fake_redis, monkeypatch):
 	campus_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 	key = "lb:z:overall:daily:{campus}:{ymd}".format(campus=campus_id, ymd=20251024)
 	user_a = "11111111-1111-1111-1111-111111111111"
 	user_b = "22222222-2222-2222-2222-222222222222"
 	await fake_redis.zadd(key, {user_a: 120.5, user_b: 95.0})
+
+	async def fake_fetch_names(user_ids):
+		return {
+			uid: {"display_name": f"User {uid[:4]}", "handle": f"handle_{uid[:4]}", "avatar_url": None}
+			for uid in user_ids
+		}
+	monkeypatch.setattr(leaderboards_api._service, "_fetch_user_display_names", fake_fetch_names)
 
 	response = await api_client.get(f"/leaderboards/overall?campus_id={campus_id}&ymd=20251024")
 	assert response.status_code == 200

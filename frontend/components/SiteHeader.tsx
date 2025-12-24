@@ -10,6 +10,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { onAuthChange, readAuthUser, type AuthUser, clearAuthSnapshot } from "@/lib/auth-storage";
 import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, type Notification } from "@/lib/social";
 import { fetchProfile } from "@/lib/identity";
+import { fetchUpcomingMeetupsCount } from "@/lib/meetups";
 import type { ProfileRecord } from "@/lib/types";
 import { getSocialSocket } from "@/lib/socket";
 
@@ -121,7 +122,7 @@ export default function SiteHeader() {
 
   const navLinks = useMemo<Array<{ href: string; label: string }>>(() => {
     return [
-      { label: "Discover", href: "/discovery" },
+      { label: "Socials", href: "/socials" },
       { label: "Chat", href: "/chat" },
       { label: "Games", href: "/games" },
       { label: "Meetups", href: "/meetups" },
@@ -385,9 +386,13 @@ export default function SiteHeader() {
   const avatarInitials = getInitials(profileName || authUser?.userId || "");
   const unreadBadge = unreadCount > 99 ? "99+" : String(unreadCount);
 
-  if (!shouldRenderHeader) {
-    return null;
-  }
+  const [meetupCount, setMeetupCount] = useState(0);
+
+  useEffect(() => {
+    if (authUser?.campusId) {
+      fetchUpcomingMeetupsCount(authUser.campusId).then(setMeetupCount).catch(() => { });
+    }
+  }, [authUser?.campusId]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
@@ -406,12 +411,17 @@ export default function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${activeMap[link.href]
+              className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${activeMap[link.href]
                 ? "bg-rose-50 text-rose-700"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
             >
               {link.label}
+              {link.label === "Meetups" && meetupCount > 0 && (
+                <span className="flex items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                  {meetupCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

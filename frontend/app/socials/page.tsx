@@ -1,0 +1,90 @@
+"use client";
+
+import { useState } from "react";
+import DiscoveryFeed from "@/components/DiscoveryFeed";
+import { MyFriends } from "@/components/social/MyFriends";
+import { MyMeetups } from "@/components/social/MyMeetups";
+import { RequestsAndBlocks } from "@/components/social/RequestsAndBlocks";
+import { Sparkles, Users, Calendar, Inbox } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export default function SocialsPage() {
+  const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">("discover");
+
+  return (
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans pb-20">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 space-y-8">
+
+        {/* Header */}
+        <header className="space-y-4">
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Socials</h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">Discover people, manage friends, and join the vibe.</p>
+        </header>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 p-1 bg-slate-200 dark:bg-slate-900 rounded-2xl w-fit">
+          <button
+            onClick={() => setActiveTab("discover")}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
+              activeTab === "discover" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            )}
+          >
+            <Sparkles size={16} /> Discover
+          </button>
+          <button
+            onClick={() => setActiveTab("friends")}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
+              activeTab === "friends" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            )}
+          >
+            <Users size={16} /> Friends
+          </button>
+          <button
+            onClick={() => setActiveTab("requests")}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
+              activeTab === "requests" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            )}
+          >
+            <Inbox size={16} /> Requests
+          </button>
+          <button
+            onClick={() => setActiveTab("meetups")}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
+              activeTab === "meetups" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            )}
+          >
+            <Calendar size={16} /> My Meetups
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="min-h-[500px]">
+          {activeTab === "discover" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <DiscoveryFeed />
+            </div>
+          )}
+          {activeTab === "friends" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <MyFriends />
+            </div>
+          )}
+          {activeTab === "requests" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <RequestsAndBlocks />
+            </div>
+          )}
+          {activeTab === "meetups" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <MyMeetups />
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}

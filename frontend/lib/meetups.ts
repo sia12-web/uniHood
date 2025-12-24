@@ -90,3 +90,10 @@ export async function cancelMeetup(id: string, reason: string): Promise<void> {
   const params = new URLSearchParams({ reason });
   await api.post(`/meetups/${id}/cancel?${params.toString()}`);
 }
+
+export async function fetchUpcomingMeetupsCount(campusId?: string): Promise<number> {
+  const params = new URLSearchParams();
+  if (campusId) params.set("campus_id", campusId);
+  const response = await api.get(`/meetups/count/upcoming?${params.toString()}`);
+  return response.data;
+}

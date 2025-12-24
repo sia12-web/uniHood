@@ -138,8 +138,136 @@ class MeetupService:
             await lb_service.record_room_created(user_id=auth_user.id, room_id=str(room.id))
         except Exception:
             pass  # Non-critical, don't block meetup creation
+
+        # Analytics tracking
+        from app.domain.identity import audit
+        await audit.append_db_event(
+            user_id=auth_user.id,
+            event="meetup.create",
+            meta={
+                "meetup_id": str(row["id"]),
+                "category": payload.category.value if hasattr(payload.category, 'value') else str(payload.category),
+                "title": payload.title
+            }
+        )
+
+        # Notifications
+        import asyncio
+        asyncio.create_task(self._notify_meetup_creation(
+            meetup_id=row["id"],
+            title=payload.title,
+            visibility=payload.visibility.value,
+            creator=auth_user,
+            campus_id=str(payload.campus_id or auth_user.campus_id)
+        ))
                 
         return self._map_row_to_response(row, auth_user.id, is_joined=True, my_role=schemas.MeetupRole.HOST)
+
+    async def _notify_meetup_creation(
+        self, 
+        meetup_id: UUID, 
+        title: str, 
+        visibility: str, 
+        creator: AuthenticatedUser, 
+        campus_id: str
+    ) -> None:
+        """Send notifications and emails for new meetup."""
+        # Use local import to avoid circular dependency if any
+        from app.domain.identity import mailer as identity_mailer
+        from app.settings import settings
+
+        pool = await self._get_pool()
+        meetup_link = f"{settings.public_app_url}/meetups/{meetup_id}"
+        display_link = f"/meetups/{meetup_id}"
+        creator_name = creator.display_name or "A user"
+        
+        async with pool.acquire() as conn:
+            if visibility == "PRIVATE":
+                # Fetch friends
+                rows = await conn.fetch(
+                    """
+                    SELECT u.id, u.email 
+                    FROM friendships f
+                    JOIN users u ON f.friend_id = u.id
+                    WHERE f.user_id = $1 AND f.status = 'accepted' AND u.deleted_at IS NULL
+                    """,
+                    UUID(creator.id)
+                )
+                for r in rows:
+                    uid = str(r["id"])
+                    email = r["email"]
+                    
+                    # 1. In-App Notification
+                    await self._notification_service.notify_user(
+                        user_id=uid,
+                        title="Private Meetup Invite",
+                        body=f"{creator_name} invited you to: {title}",
+                        kind="meetup_invite",
+                        link=display_link
+                    )
+                    
+                    # 2. Email Notification
+                    if email:
+                        try:
+                            await identity_mailer.send_meetup_invitation(
+                                to_email=email,
+                                meetup_title=title,
+                                host_name=creator_name,
+                                link=meetup_link,
+                                recipient_user_id=uid
+                            )
+                        except Exception:
+                            pass # Don't crash on email fail
+
+            elif visibility == "GLOBAL":
+                # Fetch ALL campus users (excluding creator)
+                # Note: This simply broadcasts to everyone in the campus.
+                rows = await conn.fetch(
+                    """
+                    SELECT id FROM users
+                    WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
+                    """,
+                    UUID(campus_id), UUID(creator.id)
+                )
+                
+                # Global = No Email, just Notification
+                # We do this in a loop. For large campuses, this should be a batch job.
+                for r in rows:
+                    uid = str(r["id"])
+                    await self._notification_service.notify_user(
+                        user_id=uid,
+                        title="New Campus Meetup",
+                        body=f"{creator_name} posted: {title}",
+                        kind="meetup_announce",
+                        link=display_link
+                    )
+
+    async def get_upcoming_count(self, auth_user: AuthenticatedUser, campus_id: str) -> int:
+        pool = await self._get_pool()
+        now = datetime.now(timezone.utc)
+        async with pool.acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM meetups m
+                WHERE m.campus_id = $1 
+                  AND m.status != 'CANCELLED'
+                  AND (m.start_at + (m.duration_min || ' minutes')::interval) > $3
+                  AND (
+                    m.visibility = 'GLOBAL' 
+                    OR m.creator_user_id = $2
+                    OR EXISTS (
+                        SELECT 1 FROM friendships f 
+                        WHERE f.user_id = $2 
+                        AND f.friend_id = m.creator_user_id 
+                        AND f.status = 'accepted'
+                    )
+                  )
+                """,
+                UUID(campus_id), UUID(auth_user.id), now
+            )
+            return val or 0
+
 
     async def list_meetups(
         self, 
@@ -393,6 +521,17 @@ class MeetupService:
                 await lb_service.record_room_joined(user_id=auth_user.id, room_id=room_id)
             except Exception:
                 pass  # Non-critical, don't block meetup join
+
+            # Analytics tracking
+            from app.domain.identity import audit
+            await audit.append_db_event(
+                user_id=str(auth_user.id),
+                event="meetup.join",
+                meta={
+                    "meetup_id": str(meetup_id),
+                    "room_id": room_id
+                }
+            )
 
         # Notify host
         creator_id = str(meetup["creator_user_id"])

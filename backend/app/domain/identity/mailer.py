@@ -209,3 +209,42 @@ async def send_friend_invite_notification(
         user_id=recipient_user_id,
         meta={"email_hash": mask, "from_display": from_display_name[:20] if from_display_name else None},
     )
+
+
+async def send_meetup_invitation(
+    to_email: str,
+    meetup_title: str,
+    host_name: str,
+    link: str,
+    *,
+    recipient_user_id: str | None = None,
+) -> None:
+    """Send email notification for a private meetup invitation."""
+    subject = f"{host_name} invited you to a meetup: {meetup_title}"
+    body = f"""
+    <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f1a38;">
+            <div style="max-width: 500px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #2d2a8d; margin-bottom: 16px;">You're invited!</h2>
+                <p><strong>{host_name}</strong> has invited you to a private meetup: <strong>{meetup_title}</strong>.</p>
+                <p style="margin: 24px 0;">
+                    <a href="{link}" 
+                       style="display: inline-block; background-color: #3b2e7a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                        View Meetup
+                    </a>
+                </p>
+                <p style="color: #666; font-size: 14px;">
+                    Log in to join the meetup!
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    await _send_email(to_email, subject, body)
+    
+    mask = _hash_email(to_email)
+    await audit.log_event(
+        "meetup_invite_email_sent",
+        user_id=recipient_user_id,
+        meta={"email_hash": mask, "meetup_title": meetup_title[:20]},
+    )

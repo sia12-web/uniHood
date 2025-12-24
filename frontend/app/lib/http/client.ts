@@ -189,6 +189,7 @@ async function executeApiFetch<T>(
 				// Add common public routes to avoid redirect loops or hiding actual login errors
 				const isPublic =
 					path.startsWith("/login") ||
+					path.startsWith("/admin-login") ||
 					path.startsWith("/register") ||
 					path.startsWith("/reset-password") ||
 					path.startsWith("/forgot-") ||

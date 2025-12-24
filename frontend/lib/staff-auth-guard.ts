@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 export type StaffScope = "moderator" | "admin";
 
@@ -56,6 +57,7 @@ function resolveMeEndpoint(): string {
 	}
 	const base =
 		process.env.NEXT_PUBLIC_MOD_API_BASE ??
+		process.env.NEXT_PUBLIC_BACKEND_URL ??
 		process.env.NEXT_PUBLIC_API_BASE_URL ??
 		process.env.PLAYWRIGHT_BASE_URL ??
 		null;
@@ -71,11 +73,19 @@ function resolveMeEndpoint(): string {
 export const fetchStaffProfile = cache(async (): Promise<StaffProfile | null> => {
 	try {
 		const endpoint = resolveMeEndpoint();
+
+		// In SSR, we need to manually pass the auth cookie to the backend
+		const cookieStore = cookies();
+		const authCookie = cookieStore.get("divan.auth")?.value ?? cookieStore.get("access_token")?.value;
+
 		const res = await fetch(endpoint, {
-			headers: { Accept: "application/json" },
+			headers: {
+				Accept: "application/json",
+				...(authCookie ? { Authorization: `Bearer ${authCookie}` } : {})
+			},
 			cache: "no-store",
-			credentials: "include",
 		});
+
 		if (res.status === 401) {
 			if (shouldUseStub()) {
 				return buildStubProfile();
@@ -103,6 +113,10 @@ export const fetchStaffProfile = cache(async (): Promise<StaffProfile | null> =>
 function hasRequiredScope(profile: StaffProfile, scope: StaffScope): boolean {
 	const scopes = new Set(profile.scopes ?? []);
 	if (scopes.has("staff.admin")) {
+		return true;
+	}
+	// Fallback for global admin role
+	if (scopes.has("admin")) {
 		return true;
 	}
 	return scopes.has(`staff.${scope}`);

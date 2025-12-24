@@ -8,7 +8,15 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from app.domain.discovery.schemas import DiscoveryCard, DiscoveryFeedResponse, InteractionResponse
+from app.domain.discovery.schemas import (
+	DiscoveryCard,
+	DiscoveryFeedResponse,
+	InteractionResponse,
+	DiscoveryPrompt,
+	DiscoveryProfile,
+	DiscoveryProfileUpdate
+)
+
 from app.domain.identity.models import parse_profile_gallery
 import json
 from app.domain.proximity.schemas import NearbyQuery
@@ -22,6 +30,8 @@ from app.infra.postgres import get_pool
 async def list_feed(
 	auth_user: AuthenticatedUser,
 	*,
+	radius_m: int = 200,
+	mode: str = "campus",
 	cursor: Optional[str],
 	limit: int,
 ) -> DiscoveryFeedResponse:
@@ -37,7 +47,7 @@ async def list_feed(
 	try:
 		query = NearbyQuery(
 			campus_id=_safe_uuid(auth_user.campus_id if isinstance(auth_user.campus_id, str) else str(auth_user.campus_id) if auth_user.campus_id else None),
-			radius_m=200,
+			radius_m=radius_m,
 			cursor=cursor,
 			limit=min(limit, 100),
 			filter="all",
@@ -125,8 +135,46 @@ async def list_feed(
 	# The user wants "suggestion is also according to...".
 	# Prepending priority candidates satisfies this.
 
+	# Embellish with social discovery data
+	final_items = items[:limit]
+	if final_items:
+		try:
+			pool = await get_pool()
+			if pool:
+				uids = [i.user_id for i in final_items]
+				async with pool.acquire() as conn:
+					p_rows = await conn.fetch("SELECT * FROM user_discovery_profiles WHERE user_id = ANY($1::uuid[])", uids)
+					p_map = {r['user_id']: dict(r) for r in p_rows}
+					
+					for item in final_items:
+						profile = p_map.get(item.user_id)
+						if profile:
+							item.vibe_tags = profile.get('auto_tags') or []
+							
+							# Parse JSONB fields if they are strings (depends on driver config)
+							def _parse(val):
+								if isinstance(val, str):
+									try: return json.loads(val)
+									except: return {}
+								return val or {}
+
+							playful = _parse(profile.get('playful'))
+							core = _parse(profile.get('core_identity'))
+							
+							prompts = []
+							if core.get('vibe_sentence'):
+								prompts.append({'question': 'Campus Vibe', 'answer': core['vibe_sentence']})
+								
+							for k, v in playful.items():
+								if v and len(prompts) < 5:
+									prompts.append({'question': k.replace('_', ' ').title(), 'answer': v})
+									
+							item.top_prompts = prompts[:5]
+		except Exception:
+			pass
+
 	return DiscoveryFeedResponse(
-		items=items[:limit], # Respect limit
+		items=final_items, 
 		cursor=nearby.cursor,
 		exhausted=len(items) == 0,
 	)
@@ -350,3 +398,141 @@ async def _is_mutual_like(user_id: str, target_id: str) -> bool:
 		pass
 	# Fallback to redis lookup
 	return bool(await redis_client.sismember(f"discovery:like:{target_id}", user_id))
+
+
+async def get_prompts() -> list[DiscoveryPrompt]:
+	pool = await get_pool()
+	if not pool:
+		return []
+	async with pool.acquire() as conn:
+		rows = await conn.fetch("SELECT * FROM discovery_prompts WHERE is_active = TRUE ORDER BY created_at ASC")
+		return [DiscoveryPrompt(**dict(row)) for row in rows]
+
+
+async def get_discovery_profile(user_id: UUID) -> Optional[DiscoveryProfile]:
+	pool = await get_pool()
+	if not pool:
+		return None
+	async with pool.acquire() as conn:
+		row = await conn.fetchrow("SELECT * FROM user_discovery_profiles WHERE user_id = $1", user_id)
+		if row:
+			data = dict(row)
+			# Asyncpg returns JSONB as dict/list automatically usually, but let's be safe
+			def _parse(val):
+				if isinstance(val, str):
+					try: return json.loads(val)
+					except: return {}
+				return val or {}
+			
+			data['core_identity'] = _parse(data.get('core_identity'))
+			data['personality'] = _parse(data.get('personality'))
+			data['campus_life'] = _parse(data.get('campus_life'))
+			data['dating_adjacent'] = _parse(data.get('dating_adjacent'))
+			data['taste'] = _parse(data.get('taste'))
+			data['playful'] = _parse(data.get('playful'))
+			
+			return DiscoveryProfile(**data)
+		return None
+
+
+def _generate_auto_tags(data: dict) -> list[str]:
+	tags = []
+	
+	# Social Energy
+	social_energy = data.get('personality', {}).get('social_energy', '').lower()
+	if 'low' in social_energy or 'recharge' in social_energy:
+		tags.append('Low Key')
+	elif 'high' in social_energy or 'party' in social_energy:
+		tags.append('Life of the Party')
+		
+	# Study Break
+	study = data.get('personality', {}).get('study_break', '').lower()
+	if 'coffee' in study or 'boba' in study:
+		tags.append('Caffeine Fueled')
+	elif 'gym' in study or 'walk' in study:
+		tags.append('Gym Rat')
+		
+	# Vibe
+	vibe = data.get('core_identity', {}).get('vibe_sentence', '').lower()
+	if 'chill' in vibe:
+		tags.append('Chill')
+	if 'chaos' in vibe:
+		tags.append('Chaotic Good')
+		
+	# Logic can be expanded
+	if not tags:
+		tags.append('Mystery Student')
+		
+	return tags[:3]
+
+
+async def update_discovery_profile(user_id: UUID, update: DiscoveryProfileUpdate) -> DiscoveryProfile:
+	pool = await get_pool()
+	if not pool:
+		raise Exception("Database unavailable")
+	
+	async with pool.acquire() as conn:
+		# Fetch existing to merge
+		current_row = await conn.fetchrow("SELECT * FROM user_discovery_profiles WHERE user_id = $1", user_id)
+		current = dict(current_row) if current_row else {}
+		
+		# Helper to merge dicts
+		def merge_section(name: str, new_val: Optional[dict]) -> dict:
+			existing = current.get(name) or {}
+			if isinstance(existing, str):
+				try: existing = json.loads(existing)
+				except: existing = {}
+			if new_val is None:
+				return existing
+			return {**existing, **new_val}
+
+		final_core = merge_section('core_identity', update.core_identity)
+		final_personality = merge_section('personality', update.personality)
+		final_campus = merge_section('campus_life', update.campus_life)
+		final_dating = merge_section('dating_adjacent', update.dating_adjacent)
+		final_taste = merge_section('taste', update.taste)
+		final_playful = merge_section('playful', update.playful)
+		
+		auto_tags = _generate_auto_tags({
+			'core_identity': final_core,
+			'personality': final_personality,
+			'campus_life': final_campus,
+			'dating_adjacent': final_dating,
+			'taste': final_taste,
+			'playful': final_playful
+		})
+		
+		q = """
+			INSERT INTO user_discovery_profiles (user_id, core_identity, personality, campus_life, dating_adjacent, taste, playful, auto_tags, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+			ON CONFLICT (user_id) DO UPDATE SET
+				core_identity = EXCLUDED.core_identity,
+				personality = EXCLUDED.personality,
+				campus_life = EXCLUDED.campus_life,
+				dating_adjacent = EXCLUDED.dating_adjacent,
+				taste = EXCLUDED.taste,
+				playful = EXCLUDED.playful,
+				auto_tags = EXCLUDED.auto_tags,
+				updated_at = NOW()
+			RETURNING *
+		"""
+		row = await conn.fetchrow(
+			q, 
+			user_id, 
+			json.dumps(final_core), 
+			json.dumps(final_personality), 
+			json.dumps(final_campus), 
+			json.dumps(final_dating), 
+			json.dumps(final_taste), 
+			json.dumps(final_playful), 
+			auto_tags
+		)
+		
+		# Decode JSON strings back to dict for Pydantic
+		res_data = dict(row)
+		for k in ['core_identity', 'personality', 'campus_life', 'dating_adjacent', 'taste', 'playful']:
+			if isinstance(res_data.get(k), str):
+				try: res_data[k] = json.loads(res_data[k])
+				except: res_data[k] = {}
+		
+		return DiscoveryProfile(**res_data)

@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Lock } from "lucide-react";
 
-import BrandLogo from "@/components/BrandLogo";
 import { loginIdentity } from "@/lib/identity";
 import { storeAuthSnapshot } from "@/lib/auth-storage";
 import { HttpError } from "@/app/lib/http/errors";
@@ -15,6 +14,33 @@ const INITIAL_FORM = {
 };
 
 type LoginForm = typeof INITIAL_FORM;
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    try {
+        const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized + "===".slice((normalized.length + 3) % 4);
+        const json = atob(padded);
+        return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+};
+
+const rolesFromToken = (token?: string): string[] => {
+    if (!token) return [];
+    const payload = decodeJwtPayload(token);
+    const roles = payload?.roles;
+    if (Array.isArray(roles)) {
+        return roles.filter((role): role is string => typeof role === "string");
+    }
+    if (typeof roles === "string") {
+        return roles.split(",").map((role) => role.trim()).filter((role) => role.length > 0);
+    }
+    return [];
+};
 
 export default function AdminLoginPage() {
     const [form, setForm] = useState<LoginForm>(INITIAL_FORM);
@@ -42,7 +68,7 @@ export default function AdminLoginPage() {
 
             // Admin Check: Although middleware protects the route, we can do a quick check here for UX
             // to avoid redirecting a non-admin user to a 403 page (or back to home)
-            const roles = (response.roles as string[]) || []; // roles are now in the response thanks to previous step
+            const roles = Array.isArray(response.roles) ? response.roles : rolesFromToken(response.access_token);
             if (!roles.includes("admin")) {
                 setError("Access denied. You do not have administrator privileges.");
                 return;
@@ -139,6 +165,26 @@ export default function AdminLoginPage() {
                         {submitting ? "Authenticating..." : "Sign in to Console"}
                     </button>
                 </form>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+                    <p className="text-sm font-semibold text-slate-900">Development access</p>
+                    <p className="mt-2">
+                        There is no default admin account. Access is restricted to users granted the admin role in the database.
+                    </p>
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div className="font-semibold text-slate-800">Test account (test_login.json)</div>
+                        <div className="mt-1">
+                            Email: <code className="font-mono">test@test.com</code>
+                        </div>
+                        <div>
+                            Password: <code className="font-mono">test123</code>
+                        </div>
+                    </div>
+                    <p className="mt-3">
+                        Promote the test user before logging in: run{" "}
+                        <code className="font-mono">python promote_admin.py</code> from the project root.
+                    </p>
+                </div>
 
                 <div className="text-center">
                     <a href="/login" className="text-xs text-slate-400 hover:text-slate-600">

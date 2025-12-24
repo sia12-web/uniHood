@@ -18,7 +18,7 @@ export default function BottomNav() {
 
     // Navigation Items
     const navItems = useMemo(() => [
-        { label: "Discover", href: "/discovery", icon: Compass },
+        { label: "Socials", href: "/socials", icon: Compass },
         { label: "Chat", href: "/chat", icon: MessageCircle },
         { label: "Games", href: "/games", icon: Gamepad2 },
         { label: "Meetups", href: "/meetups", icon: Users },

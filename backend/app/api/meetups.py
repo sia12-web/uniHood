@@ -66,3 +66,14 @@ async def cancel_meetup(
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
     await _service.cancel_meetup(meetup_id, reason, auth_user)
+
+
+@router.get("/count/upcoming", response_model=int)
+async def get_meetups_count(
+    campus_id: Optional[str] = None,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    cid = campus_id or auth_user.campus_id
+    if not cid:
+         raise HTTPException(status_code=400, detail="Campus ID required")
+    return await _service.get_upcoming_count(auth_user, cid)

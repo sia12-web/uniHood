@@ -50,6 +50,7 @@ const NO_AUTH_CHROME_PREFIXES = [
   "/welcome",
   "/verify",
   "/admin",
+  "/admin-login",
 ];
 
 export default function AppChrome({ children }: { children: ReactNode }) {

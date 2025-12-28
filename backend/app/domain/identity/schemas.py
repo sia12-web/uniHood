@@ -131,6 +131,11 @@ class ProfileOut(BaseModel):
 	lat: Optional[float] = None
 	lon: Optional[float] = None
 	ten_year_vision: Optional[Annotated[str, Field(max_length=500)]] = None
+	# XP System
+	xp: int = 0
+	level: int = 1
+	level_label: str = "Newcomer"
+	next_level_xp: Optional[int] = None
 
 
 class ProfilePatch(BaseModel):
@@ -660,6 +665,14 @@ class VerificationDocSubmit(BaseModel):
 	mime: Optional[str] = None
 
 
+class UniversityVerificationSendCode(BaseModel):
+	email: EmailStr
+
+
+class UniversityVerificationConfirmCode(BaseModel):
+	code: Annotated[str, Field(min_length=6, max_length=6)]
+
+
 class AdminVerificationDecision(BaseModel):
 	approve: bool
 	note: Optional[Annotated[str, Field(max_length=500)]] = None
@@ -775,6 +788,11 @@ class PublicProfileOut(BaseModel):
 	skills: list[PublicSkill]
 	links: list[PublicLink]
 	gallery: list[GalleryImage] = Field(default_factory=list)
+	# XP
+	xp: int = 0
+	level: int = 1
+	level_label: str = "Newcomer"
+	next_level_xp: Optional[int] = None
 
 
 class MatchPerson(BaseModel):

@@ -1,11 +1,11 @@
 import { io, type Socket } from "socket.io-client";
 
 import {
-  connectPresenceSocket,
-  disconnectPresenceSocket as teardownPresenceSocket,
-  getPresenceSocketInstance,
-  onPresenceSocketStatus,
-  getPresenceSocketStatus,
+	connectPresenceSocket,
+	disconnectPresenceSocket as teardownPresenceSocket,
+	getPresenceSocketInstance,
+	onPresenceSocketStatus,
+	getPresenceSocketStatus,
 	initialiseNearbyAccumulator,
 	applyNearbyEvent,
 	nearbyAccumulatorToArray,
@@ -59,4 +59,37 @@ export function disconnectSocialSocket(): void {
 		socialSocket = null;
 	}
 	socialIdentity = null;
+}
+
+let xpSocket: Socket | null = null;
+let xpIdentity: { userId: string; campusId: string | null } | null = null;
+
+export function getXPSocket(userId: string, campusId: string | null): Socket {
+	const identityChanged =
+		xpIdentity?.userId !== userId || xpIdentity?.campusId !== campusId;
+	if (xpSocket && xpSocket.connected && !identityChanged) {
+		return xpSocket;
+	}
+	if (xpSocket) {
+		xpSocket.disconnect();
+		xpSocket = null;
+	}
+	xpSocket = io(`${ENDPOINT}/xp`, {
+		autoConnect: true,
+		transports: ["websocket"],
+		auth: {
+			userId,
+			campusId,
+		},
+	});
+	xpIdentity = { userId, campusId };
+	return xpSocket;
+}
+
+export function disconnectXPSocket(): void {
+	if (xpSocket) {
+		xpSocket.disconnect();
+		xpSocket = null;
+	}
+	xpIdentity = null;
 }

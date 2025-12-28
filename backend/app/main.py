@@ -365,9 +365,16 @@ set_chat_namespace(chat_namespace)
 rooms_namespace = RoomsNamespace()
 sio.register_namespace(rooms_namespace)
 set_rooms_namespace(rooms_namespace)
+from app.domain.xp.sockets import XPNamespace, set_namespace as set_xp_namespace
+
 activities_namespace = ActivitiesNamespace()
 sio.register_namespace(activities_namespace)
 set_activities_namespace(activities_namespace)
+
+xp_namespace = XPNamespace()
+sio.register_namespace(xp_namespace)
+set_xp_namespace(xp_namespace)
+
 communities_socketio.register(sio)
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
 # Mount the socket app to allow running 'app' directly (e.g. uvicorn app.main:app)

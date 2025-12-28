@@ -217,6 +217,6 @@ async def load_risk_for_sessions(session_ids: Iterable[UUID]) -> dict[UUID, mode
 			FROM session_risk
 			WHERE session_id = ANY($1::uuid[])
 			""",
-			tids,
+			ids,
 		)
 	return {UUID(str(row["session_id"])): models.SessionRisk.from_record(row) for row in rows}

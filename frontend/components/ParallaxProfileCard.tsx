@@ -10,11 +10,13 @@ import {
     GraduationCap,
     Sparkles,
     Heart,
-    Quote
+    Quote,
+    BadgeCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NearbyUser } from "@/lib/types";
 import { formatDistance } from "@/lib/geo";
+import { LevelBadge } from "@/components/xp/LevelBadge";
 
 interface ParallaxProfileCardProps {
     user: NearbyUser;
@@ -66,16 +68,26 @@ export function ParallaxProfileCard({
 
     const isClassmate = commonCourses.length > 0;
 
+    const level = user.level || 1;
+
     return (
         <div
             className={cn(
-                "relative w-full overflow-hidden bg-slate-950 shadow-2xl ring-1 ring-white/10 transition-all duration-300",
+                "relative w-full overflow-hidden bg-slate-950 shadow-2xl transition-all duration-500",
                 isPreview ? "aspect-[3/4]" : "aspect-[9/16]",
-                isPreview ? "rounded-3xl cursor-pointer hover:shadow-rose-500/10 hover:ring-rose-500/30" : "rounded-3xl",
-                isPreview && "group"
+                isPreview ? "rounded-3xl cursor-pointer hover:shadow-rose-500/20" : "rounded-3xl",
+                isPreview && "group",
+                // Level 4+ Aura
+                level >= 4 && "shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)]",
+                // Level 6 Icon Border
+                level >= 6 && "ring-2 ring-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.2)]"
             )}
             onClick={isPreview ? onProfileClick : undefined}
         >
+            {/* Level 6 Exclusive Inner Frame */}
+            {level >= 6 && (
+                <div className="absolute inset-0 z-10 pointer-events-none rounded-3xl border-[3px] border-amber-400/20 m-1" />
+            )}
             {/* Scrollable Container (Disabled in preview) */}
             <div
                 ref={containerRef}
@@ -98,16 +110,27 @@ export function ParallaxProfileCard({
                                     "object-cover transition-transform duration-700",
                                     isPreview && "group-hover:scale-105"
                                 )}
-                                priority
                             />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-slate-950/90" />
+                            <div className={cn(
+                                "absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-slate-950/90",
+                                level >= 5 && "mix-blend-overlay bg-amber-500/5"
+                            )} />
                         </div>
                     ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-rose-500">
-                            <div className="text-center text-white/20">
-                                <span className="text-9xl font-black uppercase tracking-tighter block leading-none">
-                                    {(user.display_name || "?")[0]}
-                                </span>
+                        <div className="absolute inset-0">
+                            <Image
+                                src="https://images.unsplash.com/photo-1501854140884-074bf86eb911?auto=format&fit=crop&q=80"
+                                alt="Nature Vibes"
+                                fill
+                                className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/40" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-center text-white/20">
+                                    <span className="text-9xl font-black uppercase tracking-tighter block leading-none">
+                                        {(user.display_name || "?")[0]}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -125,23 +148,36 @@ export function ParallaxProfileCard({
                         >
                             <div className="flex items-end justify-between gap-2 mb-2">
                                 <div>
-                                    <h1 className="text-4xl font-black tracking-tight drop-shadow-lg leading-none">
+                                    <h1 className="text-4xl font-black tracking-tight drop-shadow-lg leading-none flex items-center gap-2">
                                         {user.display_name}
+                                        {user.is_university_verified && (
+                                            <BadgeCheck className="text-blue-400 w-8 h-8 drop-shadow-md" aria-label="University Verified" />
+                                        )}
                                     </h1>
                                     <div className="flex items-center gap-2 mt-2 text-sm font-medium text-slate-200">
+                                        {user.level ? (
+                                            <LevelBadge
+                                                level={user.level}
+                                                size="sm"
+                                                className={cn(
+                                                    "border-white/10 shadow-sm",
+                                                    level >= 4 ? "bg-indigo-600 text-white" : "bg-white/20 text-white"
+                                                )}
+                                            />
+                                        ) : null}
                                         {user.graduation_year && (
-                                            <span className="bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/10">
+                                            <span className="bg-white/10 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/5 text-[10px] uppercase font-bold tracking-wider">
                                                 Class of &apos;{String(user.graduation_year).slice(-2)}
                                             </span>
                                         )}
                                         {isClassmate && (
-                                            <span className="bg-indigo-500/80 px-2 py-0.5 rounded-md backdrop-blur-sm border border-indigo-400/50 text-white font-bold flex items-center gap-1">
-                                                <GraduationCap size={12} /> Classmate
+                                            <span className="bg-indigo-500/80 px-2 py-0.5 rounded-md backdrop-blur-sm border border-indigo-400/50 text-[10px] uppercase font-bold text-white flex items-center gap-1">
+                                                <GraduationCap size={10} /> Classmate
                                             </span>
                                         )}
                                         {distance && (
-                                            <span className="flex items-center gap-1 opacity-90">
-                                                <MapPin size={14} className="text-emerald-400" />
+                                            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                                                <MapPin size={12} className="text-emerald-400" />
                                                 {distance}
                                             </span>
                                         )}
@@ -150,9 +186,36 @@ export function ParallaxProfileCard({
                             </div>
 
                             {user.major && user.major.toLowerCase() !== "none" && (
-                                <div className="text-lg font-medium text-rose-200 drop-shadow-md flex items-center gap-2 mb-4">
+                                <div className="text-lg font-medium text-rose-200 drop-shadow-md flex items-center gap-2 mb-2">
                                     <GraduationCap size={20} />
                                     {user.major}
+                                </div>
+                            )}
+
+                            {/* Courses */}
+                            {user.courses && user.courses.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    {user.courses.slice(0, 4).map(course => {
+                                        const isCommon = commonCourses.some(c => c.toUpperCase() === course.toUpperCase());
+                                        return (
+                                            <span
+                                                key={course}
+                                                className={cn(
+                                                    "text-[11px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-sm",
+                                                    isCommon
+                                                        ? "bg-emerald-500/80 text-white border border-emerald-400/50"
+                                                        : "bg-white/15 text-slate-200 border border-white/10"
+                                                )}
+                                            >
+                                                {course}
+                                            </span>
+                                        );
+                                    })}
+                                    {user.courses.length > 4 && (
+                                        <span className="text-[11px] font-medium text-slate-400">
+                                            +{user.courses.length - 4} more
+                                        </span>
+                                    )}
                                 </div>
                             )}
 

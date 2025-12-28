@@ -1,7 +1,7 @@
 import Image from "next/image";
 import {
     Calendar, MapPin, Users, BookOpen,
-    Dumbbell, Utensils, Gamepad2
+    Dumbbell, Utensils, Gamepad2, Globe, Building2
 } from "lucide-react";
 import { MeetupCategory, MeetupResponse } from "@/lib/meetups";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,15 @@ export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
                 <span className={cn("flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide", category.badgeBg, category.badgeText)}>
                     <CategoryIcon className="h-4 w-4" />
                     {category.label}
+                </span>
+
+                <span className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+                    meetup.visibility === "CITY" ? "bg-emerald-100 text-emerald-700" :
+                        meetup.visibility === "CAMPUS" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
+                )}>
+                    {meetup.visibility === "CITY" ? <Globe size={10} /> : meetup.visibility === "CAMPUS" ? <Building2 size={10} /> : <Users size={10} />}
+                    {meetup.visibility?.toLowerCase()}
                 </span>
             </div>
 

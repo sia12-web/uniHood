@@ -281,7 +281,6 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 				# 	await conn.execute("UPDATE users SET email_verified = TRUE WHERE id = $1", str(user_id))
 
 				token = await _upsert_verification(conn, user_id)
-				token = await _upsert_verification(conn, user_id)
 	finally:
 		if reserved:
 			await policy.release_handle(handle)

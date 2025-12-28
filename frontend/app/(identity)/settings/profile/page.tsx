@@ -2,11 +2,14 @@
 
 
 import { useCallback, useContext, useEffect, useId, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Image as ImageIcon, BookOpen, Settings, Zap } from "lucide-react";
+import { User, BookOpen, Settings, Zap, Trophy, Sparkles } from "lucide-react";
+import { SocialRoadmap } from "@/components/social/SocialRoadmap";
+import { SocialScoreGuideContent } from "@/components/social/SocialScoreGuide";
 
 import ProfileForm from "@/components/ProfileForm";
-import ProfileGalleryManager from "@/components/ProfileGalleryManager";
+
 import DiscoverySettings from "@/components/DiscoverySettings";
 import WebsiteSettings from "@/components/WebsiteSettings";
 import {
@@ -29,6 +32,8 @@ import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { onAuthChange, readAuthUser, readAuthSnapshot, storeAuthSnapshot, type AuthUser } from "@/lib/auth-storage";
 import type { ProfileCourse, ProfileRecord } from "@/lib/types";
 import { ToastContext } from "@/components/providers/toast-provider";
+import { useCampuses } from "@/components/providers/campus-provider";
+import { cn } from "@/lib/utils";
 
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
@@ -90,6 +95,10 @@ function createOfflineProfile(userId: string, campusId: string | null): ProfileR
 		passions: [],
 		courses: [],
 		gallery: [],
+		is_university_verified: false,
+		xp: 0,
+		level: 1,
+		level_label: "Freshman",
 	};
 }
 
@@ -281,7 +290,10 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 
 export default function ProfileSettingsPage() {
 	const toast = useContext(ToastContext);
-	const [activeTab, setActiveTab] = useState<"general" | "gallery" | "courses" | "discovery" | "settings">("general");
+	const { getCampus } = useCampuses();
+	const searchParams = useSearchParams();
+	const initialTab = (searchParams.get("tab") as any) || "general";
+	const [activeTab, setActiveTab] = useState<"general" | "reputation" | "discovery" | "courses" | "settings">(initialTab);
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -729,12 +741,12 @@ export default function ProfileSettingsPage() {
 	const avatarUpload = isDraftMode ? handleDraftAvatarUpload : handleAvatarUpload;
 	const deletionHandler = !isDraftMode ? handleRequestDeletion : undefined;
 	const galleryImages = activeProfile?.gallery ?? [];
-	const galleryDisabled = isDraftMode || !authUser;
+	/* galleryDisabled removed */
 
 	const TABS = [
 		{ id: "general", label: "General", icon: User },
+		{ id: "reputation", label: "Reputation", icon: Trophy },
 		{ id: "discovery", label: "Discovery Vibe", icon: Zap },
-		{ id: "gallery", label: "Gallery", icon: ImageIcon },
 		{ id: "courses", label: "Courses", icon: BookOpen },
 		{ id: "settings", label: "Settings", icon: Settings },
 	] as const;
@@ -761,27 +773,40 @@ export default function ProfileSettingsPage() {
 						/>
 					</motion.div>
 				);
-			case "gallery":
+
+			case "reputation":
 				return (
 					<motion.div
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2 }}
-						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
+						className="space-y-12"
 					>
-						<ProfileGalleryManager
-							images={galleryImages}
-							onUpload={handleGalleryUpload}
-							onRemove={handleGalleryRemove}
-							uploading={galleryUploading}
-							removingKey={galleryRemovingKey}
-							error={galleryError}
-							disabled={galleryDisabled}
-							limit={6}
-						/>
+						<div className="rounded-[40px] border border-slate-200 bg-white p-8 md:p-12 shadow-xl shadow-indigo-50/50">
+							<SocialRoadmap
+								currentLevel={activeProfile.level}
+								currentXp={activeProfile.xp}
+								nextLevelXp={activeProfile.next_level_xp}
+							/>
+
+							<div className="relative py-8">
+								<div className="absolute inset-0 flex items-center" aria-hidden="true">
+									<div className="w-full border-t border-slate-100 dark:border-slate-800"></div>
+								</div>
+								<div className="relative flex justify-center">
+									<span className="bg-white px-6 text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+										<Sparkles size={14} className="text-indigo-500" />
+										Detailed Guide
+									</span>
+								</div>
+							</div>
+
+							<SocialScoreGuideContent />
+						</div>
 					</motion.div>
 				);
+
 			case "courses":
 				return (
 					<motion.div
@@ -942,7 +967,15 @@ export default function ProfileSettingsPage() {
 						transition={{ duration: 0.2 }}
 						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
 					>
-						<DiscoverySettings />
+
+						<DiscoverySettings
+							gallery={galleryImages}
+							onGalleryUpload={handleGalleryUpload}
+							onGalleryRemove={handleGalleryRemove}
+							galleryUploading={galleryUploading}
+							galleryRemovingKey={galleryRemovingKey}
+							galleryError={galleryError}
+						/>
 					</motion.div>
 				);
 			case "settings":
@@ -1009,10 +1042,32 @@ export default function ProfileSettingsPage() {
 								<div className="flex flex-col gap-1">
 									<p className="truncate">
 										Email: <span className="text-slate-700 font-medium">{activeProfile.email || "N/A"}</span>
-										{activeProfile.email_verified && <span className="ml-1 text-emerald-500">✓</span>}
+										{activeProfile.is_university_verified && <span className="ml-1 text-emerald-500 font-bold">✓</span>}
 									</p>
-									<p>Verified: <span className="text-slate-700">{activeProfile.email_verified ? "Yes" : "No"}</span></p>
-									<p>Campus: <span className="text-slate-700">McGill University</span></p>
+									<p>Verified: <span className={cn("font-bold", activeProfile.is_university_verified ? "text-emerald-600" : "text-amber-600")}>{activeProfile.is_university_verified ? "Yes" : "No"}</span></p>
+									<p>Campus: <span className="text-slate-700 font-medium">{getCampus(activeProfile.campus_id)?.name || "Not Assigned"}</span></p>
+									{activeProfile.is_university_verified ? (
+										<span className="mt-1 w-fit text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100 font-bold uppercase tracking-wider">University Verified</span>
+									) : (
+										<button
+											onClick={() => router.push("/verify-university")}
+											className="mt-1 w-fit text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-bold uppercase tracking-wider hover:bg-indigo-100 transition"
+										>
+											Verify Now
+										</button>
+									)}
+									<div className="mt-3 space-y-1.5">
+										<p className="font-semibold text-slate-900 uppercase tracking-tighter text-[10px]">Photo Progress</p>
+										<div className="flex items-center gap-2">
+											<div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+												<div
+													className="h-full bg-indigo-600 transition-all duration-500"
+													style={{ width: `${Math.min(100, (activeProfile.gallery?.length || 0) * (100 / 6))}%` }}
+												/>
+											</div>
+											<span className="font-bold text-indigo-600 tabular-nums">{(activeProfile.gallery?.length || 0)}/6</span>
+										</div>
+									</div>
 								</div>
 							</div>
 						)}

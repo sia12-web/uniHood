@@ -11,6 +11,8 @@ import {
     fetchInviteOutbox,
     fetchFriends,
     unblockUser,
+    fetchSocialUsage,
+    type SocialUsage,
 } from "@/lib/social";
 import { readAuthUser, onAuthChange, type AuthUser } from "@/lib/auth-storage";
 import { getDemoUserId, getDemoCampusId } from "@/lib/env";
@@ -26,6 +28,7 @@ export function RequestsAndBlocks() {
     const [blockedUsers, setBlockedUsers] = useState<FriendRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    const [usage, setUsage] = useState<SocialUsage | null>(null);
 
     const [authUser, setAuthUser] = useState<AuthUser | null>(null);
     const currentUserId = authUser?.userId ?? DEMO_USER_ID;
@@ -40,12 +43,14 @@ export function RequestsAndBlocks() {
         if (activeTab === "requests") {
             setLoading(true);
             try {
-                const [inboxData, outboxData] = await Promise.all([
+                const [inboxData, outboxData, usageData] = await Promise.all([
                     fetchInviteInbox(currentUserId, currentCampusId),
                     fetchInviteOutbox(currentUserId, currentCampusId),
+                    fetchSocialUsage(currentUserId, currentCampusId),
                 ]);
                 setInbox(inboxData);
                 setOutbox(outboxData);
+                setUsage(usageData);
             } catch (err) {
                 console.error("Failed requests load", err);
             } finally {
@@ -106,6 +111,23 @@ export function RequestsAndBlocks() {
                 <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-slate-400" /></div>
             ) : activeTab === "requests" ? (
                 <div className="space-y-8">
+                    {usage && (
+                        <section className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Daily Invitation Quota</h4>
+                                <span className="text-xs font-bold text-indigo-600">
+                                    {usage.daily_usage} / {usage.daily_limit} Sent
+                                </span>
+                            </div>
+                            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-indigo-500 transition-all duration-500"
+                                    style={{ width: `${Math.min(100, (usage.daily_usage / usage.daily_limit) * 100)}%` }}
+                                />
+                            </div>
+                        </section>
+                    )}
+
                     <section>
                         <h3 className="text-xs font-bold uppercase text-slate-400 mb-4 tracking-wider">Received ({inbox.length})</h3>
                         {inbox.length === 0 ? (
@@ -119,8 +141,8 @@ export function RequestsAndBlocks() {
                                             <p className="text-xs text-slate-500 dark:text-slate-400">@{req.from_handle}</p>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleAction(() => acceptInvite(currentUserId, currentCampusId, req.id), "Accepted request")} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700">Accept</button>
-                                            <button onClick={() => handleAction(() => declineInvite(currentUserId, currentCampusId, req.id), "Declined request")} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300">Decline</button>
+                                            <button onClick={() => handleAction(async () => { await acceptInvite(currentUserId, currentCampusId, req.id); }, "Accepted request")} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700">Accept</button>
+                                            <button onClick={() => handleAction(async () => { await declineInvite(currentUserId, currentCampusId, req.id); }, "Declined request")} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300">Decline</button>
                                         </div>
                                     </div>
                                 ))}
@@ -138,7 +160,7 @@ export function RequestsAndBlocks() {
                                             <p className="font-bold text-slate-900 dark:text-slate-100">{req.to_display_name}</p>
                                             <p className="text-xs text-slate-500 dark:text-slate-400">@{req.to_handle}</p>
                                         </div>
-                                        <button onClick={() => handleAction(() => cancelInvite(currentUserId, currentCampusId, req.id), "Cancelled request")} className="text-xs font-bold text-rose-500 hover:underline">Cancel</button>
+                                        <button onClick={() => handleAction(async () => { await cancelInvite(currentUserId, currentCampusId, req.id); }, "Cancelled request")} className="text-xs font-bold text-rose-500 hover:underline">Cancel</button>
                                     </div>
                                 ))}
                             </div>

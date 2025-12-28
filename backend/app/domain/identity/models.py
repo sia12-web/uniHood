@@ -183,6 +183,7 @@ class User:
 	lon: Optional[float] = None
 	ten_year_vision: Optional[str] = None
 	roles: list[str] = field(default_factory=list)
+	is_university_verified: bool = False
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -210,8 +211,36 @@ class User:
 			lat=record.get("lat"),
 			lon=record.get("lon"),
 			ten_year_vision=(str(record.get("ten_year_vision", "")).strip() or None),
+			roles=_coerce_json_to_list(record.get("roles")),
+			is_university_verified=bool(record.get("is_university_verified", False)),
 		)
 
+
+@dataclass(slots=True)
+class UniversityVerificationCode:
+	"""One-time code for university email verification."""
+
+	id: UUID
+	user_id: UUID
+	code_hash: str
+	expires_at: datetime
+	attempts: int
+	created_at: datetime
+
+	@classmethod
+	def from_record(cls, record: RecordLike) -> "UniversityVerificationCode":
+		return cls(
+			id=_as_uuid(record["id"]),
+			user_id=_as_uuid(record["user_id"]),
+			code_hash=str(record.get("code_hash", "")),
+			expires_at=record["expires_at"],
+			attempts=int(record.get("attempts", 0)),
+			created_at=record["created_at"],
+		)
+
+	@property
+	def is_expired(self) -> bool:
+		return self.expires_at <= datetime.now(self.expires_at.tzinfo or datetime.now().tzinfo)
 
 @dataclass(slots=True)
 class EmailVerification:

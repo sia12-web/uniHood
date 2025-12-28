@@ -29,6 +29,7 @@ import { getBackendUrl } from "@/lib/env";
 import { usePresenceForUser } from "@/hooks/presence/use-presence";
 import { useAutoLivePresence } from "@/hooks/presence/use-auto-live";
 import { useSocketStatus } from "@/app/lib/socket/useStatus";
+import { LevelBadge } from "@/components/xp/LevelBadge";
 
 type Props = {
   peerId: string | null;
@@ -359,7 +360,10 @@ export default function ChatConversationView({ peerId }: Props) {
             {peerEntry?.displayName?.charAt(0).toUpperCase() ?? validPeer.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100">{headerTitle}</p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100">{headerTitle}</p>
+              {peerEntry?.level ? <LevelBadge level={peerEntry.level} size="sm" /> : null}
+            </div>
           </div>
           <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             {socketStatusLabel}

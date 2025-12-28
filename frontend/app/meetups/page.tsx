@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
-import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility } from "@/lib/meetups";
+import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, type MeetupUsage } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
+import { fetchProfile } from "@/lib/identity";
+import { LEVEL_CONFIG } from "@/lib/xp";
 import { cn } from "@/lib/utils";
 
 import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
@@ -20,8 +22,16 @@ export default function MeetupsPage() {
   const [selectedCategory, setSelectedCategory] = useState<MeetupCategory | undefined>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userLevel, setUserLevel] = useState<number>(1);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    if (authUser?.userId && authUser?.campusId) {
+      fetchProfile(authUser.userId, authUser.campusId)
+        .then(profile => setUserLevel(profile.level))
+        .catch(err => console.error("Failed to fetch level", err));
+    }
+  }, [authUser]);
 
   const { data: meetups, isLoading } = useQuery({
     queryKey: ["meetups", authUser?.campusId, selectedCategory],
@@ -29,19 +39,29 @@ export default function MeetupsPage() {
     enabled: !!authUser?.campusId,
   });
 
+  const { data: usage } = useQuery({
+    queryKey: ["meetup-usage"],
+    queryFn: () => fetchMeetupUsage(),
+    enabled: !!authUser?.userId,
+  });
+
   const joinMutation = useMutation({
-    mutationFn: joinMeetup,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetups"] }),
-    onError: () => alert("Failed to join meetup. Please try again.")
+    mutationFn: (id: string) => joinMeetup(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
+      queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
+    },
+    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to join meetup. Please try again.")
   });
 
   const createMutation = useMutation({
     mutationFn: createMeetup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetups"] });
+      queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
       setIsCreateOpen(false);
     },
-    onError: () => alert("Failed to create meetup.")
+    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to create meetup.")
   });
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -146,8 +166,31 @@ export default function MeetupsPage() {
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-bold text-slate-900">Create New Meetup</h2>
-            <form onSubmit={handleCreate} className="mt-6 space-y-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-2xl font-bold text-slate-900">Create New Meetup</h2>
+              <div className="bg-indigo-50 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-indigo-600 border border-indigo-100">
+                Lvl {userLevel} Restrictions
+              </div>
+            </div>
+
+            {usage && (
+              <div className="text-xs text-slate-400 mb-6 font-medium space-y-1">
+                <p>
+                  Active Hosting: <span className={cn("font-bold", usage.hosting_usage >= usage.hosting_limit ? "text-rose-500" : "text-indigo-600")}>
+                    {usage.hosting_usage}/{usage.hosting_limit}
+                  </span> • Active Joined: <span className={cn("font-bold", usage.joining_usage >= usage.joining_limit ? "text-rose-500" : "text-indigo-600")}>
+                    {usage.joining_usage}/{usage.joining_limit}
+                  </span>
+                </p>
+                <p>
+                  Daily Created: <span className={cn("font-bold", usage.daily_create_usage >= usage.daily_create_limit ? "text-rose-500" : "text-indigo-600")}>
+                    {usage.daily_create_usage}/{usage.daily_create_limit}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleCreate} className="mt-2 space-y-5">
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
@@ -178,29 +221,50 @@ export default function MeetupsPage() {
                   <input type="number" name="duration_min" defaultValue={60} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Capacity</label>
-                  <input type="number" name="capacity" defaultValue={10} max={50} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Capacity (Max {LEVEL_CONFIG[userLevel].maxMeetupCapacity})
+                  </label>
+                  <input
+                    type="number"
+                    name="capacity"
+                    defaultValue={Math.min(10, LEVEL_CONFIG[userLevel].maxMeetupCapacity)}
+                    max={LEVEL_CONFIG[userLevel].maxMeetupCapacity}
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200"
+                  />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="GLOBAL" defaultChecked className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-center font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Global (Campus)
+                    <input type="radio" name="visibility" value="FRIENDS" defaultChecked className="peer sr-only" />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                      Friends
                     </div>
                   </label>
                   <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="PRIVATE" className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-center font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Private (Friends)
+                    <input type="radio" name="visibility" value="CAMPUS" className="peer sr-only" />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                      Campus
+                    </div>
+                  </label>
+                  <label className={cn("cursor-pointer", userLevel < 2 && "opacity-50 cursor-not-allowed")}>
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value="CITY"
+                      disabled={userLevel < 2}
+                      className="peer sr-only"
+                    />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
+                      City {userLevel < 2 && "🔒"}
                     </div>
                   </label>
                 </div>
                 <p className="text-[10px] text-slate-400 px-1">
-                  Global notifies everyone. Private notifies only your friends via email & bell.
+                  {userLevel < 2 ? "Lvl 2+ required for City scope. " : ""}
+                  Friends: Only visible to mutually connected friends. Campus: visible to your university. City: visible to all local students.
                 </p>
               </div>
 

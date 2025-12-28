@@ -59,6 +59,7 @@ class DiscoveryCard(BaseModel):
 	vibe_tags: list[str] = Field(default_factory=list)
 	top_prompts: list[dict] = Field(default_factory=list) # [{question: ..., answer: ...}]
 	compatibility_hint: Optional[str] = None
+	is_university_verified: bool = False
 
 
 class DiscoveryFeedResponse(BaseModel):

@@ -27,13 +27,14 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, Home, GraduationCap, Building2 } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, Home, GraduationCap, Building2, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { DiscoveryOnboardingModal } from "@/components/DiscoveryOnboardingModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import { DiscoveryProfile, DiscoveryFeedResponse } from "@/lib/types";
-import { fetchUserCourses } from "@/lib/identity";
+import { DiscoveryProfile, DiscoveryFeedResponse, ProfileRecord } from "@/lib/types";
+import { fetchProfile, fetchUserCourses } from "@/lib/identity";
+import { Lock } from "lucide-react";
 
 type DiscoveryFeedProps = {
   variant?: "full" | "mini";
@@ -140,6 +141,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   // Filters
   const [filterMajor, setFilterMajor] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [userLevel, setUserLevel] = useState<number>(1);
 
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
@@ -152,16 +154,22 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
+      // 1. Level-based visibility: In Room mode, only show verified students for max safety
+      if (discoveryMode === "room" && !u.is_university_verified) return false;
+
+      // 2. Filter by Major
       if (filterMajor !== "all" && u.major !== filterMajor) return false;
+
+      // 3. Filter by Year
       if (filterYear !== "all") {
         if (!u.graduation_year) return false;
         const label = getYearLabel(u.graduation_year);
         if (label !== filterYear) return false;
       }
-      // "Active Today" is implicit for now as nearby returns recent users
+
       return true;
     });
-  }, [users, filterMajor, filterYear]);
+  }, [users, filterMajor, filterYear, discoveryMode]);
 
   // Reset swipe index when filters change, but not when user data (like is_friend) updates
   useEffect(() => {
@@ -199,6 +207,10 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       fetchUserCourses(authUser.userId, authUser.campusId)
         .then(courses => setMyCourses(courses.map(c => c.code || c.name || "").filter(Boolean)))
         .catch(err => console.error("Failed to fetch my courses", err));
+
+      fetchProfile(authUser.userId, authUser.campusId)
+        .then(profile => setUserLevel(profile.level))
+        .catch(err => console.error("Failed to fetch level", err));
     } else {
       setMyCourses([]);
     }
@@ -475,8 +487,25 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   const handleModeSelect = (mode: DiscoveryMode) => {
     if (mode === "room") {
+      if (userLevel < 4) {
+        setInviteError("Social Level 4 required for Room Mode");
+        setTimeout(() => setInviteError(null), 3000);
+        return;
+      }
+      if (!authUser?.isUniversityVerified) {
+        setInviteError("Elite Verification required for Room Mode");
+        setTimeout(() => setInviteError(null), 3000);
+        return;
+      }
       // Room mode requires location permission
       setShowProximityPrompt(true);
+    } else if (mode === "city") {
+      if (userLevel < 2) {
+        setInviteError("Social Level 2 required for City Mode");
+        setTimeout(() => setInviteError(null), 3000);
+        return;
+      }
+      setDiscoveryMode(mode);
     } else {
       setDiscoveryMode(mode);
     }
@@ -586,10 +615,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             {/* Mode Selector */}
             <div className="relative flex-1 rounded-2xl bg-white p-2 sm:p-4 shadow-sm ring-1 ring-slate-100">
               {/* Informational Tooltips (Static for visuals as per request) */}
-              <div className="hidden lg:block absolute -left-4 top-1/2 -translate-x-full -translate-y-1/2 w-40 text-right text-[10px] text-slate-500 font-medium bg-white p-2 rounded-lg shadow-sm border border-slate-100">
-                Love in one glimpse. See real people physically around you.
-                <div className="absolute top-1/2 -right-1.5 w-3 h-3 bg-white border-t border-r border-slate-100 rotate-45 -translate-y-1/2"></div>
-              </div>
+
 
               <button
                 type="button"
@@ -625,6 +651,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 {DISCOVERY_MODES.map((modeOption) => {
                   const isSelected = discoveryMode === modeOption.mode;
                   const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
+                  const isLocked = (modeOption.mode === 'room' && (userLevel < 4 || !authUser?.isUniversityVerified)) || (modeOption.mode === 'city' && userLevel < 2);
 
                   return (
                     <button
@@ -632,14 +659,20 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                       key={modeOption.mode}
                       onClick={() => handleModeSelect(modeOption.mode)}
                       className={cn(
-                        "flex flex-1 flex-col items-center justify-center gap-1.5 rounded-lg py-4 transition-all duration-200",
+                        "relative flex flex-1 flex-col items-center justify-center gap-1.5 rounded-lg py-4 transition-all duration-200",
                         isSelected
                           ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-md shadow-blue-200"
-                          : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700"
+                          : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700",
+                        isLocked && "opacity-60 cursor-not-allowed"
                       )}
                     >
                       <Icon size={24} className={cn(isSelected ? "text-white" : "text-rose-400 opacity-80")} />
                       <span className="text-xs font-semibold">{modeOption.label}</span>
+                      {isLocked && (
+                        <div className="absolute top-2 right-2 rounded-full bg-slate-100 p-1 text-slate-400">
+                          <Lock size={10} />
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -694,6 +727,42 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6">
+        {/* Verification Banner */}
+        {authEvaluated && authUser && (!authUser.isUniversityVerified || userLevel >= 4) && (
+          <div className={cn(
+            "mb-6 rounded-2xl p-4 ring-1",
+            userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-50 ring-amber-100" : "bg-indigo-50 ring-indigo-100"
+          )}>
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "rounded-full p-2",
+                userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-100 text-amber-600" : "bg-indigo-100 text-indigo-600"
+              )}>
+                <BadgeCheck className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold">
+                  {userLevel >= 4 ? "Unlock Room Mode: Elite Verification" : "Get Verified & Boost Your Profile"}
+                </h3>
+                <p className="mt-1 text-xs opacity-90">
+                  {userLevel >= 4
+                    ? "You've reached Level 4! To unlock 'Room Mode' and level up, verify your Student Email, Phone Number, and Identity. AI verification completes in minutes!"
+                    : "Verify your university email to get a 5x discovery boost and a verification badge!"}
+                </p>
+                <button
+                  onClick={() => router.push("/verify-university")}
+                  className={cn(
+                    "mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition",
+                    userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                  )}
+                >
+                  {userLevel >= 4 ? "Complete Elite Verification" : "Verify Now"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {locationNotice && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
             <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />

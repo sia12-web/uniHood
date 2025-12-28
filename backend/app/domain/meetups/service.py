@@ -7,7 +7,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import HTTPException
 
-from app.domain.meetups import schemas
+from app.domain.meetups import schemas, policy
 from app.domain.rooms import models as room_models
 from app.domain.rooms import service as room_service
 from app.infra.auth import AuthenticatedUser
@@ -76,6 +76,9 @@ class MeetupService:
     async def create_meetup(
         self, auth_user: AuthenticatedUser, payload: schemas.MeetupCreateRequest
     ) -> schemas.MeetupResponse:
+        # Enforce level-based limits
+        await policy.enforce_create_limits(auth_user.id, payload.capacity)
+        
         pool = await self._get_pool()
         
         # Create a room for the meetup
@@ -132,10 +135,14 @@ class MeetupService:
                     schemas.MeetupParticipantStatus.JOINED
                 )
         
-        # Track meetup creation for leaderboard (non-blocking, anti-cheat validated)
+        # Track meetup creation for leaderboard and XP (non-blocking, anti-cheat validated)
         try:
             lb_service = LeaderboardService()
             await lb_service.record_room_created(user_id=auth_user.id, room_id=str(room.id))
+
+
+            # Award XP moved to update_attendance to prevent ghost meetup spam
+            # We only record the leaderboard stats here
         except Exception:
             pass  # Non-critical, don't block meetup creation
 
@@ -428,6 +435,9 @@ class MeetupService:
         return detail
 
     async def join_meetup(self, meetup_id: UUID, auth_user: AuthenticatedUser) -> None:
+        # Enforce level-based limits
+        await policy.enforce_join_limits(auth_user.id)
+        
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
@@ -664,3 +674,131 @@ class MeetupService:
             recent_participants_avatars=row.get("recent_participants_avatars", [])
         )
 
+    async def get_usage(self, auth_user: AuthenticatedUser) -> schemas.MeetupUsageResponse:
+        from app.domain.xp.service import XPService
+        xp_stats = await XPService().get_user_stats(auth_user.id)
+        level = xp_stats.current_level
+        
+        hosting_limit = policy.LEVEL_MAX_SIMULTANEOUS_HOSTING.get(level, 1)
+        joining_limit = policy.LEVEL_MAX_JOINED_MEETUPS.get(level, 5)
+        max_capacity = policy.LEVEL_MEETUP_CAPACITY.get(level, 5)
+        
+        daily_create_limit = policy.LEVEL_DAILY_CREATE_LIMIT.get(level, 3)
+        daily_join_limit = policy.LEVEL_DAILY_JOIN_LIMIT.get(level, 10)
+        
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            hosting_usage = await conn.fetchval(
+                "SELECT COUNT(*) FROM meetups WHERE creator_user_id = $1 AND status IN ('UPCOMING', 'ACTIVE')",
+                UUID(auth_user.id)
+            )
+            joining_usage = await conn.fetchval(
+                """
+                SELECT COUNT(*) FROM meetup_participants mp
+                JOIN meetups m ON mp.meetup_id = m.id
+                WHERE mp.user_id = $1 AND mp.status = 'JOINED' 
+                AND m.status IN ('UPCOMING', 'ACTIVE')
+                """,
+                UUID(auth_user.id)
+            )
+            daily_create_usage = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM meetups
+                WHERE creator_user_id = $1
+                AND created_at > NOW() - INTERVAL '24 hours'
+                """,
+                UUID(auth_user.id)
+            )
+            daily_join_usage = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM meetup_participants
+                WHERE user_id = $1
+                AND joined_at > NOW() - INTERVAL '24 hours'
+                """,
+                UUID(auth_user.id)
+            )
+            
+        return schemas.MeetupUsageResponse(
+            hosting_limit=hosting_limit,
+            hosting_usage=hosting_usage or 0,
+            joining_limit=joining_limit,
+            joining_usage=joining_usage or 0,
+            max_capacity=max_capacity,
+            daily_create_limit=daily_create_limit,
+            daily_create_usage=daily_create_usage or 0,
+            daily_join_limit=daily_join_limit,
+            daily_join_usage=daily_join_usage or 0
+        )
+
+
+    async def update_attendance(
+        self, 
+        meetup_id: UUID, 
+        auth_user: AuthenticatedUser, 
+        payload: schemas.MeetupAttendanceUpdateRequest
+    ) -> None:
+        pool = await self._get_pool()
+        
+        async with pool.acquire() as conn:
+            # 1. Verify Meetup & Host
+            meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
+            if not meetup:
+                raise HTTPException(status_code=404, detail="Meetup not found")
+            
+            if str(meetup["creator_user_id"]) != str(auth_user.id):
+                raise HTTPException(status_code=403, detail="Only the host can update attendance.")
+                
+            # 2. Update status for specified users
+            # We only track 'PRESENT' for XP awards. 
+            # If ABSENT, we effectively just ensure they don't get XP.
+            # But currently we don't have a specific column for 'verified attendance'.
+            # We can use a new 'role' or a JSONB column or a separate table.
+            # For simplicity in this iteration, let's assume we award XP immediately here if PRESENT.
+            
+            if payload.status == schemas.AttendanceStatus.PRESENT:
+                from app.domain.xp import XPService
+                from app.domain.xp.models import XPAction
+                
+                # Filter out the host from the participants list to prevent double-dipping
+                # (Host gets MEETUP_HOST XP, not MEETUP_JOIN XP)
+                target_ids = [uid for uid in payload.user_ids if str(uid) != str(auth_user.id)]
+                
+                for participant_id in target_ids:
+                    # Check if they really joined
+                    is_joined = await conn.fetchval(
+                        "SELECT 1 FROM meetup_participants WHERE meetup_id = $1 AND user_id = $2 AND status = 'JOINED'",
+                        meetup_id, participant_id
+                    )
+                    
+                    if is_joined:
+                        # Award XP (Idempotency handled by XPService typically, or we rely on unique key)
+                        # To be safe, XPService should deduplicate based on metadata.
+                        await XPService().award_xp(
+                            str(participant_id), 
+                            XPAction.MEETUP_JOIN, 
+                            metadata={
+                                "meetup_id": str(meetup_id), 
+                                "host_id": str(auth_user.id),
+                                "verified": True
+                            }
+                        )
+                
+                # Award Host XP if not already awarded (Ghost Meetup Prevention)
+                # We do this only if at least one person was PRESENT
+                if payload.user_ids:
+                    host_xp_awarded = await conn.fetchval(
+                        "SELECT 1 FROM xp_events WHERE user_id = $1 AND action_type = 'meetup_host' AND metadata->>'meetup_id' = $2",
+                        UUID(auth_user.id), str(meetup_id)
+                    )
+                    
+                    if not host_xp_awarded:
+                        await XPService().award_xp(
+                            str(auth_user.id),
+                            XPAction.MEETUP_HOST,
+                            metadata={"meetup_id": str(meetup_id)}
+                        )
+
+                # Optional: Mark in DB that they attended (for future analytics)
+                # This would require schema change, let's skip for now unless requested.

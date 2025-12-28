@@ -14,7 +14,6 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.domain.proximity import live_sessions
 from app.infra import postgres
-from app.infra.redis import redis_client, set_redis_client
 from app.main import app
 from app.settings import settings
 
@@ -30,6 +29,7 @@ if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
 
 @pytest_asyncio.fixture(autouse=True)
 async def fake_redis():
+	from app.infra.redis import redis_client, set_redis_client
 	original = redis_client
 	client = FakeRedis(decode_responses=True)
 	set_redis_client(client)

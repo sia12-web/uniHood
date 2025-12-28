@@ -54,6 +54,8 @@ def _record_to_friend_row(record: asyncpg.Record) -> FriendRow:
 		created_at=record["created_at"],
 		friend_handle=record.get("friend_handle"),
 		friend_display_name=record.get("friend_display_name"),
+		xp=record.get("xp"),
+		level=record.get("level"),
 	)
 
 
@@ -585,9 +587,11 @@ async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List
 	async with pool.acquire() as conn:
 		rows = await conn.fetch(
 			"""
-			SELECT f.*, u.handle AS friend_handle, COALESCE(u.display_name, u.handle) AS friend_display_name
+			SELECT f.*, u.handle AS friend_handle, COALESCE(u.display_name, u.handle) AS friend_display_name,
+			       x.total_xp AS xp, x.current_level AS level
 			FROM friendships f
 			JOIN users u ON u.id = f.friend_id
+			LEFT JOIN user_xp_stats x ON x.user_id = f.friend_id
 			WHERE f.user_id = $1 AND f.status = $2 AND u.deleted_at IS NULL
 			ORDER BY f.created_at DESC
 			""",
@@ -613,10 +617,12 @@ async def list_mutual_friends(auth_user: AuthenticatedUser, target_user_id: str,
 	async with pool.acquire() as conn:
 		rows = await conn.fetch(
 			"""
-			SELECT u.id, u.display_name, u.handle, u.avatar_url
+			SELECT u.id, u.display_name, u.handle, u.avatar_url,
+			       x.total_xp AS xp, x.current_level AS level
 			FROM users u
 			JOIN friendships f1 ON f1.friend_id = u.id
 			JOIN friendships f2 ON f2.friend_id = u.id
+			LEFT JOIN user_xp_stats x ON x.user_id = u.id
 			WHERE f1.user_id = $1 AND f1.status = 'accepted'
 			  AND f2.user_id = $2 AND f2.status = 'accepted'
 			  AND u.deleted_at IS NULL
@@ -631,7 +637,9 @@ async def list_mutual_friends(auth_user: AuthenticatedUser, target_user_id: str,
 			user_id=row["id"],
 			display_name=row["display_name"] or row["handle"],
 			handle=row["handle"],
-			avatar_url=row["avatar_url"]
+			avatar_url=row["avatar_url"],
+			xp=row.get("xp"),
+			level=row.get("level")
 		) for row in rows
 	]
 

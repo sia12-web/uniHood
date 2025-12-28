@@ -147,3 +147,12 @@ export async function fetchNotificationUnreadCount(userId: string, campusId: str
 	const response = await request<NotificationUnreadResponse>("/notifications/unread", userId, campusId);
 	return typeof response.unread === "number" ? response.unread : 0;
 }
+
+export type SocialUsage = {
+	daily_limit: number;
+	daily_usage: number;
+};
+
+export async function fetchSocialUsage(userId: string, campusId: string | null): Promise<SocialUsage> {
+	return request<SocialUsage>("/usage", userId, campusId);
+}

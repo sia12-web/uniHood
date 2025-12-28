@@ -77,3 +77,19 @@ async def get_meetups_count(
     if not cid:
          raise HTTPException(status_code=400, detail="Campus ID required")
     return await _service.get_upcoming_count(auth_user, cid)
+    
+
+@router.get("/usage", response_model=schemas.MeetupUsageResponse)
+async def get_meetup_usage(
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return await _service.get_usage(auth_user)
+
+
+@router.post("/{meetup_id}/attendance", status_code=status.HTTP_204_NO_CONTENT)
+async def update_attendance(
+    meetup_id: UUID,
+    payload: schemas.MeetupAttendanceUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    await _service.update_attendance(meetup_id, auth_user, payload)

@@ -64,6 +64,7 @@ def _build_access_token(user: models.User, session_id: UUID) -> str:
 		"handle": user.handle,
 		"name": user.display_name,
 		"roles": user.roles,
+		"is_university_verified": user.is_university_verified,
 		"exp": exp,
 		"iat": now,
 	}

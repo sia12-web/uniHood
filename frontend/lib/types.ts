@@ -4,6 +4,20 @@ export type GalleryImage = {
   uploaded_at?: string | null;
 };
 
+
+export type Notification = {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  kind: string;
+  link?: string | null;
+  read_at?: string | null;
+  created_at: string;
+};
+
+/* Notification moved to top */
+
 export type NearbyUser = {
   user_id: string;
   display_name: string;
@@ -28,6 +42,11 @@ export type NearbyUser = {
   vibe_tags?: string[];
   top_prompts?: { question: string; answer: string }[];
   compatibility_hint?: string;
+  is_university_verified?: boolean;
+  // XP System (optional as not all endpoints might populate it immediately)
+  xp?: number;
+  level?: number;
+  level_label?: string;
 };
 
 export type DiscoveryProfile = {
@@ -98,6 +117,8 @@ export type FriendRow = {
   created_at: string;
   friend_handle?: string | null;
   friend_display_name?: string | null;
+  xp?: number;
+  level?: number;
 };
 
 export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity" | "tictactoe" | "typing_duel" | "trivia" | "rps" | "story_builder";
@@ -230,6 +251,12 @@ export type PublicProfile = {
   interests: string[];
   skills: PublicSkill[];
   links: PublicLink[];
+  gallery?: GalleryImage[];
+  // XP
+  xp: number;
+  level: number;
+  level_label: string;
+  next_level_xp?: number | null;
 };
 
 export type MatchPerson = {
@@ -241,6 +268,10 @@ export type MatchPerson = {
   score: number;
   interests: string[];
   skills: PublicSkill[];
+  // XP
+  xp: number;
+  level: number;
+  level_label: string;
 };
 
 export type CampusRow = {
@@ -292,6 +323,12 @@ export type ProfileRecord = {
   gallery?: ProfileGalleryImage[];
   social_links?: SocialLinks;
   ten_year_vision?: string | null;
+  is_university_verified: boolean;
+  // XP System
+  xp: number;
+  level: number;
+  level_label: string;
+  next_level_xp?: number | null;
 };
 
 // Minimal image shape used by profile gallery UI

@@ -29,8 +29,18 @@ class FriendshipStatus(str, Enum):
 
 INVITE_EXPIRES_DAYS = 7
 INVITE_PER_MINUTE = 15
-INVITE_PER_DAY = 200
+INVITE_PER_DAY = 200  # Global fallback
 BLOCK_PER_MINUTE = 10
+
+# Daily invitation limits based on Social Level
+LEVEL_INVITE_LIMITS = {
+	1: 5,
+	2: 10,
+	3: 20,
+	4: 50,
+	5: 100,
+	6: 500,  # Effectively unlimited for highest tier but with a safety cap
+}
 
 
 @dataclass(slots=True)

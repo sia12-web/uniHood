@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { ReportUI } from "@/app/features/moderation/ReportButton";
 import type { PublicProfile } from "@/lib/types";
 
+import { LevelBadge } from "@/components/xp/LevelBadge";
+
 type PublicProfileHeaderProps = {
 	profile: PublicProfile;
 };
@@ -20,7 +22,7 @@ export default function PublicProfileHeader({ profile }: PublicProfileHeaderProp
 				.then((data) => {
 					if (data?.name) setCampusName(data.name);
 				})
-				.catch(() => {});
+				.catch(() => { });
 		});
 	}, [profile.campus_id]);
 
@@ -40,7 +42,10 @@ export default function PublicProfileHeader({ profile }: PublicProfileHeaderProp
 					</div>
 				)}
 				<div>
-					<h1 className="text-xl font-semibold text-slate-900">{profile.display_name}</h1>
+					<h1 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+						{profile.display_name}
+						{profile.level ? <LevelBadge level={profile.level} size="sm" /> : null}
+					</h1>
 					<p className="text-sm text-slate-500">@{profile.handle}</p>
 					{campusName ? (
 						<p className="text-sm text-slate-500">{campusName}</p>

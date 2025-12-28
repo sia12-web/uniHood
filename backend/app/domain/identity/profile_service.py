@@ -195,38 +195,66 @@ async def _load_user(
 
 
 
+
+async def _augment_with_xp(profile: schemas.ProfileOut, user_id: str) -> schemas.ProfileOut:
+	try:
+		from app.domain.xp import XPService
+		stats = await XPService().get_user_stats(user_id)
+		profile.xp = stats.total_xp
+		profile.level = stats.current_level
+		profile.level_label = stats.level_label
+		profile.next_level_xp = stats.next_level_xp
+	except Exception:
+		# Don't break profile fetch if XP service fails
+		logger.exception("Failed to augment profile with XP")
+	return profile
+
+
 async def get_profile(user_id: str, *, auth_user: Optional[AuthenticatedUser] = None) -> schemas.ProfileOut:
 	"""Get profile with Redis caching for performance."""
 	from app.infra.redis import redis_client
 	
 	cache_key = f"profile:{user_id}"
 	
+	profile: Optional[schemas.ProfileOut] = None
+	
 	# Try cache first
 	cached = await redis_client.get(cache_key)
 	if cached:
 		try:
 			data = json.loads(cached)
-			return schemas.ProfileOut(**data)
+			profile = schemas.ProfileOut(**data)
 		except (json.JSONDecodeError, Exception):
 			# Invalid cache, continue to fetch from DB
 			pass
 	
-	# Fetch from database
-	pool = await get_pool()
-	async with pool.acquire() as conn:
-		user = await _load_user(conn, user_id, auth_user=auth_user)
-	courses = await courses_service.get_user_courses(user.id)
-	profile = _to_profile(user, [schemas.Course(code=course.code, name=course.code) for course in courses])
+	if not profile:
+		# Fetch from database
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			user = await _load_user(conn, user_id, auth_user=auth_user)
+		courses = await courses_service.get_user_courses(user.id)
+		profile = _to_profile(user, [schemas.Course(code=course.code, name=course.code) for course in courses])
+		
+		# Cache the result (WITHOUT XP if we want strictly static cache, but here we cache simple structure. 
+		# XP overwrites anyway)
+		try:
+			cache_data = profile.model_dump_json()
+			await redis_client.setex(cache_key, _PROFILE_CACHE_TTL, cache_data)
+		except Exception:
+			# Cache write failures shouldn't break the endpoint
+			pass
 	
-	# Cache the result
-	try:
-		cache_data = profile.model_dump_json()
-		await redis_client.setex(cache_key, _PROFILE_CACHE_TTL, cache_data)
-	except Exception:
-		# Cache write failures shouldn't break the endpoint
-		pass
-	
-	return profile
+	# Award daily login XP if this is the authenticated user fetching their OWN profile
+	if auth_user and str(auth_user.id) == user_id:
+		try:
+			from app.domain.xp import XPService
+			await XPService().award_daily_login(user_id)
+		except Exception:
+			logger.exception("Failed to award daily login XP")
+
+	# Always fetch live XP
+	return await _augment_with_xp(profile, user_id)
 
 
 async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePatch) -> schemas.ProfileOut:
@@ -372,7 +400,7 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 		await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	except Exception:  # pragma: no cover - cache rebuild should not block profile saves
 		logger.warning("Failed to rebuild public profile", exc_info=True)
-	return profile
+	return await _augment_with_xp(profile, str(auth_user.id))
 
 
 async def presign_avatar(auth_user: AuthenticatedUser, payload: schemas.PresignRequest) -> schemas.PresignResponse:
@@ -410,7 +438,7 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_avatar_upload()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
-	return profile
+	return await _augment_with_xp(profile, str(auth_user.id))
 
 
 async def presign_gallery(auth_user: AuthenticatedUser, payload: schemas.PresignRequest) -> schemas.PresignResponse:
@@ -453,7 +481,7 @@ async def commit_gallery(auth_user: AuthenticatedUser, request: schemas.GalleryC
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
-	return profile
+	return await _augment_with_xp(profile, str(auth_user.id))
 
 
 async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.GalleryRemoveRequest) -> schemas.ProfileOut:
@@ -464,7 +492,7 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			gallery = [image for image in user.profile_gallery if image.key != key]
 			if len(gallery) == len(user.profile_gallery):
-				return _to_profile(user)
+				return await _augment_with_xp(_to_profile(user), str(auth_user.id))
 			await conn.execute(
 				"""
 				UPDATE users
@@ -484,4 +512,4 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
-	return profile
+	return await _augment_with_xp(profile, str(auth_user.id))

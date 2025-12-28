@@ -367,7 +367,7 @@ export default function HomePage() {
                     </span>
                   </h2>
                 </div>
-                <Link href="/discovery" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1">
+                <Link href="/socials" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1">
                   View Map
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
@@ -487,7 +487,7 @@ export default function HomePage() {
                       {recentFriends.length === 0 ? (
                         <div className="text-center py-6">
                           <p className="text-sm text-slate-500">No friends online.</p>
-                          <Link href="/discovery" className="mt-2 block text-xs font-bold text-indigo-600">Find new people</Link>
+                          <Link href="/socials" className="mt-2 block text-xs font-bold text-indigo-600">Find new people</Link>
                         </div>
                       ) : (
                         recentFriends.map(friend => (

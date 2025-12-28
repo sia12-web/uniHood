@@ -9,7 +9,7 @@ function isActive(pathname: string, href: string) {
     if (href === "/") return pathname === "/";
     // Strict match for discovery to avoid highlighting on sub-routes if desired, 
     // but usually prefix matching is better for sections.
-    // For UniHood, /discovery is the feed.
+    // For UniHood, /socials is the hub.
     return pathname === href || pathname.startsWith(`${href}/`);
 }
 

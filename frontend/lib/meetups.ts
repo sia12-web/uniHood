@@ -5,7 +5,7 @@ export type MeetupRole = "HOST" | "PARTICIPANT";
 export type MeetupCategory = "study" | "social" | "game" | "gym" | "food" | "other";
 export type MeetupParticipantStatus = "JOINED" | "LEFT";
 
-export type MeetupVisibility = "GLOBAL" | "PRIVATE";
+export type MeetupVisibility = "FRIENDS" | "CAMPUS" | "CITY";
 
 export interface MeetupParticipant {
   user_id: string;
@@ -96,4 +96,25 @@ export async function fetchUpcomingMeetupsCount(campusId?: string): Promise<numb
   if (campusId) params.set("campus_id", campusId);
   const response = await api.get(`/meetups/count/upcoming?${params.toString()}`);
   return response.data;
+}
+
+export type MeetupUsage = {
+  hosting_limit: number;
+  hosting_usage: number;
+  joining_limit: number;
+  joining_usage: number;
+  max_capacity: number;
+  daily_create_limit: number;
+  daily_create_usage: number;
+  daily_join_limit: number;
+  daily_join_usage: number;
+};
+
+export async function fetchMeetupUsage(): Promise<MeetupUsage> {
+  const response = await api.get("/meetups/usage");
+  return response.data;
+}
+
+export async function updateAttendance(meetupId: string, userIds: string[], status: "PRESENT" | "ABSENT"): Promise<void> {
+  await api.post(`/meetups/${meetupId}/attendance`, { user_ids: userIds, status });
 }

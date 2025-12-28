@@ -17,9 +17,10 @@ from app.domain.social.exceptions import (
 	InviteRateLimitExceeded,
 	InviteSelfError,
 )
-from app.domain.social.models import BLOCK_PER_MINUTE, INVITE_PER_DAY, INVITE_PER_MINUTE
+from app.domain.social.models import BLOCK_PER_MINUTE, INVITE_PER_DAY, INVITE_PER_MINUTE, LEVEL_INVITE_LIMITS
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
+from app.domain.xp.service import XPService
 
 
 async def _touch_limit(key: str, ttl_seconds: int) -> int:
@@ -30,6 +31,14 @@ async def _touch_limit(key: str, ttl_seconds: int) -> int:
 	return int(count)
 
 
+async def get_current_usage(user_id: str) -> int:
+	now = datetime.now(timezone.utc)
+	per_day_bucket = now.strftime("%Y%m%d")
+	per_day_key = f"rl:invite:daily:{user_id}:{per_day_bucket}"
+	val = await redis_client.get(per_day_key)
+	return int(val) if val else 0
+
+
 async def enforce_invite_limits(user_id: str) -> None:
 	now = datetime.now(timezone.utc)
 	per_min_bucket = now.strftime("%Y%m%d%H%M")
@@ -37,9 +46,13 @@ async def enforce_invite_limits(user_id: str) -> None:
 	if await _touch_limit(per_min_key, 60) > INVITE_PER_MINUTE:
 		raise InviteRateLimitExceeded("per_minute")
 
+	# Fetch user level to determine daily limit
+	xp_stats = await XPService().get_user_stats(user_id)
+	daily_limit = LEVEL_INVITE_LIMITS.get(xp_stats.current_level, INVITE_PER_DAY)
+
 	per_day_bucket = now.strftime("%Y%m%d")
 	per_day_key = f"rl:invite:daily:{user_id}:{per_day_bucket}"
-	if await _touch_limit(per_day_key, 86_400) > INVITE_PER_DAY:
+	if await _touch_limit(per_day_key, 86_400) > daily_limit:
 		raise InviteRateLimitExceeded("per_day")
 
 

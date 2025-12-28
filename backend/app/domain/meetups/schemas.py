@@ -96,3 +96,23 @@ class MeetupResponse(BaseModel):
 
 class MeetupDetailResponse(MeetupResponse):
     participants: List[MeetupParticipant] = []
+
+class MeetupUsageResponse(BaseModel):
+    hosting_limit: int
+    hosting_usage: int
+    joining_limit: int
+    joining_usage: int
+    max_capacity: int
+    daily_create_limit: int
+    daily_create_usage: int
+    daily_join_limit: int
+    daily_join_usage: int
+
+
+class AttendanceStatus(str, Enum):
+    PRESENT = "PRESENT"
+    ABSENT = "ABSENT"
+
+class MeetupAttendanceUpdateRequest(BaseModel):
+    user_ids: List[UUID]
+    status: AttendanceStatus

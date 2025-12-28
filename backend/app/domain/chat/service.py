@@ -509,10 +509,16 @@ class ChatService:
 				"source": "send",
 			},
 		)
-		# Track DM for leaderboard (non-blocking, anti-cheat validated)
+	# Track DM for leaderboard and XP (non-blocking, anti-cheat validated)
 		try:
 			lb_service = LeaderboardService()
-			await lb_service.record_dm_sent(str(auth_user.id), str(payload.to_user_id))
+			is_valid = await lb_service.record_dm_sent(from_user_id=str(auth_user.id), to_user_id=str(payload.to_user_id))
+			if is_valid:
+				from app.domain.xp import XPService
+				from app.domain.xp.models import XPAction
+				# Fire and forget XP award slightly decoupled to not block response if possible, 
+				# but for now await is safer for consistency.
+				await XPService().award_xp(str(auth_user.id), XPAction.CHAT_SENT)
 		except Exception:
 			pass  # Non-critical, don't block message send
 		return response

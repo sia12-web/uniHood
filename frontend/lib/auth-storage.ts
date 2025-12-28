@@ -23,6 +23,7 @@ export type AuthUser = {
   handle?: string;
   displayName?: string;
   photoURL?: string;
+  isUniversityVerified?: boolean;
 };
 
 type TokenParts = {
@@ -138,6 +139,11 @@ function snapshotToAuthUser(snapshot: AuthSnapshot | null): AuthUser | null {
       (typeof claims.name === "string" ? (claims.name as string) : undefined) ??
       (typeof claims.display_name === "string" ? (claims.display_name as string) : undefined) ??
       parts.name,
+    isUniversityVerified:
+      (typeof claims.is_university_verified === "boolean"
+        ? (claims.is_university_verified as boolean)
+        : undefined) ??
+      (typeof extras.is_university_verified === "boolean" ? (extras.is_university_verified as boolean) : undefined),
   };
 }
 

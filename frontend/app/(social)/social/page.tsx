@@ -17,7 +17,7 @@ const OVERVIEW_CARDS = [
   },
   {
     title: "Find who’s nearby",
-    href: "/social/nearby",
+    href: "/socials",
     description:
       "Peek at the proximity map, spot shared interests, and coordinate study hangs before the moment passes.",
   },

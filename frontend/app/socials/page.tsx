@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import DiscoveryFeed from "@/components/DiscoveryFeed";
 import { MyFriends } from "@/components/social/MyFriends";
 import { MyMeetups } from "@/components/social/MyMeetups";
@@ -9,7 +10,16 @@ import { Sparkles, Users, Calendar, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function SocialsPage() {
-  const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">("discover");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as "discover" | "friends" | "requests" | "meetups") || "discover";
+  const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && (tab === "discover" || tab === "friends" || tab === "requests" || tab === "meetups")) {
+      setActiveTab(tab as typeof activeTab);
+    }
+  }, [searchParams]);
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans pb-20">
@@ -88,3 +98,5 @@ export default function SocialsPage() {
     </main>
   );
 }
+
+

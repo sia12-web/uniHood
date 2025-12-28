@@ -10,7 +10,7 @@ import { CampusProvider } from "@/components/providers/campus-provider";
 import { ReportProvider } from "@/app/features/moderation/ReportProvider";
 
 const AuthenticatedAppChrome = dynamic(() => import("@/components/AuthenticatedAppChrome"), {
-  ssr: true,
+  ssr: false,
 });
 
 function matchesRoutePrefix(pathname: string, prefix: string): boolean {
@@ -37,8 +37,6 @@ const NO_AUTH_CHROME_PREFIXES = [
   "/login",
   "/reset-password",
   "/forgot-password",
-  "/forgot-password",
-  "/onboarding",
   "/onboarding",
   "/select-university",
   "/major-year",
@@ -49,45 +47,33 @@ const NO_AUTH_CHROME_PREFIXES = [
   "/select-courses",
   "/welcome",
   "/verify",
+  "/verify-university",
   "/admin",
   "/admin-login",
 ];
 
-export default function AppChrome({ children }: { children: ReactNode }) {
-  let pathname = "/";
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    pathname = usePathname() || "/";
-  } catch {
-    // In rare cases (e.g. certain error/SSR paths), Next's router context may be unavailable.
-    // Fall back to a safe default instead of crashing the entire render.
-    pathname = "/";
-  }
+function ChromeWrapper({ children }: { children: ReactNode }) {
+  const nextPathname = usePathname();
+  const pathname = nextPathname || "/";
 
   const hideChrome = useMemo(() => {
     return NO_AUTH_CHROME_PREFIXES.some((route) => matchesRoutePrefix(pathname, route));
   }, [pathname]);
 
   if (hideChrome) {
-    return (
-      <QueryProvider>
-        <CampusProvider>
-          <ToastProvider>
-            <ReportProvider>
-              {children}
-            </ReportProvider>
-          </ToastProvider>
-        </CampusProvider>
-      </QueryProvider>
-    );
+    return <>{children}</>;
   }
 
+  return <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>;
+}
+
+export default function AppChrome({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <CampusProvider>
         <ToastProvider>
           <ReportProvider>
-            <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>
+            <ChromeWrapper>{children}</ChromeWrapper>
           </ReportProvider>
         </ToastProvider>
       </CampusProvider>

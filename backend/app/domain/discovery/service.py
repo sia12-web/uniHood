@@ -125,6 +125,7 @@ async def list_feed(
 				distance_m=user.distance_m,
 				gallery=gallery,
 				is_friend=False, # We filtered out friends
+				is_university_verified=getattr(user, "is_university_verified", False),
 			)
 		)
 		seen_ids.add(uid_str)
@@ -203,7 +204,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 					SELECT friend_id FROM friendships WHERE user_id = $1 AND status = 'accepted'
 				),
 				candidates AS (
-					SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.graduation_year, u.passions, u.profile_gallery,
+					SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.graduation_year, u.passions, u.profile_gallery, u.is_university_verified,
 						   ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses,
 						   CASE 
 							   WHEN EXISTS (
@@ -225,10 +226,15 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 								   WHERE uc.user_id = u.id AND uc.course_code IN (SELECT course_code FROM my_courses)
 							   ) THEN 1 
 							   ELSE 0 
+						   END +
+						   CASE
+							   WHEN u.is_university_verified THEN 5
+							   ELSE 0
 						   END as score
 					FROM users u
 					WHERE u.campus_id = $2
 					  AND u.id != $1
+					  AND u.email_verified = TRUE
 					  AND u.id NOT IN (SELECT friend_id FROM my_friends)
 					  AND u.deleted_at IS NULL
 				)
@@ -271,6 +277,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 						gallery=gallery,
 						is_friend=False,
 						is_friend_of_friend=row["is_fof"],
+						is_university_verified=bool(row["is_university_verified"]),
 					)
 				)
 			return cards

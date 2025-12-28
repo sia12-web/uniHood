@@ -24,6 +24,7 @@ export type ChatRosterEntry = {
   lastMessageSnippet?: string | null;
   lastMessageAt?: string | null;
   unreadCount?: number;
+  level?: number;
 };
 
 export type UseChatRosterResult = {
@@ -143,6 +144,7 @@ export function useChatRoster(): UseChatRosterResult {
             lastMessageSnippet: latest?.snippet ?? previous?.lastMessageSnippet ?? null,
             lastMessageAt: latest?.createdAt ?? previous?.lastMessageAt ?? null,
             unreadCount: unreadSnapshot[row.friend_id] ?? 0,
+            level: row.level,
           };
         });
         return sortRoster(mapped);

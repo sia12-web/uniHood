@@ -10,10 +10,14 @@ import { QuickTriviaInviteProvider } from "@/components/providers/quick-trivia-i
 import { RockPaperScissorsInviteProvider } from "@/components/providers/rock-paper-scissors-invite-provider";
 import { ActivityAcceptanceProvider } from "@/components/providers/activity-acceptance-provider";
 import { DeferredFeaturesProvider } from "@/components/providers/deferred-features-provider";
+import { SocialNotifications } from "@/components/social/SocialNotifications";
+import { XPNotifications } from "@/components/xp/XPNotifications";
 
 export default function AuthenticatedAppChrome({ children }: { children: ReactNode }) {
     return (
         <DeferredFeaturesProvider>
+            <SocialNotifications />
+            <XPNotifications />
             <StoryInviteProvider>
                 <TypingDuelInviteProvider>
                     <TicTacToeInviteProvider>

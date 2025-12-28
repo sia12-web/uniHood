@@ -14,7 +14,7 @@ import { initPerformanceMonitoring } from "@/lib/performance";
  * Debug mode: 100% sampling + console logging in development
  */
 export default function PerformanceMonitor() {
-    const pathname = usePathname();
+    const pathname = usePathname() || "/";
 
     useEffect(() => {
         const isProduction = process.env.NODE_ENV === "production";

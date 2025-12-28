@@ -6,11 +6,25 @@ export type { CampusRow, ProfileCourse, ProfilePrivacy, ProfileRecord, ProfileSt
 const BASE_URL = getBackendUrl();
 
 async function request<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-	return apiFetch<T>(`${BASE_URL}${path}`, {
-		cache: "no-store",
-		method: options.method ?? "GET",
-		...options,
-	});
+	try {
+		return await apiFetch<T>(`${BASE_URL}${path}`, {
+			cache: "no-store",
+			method: options.method ?? "GET",
+			...options,
+		});
+	} catch (err: unknown) {
+		// Try to extract backend error detail
+		const errObj = err as { response?: { json?: () => Promise<{ detail?: string }> } };
+		if (errObj.response?.json) {
+			try {
+				const data = await errObj.response.json();
+				if (data?.detail) {
+					throw new Error(data.detail);
+				}
+			} catch { }
+		}
+		throw err;
+	}
 }
 
 export type RegisterPayload = {
@@ -134,6 +148,22 @@ export async function resetPassword(token: string, newPassword: string): Promise
 	await request<void>("/auth/reset-password", {
 		method: "POST",
 		body: { token, new_password: newPassword },
+	});
+}
+
+export async function sendUniversityVerificationCode(email: string, userId: string, campusId: string | null): Promise<void> {
+	await request<void>("/verification/university/send-code", {
+		method: "POST",
+		body: { email },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
+export async function confirmUniversityVerificationCode(code: string, userId: string, campusId: string | null): Promise<void> {
+	await request<void>("/verification/university/confirm-code", {
+		method: "POST",
+		body: { code },
+		headers: authHeaders(userId, campusId),
 	});
 }
 

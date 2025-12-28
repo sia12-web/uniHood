@@ -22,7 +22,7 @@ function safeEnv(key: string): string | undefined {
 
 export function getBackendUrl() {
   const value = readOptionalEnv(safeEnv('NEXT_PUBLIC_BACKEND_URL'));
-  return value ?? "http://localhost:8001";
+  return value ?? "http://127.0.0.1:8001";
 }
 
 export function getDemoUserId() {

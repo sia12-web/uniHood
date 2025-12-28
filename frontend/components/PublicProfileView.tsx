@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import type { PublicProfile } from "@/lib/types";
+import { XPOverviewCard } from "@/components/xp/XPOverviewCard";
 
 import PublicProfileHeader from "./PublicProfileHeader";
 
@@ -12,8 +13,15 @@ type PublicProfileViewProps = {
 
 export default function PublicProfileView({ profile }: PublicProfileViewProps) {
 	return (
-		<section className="space-y-4">
+		<section className="space-y-6">
 			<PublicProfileHeader profile={profile} />
+
+			<XPOverviewCard
+				xp={profile.xp}
+				level={profile.level}
+				nextLevelXp={profile.next_level_xp}
+			/>
+
 			{profile.program || profile.year ? (
 				<section className="rounded border border-slate-200 bg-white px-4 py-4">
 					<h2 className="text-base font-semibold text-slate-900">Program</h2>

@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Ghost, Camera, Sparkles } from "lucide-react";
+import { Camera } from "lucide-react";
 
 import { fetchProfile, presignAvatar, commitAvatar } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
-import { AvatarState } from "@/components/avatar-creator/types";
+
 
 // Dynamic imports for heavy components - only load when needed
 const PhotoAdjuster = dynamic(() => import("@/components/photo-adjuster/PhotoAdjuster"), {
@@ -17,10 +17,7 @@ const PhotoAdjuster = dynamic(() => import("@/components/photo-adjuster/PhotoAdj
 	ssr: false,
 });
 
-const AvatarCreator = dynamic(() => import("@/components/avatar-creator/AvatarCreator"), {
-	loading: () => <div className="w-full h-96 bg-slate-100 animate-pulse rounded-xl" />,
-	ssr: false,
-});
+
 
 type PresignResponse = Awaited<ReturnType<typeof presignAvatar>>;
 
@@ -34,7 +31,7 @@ export default function PhotosPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [campusId, setCampusId] = useState<string | null>(null);
 
-	const [showAvatarCreator, setShowAvatarCreator] = useState(false);
+
 
 	useEffect(() => {
 		const load = async () => {
@@ -59,33 +56,12 @@ export default function PhotosPage() {
 
 	const canContinue = useMemo(() => Boolean(avatarUrl), [avatarUrl]);
 
-	const [avatarState, setAvatarState] = useState<AvatarState | undefined>(undefined);
 
-	useEffect(() => {
-		// Load saved avatar state
-		try {
-			const saved = localStorage.getItem("unihood.avatar_state");
-			if (saved) {
-				setAvatarState(JSON.parse(saved));
-			}
-		} catch {
-			// ignore
-		}
-	}, []);
 
-	const handlePhotoConfirm = async (blob: Blob, state?: AvatarState) => {
+	const handlePhotoConfirm = async (blob: Blob) => {
 		setError(null);
 		setUploading(true);
-		setShowAvatarCreator(false);
 
-		if (state) {
-			try {
-				localStorage.setItem("unihood.avatar_state", JSON.stringify(state));
-				setAvatarState(state);
-			} catch {
-				// ignore
-			}
-		}
 
 		try {
 			const auth = readAuthSnapshot();
@@ -165,18 +141,7 @@ export default function PhotosPage() {
 	return (
 		<>
 			{/* Modal Overlay for Avatar Creator */}
-			{showAvatarCreator && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-					<div className="w-full max-w-4xl animate-in fade-in zoom-in duration-200">
-						<AvatarCreator
-							onSave={handlePhotoConfirm}
-							onCancel={() => setShowAvatarCreator(false)}
-							initialState={avatarState}
-							className="max-h-[90vh]"
-						/>
-					</div>
-				</div>
-			)}
+
 
 			<div className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
 				<div className="w-full max-w-2xl space-y-8">
@@ -221,7 +186,7 @@ export default function PhotosPage() {
 						</div>
 					)}
 
-					<div className="mt-8 grid gap-8 sm:grid-cols-2">
+					<div className="mt-8 mx-auto w-full max-w-sm">
 						{/* Option 1: Real Me */}
 						<div className="flex flex-col gap-3">
 							<div className="flex items-center gap-2 px-1">
@@ -239,23 +204,7 @@ export default function PhotosPage() {
 							/>
 						</div>
 
-						{/* Option 2: Ghost Mode */}
-						<div className="flex flex-col gap-3">
-							<div className="flex items-center gap-2 px-1">
-								<div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-									<Ghost className="h-4 w-4" />
-								</div>
-								<h3 className="text-sm font-bold text-slate-900">Ghost Mode</h3>
-							</div>
 
-							<button
-								onClick={() => setShowAvatarCreator(true)}
-								className="flex w-full flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 py-12 transition-all hover:border-indigo-400 hover:bg-indigo-50"
-							>
-								<Sparkles className="h-5 w-5 text-indigo-500" />
-								<span className="font-semibold text-indigo-700">Create Avatar</span>
-							</button>
-						</div>
 					</div>
 
 					<div className="flex items-center justify-between pt-6">

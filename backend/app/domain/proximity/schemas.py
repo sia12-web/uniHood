@@ -63,6 +63,7 @@ class NearbyUser(BaseModel):
 	social_links: SocialLinks = Field(default_factory=SocialLinks)
 	banner_url: Optional[str] = None
 	ten_year_vision: Optional[str] = None
+	is_university_verified: bool = False
 
 
 class NearbyResponse(BaseModel):

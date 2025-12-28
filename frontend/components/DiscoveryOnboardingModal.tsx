@@ -164,7 +164,7 @@ export function DiscoveryOnboardingModal({ isOpen, onClose }: DiscoveryOnboardin
                                             ) : (
                                                 <input
                                                     type="text"
-                                                    value={answers[p.field_key] || ''}
+                                                    value={(answers[p.field_key] as string) || ''}
                                                     onChange={(e) => setAnswers(prev => ({ ...prev, [p.field_key]: e.target.value }))}
                                                     placeholder="Type your answer..."
                                                     className="w-full p-4 rounded-2xl bg-slate-50 border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 transition shadow-sm"

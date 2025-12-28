@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from app.infra import rate_limit
 
 from app.domain.identity import policy, schemas, verification
 from app.infra.auth import AuthenticatedUser, get_current_user
@@ -75,4 +76,42 @@ async def submit_verification_document(
 	try:
 		return await verification.submit_document(auth_user, payload)
 	except policy.IdentityPolicyError as exc:  # pragma: no cover - handled via HTTP mapping
+		raise _map_policy_error(exc) from None
+
+
+@router.post("/verification/university/send-code", status_code=status.HTTP_204_NO_CONTENT)
+async def send_university_code(
+	payload: schemas.UniversityVerificationSendCode,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+	request: Request = None,
+):
+	"""Send a verification code to a university email."""
+	from app.domain.identity import university_verification
+	
+	ip = request.client.host if request and request.client else "unknown"
+	if not await rate_limit.allow("univ_send", str(auth_user.id), limit=3, window_seconds=600):
+		raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limit_exceeded")
+
+	try:
+		await university_verification.send_code(auth_user, payload.email)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+
+
+@router.post("/verification/university/confirm-code", status_code=status.HTTP_204_NO_CONTENT)
+async def confirm_university_code(
+	payload: schemas.UniversityVerificationConfirmCode,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+	request: Request = None,
+):
+	"""Confirm a university verification code."""
+	from app.domain.identity import university_verification
+	
+	ip = request.client.host if request and request.client else "unknown"
+	if not await rate_limit.allow("univ_confirm", str(auth_user.id), limit=10, window_seconds=600):
+		raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limit_exceeded")
+
+	try:
+		await university_verification.confirm_code(auth_user, payload.code)
+	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None

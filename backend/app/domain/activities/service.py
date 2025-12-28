@@ -693,13 +693,26 @@ class ActivitiesService:
 		move_count = await self._get_activity_move_count(activity)
 		
 		try:
-			await self._leaderboards.record_activity_outcome(
+			awarded_users = await self._leaderboards.record_activity_outcome(
 				user_ids=user_ids,
 				winner_id=winner_id,
 				campus_map=campus_map,
 				duration_seconds=duration_seconds,
 				move_count=move_count,
 			)
+
+			if awarded_users:
+				from app.domain.xp import XPService
+				from app.domain.xp.models import XPAction
+				xp_service = XPService()
+				
+				# Award participation XP
+				for uid in awarded_users:
+					await xp_service.award_xp(uid, XPAction.GAME_PLAYED, metadata={"activity_id": activity.id, "kind": activity.kind})
+				
+				# Award winner XP
+				if winner_id and winner_id in awarded_users:
+					await xp_service.award_xp(winner_id, XPAction.GAME_WON, metadata={"activity_id": activity.id, "kind": activity.kind})
 			
 			# Analytics tracking - Activity Finish
 			from app.domain.identity import audit

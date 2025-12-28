@@ -327,6 +327,20 @@ async def _load_live(conn: asyncpg.Connection, user_id: str, scope: str) -> sche
 	)
 
 
+
+async def _augment_public_xp(profile: schemas.PublicProfileOut, user_id: str) -> schemas.PublicProfileOut:
+	try:
+		from app.domain.xp import XPService
+		stats = await XPService().get_user_stats(user_id)
+		profile.xp = stats.total_xp
+		profile.level = stats.current_level
+		profile.level_label = stats.level_label
+		profile.next_level_xp = stats.next_level_xp
+	except Exception:
+		pass
+	return profile
+
+
 async def get_public_profile(handle: str, *, viewer_id: Optional[str] = None) -> schemas.PublicProfileOut:
 	"""Return a public profile view, applying field-level visibility."""
 	handle_normalised = handle.lower()
@@ -340,8 +354,9 @@ async def get_public_profile(handle: str, *, viewer_id: Optional[str] = None) ->
 		if scope == "everyone":
 			cached = await _decode_cached(handle_normalised)
 			if cached:
-				return cached
+				return await _augment_public_xp(cached, user_id)
 			profile = await _load_projection(conn, handle_normalised, user_id)
 			await _store_cache(handle_normalised, profile)
-			return profile
-		return await _load_live(conn, user_id, scope)
+			return await _augment_public_xp(profile, user_id)
+		live = await _load_live(conn, user_id, scope)
+		return await _augment_public_xp(live, user_id)

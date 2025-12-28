@@ -52,12 +52,12 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
 	rows = await pool.fetch(
 		"""
-		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision, u.social_links, u.status,
+		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision, u.social_links, u.status, u.is_university_verified,
 		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
 		LEFT JOIN campuses c ON u.campus_id = c.id
-		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL
+		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND u.email_verified = TRUE
 		""",
 		list({uid for uid in user_ids}),
 	)
@@ -85,6 +85,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"ten_year_vision": row.get("ten_year_vision"),
 			"social_links": _parse_dict(row.get("social_links")),
 			"status": _parse_dict(row.get("status")),
+			"is_university_verified": bool(row.get("is_university_verified", False)),
 		}
 		for row in rows
 	}
@@ -164,7 +165,7 @@ async def _fetch_directory_candidates(
 			rows = await pool.fetch(
 				"""
 				SELECT id FROM users u
-				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL
+				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND email_verified = TRUE
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",
@@ -178,7 +179,7 @@ async def _fetch_directory_candidates(
 			rows = await pool.fetch(
 				"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL
+				WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE
 				AND (campus_id IS NULL OR campus_id != $2)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
@@ -192,7 +193,7 @@ async def _fetch_directory_candidates(
 			rows = await pool.fetch(
 				"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL
+				WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE
 				ORDER BY created_at DESC
 				LIMIT $2 OFFSET $3
 				""",
@@ -213,7 +214,7 @@ async def _fetch_directory_candidates(
 					sin(radians($3)) * sin(radians(lat))
 				)))) AS distance
 			FROM users u
-			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
 			ORDER BY distance ASC
 			LIMIT $5 OFFSET $6
 			""",
@@ -234,7 +235,7 @@ async def _fetch_directory_candidates(
 					sin(radians($2)) * sin(radians(lat))
 				)))) AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
 			AND (campus_id IS NULL OR campus_id != $4)
 			ORDER BY distance ASC
 			LIMIT $5 OFFSET $6
@@ -255,7 +256,7 @@ async def _fetch_directory_candidates(
 					sin(radians($2)) * sin(radians(lat))
 				)))) AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+			WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
 			ORDER BY distance ASC
 			LIMIT $4 OFFSET $5
 			""",
@@ -376,6 +377,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					ten_year_vision=profile.get("ten_year_vision"),
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
+					is_university_verified=profile.get("is_university_verified", False),
 				)
 			)
 
@@ -420,6 +422,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					ten_year_vision=profile.get("ten_year_vision"),
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
+					is_university_verified=profile.get("is_university_verified", False),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -458,6 +461,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					ten_year_vision=profile.get("ten_year_vision"),
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
+					is_university_verified=profile.get("is_university_verified", False),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -500,6 +504,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					ten_year_vision=profile.get("ten_year_vision"),
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
+					is_university_verified=profile.get("is_university_verified", False),
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -619,6 +624,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 				passions=profile.get("passions", []),
 				courses=profile.get("courses") or [],
 				ten_year_vision=profile.get("ten_year_vision"),
+				is_university_verified=profile.get("is_university_verified", False),
 			)
 		)
 

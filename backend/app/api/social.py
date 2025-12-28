@@ -9,7 +9,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
-from app.domain.social import audit, service, notifications
+from app.domain.social import audit, service, notifications, policy
+from app.domain.social.models import LEVEL_INVITE_LIMITS
 
 from app.domain.social.exceptions import (
 	BlockLimitExceeded,
@@ -35,6 +36,10 @@ from pydantic import BaseModel
 class InviteListPage(BaseModel):
 	items: List[InviteSummary]
 	next: Optional[str] = None
+
+class SocialUsageResponse(BaseModel):
+	daily_limit: int
+	daily_usage: int
 
 router = APIRouter()
 
@@ -279,3 +284,13 @@ async def mutual_friends(
 	auth_user: AuthenticatedUser = Depends(get_current_user),
 ) -> List[MutualFriend]:
 	return await service.list_mutual_friends(auth_user, str(target_id), limit)
+
+@router.get("/usage", response_model=SocialUsageResponse)
+async def get_social_usage(
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> SocialUsageResponse:
+	from app.domain.xp.service import XPService
+	xp_stats = await XPService().get_user_stats(auth_user.id)
+	limit = LEVEL_INVITE_LIMITS.get(xp_stats.current_level, 200)
+	usage = await policy.get_current_usage(str(auth_user.id))
+	return SocialUsageResponse(daily_limit=limit, daily_usage=usage)

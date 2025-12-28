@@ -41,6 +41,8 @@ class FriendRow(BaseModel):
 	created_at: datetime
 	friend_handle: Optional[str] = None
 	friend_display_name: Optional[str] = None
+	xp: Optional[int] = None
+	level: Optional[int] = None
 
 
 class MutualFriend(BaseModel):
@@ -48,6 +50,8 @@ class MutualFriend(BaseModel):
 	display_name: str
 	handle: str
 	avatar_url: Optional[str] = None
+	xp: Optional[int] = None
+	level: Optional[int] = None
 
 
 class FriendUpdatePayload(BaseModel):

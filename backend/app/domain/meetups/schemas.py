@@ -31,8 +31,9 @@ class MeetupCategory(str, Enum):
 
 
 class MeetupVisibility(str, Enum):
-    GLOBAL = "GLOBAL"
-    PRIVATE = "PRIVATE"
+    FRIENDS = "FRIENDS"
+    CAMPUS = "CAMPUS"
+    CITY = "CITY"
 
 
 class MeetupParticipantStatus(str, Enum):
@@ -57,7 +58,7 @@ class MeetupCreateRequest(BaseModel):
     start_at: datetime
     duration_min: int = Field(60, ge=15, le=480)  # 15 min to 8 hours
     campus_id: Optional[str] = None  # Optional if inferred from user
-    visibility: MeetupVisibility = MeetupVisibility.GLOBAL
+    visibility: MeetupVisibility = MeetupVisibility.FRIENDS
     capacity: int = Field(10, ge=2, le=50)
     location: Optional[str] = Field(None, max_length=100)
 
@@ -78,15 +79,10 @@ class MeetupResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     participants_count: int = 0
-    room_id: Optional[UUID]
-    cancel_reason: Optional[str]
-    created_at: datetime
-    updated_at: datetime
-    participants_count: int = 0
     is_joined: bool = False  # Computed for current user
     my_role: Optional[MeetupRole] = None
     current_user_id: Optional[UUID] = None # For frontend convenience
-    visibility: MeetupVisibility = MeetupVisibility.GLOBAL
+    visibility: MeetupVisibility = MeetupVisibility.FRIENDS
     capacity: int
     creator_name: Optional[str] = None
     creator_avatar_url: Optional[str] = None

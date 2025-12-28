@@ -8,7 +8,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Bell, Gamepad2, Info, MessageSquare, ThumbsUp, UserPlus, LogOut } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { onAuthChange, readAuthUser, type AuthUser, clearAuthSnapshot } from "@/lib/auth-storage";
-import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, type Notification } from "@/lib/social";
+import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, type Notification, fetchInviteInbox } from "@/lib/social";
 import { fetchProfile } from "@/lib/identity";
 import { fetchUpcomingMeetupsCount } from "@/lib/meetups";
 import type { ProfileRecord } from "@/lib/types";
@@ -240,7 +240,11 @@ export default function SiteHeader() {
         void markNotificationRead(authUser.userId, authUser.campusId ?? null, entry.id).catch(() => undefined);
       }
       if (entry.link) {
-        window.location.href = entry.link;
+        if (entry.link.startsWith("/")) {
+          router.push(entry.link);
+        } else {
+          window.location.href = entry.link;
+        }
         setPanelOpen(false);
       }
     },
@@ -329,12 +333,23 @@ export default function SiteHeader() {
         setUnreadCount((prev) => Math.max(prev - 1, 0));
       }
     };
+    const handleInviteUpdate = () => {
+      fetchInviteInbox(authUser.userId, authUser.campusId ?? null)
+        .then((inbox) => setSocialRequestCount(inbox.length))
+        .catch(() => { });
+    };
+
     socket.on("notification:new", handleNew);
     socket.on("notification:read", handleRead);
+    socket.on("invite:new", handleInviteUpdate);
+    socket.on("invite:update", handleInviteUpdate);
+
     socket.emit("subscribe_self");
     return () => {
       socket.off("notification:new", handleNew);
       socket.off("notification:read", handleRead);
+      socket.off("invite:new", handleInviteUpdate);
+      socket.off("invite:update", handleInviteUpdate);
     };
   }, [authUser?.campusId, authUser?.userId]);
 
@@ -387,12 +402,21 @@ export default function SiteHeader() {
   const unreadBadge = unreadCount > 99 ? "99+" : String(unreadCount);
 
   const [meetupCount, setMeetupCount] = useState(0);
+  const [socialRequestCount, setSocialRequestCount] = useState(0);
 
   useEffect(() => {
-    if (authUser?.campusId) {
-      fetchUpcomingMeetupsCount(authUser.campusId).then(setMeetupCount).catch(() => { });
+    if (authUser?.userId) {
+      fetchInviteInbox(authUser.userId, authUser.campusId ?? null)
+        .then((inbox) => setSocialRequestCount(inbox.length))
+        .catch(() => { });
     }
-  }, [authUser?.campusId]);
+  }, [authUser?.userId, authUser?.campusId]);
+
+  useEffect(() => {
+    if (authUser?.userId) {
+      fetchUpcomingMeetupsCount(authUser.campusId ?? undefined).then(setMeetupCount).catch(() => { });
+    }
+  }, [authUser?.campusId, authUser?.userId]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
@@ -420,6 +444,11 @@ export default function SiteHeader() {
               {link.label === "Meetups" && meetupCount > 0 && (
                 <span className="flex items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
                   {meetupCount}
+                </span>
+              )}
+              {link.label === "Socials" && socialRequestCount > 0 && (
+                <span className="flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                  {socialRequestCount}
                 </span>
               )}
             </Link>

@@ -1,6 +1,5 @@
 "use client";
-
-import { Trophy, Users, MessageCircle, Calendar, Star, Info, Gamepad2, ShieldCheck, Globe, Building2, Lock, Mail, Smartphone, Camera, Sparkles } from "lucide-react";
+import { Trophy, Users, MessageCircle, Calendar, Star, Info, Gamepad2, ShieldCheck, Globe, Building2, Lock, Mail, Smartphone, Camera, Sparkles, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -79,12 +78,14 @@ export function SocialScoreGuideContent() {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                                                    <GuideRow icon={<Calendar className="text-purple-500" />} label="Host a Meetup" points="+50 XP" />
-                                                    <GuideRow icon={<Trophy className="text-amber-500" />} label="Win a Game" points="+50 XP" />
-                                                    <GuideRow icon={<Users className="text-green-500" />} label="Join a Meetup" points="+10 XP" />
+                                                    <GuideRow icon={<Calendar className="text-purple-500" />} label="Host a Meetup" points="+100 XP" />
+                                                    <GuideRow icon={<Users className="text-green-500" />} label="Join a Meetup" points="+50 XP" />
+                                                    <GuideRow icon={<Users className="text-blue-500" />} label="New Friendship" points="+50 XP" />
+                                                    <GuideRow icon={<Trophy className="text-amber-500" />} label="Win a Game" points="+20 XP" />
                                                     <GuideRow icon={<Gamepad2 className="text-indigo-500" />} label="Play a Game" points="+10 XP" />
-                                                    <GuideRow icon={<MessageCircle className="text-blue-500" />} label="Send Message" points="+1 XP" />
-                                                    <GuideRow icon={<ShieldCheck className="text-emerald-500" />} label="Daily Login" points="+5 XP" />
+                                                    <GuideRow icon={<UserPlus className="text-rose-500" />} label="Send Friend Request" points="+10 XP" />
+                                                    <GuideRow icon={<ShieldCheck className="text-emerald-500" />} label="Daily Login" points="+25 XP" />
+                                                    <GuideRow icon={<MessageCircle className="text-sky-500" />} label="Send Message" points="+2 XP" />
                                                 </tbody>
                                             </table>
                                         </div>

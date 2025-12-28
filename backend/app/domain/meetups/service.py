@@ -189,7 +189,7 @@ class MeetupService:
         creator_name = creator.display_name or "A user"
         
         async with pool.acquire() as conn:
-            if visibility == "PRIVATE":
+            if visibility == "FRIENDS":
                 # Fetch friends
                 rows = await conn.fetch(
                     """
@@ -226,7 +226,7 @@ class MeetupService:
                         except Exception:
                             pass # Don't crash on email fail
 
-            elif visibility == "GLOBAL":
+            elif visibility in ("CAMPUS", "CITY"):
                 # Fetch ALL campus users (excluding creator)
                 # Note: This simply broadcasts to everyone in the campus.
                 rows = await conn.fetch(
@@ -331,13 +331,16 @@ class MeetupService:
         # Visibility Logic
         where_conditions.append("""
             (
-                m.visibility = 'GLOBAL' 
+                m.visibility IN ('CAMPUS', 'CITY') 
                 OR m.creator_user_id = $2
-                OR EXISTS (
-                    SELECT 1 FROM friendships f 
-                    WHERE f.user_id = $2 
-                    AND f.friend_id = m.creator_user_id 
-                    AND f.status = 'accepted'
+                OR (
+                    m.visibility = 'FRIENDS'
+                    AND EXISTS (
+                        SELECT 1 FROM friendships f 
+                        WHERE f.user_id = $2 
+                        AND f.friend_id = m.creator_user_id 
+                        AND f.status = 'accepted'
+                    )
                 )
             )
         """)
@@ -391,7 +394,7 @@ class MeetupService:
                 raise HTTPException(status_code=404, detail="Meetup not found")
                 
             # Check visibility access for detail as well
-            if row["visibility"] == schemas.MeetupVisibility.PRIVATE.value:
+            if row["visibility"] == schemas.MeetupVisibility.FRIENDS.value:
                 is_creator = str(row["creator_user_id"]) == str(auth_user.id)
                 if not is_creator:
                     is_friend = await conn.fetchval(
@@ -447,7 +450,7 @@ class MeetupService:
                 raise HTTPException(status_code=404, detail="Meetup not found")
             
             # Check visibility
-            if meetup["visibility"] == schemas.MeetupVisibility.PRIVATE.value:
+            if meetup["visibility"] == schemas.MeetupVisibility.FRIENDS.value:
                 is_creator = str(meetup["creator_user_id"]) == str(auth_user.id)
                 if not is_creator:
                     is_friend = await conn.fetchval(
@@ -667,7 +670,7 @@ class MeetupService:
             is_joined=is_joined,
             my_role=my_role,
             current_user_id=current_user_id,
-            visibility=row.get("visibility", schemas.MeetupVisibility.GLOBAL.value),
+            visibility=row.get("visibility", schemas.MeetupVisibility.CAMPUS.value),
             capacity=row.get("capacity", 10),
             creator_name=row.get("creator_name"),
             creator_avatar_url=row.get("creator_avatar_url"),

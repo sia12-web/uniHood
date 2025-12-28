@@ -1,8 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
-
 import AppChrome from "@/components/AppChrome";
 
 const PerformanceMonitor = dynamic(() => import("@/components/PerformanceMonitor"), {
@@ -68,8 +68,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
       <body className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50 antialiased">
-        <PerformanceMonitor />
-        <AppChrome>{children}</AppChrome>
+        <Suspense fallback={null}>
+          <PerformanceMonitor />
+          <AppChrome>{children}</AppChrome>
+        </Suspense>
       </body>
     </html>
   );

@@ -33,7 +33,7 @@ def test_xp_model_properties():
 
     s2 = mk(200, 2)
     assert s2.next_level_xp == 500
-    assert s2.level_label == "Social Starter"
+    assert s2.level_label == "Explorer"
     
     sMax = mk(16000, 6)
     assert sMax.next_level_xp is None

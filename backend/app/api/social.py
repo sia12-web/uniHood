@@ -293,4 +293,5 @@ async def get_social_usage(
 	xp_stats = await XPService().get_user_stats(auth_user.id)
 	limit = LEVEL_INVITE_LIMITS.get(xp_stats.current_level, 200)
 	usage = await policy.get_current_usage(str(auth_user.id))
+	print(f"DEBUG: usage user={auth_user.id} level={xp_stats.current_level} limit={limit} usage={usage}")
 	return SocialUsageResponse(daily_limit=limit, daily_usage=usage)

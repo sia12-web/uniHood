@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { readAuthUser } from "@/lib/auth-storage";
-import { getXPSocket, disconnectXPSocket } from "@/lib/socket";
+import { getXPSocket } from "@/lib/socket";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface XPGainedPayload {

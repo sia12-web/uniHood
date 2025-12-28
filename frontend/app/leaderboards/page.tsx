@@ -115,7 +115,7 @@ export default function LeaderboardsPage() {
           </div>
           <div className="text-left">
             <h2 className="text-2xl font-bold text-slate-900">Social Score</h2>
-            <p className="text-sm text-slate-600">Earn points from friends, meetups, and messaging</p>
+            <p className="text-sm text-slate-600">Calculated from your friendships and meetup participation. This is separate from your Campus XP Level.</p>
           </div>
         </div>
 

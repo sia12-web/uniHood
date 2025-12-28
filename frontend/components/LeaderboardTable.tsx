@@ -71,9 +71,9 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
               const isMine = highlightUserId ? row.user_id === highlightUserId : false;
               // Prefer display_name, then truncated UUID as fallback
               const displayName = row.display_name || `${row.user_id.slice(0, 8)}…${row.user_id.slice(-4)}`;
-              // For social scope, display as integer (the Social Score)
+              // For social scope, display as Level
               const scoreDisplay = scope === "social"
-                ? Math.floor(row.score).toString()
+                ? `Lvl ${Math.floor(row.score)}`
                 : formatScore(row.score);
 
               const initials = (displayName || "?")[0]?.toUpperCase();

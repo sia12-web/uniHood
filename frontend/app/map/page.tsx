@@ -113,7 +113,7 @@ export default function InteractiveMapPage() {
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-navy dark:text-white line-clamp-1">{meetup.title}</h3>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-navy/50 dark:text-slate-400">
-                          {meetup.visibility === "PRIVATE" ? "Invite only" : "Open campus"}
+                          {meetup.visibility === "FRIENDS" ? "Invite only" : "Open campus"}
                         </p>
                       </div>
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">

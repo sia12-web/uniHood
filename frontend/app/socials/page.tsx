@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import DiscoveryFeed from "@/components/DiscoveryFeed";
 import { MyFriends } from "@/components/social/MyFriends";
 import { MyMeetups } from "@/components/social/MyMeetups";
@@ -10,9 +10,15 @@ import { Sparkles, Users, Calendar, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function SocialsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as "discover" | "friends" | "requests" | "meetups") || "discover";
   const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">(initialTab);
+
+  const handleTabChange = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    router.replace(`/socials?tab=${tab}`, { scroll: false });
+  };
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -34,7 +40,7 @@ export default function SocialsPage() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 p-1 bg-slate-200 dark:bg-slate-900 rounded-2xl w-fit">
           <button
-            onClick={() => setActiveTab("discover")}
+            onClick={() => handleTabChange("discover")}
             className={cn(
               "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
               activeTab === "discover" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -43,7 +49,7 @@ export default function SocialsPage() {
             <Sparkles size={16} /> Discover
           </button>
           <button
-            onClick={() => setActiveTab("friends")}
+            onClick={() => handleTabChange("friends")}
             className={cn(
               "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
               activeTab === "friends" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -52,7 +58,7 @@ export default function SocialsPage() {
             <Users size={16} /> Friends
           </button>
           <button
-            onClick={() => setActiveTab("requests")}
+            onClick={() => handleTabChange("requests")}
             className={cn(
               "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
               activeTab === "requests" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -61,7 +67,7 @@ export default function SocialsPage() {
             <Inbox size={16} /> Requests
           </button>
           <button
-            onClick={() => setActiveTab("meetups")}
+            onClick={() => handleTabChange("meetups")}
             className={cn(
               "px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all",
               activeTab === "meetups" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"

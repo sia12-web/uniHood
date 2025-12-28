@@ -219,6 +219,42 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 			await _emit_invite_update(summary)
 			await _emit_invite_update(other_summary)
 			await _emit_friend_update_pair(sender_id, target_id, "accepted")
+
+			# Record for leaderboards (Social Score points)
+			try:
+				# Both get "New Friend" points (+50)
+				await _leaderboards.record_friendship_accepted(user_a=sender_id, user_b=target_id)
+				# Original sender gets "Invite Accepted" points (+30)
+				await _leaderboards.record_invite_accepted(from_user_id=target_id, to_user_id=sender_id)
+				# New sender gets "Invite Accepted" points (+30) because they also fulfilled an open intent
+				await _leaderboards.record_invite_accepted(from_user_id=sender_id, to_user_id=target_id)
+			except Exception:
+				logger.exception("Failed to record leaderboard points for auto-friendship")
+
+			# Notify original sender (who is now the target of the current action's summary)
+			try:
+				await NotificationService().notify_user(
+					user_id=target_id,
+					title="Friend Request Accepted",
+					body=f"{summary.from_display_name or 'Someone'} accepted your friend request.",
+					kind="friend_accepted",
+					link="/socials?tab=friends"
+				)
+			except Exception:
+				logger.exception("Failed to create notification for auto-invite acceptance")
+
+			# Award XP for both (Mutual Invitation = Immediate Friendship)
+			try:
+				from app.domain.xp.service import XPService
+				from app.domain.xp.models import XPAction
+				xp_service = XPService()
+				# Original sender gets accept points
+				await xp_service.award_xp(target_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": sender_id})
+				# New sender gets accept points
+				await xp_service.award_xp(sender_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": target_id})
+			except Exception:
+				logger.exception("Failed to award XP for auto-friendship")
+
 			return summary
 
 		new_id = uuid4()
@@ -250,6 +286,14 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 		# Send email notification to recipient (non-blocking)
 		await _send_invite_email_notification(summary)
 		
+		# Award XP for sending invite
+		try:
+			from app.domain.xp.service import XPService
+			from app.domain.xp.models import XPAction
+			await XPService().award_xp(sender_id, XPAction.FRIEND_INVITE_SENT, metadata={"invite_id": str(summary.id), "to": target_id})
+		except Exception:
+			logger.exception("Failed to award XP for sending invite")
+
 		# Create persistent notification
 		try:
 			await NotificationService().notify_user(
@@ -257,7 +301,7 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 				title="New Friend Request",
 				body=f"{summary.from_display_name or 'Someone'} sent you a friend request.",
 				kind="friend_request",
-				link="/friends"
+				link="/socials?tab=requests"
 			)
 		except Exception:
 			logger.exception("Failed to create notification for invite")
@@ -314,9 +358,15 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 	
 	# Record friendship for leaderboard scoring (with anti-cheat)
 	try:
+		# Both get "New Friend" points (+50)
 		await _leaderboards.record_friendship_accepted(
 			user_a=str(summary.from_user_id),
 			user_b=str(summary.to_user_id),
+		)
+		# Original sender gets "Invite Accepted" points (+30)
+		await _leaderboards.record_invite_accepted(
+			from_user_id=str(summary.from_user_id),
+			to_user_id=str(summary.to_user_id),
 		)
 	except Exception:
 		logger.exception("Failed to record friendship for leaderboards")
@@ -352,10 +402,22 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 			title="Friend Request Accepted",
 			body=f"{summary.to_display_name or 'Someone'} accepted your friend request.",
 			kind="friend_accepted",
-			link=f"/profile/{summary.to_handle}" if summary.to_handle else "/friends"
+			link="/socials?tab=friends"
 		)
 	except Exception:
 		logger.exception("Failed to create notification for invite acceptance")
+
+	# Award XP for both 
+	try:
+		from app.domain.xp.service import XPService
+		from app.domain.xp.models import XPAction
+		xp_service = XPService()
+		# Sender (from_user_id) gets accept points
+		await xp_service.award_xp(str(summary.from_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.to_user_id)})
+		# Recipient (to_user_id, who accepted) gets accept points
+		await xp_service.award_xp(str(summary.to_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.from_user_id)})
+	except Exception:
+		logger.exception("Failed to award XP for friendship acceptance")
 
 	return summary
 

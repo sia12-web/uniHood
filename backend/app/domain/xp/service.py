@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
+import logging
 from app.domain.xp.models import (
     LEVEL_THRESHOLDS,
     XP_AMOUNTS,
@@ -14,6 +15,8 @@ from app.domain.xp.models import (
 )
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
+
+logger = logging.getLogger(__name__)
 
 
 class XPService:
@@ -47,6 +50,7 @@ class XPService:
                     last_updated_at=row["last_updated_at"],
                 )
             
+            logger.warning(f"XP stats not found for user {uid}, returning defaults")
             # Return empty stats if not found
             return UserXPStats(
                 user_id=UUID(uid),
@@ -61,11 +65,15 @@ class XPService:
         amount = XP_AMOUNTS.get(action, 0)
         
         # --- Anti-Cheat: Diminishing Returns ---
-        if metadata and "host_id" in metadata:
-            host_id = str(metadata["host_id"])
-            # Don't apply diminishing returns if interacting with self (if that's even possible/allowed)
-            if host_id != uid:
-                amount = await self._apply_diminishing_returns(uid, host_id, action, amount)
+        target_id = None
+        if metadata:
+            target_id = metadata.get("host_id") or metadata.get("target_id") or metadata.get("to")
+        
+        if target_id:
+            target_id = str(target_id)
+            # Don't apply diminishing returns if interacting with self
+            if target_id != uid:
+                amount = await self._apply_diminishing_returns(uid, target_id, action, amount)
         # ---------------------------------------
         
         if amount <= 0:

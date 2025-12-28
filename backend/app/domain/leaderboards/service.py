@@ -218,6 +218,18 @@ class LeaderboardService:
 			user_b=user_b,
 		)
 
+	async def record_invite_accepted(
+		self,
+		*,
+		from_user_id: str,
+		to_user_id: str,
+	) -> None:
+		"""Record that an invite sent by from_user_id was accepted by to_user_id."""
+		await self._accrual.record_invite_accepted(
+			from_user_id=from_user_id,
+			to_user_id=to_user_id,
+		)
+
 	async def record_friendship_removed(
 		self,
 		*,

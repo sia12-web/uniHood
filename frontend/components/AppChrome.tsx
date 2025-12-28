@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 
@@ -64,7 +64,11 @@ function ChromeWrapper({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  return <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>;
+  return (
+    <Suspense fallback={null}>
+      <AuthenticatedAppChrome>{children}</AuthenticatedAppChrome>
+    </Suspense>
+  );
 }
 
 export default function AppChrome({ children }: { children: ReactNode }) {
@@ -73,7 +77,9 @@ export default function AppChrome({ children }: { children: ReactNode }) {
       <CampusProvider>
         <ToastProvider>
           <ReportProvider>
-            <ChromeWrapper>{children}</ChromeWrapper>
+            <Suspense fallback={null}>
+              <ChromeWrapper>{children}</ChromeWrapper>
+            </Suspense>
           </ReportProvider>
         </ToastProvider>
       </CampusProvider>

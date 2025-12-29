@@ -11,7 +11,7 @@ import {
 	setSessionReady,
 	startSession,
 } from '../api/client';
-import { resetOutcomeGuard } from './outcome-recorder';
+import { maybeRecordOutcome, resetOutcomeGuard } from './outcome-recorder';
 
 export type LobbyParticipant = {
 	userId: string;
@@ -1072,6 +1072,22 @@ export function useSpeedTypingSession(options: UseSpeedTypingOptions) {
 		}
 		return textSample.length === 0 ? 1 : matches / textSample.length;
 	}, [state.phase, textSample, typedText]);
+
+	// Record game outcome when session ends
+	useEffect(() => {
+		if (state.phase === 'ended' || state.leaveReason) {
+			maybeRecordOutcome({
+				phase: state.phase,
+				leaveReason: state.leaveReason,
+				scoreboard: state.scoreboard,
+				winnerUserId: state.winnerUserId,
+				selfUserId: selfUserIdRef.current,
+				gameKind: 'speed_typing',
+				durationSeconds: timeLimitMs ? Math.round(timeLimitMs / 1000) : 60,
+				outcomeRecordedRef,
+			});
+		}
+	}, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId, timeLimitMs]);
 
 	return {
 		state,

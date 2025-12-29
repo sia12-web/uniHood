@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { resetOutcomeGuard } from "./outcome-recorder";
+import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export interface TriviaState {
   phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";
@@ -454,9 +454,21 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
     }
   }, [state.sessionId]);
 
-  // NOTE: Game outcome is recorded by the backend activities-core service via WebSocket
-  // Do NOT record from frontend to avoid double-counting stats
-  // The useEffect that called maybeRecordOutcome has been removed
+  // Record game outcome when session ends
+  useEffect(() => {
+    if (state.phase === 'ended' || state.leaveReason) {
+      maybeRecordOutcome({
+        phase: state.phase,
+        leaveReason: state.leaveReason,
+        scoreboard: state.scoreboard,
+        winnerUserId: state.winnerUserId,
+        selfUserId: selfRef.current,
+        gameKind: 'quick_trivia',
+        durationSeconds: 60,
+        outcomeRecordedRef,
+      });
+    }
+  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
 
   useEffect(() => {
     resetOutcomeGuard(outcomeRecordedRef);

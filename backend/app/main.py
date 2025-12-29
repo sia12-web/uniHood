@@ -29,6 +29,7 @@ from app.api import (
 	contact_discovery,
 	flags as flags_api,
 	interests,
+	internal_ops,
 	leaderboards,
 	legal as legal_api,
 	meetups,
@@ -436,6 +437,7 @@ app.include_router(meetups.router, tags=["meetups"])
 app.include_router(security.router, tags=["security"])
 app.include_router(search.router, tags=["search"])
 app.include_router(ops.router, tags=["ops"])
+app.include_router(internal_ops.router, tags=["internal"])
 app.include_router(privacy.router, tags=["privacy"])
 app.include_router(verify.router, tags=["verification"])
 app.include_router(admin_verify.router, tags=["admin"])

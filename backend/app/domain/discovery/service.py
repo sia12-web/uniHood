@@ -25,6 +25,8 @@ from app.domain.social.sockets import emit_discovery_match
 from app.infra.auth import AuthenticatedUser
 from app.infra.redis import redis_client
 from app.infra.postgres import get_pool
+from app.domain.xp.service import XPService
+from app.domain.xp.models import XPAction
 
 
 async def list_feed(
@@ -292,11 +294,27 @@ async def register_like(auth_user: AuthenticatedUser, target_id: UUID, *, cursor
 	await redis_client.sadd(f"discovery:like:{auth_user.id}", target)
 	await redis_client.srem(f"discovery:pass:{auth_user.id}", target)
 
+	# Award Swipe XP
+	try:
+		await XPService().award_xp(auth_user.id, XPAction.DISCOVERY_SWIPE)
+	except Exception:
+		pass
+
 	# Mutual like => mark match
 	if await _is_mutual_like(auth_user.id, target):
 		await _persist_match(auth_user.id, target)
 		await redis_client.sadd(f"discovery:match:{auth_user.id}", target)
 		await redis_client.sadd(f"discovery:match:{target}", str(auth_user.id))
+		
+		# Award Match XP
+		try:
+			# Both users get XP for the match
+			xp_service = XPService()
+			await xp_service.award_xp(auth_user.id, XPAction.DISCOVERY_MATCH, metadata={"with": target})
+			await xp_service.award_xp(target, XPAction.DISCOVERY_MATCH, metadata={"with": str(auth_user.id)})
+		except Exception:
+			pass
+
 		# Fire real-time match event to both users; best-effort.
 		payload = {"peer_id": target}
 		try:
@@ -315,6 +333,12 @@ async def register_pass(auth_user: AuthenticatedUser, target_id: UUID, *, cursor
 	await _persist_interaction(auth_user.id, target, "pass", cursor)
 	await redis_client.sadd(f"discovery:pass:{auth_user.id}", target)
 	await redis_client.srem(f"discovery:like:{auth_user.id}", target)
+	
+	try:
+		await XPService().award_xp(auth_user.id, XPAction.DISCOVERY_SWIPE)
+	except Exception:
+		pass
+
 	return InteractionResponse(next_cursor=cursor, exhausted=False)
 
 

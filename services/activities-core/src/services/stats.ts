@@ -100,5 +100,42 @@ export async function recordGameResult(
         console.error(`[Stats] Failed to update Redis stats for ${userId}`, e);
     }
 
+    // 3. Award XP via Backend
+    // Fire and forget to not block stats return
+    awardXP(userId, 'game_played', { activity: activityKey, result }).catch(e => console.error(e));
+    if (result === 'win') {
+        awardXP(userId, 'game_won', { activity: activityKey }).catch(e => console.error(e));
+    }
+
     return sqlSuccess || redisSuccess;
+}
+
+// Internal helper to award XP via backend API
+async function awardXP(userId: string, action: string, metadata: any = {}) {
+    const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8001';
+    // Ideally this comes from env, but for dev fix we use the known dev secret matching backend/.env
+    const INTERNAL_SECRET = process.env.SERVICE_SIGNING_KEY || 'pTv2KiIj';
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/internal/xp/award`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Internal-Secret': INTERNAL_SECRET
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                action: action,
+                metadata: metadata
+            })
+        });
+
+        if (!response.ok) {
+            console.error(`[Stats] Failed to award XP: ${response.status} ${await response.text()}`);
+        } else {
+            console.log(`[Stats] Awarded XP to ${userId} for ${action}`);
+        }
+    } catch (err) {
+        console.error(`[Stats] Error calling XP API`, err);
+    }
 }

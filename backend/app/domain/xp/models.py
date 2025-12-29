@@ -77,6 +77,8 @@ class XPAction(str, Enum):
     DAILY_LOGIN = "daily_login"
     FRIEND_INVITE_SENT = "friend_invite_sent"
     FRIEND_REQUEST_ACCEPTED = "friend_request_accepted"
+    DISCOVERY_SWIPE = "discovery_swipe"
+    DISCOVERY_MATCH = "discovery_match"
 
 XP_AMOUNTS = {
     XPAction.CHAT_SENT: 2,
@@ -88,4 +90,6 @@ XP_AMOUNTS = {
     XPAction.DAILY_LOGIN: 25,
     XPAction.FRIEND_INVITE_SENT: 10,
     XPAction.FRIEND_REQUEST_ACCEPTED: 50,
+    XPAction.DISCOVERY_SWIPE: 2,
+    XPAction.DISCOVERY_MATCH: 15,
 }

@@ -24,6 +24,8 @@ from app.domain.leaderboards.models import (
 from app.domain.leaderboards.schemas import LeaderboardResponseSchema, LeaderboardRowSchema, MySummarySchema, StreakSummarySchema
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
+from app.domain.xp.service import XPService
+from app.domain.xp.models import XPAction
 
 
 def _today_ymd() -> int:
@@ -165,6 +167,16 @@ class LeaderboardService:
 				points_inc = 0
 				if uid in awarded_set:
 					points_inc = int(policy.W_ACT_PLAYED) + (int(policy.W_ACT_WON) if win_inc else 0)
+					
+					# Award XP
+					try:
+						xp_svc = XPService()
+						await xp_svc.award_xp(user_uuid, XPAction.GAME_PLAYED, metadata={"game": game_kind})
+						if win_inc:
+							await xp_svc.award_xp(user_uuid, XPAction.GAME_WON, metadata={"game": game_kind})
+					except Exception as e:
+						logger.error(f"Failed to award XP for game: {e}")
+
 				logger.info(f"[record_activity_outcome] DB write: user={uid} game={game_kind} played=1 win={win_inc} points={points_inc}")
 				try:
 					await conn.execute(

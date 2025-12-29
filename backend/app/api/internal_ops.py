@@ -38,3 +38,40 @@ async def award_xp_internal(
 		}
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+from app.domain.leaderboards.service import LeaderboardService
+
+class InternalGameOutcomeRequest(BaseModel):
+	user_ids: list[str]
+	winner_id: Optional[str] = None
+	campus_id: Optional[str] = None
+	game_kind: str = "tictactoe"
+	duration_seconds: int = 60
+	move_count: int = 5
+
+@router.post("/leaderboards/record-outcome", status_code=status.HTTP_200_OK)
+async def record_game_outcome_internal(
+	payload: InternalGameOutcomeRequest,
+	_auth: str = Depends(verify_internal_secret)
+):
+	service = LeaderboardService()
+	try:
+		# Build campus map if provided
+		campus_map = {}
+		if payload.campus_id:
+			for uid in payload.user_ids:
+				campus_map[uid] = payload.campus_id
+		
+		awarded = await service.record_activity_outcome(
+			user_ids=payload.user_ids,
+			winner_id=payload.winner_id,
+			game_kind=payload.game_kind,
+			campus_map=campus_map,
+			duration_seconds=payload.duration_seconds,
+			move_count=payload.move_count,
+		)
+		return {"recorded": True, "awarded_users": awarded}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+

@@ -51,9 +51,8 @@ export const AnimeCharacter: React.FC<AnimeCharacterProps> = ({ state, isOpponen
             x: isOpponent ? [50, 0] : [-50, 0],
             scale: [0.8, 1.2, 1],
             transition: {
-                type: "spring",
-                stiffness: 300,
-                damping: 15,
+                x: { type: "spring", stiffness: 300, damping: 15 },
+                scale: { duration: 0.4, ease: "easeInOut" }
             },
         },
         win: {

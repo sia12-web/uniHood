@@ -489,6 +489,21 @@ class ChatService:
 			client_msg_id,
 			created_at,
 		)
+		
+		# Log to Activity Feed (Audit)
+		try:
+			from app.domain.identity import audit
+			await audit.append_db_event(
+				user_id=auth_user.id,
+				event="chat.sent",
+				meta={
+					"conversation_id": message.conversation_id,
+					"recipient_id": payload.to_user_id
+				}
+			)
+		except Exception:
+			pass # Non-critical
+			
 		obs_metrics.inc_chat_send()
 		moderation = _build_moderation_meta(ctx)
 		response = MessageResponse.from_model(message, moderation=moderation)

@@ -78,12 +78,21 @@ export async function cancelInvite(
 	return request<InviteSummary>(`/invites/${inviteId}/cancel`, userId, campusId, { method: "POST" });
 }
 
+import { HttpError } from "@/app/lib/http/errors";
+
 export async function fetchFriends(
 	userId: string,
 	campusId: string | null,
 	filter: "accepted" | "blocked" | "pending" = "accepted",
 ): Promise<FriendRow[]> {
-	return request<FriendRow[]>(`/friends/list?filter=${filter}`, userId, campusId);
+	try {
+		return await request<FriendRow[]>(`/friends/list?filter=${filter}`, userId, campusId);
+	} catch (err) {
+		if (err instanceof HttpError && err.status === 404) {
+			return [];
+		}
+		throw err;
+	}
 }
 
 export async function blockUser(

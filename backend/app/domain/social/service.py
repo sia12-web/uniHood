@@ -273,6 +273,7 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 
 		summary = await _summarize_invite(conn, new_id)
 		audit.inc_invite_sent("sent")
+		# Log to Redis Stream (Ops)
 		await audit.log_invite_event(
 			"sent",
 			{
@@ -282,6 +283,22 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 				"status": summary.status,
 			},
 		)
+		
+		# Log to DB Audit (Activity Feed)
+		try:
+			from app.domain.identity import audit as db_audit
+			await db_audit.append_db_event(
+				user_id=sender_id,
+				event="invite.sent",
+				meta={
+					"invite_id": str(summary.id),
+					"target_id": target_id,
+					"recipient_name": summary.to_display_name or "Someone",
+					"recipient_handle": summary.to_handle
+				}
+			)
+		except Exception:
+			logger.warning("Failed to log DB audit for invite.sent", exc_info=True)
 		await _emit_invite_new(summary)
 		# Send email notification to recipient (non-blocking)
 		await _send_invite_email_notification(summary)
@@ -381,6 +398,38 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 			"status": summary.status,
 		},
 	)
+
+	# Log to DB Audit (Activity Feed)
+	try:
+		from app.domain.identity import audit as db_audit
+		# Log for acceptor (current user)
+		await db_audit.append_db_event(
+			user_id=str(summary.to_user_id),
+			event="friend.accepted",
+			meta={
+				"invite_id": str(summary.id),
+				"friend_id": str(summary.from_user_id),
+				"friend_name": summary.from_display_name,
+				"xp": 50 # New Friend XP
+			}
+		)
+		# Log for sender (original requester) - so they see they have a new friend too in their feed?
+		# Activity feed typically shows "Your" actions or friends' actions.
+		# If A accepts B's invite:
+		# A's feed: "You became friends with B" (friend.accepted event for A)
+		# B's feed: "A accepted your friend request" or "You became friends with A" (friend.accepted event for B)
+		await db_audit.append_db_event(
+			user_id=str(summary.from_user_id),
+			event="friend.accepted",
+			meta={
+				"invite_id": str(summary.id),
+				"friend_id": str(summary.to_user_id),
+				"friend_name": summary.to_display_name,
+				"xp": 50
+			}
+		)
+	except Exception:
+		logger.warning("Failed to log DB audit for friend.accepted", exc_info=True)
 	await audit.log_friend_event(
 		"accepted",
 		{

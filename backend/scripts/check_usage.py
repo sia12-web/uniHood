@@ -26,25 +26,25 @@ from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 
 async def main():
-    email = "level6@example.com"
+    email = "unihoodapp@gmail.com"
     pool = await get_pool()
     async with pool.acquire() as conn:
         user = await conn.fetchrow("SELECT id FROM users WHERE email = $1", email)
         if not user:
-            print("User not found")
+            print(f"User {email} not found")
             return
         user_id = str(user['id'])
         
         from app.domain.social.policy import get_current_usage
         usage = await get_current_usage(user_id)
-        print(f"Current Usage for {email}: {usage}")
+        print(f"Current Validated Usage for {email}: {usage}")
         
         # Check raw redis keys
         now = datetime.now(timezone.utc)
         per_day_bucket = now.strftime("%Y%m%d")
         per_day_key = f"rl:invite:daily:{user_id}:{per_day_bucket}"
         val = await redis_client.get(per_day_key)
-        print(f"Redis Value ({per_day_key}): {val}")
+        print(f"Raw Redis Value ({per_day_key}): {val} (None implies 0 usage)")
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

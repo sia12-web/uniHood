@@ -7,12 +7,14 @@ from uuid import UUID
 from datetime import datetime
 
 import logging
+import json
 from app.domain.xp.models import (
     LEVEL_THRESHOLDS,
     XP_AMOUNTS,
     XPAction,
     UserXPStats,
 )
+from app.domain.identity import audit
 from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 
@@ -86,8 +88,8 @@ class XPService:
                 # 1. Log the event
                 await conn.execute("""
                     INSERT INTO xp_events (user_id, action_type, amount, metadata)
-                    VALUES ($1, $2, $3, $4)
-                """, uid, action.value, amount, metadata or {})
+                    VALUES ($1, $2, $3, $4::jsonb)
+                """, uid, action.value, amount, json.dumps(metadata or {}))
 
                 # 2. Update stats and get new totals
                 row = await conn.fetchrow("""
@@ -111,6 +113,22 @@ class XPService:
                 # However, asyncpg doesn't fully support on_commit hooks easily here.
                 # Fire and forget is okay for UI updates.
                 await sockets.emit_xp_gained(uid, amount, action.value, current_total, calculated_level)
+
+                # Log to Activity Feed (Audit)
+                try:
+                    await audit.append_db_event(
+                        user_id=uid,
+                        event="xp.gained",
+                        meta={
+                            "action": action.value,
+                            "amount": amount,
+                            "total_xp": current_total,
+                            "level": calculated_level,
+                            "source_meta": metadata or {}
+                        }
+                    )
+                except Exception:
+                    logger.warning("Failed to log XP audit event", exc_info=True)
                 
                 if calculated_level != db_level:
                     await conn.execute("""

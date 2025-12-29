@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { MessageCircle, UserX } from "lucide-react";
 
 import { getDemoCampusId, getDemoUserId } from "@/lib/env";
 import { getSocialSocket } from "@/lib/socket";
-import { fetchFriends } from "@/lib/social";
+import { fetchFriends, removeFriend } from "@/lib/social";
 import type { FriendRow } from "@/lib/types";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 
@@ -25,6 +26,7 @@ function friendSecondaryLabel(friend: FriendRow): string {
 }
 
 export function MyFriends() {
+    const router = useRouter();
     const [friends, setFriends] = useState<FriendRow[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -69,6 +71,20 @@ export function MyFriends() {
         };
     }, [socket, loadFriends]);
 
+    const handleRemoveFriend = async (friendId: string, friendName: string) => {
+        if (!confirm(`Are you sure you want to remove ${friendName} as a friend?`)) {
+            return;
+        }
+
+        try {
+            await removeFriend(currentUserId, currentCampusId, friendId);
+            setFriends(prev => prev.filter(f => f.friend_id !== friendId));
+        } catch (err) {
+            console.error("Failed to remove friend:", err);
+            alert("Failed to remove friend. Please try again.");
+        }
+    };
+
     if (loading) return <div className="p-8 text-center text-slate-500">Loading friends...</div>;
     if (error) return <div className="p-8 text-center text-rose-500">{error}</div>;
 
@@ -94,11 +110,18 @@ export function MyFriends() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button className="h-8 w-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition" title="Message">
+                                <button
+                                    onClick={() => router.push(`/chat/${friend.friend_id}`)}
+                                    className="h-8 w-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition"
+                                    title="Message"
+                                >
                                     <MessageCircle size={16} />
                                 </button>
-                                {/* Placeholder for unfriend - functionality would go here */}
-                                <button className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition" title="Remove Friend">
+                                <button
+                                    onClick={() => handleRemoveFriend(friend.friend_id, friendPrimaryLabel(friend))}
+                                    className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition"
+                                    title="Remove Friend"
+                                >
                                     <UserX size={16} />
                                 </button>
                             </div>

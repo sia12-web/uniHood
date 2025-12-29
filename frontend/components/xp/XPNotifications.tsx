@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { readAuthUser } from "@/lib/auth-storage";
 import { getXPSocket } from "@/lib/socket";
@@ -21,6 +21,7 @@ export function XPNotifications() {
     const { push } = useToast();
     const queryClient = useQueryClient();
     const socketRef = useRef<unknown>(null);
+    const [currentReward, setCurrentReward] = useState<XPGainedPayload | null>(null);
 
     useEffect(() => {
         const authUser = readAuthUser();
@@ -32,12 +33,14 @@ export function XPNotifications() {
 
         const handleXPGained = (payload: XPGainedPayload) => {
             console.log("XP Gained:", payload);
-            push({
-                title: `+${payload.amount} XP`,
-                description: `You earned XP for ${payload.action.replace(/_/g, " ").toLowerCase()}.`,
-                variant: "default",
-                duration: 3000,
-            });
+            setCurrentReward(payload);
+            // Optional: Keep the toast as well, or remove it if redundant. Keeping for now as a fallback log.
+            // push({
+            //     title: `+${payload.amount} XP`,
+            //     description: `You earned XP for ${payload.action.replace(/_/g, " ").toLowerCase()}.`,
+            //     variant: "default",
+            //     duration: 3000,
+            // });
             // Refresh XP stats if any query exists
             queryClient.invalidateQueries({ queryKey: ["xp-stats"] });
         };
@@ -60,10 +63,20 @@ export function XPNotifications() {
         return () => {
             socket.off("xp:gained", handleXPGained);
             socket.off("xp:levelup", handleLevelUp);
-            // Optional: disconnect on unmount if we want strict resource management, 
-            // but usually we keep it open if navigating around authenticated pages.
         };
     }, [push, queryClient]);
 
-    return null;
+    return (
+        <>
+            {currentReward && (
+                <XPRewardModal
+                    amount={currentReward.amount}
+                    action={currentReward.action}
+                    onClose={() => setCurrentReward(null)}
+                />
+            )}
+        </>
+    );
 }
+
+import { XPRewardModal } from "./XPRewardModal";

@@ -17,6 +17,8 @@ import { listMeetups, type MeetupResponse } from "@/lib/meetups";
 import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
+import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
+import { Zap } from "lucide-react";
 
 
 
@@ -72,9 +74,6 @@ export default function HomePage() {
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
   const [, setAllFriends] = useState<FriendRow[]>([]);
 
-  const [recentMeetups, setRecentMeetups] = useState<MeetupResponse[]>([]);
-  const [joinedMeetups, setJoinedMeetups] = useState<MeetupResponse[]>([]);
-  const [, setMeetupsLoading] = useState(true);
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
   const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
 
@@ -210,35 +209,6 @@ export default function HomePage() {
     }
   }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
-  useEffect(() => {
-    const loadMeetups = async () => {
-      if (!authUser?.campusId || !authUser?.userId) {
-        setMeetupsLoading(false);
-        return;
-      }
-      try {
-        const data = await listMeetups(authUser.campusId);
-
-        // For Recent Activity: joined meetups
-        const joined = data.filter(m => m.is_joined);
-        setJoinedMeetups(joined);
-
-        // Filter for user's own meetups (created by them) - upcoming/active
-        const myMeetups = data
-          .filter(m => m.creator_user_id === authUser.userId && (m.status === "ACTIVE" || m.status === "UPCOMING"))
-          .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
-          .slice(0, 3);
-        setRecentMeetups(myMeetups);
-      } catch (err) {
-        console.error("Failed to load meetups", err);
-      } finally {
-        setMeetupsLoading(false);
-      }
-    };
-    if (authHydrated) {
-      void loadMeetups();
-    }
-  }, [authHydrated, authUser?.campusId, authUser?.userId]);
 
   useEffect(() => {
     const loadInvites = async () => {
@@ -267,48 +237,98 @@ export default function HomePage() {
     }
   };
 
-  type ActivityItem =
-    | { type: "friend"; date: Date; id: string; data: FriendRow }
-    | { type: "meetup"; date: Date; id: string; data: MeetupResponse; action: "joined" | "created" };
 
-  const combinedActivity = useMemo<ActivityItem[]>(() => {
-    const activities: ActivityItem[] = [];
+  const [realActivity, setRealActivity] = useState<ActivityLogItem[]>([]);
 
-    recentFriends.forEach(f => {
-      activities.push({
-        type: 'friend',
-        date: new Date(f.created_at),
-        id: `friend-${f.friend_id}`,
-        data: f
-      });
-    });
+  useEffect(() => {
+    const loadActivity = async () => {
+      if (!authUser?.userId) return;
+      try {
+        const data = await fetchRecentActivity(10);
+        setRealActivity(data);
+      } catch (err) {
+        console.error("Failed to load real activity", err);
+      }
+    };
+    if (authHydrated) {
+      void loadActivity();
+    }
+  }, [authHydrated, authUser?.userId]);
 
-    // Add joined meetups (excluding ones user created)
-    joinedMeetups
-      .filter(m => m.creator_user_id !== authUser?.userId)
-      .forEach(m => {
-        activities.push({
-          type: 'meetup',
-          date: new Date(m.created_at),
-          id: `meetup-joined-${m.id}`,
-          data: m,
-          action: 'joined'
-        });
-      });
+  const renderActivityItem = (item: ActivityLogItem) => {
+    const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let iconColor = "bg-slate-400";
+    let content = <span>Unknown activity</span>;
+    let xpGain = null;
 
-    // Add created meetups
-    recentMeetups.forEach(m => {
-      activities.push({
-        type: 'meetup',
-        date: new Date(m.created_at),
-        id: `meetup-created-${m.id}`,
-        data: m,
-        action: 'created'
-      });
-    });
+    // Helper to get name
+    const actorName = item.user_display_name || "Someone";
+    const isSelf = item.user_id === authUser?.userId;
+    const actor = isSelf ? "You" : actorName;
 
-    return activities.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
-  }, [recentFriends, joinedMeetups, authUser?.userId, recentMeetups]);
+    // Check for "xp.gained" first
+    if (item.event === "xp.gained" && item.meta?.source_meta) {
+      // Attempt to extract context from source_meta if the main event is just xp.gained
+      // But usually we prefer specific events. However, if xp.gained is the only log for an action (like daily login), show it.
+      const action = item.meta.action;
+      const amount = item.meta.amount;
+      iconColor = "bg-amber-500";
+      if (action === "daily_login") {
+        content = <span>Daily login bonus!</span>;
+      } else if (action === "chat_sent") {
+        content = <span>Sent a message</span>;
+        iconColor = "bg-indigo-500";
+      } else {
+        content = <span>Gained XP: {action}</span>;
+      }
+      xpGain = `+${amount} XP`;
+    }
+    // Handle specific high-level events (preferred over raw XP logs if they exist duplicatively, but usually we filter)
+    else if (item.event === "friend.accepted") {
+      iconColor = "bg-emerald-500";
+      content = <span>{actor} became friends with <span className="font-bold">Someone</span></span>; // Ideally we'd have target details
+      if (item.meta?.xp) xpGain = `+${item.meta.xp} XP`; // If we start logging XP in main events
+    }
+    else if (item.event === "chat.sent") {
+      iconColor = "bg-indigo-500";
+      content = <span>{actor} sent a message</span>;
+    }
+    else if (item.event === "invite.sent") {
+      iconColor = "bg-blue-500";
+      content = <span>{actor} sent a friend invite</span>;
+    }
+    else if (item.event === "meetup.created") {
+      iconColor = "bg-rose-500";
+      content = <span>{actor} created a meetup</span>;
+    }
+    else if (item.event.startsWith("xp.gained")) {
+      // Fallback for direct XP events
+      const amount = item.meta.amount;
+      const action = item.meta.action;
+      iconColor = "bg-amber-500";
+      content = <span>Earned XP for {action?.replace(/_/g, " ").toLowerCase()}</span>;
+      xpGain = `+${amount} XP`;
+    }
+
+    return (
+      <div key={item.id} className="relative pl-10 py-2">
+        <div className={`absolute left-0 top-3.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${iconColor}`}></div>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+            {content}
+            {xpGain && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                <Zap size={10} className="mr-0.5" />{xpGain}
+              </span>
+            )}
+          </p>
+          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <span>{time}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const discoveryPreviewList = useMemo<FriendPreview[]>(() => {
     return discoverPeople.slice(0, 8).map((p) => ({
@@ -414,45 +434,15 @@ export default function HomePage() {
               {/* 2. Recent Activity Timeline */}
               <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm h-full">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Recent Activity</h3>
-                <div className="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-800">
-                  {combinedActivity.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400 pl-8">No recent activity.</p>
+                <div className="space-y-2 relative before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-800 ml-4">
+                  {realActivity.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 pl-8 py-4">No recent activity.</p>
                   ) : (
-                    combinedActivity.map((item) => {
-                      // Render simplified logic for visual mockup matching
-                      const isMeetup = item.type === 'meetup';
-                      const time = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                      return (
-                        <div key={item.id} className="relative pl-10">
-                          {/* Dot on timeline */}
-                          <div className={`absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${isMeetup ? "bg-indigo-500" : "bg-emerald-500"
-                            }`}></div>
-
-                          <div className="flex flex-col gap-1">
-                            <p className="text-sm text-slate-900 dark:text-white">
-                              {item.type === 'friend' ? (
-                                <span>Added <span className="font-bold">{(item.data as FriendRow).friend_display_name}</span> as a friend</span>
-                              ) : (
-                                <span>
-                                  {item.action === 'created' ? 'Created event' : 'Joined event'}{" "}
-                                  <span className="font-bold">{(item.data as MeetupResponse).title}</span>
-                                </span>
-                              )}
-                            </p>
-                            <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                              <span>{time}</span>
-                              <button className="hover:text-rose-500 transition-colors">
-                                Like
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })
+                    realActivity.map(renderActivityItem)
                   )}
                 </div>
               </section>
+
 
               {/* 3. Connections & Invites */}
               <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm h-full flex flex-col">

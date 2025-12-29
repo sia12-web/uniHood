@@ -397,6 +397,14 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 	except Exception:  # pragma: no cover - metrics backend failures should not block profile saves
 		logger.warning("Failed to record profile update metric", exc_info=True)
 	try:
+		from app.domain.xp import XPService
+		from app.domain.xp.models import XPAction
+		# Award XP for updating profile
+		await XPService().award_xp(auth_user.id, XPAction.PROFILE_UPDATE)
+	except Exception:
+		logger.warning("Failed to award profile update XP", exc_info=True)
+
+	try:
 		await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	except Exception:  # pragma: no cover - cache rebuild should not block profile saves
 		logger.warning("Failed to rebuild public profile", exc_info=True)

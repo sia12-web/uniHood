@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { resetOutcomeGuard } from "./outcome-recorder";
+import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export type RpsChoice = "rock" | "paper" | "scissors";
 type ScoreEntry = { userId: string; score: number };
@@ -449,9 +449,21 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
-  // NOTE: Game outcome is recorded by the backend activities-core service via WebSocket
-  // Do NOT record from frontend to avoid double-counting stats
-  // The useEffect that called maybeRecordOutcome has been removed
+  // Record game outcome when game ends (phase goes to "ended")
+  useEffect(() => {
+    if (state.phase === "ended" || state.leaveReason) {
+      maybeRecordOutcome({
+        phase: state.phase,
+        leaveReason: state.leaveReason,
+        scoreboard: state.scoreboard,
+        winnerUserId: state.winnerUserId,
+        selfUserId: selfIdRef.current,
+        gameKind: "rock_paper_scissors",
+        durationSeconds: 60,
+        outcomeRecordedRef,
+      });
+    }
+  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
 
   return useMemo(
     () => ({

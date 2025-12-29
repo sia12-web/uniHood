@@ -170,6 +170,7 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
         wsRef.current = socket;
 
         const handleOpen = () => {
+          socket.send(JSON.stringify({ type: "join", payload: { userId: selfId } }));
           setState((prev) => ({ ...prev, phase: prev.phase === "connecting" ? "lobby" : prev.phase }));
         };
 

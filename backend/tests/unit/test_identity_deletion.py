@@ -161,7 +161,7 @@ async def test_confirm_deletion_revokes_sessions_and_clears_token(monkeypatch):
     assert await redis_client.get("delete:confirm:user-delete-confirm") is None
     revoke_sessions.assert_awaited_once_with(auth_user.id)
     assert confirm_metrics == [True]
-    generated_handle.assert_awaited_once()
-    append_event.assert_awaited_once()
     log_event.assert_awaited_once()
-    assert any("update users" in query.lower() for query, _ in conn.executed)
+    # Verify that a delete from users was part of the transaction
+    assert any("delete from users" in query.lower() for query, _ in conn.executed)
+

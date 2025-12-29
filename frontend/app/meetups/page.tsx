@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
-import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, type MeetupUsage } from "@/lib/meetups";
+import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { fetchProfile } from "@/lib/identity";
 import { LEVEL_CONFIG } from "@/lib/xp";
@@ -51,7 +51,7 @@ export default function MeetupsPage() {
       queryClient.invalidateQueries({ queryKey: ["meetups"] });
       queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
     },
-    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to join meetup. Please try again.")
+    onError: (err: unknown) => alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to join meetup. Please try again.")
   });
 
   const createMutation = useMutation({
@@ -61,7 +61,7 @@ export default function MeetupsPage() {
       queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
       setIsCreateOpen(false);
     },
-    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to create meetup.")
+    onError: (err: unknown) => alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to create meetup.")
   });
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {

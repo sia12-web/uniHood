@@ -43,11 +43,17 @@ async def fake_redis():
 
 @pytest.fixture(autouse=True)
 def patch_postgres(monkeypatch):
-	async def _noop():
+	import unittest.mock
+	async def _noop(*args, **kwargs):
 		return None
+
+	mock_pool = unittest.mock.AsyncMock()
+	async def _mock_get_pool():
+		return mock_pool
 
 	monkeypatch.setattr(postgres, "init_pool", _noop)
 	monkeypatch.setattr(postgres, "close_pool", _noop)
+	monkeypatch.setattr(postgres, "get_pool", _mock_get_pool)
 
 
 @pytest.fixture(autouse=True)

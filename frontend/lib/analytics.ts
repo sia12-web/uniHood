@@ -23,7 +23,7 @@ export type ActivityLogItem = {
   id: number;
   user_id: string;
   event: string;
-  meta: Record<string, any>;
+  meta: Record<string, unknown>;
   created_at: string;
   user_display_name: string | null;
   user_avatar_url: string | null;

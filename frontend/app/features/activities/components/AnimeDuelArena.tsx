@@ -169,7 +169,7 @@ export const AnimeDuelArena: React.FC<AnimeDuelArenaProps> = ({
             </div>
 
             {/* Bottom Controls (Action Bar) */}
-            <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black/90 to-transparent p-4">
+            <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black/90 to-transparent p-4 z-20">
                 {isRunning && !state.submittedMove && !lastRoundMoves ? (
                     <div className="flex justify-center gap-4 items-center h-full">
                         {(['rock', 'paper', 'scissors'] as const).map((move) => (

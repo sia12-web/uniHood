@@ -58,7 +58,7 @@ export function SocialRoadmap({ currentLevel, currentXp, nextLevelXp }: SocialRo
                         {levels.map((lvl) => {
                             const isPast = lvl.level < currentLevel;
                             const isActive = lvl.level === currentLevel;
-                            const isLocked = lvl.level > currentLevel;
+                            // const isLocked = lvl.level > currentLevel; (unused in rendering)
 
                             return (
                                 <div key={lvl.level} className="flex flex-col items-center gap-6 w-32">
@@ -171,7 +171,7 @@ export function SocialRoadmap({ currentLevel, currentXp, nextLevelXp }: SocialRo
                                 <Star className="h-10 w-10 text-amber-500 fill-amber-500" />
                             </div>
                             <h5 className="text-xl font-black text-slate-900 dark:text-white">Campus Legend</h5>
-                            <p className="text-sm text-slate-500 mt-2 max-w-[240px]">You've unlocked everything! Keep hosting to maintain your featured status.</p>
+                            <p className="text-sm text-slate-500 mt-2 max-w-[240px]">You&apos;ve unlocked everything! Keep hosting to maintain your featured status.</p>
                         </div>
                     )}
                 </div>

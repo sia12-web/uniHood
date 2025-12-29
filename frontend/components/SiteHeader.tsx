@@ -248,7 +248,7 @@ export default function SiteHeader() {
         setPanelOpen(false);
       }
     },
-    [authUser?.campusId, authUser?.userId],
+    [authUser?.campusId, authUser?.userId, router],
   );
 
   useEffect(() => {

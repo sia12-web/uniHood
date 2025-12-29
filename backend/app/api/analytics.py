@@ -1,6 +1,5 @@
-"""Analytics and activity feed endpoints."""
-
 from __future__ import annotations
+"""Analytics and activity feed endpoints."""
 
 from typing import List
 from fastapi import APIRouter, Depends, Query

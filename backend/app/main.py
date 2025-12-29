@@ -45,7 +45,8 @@ from app.api import (
 	social,
 	verify,
 )
-from app.domain.analytics import api as analytics_api
+from app.api.analytics import router as public_analytics_router
+from app.domain.analytics import api as admin_analytics_api
 from app.communities import router as communities_router
 from app.communities.infra.scheduler import FeedScheduler
 from app.communities.infra import socketio as communities_socketio
@@ -449,4 +450,5 @@ app.include_router(contact_discovery.router)
 app.include_router(contact_api.router, tags=["contact"])
 app.include_router(communities_router)
 app.include_router(moderation_router, tags=["moderation"])
-app.include_router(analytics_api.router)
+app.include_router(public_analytics_router)
+app.include_router(admin_analytics_api.router)

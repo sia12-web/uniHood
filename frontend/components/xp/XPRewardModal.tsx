@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Zap, Trophy, Star, PartyPopper } from "lucide-react";
+import { Zap, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface XPRewardModalProps {

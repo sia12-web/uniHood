@@ -1092,7 +1092,7 @@ server.register(async function (fastify) {
             // Initialize RPS-specific fields
             if (generic.activityKey === 'rock_paper_scissors') {
                 generic.roundWins = {};
-                generic.currentRound = 1;
+                generic.currentRound = 0;
                 generic.moves = {};
             }
 
@@ -1107,7 +1107,7 @@ server.register(async function (fastify) {
                     s.phase = 'running';
                     s.roundStartedAt = Date.now();
                     s.countdownValue = undefined;
-                    broadcastGenericState(sessionId);
+                    broadcastGenericRoundStarted(sessionId, s.currentRound ?? 0);
                 });
             } else {
                 generic.status = 'countdown';

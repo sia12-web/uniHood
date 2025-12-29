@@ -292,7 +292,7 @@ export default function ProfileSettingsPage() {
 	const toast = useContext(ToastContext);
 	const { getCampus } = useCampuses();
 	const searchParams = useSearchParams();
-	const initialTab = (searchParams.get("tab") as any) || "general";
+	const initialTab = (["general", "reputation", "discovery", "courses", "settings"] as const).find(t => t === searchParams.get("tab")) || "general";
 	const [activeTab, setActiveTab] = useState<"general" | "reputation" | "discovery" | "courses" | "settings">(initialTab);
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);

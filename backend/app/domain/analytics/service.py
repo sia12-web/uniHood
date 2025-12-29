@@ -107,7 +107,7 @@ class AnalyticsService:
                 results.append(
                     schemas.ActivityLogItem(
                         id=r["id"],
-                        user_id=r["user_id"],
+                        user_id=str(r["user_id"]),
                         event=r["event"],
                         meta=meta,
                         created_at=r["created_at"],

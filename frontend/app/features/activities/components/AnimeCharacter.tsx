@@ -89,11 +89,10 @@ export const AnimeCharacter: React.FC<AnimeCharacterProps> = ({ state, isOpponen
                     layout
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{
-                        opacity: 1,
-                        scale: 1,
-                        scaleX: isOpponent ? -1 : 1, // Mirror opponent
                         ...variants[currentVariant as keyof typeof variants],
-                    }}
+                        opacity: 1,
+                        scaleX: isOpponent ? -1 : 1, // Mirror opponent
+                    } as any}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
                     className="relative h-full w-full"

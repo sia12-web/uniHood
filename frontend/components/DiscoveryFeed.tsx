@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { DiscoveryOnboardingModal } from "@/components/DiscoveryOnboardingModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import { DiscoveryProfile, DiscoveryFeedResponse, ProfileRecord } from "@/lib/types";
+import { DiscoveryProfile, DiscoveryFeedResponse } from "@/lib/types";
 import { fetchProfile, fetchUserCourses } from "@/lib/identity";
 import { Lock } from "lucide-react";
 

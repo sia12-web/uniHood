@@ -1,5 +1,5 @@
 "use client";
-import { Trophy, Users, MessageCircle, Calendar, Star, Info, Gamepad2, ShieldCheck, Globe, Building2, Lock, Mail, Smartphone, Camera, Sparkles, UserPlus } from "lucide-react";
+import { Trophy, Users, MessageCircle, Calendar, Star, Gamepad2, ShieldCheck, Globe, Building2, Lock, Mail, Smartphone, Camera, Sparkles, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,7 +63,7 @@ export function SocialScoreGuideContent() {
                                 <div className="max-w-3xl">
                                     <h3 className="text-4xl font-black text-slate-900 dark:text-white mb-6">Unleash Your Potential</h3>
                                     <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                                        Campus XP is more than just points—it's your social currency. Your engagement directly impacts your visibility and the exclusive features you can access.
+                                        Campus XP is more than just points—it&apos;s your social currency. Your engagement directly impacts your visibility and the exclusive features you can access.
                                     </p>
                                 </div>
 

@@ -13,7 +13,7 @@ import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { fetchFriends, fetchInviteInbox, acceptInvite } from "@/lib/social";
-import { listMeetups, type MeetupResponse } from "@/lib/meetups";
+
 import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
@@ -270,8 +270,9 @@ export default function HomePage() {
     if (item.event === "xp.gained" && item.meta?.source_meta) {
       // Attempt to extract context from source_meta if the main event is just xp.gained
       // But usually we prefer specific events. However, if xp.gained is the only log for an action (like daily login), show it.
-      const action = item.meta.action;
-      const amount = item.meta.amount;
+      const meta = item.meta as Record<string, any>;
+      const action = meta.action;
+      const amount = meta.amount;
       iconColor = "bg-amber-500";
       if (action === "daily_login") {
         content = <span>Daily login bonus!</span>;
@@ -287,7 +288,7 @@ export default function HomePage() {
     else if (item.event === "friend.accepted") {
       iconColor = "bg-emerald-500";
       content = <span>{actor} became friends with <span className="font-bold">Someone</span></span>; // Ideally we'd have target details
-      if (item.meta?.xp) xpGain = `+${item.meta.xp} XP`; // If we start logging XP in main events
+      if ((item.meta as Record<string, any>)?.xp) xpGain = `+${(item.meta as Record<string, any>).xp} XP`; // If we start logging XP in main events
     }
     else if (item.event === "chat.sent") {
       iconColor = "bg-indigo-500";
@@ -303,8 +304,9 @@ export default function HomePage() {
     }
     else if (item.event.startsWith("xp.gained")) {
       // Fallback for direct XP events
-      const amount = item.meta.amount;
-      const action = item.meta.action;
+      const meta = item.meta as Record<string, any>;
+      const amount = meta.amount;
+      const action = meta.action as string | undefined;
       iconColor = "bg-amber-500";
       content = <span>Earned XP for {action?.replace(/_/g, " ").toLowerCase()}</span>;
       xpGain = `+${amount} XP`;

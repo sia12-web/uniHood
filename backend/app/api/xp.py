@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from app.api.deps import get_current_user
-from app.domain.identity.models import AuthenticatedUser
+from app.infra.auth import get_current_user, AuthenticatedUser
 from app.domain.xp.service import XPService
 
 router = APIRouter(prefix="/xp", tags=["xp"])

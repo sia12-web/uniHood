@@ -151,13 +151,13 @@ export type DailyChecklist = {
 
 export async function fetchDailyChecklist(): Promise<DailyChecklist> {
     const auth = readAuthSnapshot();
-    if (!auth?.token) {
+    if (!auth?.access_token) {
         throw new Error("unauthorized");
     }
 
     const res = await fetch(`${API_BASE}/xp/daily-checklist`, {
         headers: {
-            "Authorization": `Bearer ${auth.token}`,
+            "Authorization": `Bearer ${auth.access_token}`,
             "Content-Type": "application/json",
         },
     });

@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import { fetchDailyChecklist, type DailyChecklist } from "@/lib/xp";
-import { useAuth } from "@/components/providers/auth-provider";
+import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 
 export function useDailyChecklist() {
-    const { user } = useAuth();
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [checklist, setChecklist] = useState<DailyChecklist | null>(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const sync = () => {
+            setUser(readAuthUser());
+        };
+        sync();
+        return onAuthChange(sync);
+    }, []);
 
     useEffect(() => {
         if (!user) {
@@ -27,7 +35,7 @@ export function useDailyChecklist() {
 
         void load();
 
-        // Refresh periodically or on focus could be added here
+        // Refresh periodically
         const interval = setInterval(load, 60000); // Check every minute
         return () => clearInterval(interval);
 

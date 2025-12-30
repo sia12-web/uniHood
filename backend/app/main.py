@@ -45,6 +45,7 @@ from app.api import (
 	security,
 	social,
 	verify,
+	xp as xp_api,
 )
 from app.api.analytics import router as public_analytics_router
 from app.domain.analytics import api as admin_analytics_api
@@ -454,3 +455,4 @@ app.include_router(communities_router)
 app.include_router(moderation_router, tags=["moderation"])
 app.include_router(public_analytics_router)
 app.include_router(admin_analytics_api.router)
+app.include_router(xp_api.router)

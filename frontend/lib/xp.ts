@@ -137,3 +137,34 @@ export function getLevelProgress(xp: number, level: number, nextLevelXp?: number
     const earned = xp - currentBase;
     return Math.min(100, Math.max(0, (earned / needed) * 100));
 }
+
+import { readAuthSnapshot } from "./auth-storage";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export type DailyChecklist = {
+    daily_login: boolean;
+    game_played: boolean;
+    chat_sent: boolean;
+    discovery_swipe: boolean;
+};
+
+export async function fetchDailyChecklist(): Promise<DailyChecklist> {
+    const auth = readAuthSnapshot();
+    if (!auth?.token) {
+        throw new Error("unauthorized");
+    }
+
+    const res = await fetch(`${API_BASE}/xp/daily-checklist`, {
+        headers: {
+            "Authorization": `Bearer ${auth.token}`,
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch daily checklist");
+    }
+
+    return res.json();
+}

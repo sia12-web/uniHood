@@ -207,3 +207,35 @@ class XPService:
                 "SELECT is_university_verified FROM users WHERE id = $1",
                 UUID(user_id)
             ) or False
+
+    async def get_daily_checklist(self, user_id: str | UUID) -> dict[str, bool]:
+        """Check progress on daily XP tasks."""
+        uid = str(user_id)
+        pool = await get_pool()
+        
+        async with pool.acquire() as conn:
+            # Check Daily Login (via daily_xp_claims)
+            daily_login = await conn.fetchval("""
+                SELECT EXISTS(
+                    SELECT 1 FROM daily_xp_claims 
+                    WHERE user_id = $1 AND claim_date = CURRENT_DATE
+                )
+            """, uid)
+
+            # Check other actions via xp_events for today
+            rows = await conn.fetch("""
+                SELECT action_type 
+                FROM xp_events 
+                WHERE user_id = $1 
+                  AND created_at >= CURRENT_DATE
+                GROUP BY action_type
+            """, uid)
+            
+            actions_today = {row['action_type'] for row in rows}
+
+            return {
+                "daily_login": daily_login or (XPAction.DAILY_LOGIN.value in actions_today),
+                "game_played": XPAction.GAME_PLAYED.value in actions_today or XPAction.GAME_WON.value in actions_today,
+                "chat_sent": XPAction.CHAT_SENT.value in actions_today,
+                "discovery_swipe": XPAction.DISCOVERY_SWIPE.value in actions_today or XPAction.DISCOVERY_MATCH.value in actions_today,
+            }

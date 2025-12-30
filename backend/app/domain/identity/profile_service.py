@@ -33,7 +33,10 @@ async def _invalidate_profile_cache(user_id: str) -> None:
 	"""Invalidate cached profile for a user."""
 	from app.infra.redis import redis_client
 	cache_key = f"profile:{user_id}"
-	await redis_client.delete(cache_key)
+	try:
+		await redis_client.delete(cache_key)
+	except Exception:
+		logger.warning("Failed to invalidate profile cache", exc_info=True)
 
 
 async def invalidate_profile_cache(user_id: str) -> None:
@@ -89,6 +92,16 @@ def _to_profile(user: models.User, courses: Optional[list[schemas.Course]] = Non
 		lat=user.lat,
 		lon=user.lon,
 		ten_year_vision=user.ten_year_vision,
+		gender=user.gender,
+		birthday=user.birthday.isoformat() if hasattr(user.birthday, "isoformat") else str(user.birthday) if user.birthday else None,
+		hometown=user.hometown,
+		languages=user.languages or [],
+		relationship_status=user.relationship_status,
+		sexual_orientation=user.sexual_orientation,
+		looking_for=user.looking_for or [],
+		height=user.height,
+		lifestyle=user.lifestyle or {},
+		profile_prompts=user.profile_prompts or [],
 	)
 
 
@@ -322,6 +335,38 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 	if "ten_year_vision" in patch_data:
 		vision = patch_data.get("ten_year_vision")
 		updates["ten_year_vision"] = (vision.strip() if isinstance(vision, str) else None) or None
+	if "gender" in patch_data:
+		updates["gender"] = patch_data.get("gender")
+	if "birthday" in patch_data:
+		val = patch_data.get("birthday")
+		if val:
+			try:
+				from datetime import datetime
+				if isinstance(val, str):
+					updates["birthday"] = datetime.fromisoformat(val.replace("Z", "+00:00")).date()
+				else:
+					updates["birthday"] = val
+			except Exception:
+				updates["birthday"] = None
+		else:
+			updates["birthday"] = None
+	if "hometown" in patch_data:
+		val = patch_data.get("hometown")
+		updates["hometown"] = (val.strip() if isinstance(val, str) else None) or None
+	if "languages" in patch_data:
+		updates["languages"] = patch_data.get("languages") or []
+	if "relationship_status" in patch_data:
+		updates["relationship_status"] = patch_data.get("relationship_status")
+	if "sexual_orientation" in patch_data:
+		updates["sexual_orientation"] = patch_data.get("sexual_orientation")
+	if "looking_for" in patch_data:
+		updates["looking_for"] = patch_data.get("looking_for") or []
+	if "height" in patch_data:
+		updates["height"] = patch_data.get("height")
+	if "lifestyle" in patch_data:
+		updates["lifestyle"] = patch_data.get("lifestyle") or {}
+	if "profile_prompts" in patch_data:
+		updates["profile_prompts"] = patch_data.get("profile_prompts") or []
 
 	policy.validate_profile_patch(updates)
 	if "handle" in updates:
@@ -365,6 +410,16 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 					campus_id = $12,
 					social_links = $13::jsonb,
 					ten_year_vision = $14,
+					gender = $15,
+					birthday = $16,
+					hometown = $17,
+					languages = $18,
+					relationship_status = $19,
+					sexual_orientation = $20,
+					looking_for = $21,
+					height = $22,
+					lifestyle = $23::jsonb,
+					profile_prompts = $24::jsonb,
 					updated_at = NOW()
 				WHERE id = $11
 				""",
@@ -382,6 +437,16 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 				str(user.campus_id),
 				social_links_payload,
 				user.ten_year_vision,
+				user.gender,
+				user.birthday,
+				user.hometown,
+				user.languages or [],
+				user.relationship_status,
+				user.sexual_orientation,
+				user.looking_for or [],
+				user.height,
+				json.dumps(user.lifestyle or {}),
+				json.dumps(user.profile_prompts or []),
 			)
 			# Persist courses after the user row update (default visibility: everyone)
 			if courses_to_set is not None:
@@ -424,20 +489,31 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 	async with pool.acquire() as conn:
 		async with conn.transaction():
 			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
+			
+			# Add to gallery if not already present
+			gallery = list(user.profile_gallery)
+			if not any(img.key == key for img in gallery):
+				entry = models.ProfileImage(key=key, url=url, uploaded_at=_now_iso())
+				gallery.insert(0, entry)
+				gallery = gallery[:MAX_GALLERY_ITEMS]
+			
 			await conn.execute(
 				"""
 				UPDATE users
 				SET avatar_key = $1,
 					avatar_url = $2,
+					profile_gallery = $4::jsonb,
 					updated_at = NOW()
 				WHERE id = $3
 				""",
 				key,
 				url,
 				auth_user.id,
+				_serialize_gallery(gallery),
 			)
 			user.avatar_key = key
 			user.avatar_url = url
+			user.profile_gallery = gallery
 	
 	# Invalidate profile cache after avatar change
 	await _invalidate_profile_cache(str(auth_user.id))

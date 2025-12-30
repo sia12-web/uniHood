@@ -136,6 +136,17 @@ class ProfileOut(BaseModel):
 	level: int = 1
 	level_label: str = "Newcomer"
 	next_level_xp: Optional[int] = None
+	# Expanded Profile
+	gender: Optional[str] = None
+	birthday: Optional[str] = None # ISO format string
+	hometown: Optional[str] = None
+	relationship_status: Optional[str] = None
+	sexual_orientation: Optional[str] = None
+	looking_for: list[str] = Field(default_factory=list)
+	height: Optional[int] = None
+	languages: list[str] = Field(default_factory=list)
+	profile_prompts: list[dict[str, str]] = Field(default_factory=list)
+	lifestyle: dict[str, str] = Field(default_factory=dict)
 
 
 class ProfilePatch(BaseModel):
@@ -153,6 +164,17 @@ class ProfilePatch(BaseModel):
 	lon: Optional[float] = None
 	campus_id: Optional[UUID] = None
 	ten_year_vision: Optional[Annotated[str, Field(max_length=500)]] = None
+	# Expanded Fields
+	gender: Optional[str] = None
+	birthday: Optional[str] = None
+	hometown: Optional[str] = None
+	relationship_status: Optional[str] = None
+	sexual_orientation: Optional[str] = None
+	looking_for: Optional[list[str]] = None
+	height: Optional[int] = None
+	languages: Optional[list[str]] = None
+	profile_prompts: Optional[list[dict[str, str]]] = None # List of {question, answer}
+	lifestyle: Optional[dict[str, str]] = None
 
 
 class PresignRequest(BaseModel):

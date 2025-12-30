@@ -657,7 +657,8 @@ class LeaderboardService:
 					u.id as user_id,
 					COALESCE(f.friend_count, 0) as friend_count,
 					COALESCE(mh.hosted_count, 0) as hosted_count,
-					COALESCE(mj.joined_count, 0) as joined_count
+					COALESCE(mj.joined_count, 0) as joined_count,
+					COALESCE(ia.accepted_count, 0) as accepted_count
 				FROM users u
 				LEFT JOIN (
 					SELECT user_id, COUNT(*) as friend_count 
@@ -676,11 +677,17 @@ class LeaderboardService:
 					WHERE status = 'JOINED' 
 					GROUP BY user_id
 				) mj ON mj.user_id = u.id
+				LEFT JOIN (
+					SELECT from_user_id, COUNT(*) as accepted_count
+					FROM invite_acceptances
+					GROUP BY from_user_id
+				) ia ON ia.from_user_id = u.id
 				WHERE u.campus_id = $1 AND u.deleted_at IS NULL
 				ORDER BY (
 					COALESCE(f.friend_count, 0) * 50 + 
 					COALESCE(mh.hosted_count, 0) * 100 + 
-					COALESCE(mj.joined_count, 0) * 30
+					COALESCE(mj.joined_count, 0) * 30 +
+					COALESCE(ia.accepted_count, 0) * 30
 				) DESC
 				LIMIT $2
 				""",
@@ -699,7 +706,8 @@ class LeaderboardService:
 				total_points = (
 					row["friend_count"] * policy.W_FRIEND_NEW +
 					row["hosted_count"] * policy.W_ROOM_CREATE +
-					row["joined_count"] * policy.W_ROOM_JOIN
+					row["joined_count"] * policy.W_ROOM_JOIN +
+					row["accepted_count"] * policy.W_INVITE_ACCEPT
 				)
 				# Convert to Social Score level
 				social_score = policy.calculate_social_score_level(total_points)
@@ -909,20 +917,47 @@ class LeaderboardService:
 				"SELECT COUNT(*) as count FROM meetup_participants WHERE user_id = $1 AND status = 'JOINED'",
 				user_id
 			)
+
+			# Count invites sent (W_INVITE_SENT)
+			invites_sent_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM invitations WHERE from_user_id = $1",
+				user_id
+			)
+
+			# Count swipes (W_DISCOVERY_SWIPE)
+			swipes_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM discovery_interactions WHERE user_id = $1",
+				user_id
+			)
+
+			# Count matches (W_DISCOVERY_MATCH)
+			matches_row = await conn.fetchrow(
+				"SELECT COUNT(*) as count FROM discovery_matches WHERE user_a = $1 OR user_b = $1",
+				user_id
+			)
 			
 			f_count = friend_count_row["count"] if friend_count_row else 0
 			hosted_count = hosted_count_row["count"] if hosted_count_row else 0
 			joined_count = joined_count_row["count"] if joined_count_row else 0
+			invites_sent = invites_sent_row["count"] if invites_sent_row else 0
+			swipes_count = swipes_row["count"] if swipes_row else 0
+			matches_count = matches_row["count"] if matches_row else 0
 			
 			# Calculate total social points
 			# Friends: 50 points each
 			# Meetups hosted: 100 points each
 			# Meetups joined: 30 points each
+			# Invites sent: 10 points each
+			# Swipes: 2 points each
+			# Matches: 15 points each
 			# Plus any daily messaging points from Redis counters
 			total_social_points = (
-				f_count * policy.W_FRIEND_NEW +       # Friends
-				hosted_count * policy.W_ROOM_CREATE + # Meetups hosted
-				joined_count * policy.W_ROOM_JOIN     # Meetups joined
+				f_count * policy.W_FRIEND_NEW +
+				hosted_count * policy.W_ROOM_CREATE +
+				joined_count * policy.W_ROOM_JOIN +
+				invites_sent * policy.W_INVITE_SENT +
+				swipes_count * policy.W_DISCOVERY_SWIPE +
+				matches_count * policy.W_DISCOVERY_MATCH
 			)
 			
 			# Add daily activity points (DMs, room messages) if we have them

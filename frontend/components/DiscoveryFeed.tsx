@@ -485,6 +485,21 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     [router],
   );
 
+  const handlePass = useCallback(
+    async (targetUserId: string) => {
+      if (!currentUserId) return;
+      try {
+        await apiFetch("/discovery/pass", {
+          method: "POST",
+          body: { target_id: targetUserId },
+        });
+      } catch (err) {
+        console.warn("Failed to record pass", err);
+      }
+    },
+    [currentUserId]
+  );
+
   const handleModeSelect = (mode: DiscoveryMode) => {
     if (mode === "room") {
       if (userLevel < 4) {
@@ -878,7 +893,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                       <ChevronLeft size={24} className="text-slate-600" />
                     </button>
                     <button
-                      onClick={() => setSwipeIndex((prev) => prev + 1)}
+                      onClick={async () => {
+                        if (filteredUsers[swipeIndex]) {
+                          void handlePass(filteredUsers[swipeIndex].user_id);
+                        }
+                        setSwipeIndex((prev) => prev + 1);
+                      }}
                       className="rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
                       aria-label="Next Profile"
                     >
@@ -889,7 +909,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
                 {/* Right Arrow (Next) */}
                 <button
-                  onClick={() => setSwipeIndex((prev) => prev + 1)}
+                  onClick={async () => {
+                    if (filteredUsers[swipeIndex]) {
+                      void handlePass(filteredUsers[swipeIndex].user_id);
+                    }
+                    setSwipeIndex((prev) => prev + 1);
+                  }}
                   className="hidden rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:shadow-md sm:block"
                   aria-label="Next Profile"
                 >

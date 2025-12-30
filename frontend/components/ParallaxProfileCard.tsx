@@ -149,7 +149,7 @@ export function ParallaxProfileCard({
                             <div className="flex items-end justify-between gap-2 mb-2">
                                 <div>
                                     <h1 className="text-4xl font-black tracking-tight drop-shadow-lg leading-none flex items-center gap-2">
-                                        {user.display_name}
+                                        {user.display_name}{user.age ? `, ${user.age}` : ""}
                                         {user.is_university_verified && (
                                             <BadgeCheck className="text-blue-400 w-8 h-8 drop-shadow-md" aria-label="University Verified" />
                                         )}
@@ -179,6 +179,11 @@ export function ParallaxProfileCard({
                                             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                                                 <MapPin size={12} className="text-emerald-400" />
                                                 {distance}
+                                            </span>
+                                        )}
+                                        {user.height && (
+                                            <span className="text-[11px] font-bold text-slate-300">
+                                                {user.height}cm
                                             </span>
                                         )}
                                     </div>

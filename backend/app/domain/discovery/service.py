@@ -5,6 +5,7 @@ This is a scaffold; ranking, persistence, and matching will be added later.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
@@ -128,6 +129,16 @@ async def list_feed(
 				gallery=gallery,
 				is_friend=False, # We filtered out friends
 				is_university_verified=getattr(user, "is_university_verified", False),
+				gender=getattr(user, "gender", None),
+				age=_calculate_age(getattr(user, "birthday", None)),
+				hometown=getattr(user, "hometown", None),
+				languages=getattr(user, "languages", []) or [],
+				relationship_status=getattr(user, "relationship_status", None),
+				sexual_orientation=getattr(user, "sexual_orientation", None),
+				looking_for=getattr(user, "looking_for", []) or [],
+				height=getattr(user, "height", None),
+				lifestyle=getattr(user, "lifestyle", {}) or {},
+				top_prompts=getattr(user, "profile_prompts", []) or [],
 			)
 		)
 		seen_ids.add(uid_str)
@@ -207,6 +218,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 				),
 				candidates AS (
 					SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.graduation_year, u.passions, u.profile_gallery, u.is_university_verified,
+						   u.gender, u.birthday, u.hometown, u.languages, u.relationship_status, u.sexual_orientation, u.looking_for, u.height, u.lifestyle, u.profile_prompts,
 						   ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses,
 						   CASE 
 							   WHEN EXISTS (
@@ -280,6 +292,16 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 						is_friend=False,
 						is_friend_of_friend=row["is_fof"],
 						is_university_verified=bool(row["is_university_verified"]),
+						gender=row["gender"],
+						age=_calculate_age(str(row["birthday"]) if row["birthday"] else None),
+						hometown=row["hometown"],
+						languages=row["languages"] or [],
+						relationship_status=row["relationship_status"],
+						sexual_orientation=row["sexual_orientation"],
+						looking_for=row["looking_for"] or [],
+						height=row["height"],
+						lifestyle=_parse_json_field(row["lifestyle"]),
+						top_prompts=_parse_json_field(row["profile_prompts"], is_list=True),
 					)
 				)
 			return cards
@@ -567,3 +589,27 @@ async def update_discovery_profile(user_id: UUID, update: DiscoveryProfileUpdate
 				except: res_data[k] = {}
 		
 		return DiscoveryProfile(**res_data)
+
+
+def _calculate_age(birthday: str | date | None) -> int | None:
+	if not birthday:
+		return None
+	try:
+		if isinstance(birthday, str):
+			try:
+				dt = date.fromisoformat(birthday)
+			except ValueError:
+				# Handle "YYYY-MM-DD" vs incomplete
+				return None
+		else:
+			dt = birthday
+		today = date.today()
+		return today.year - dt.year - ((today.month, today.day) < (dt.month, dt.day))
+	except Exception:
+		return None
+
+def _parse_json_field(val, is_list=False):
+	if isinstance(val, str):
+		try: return json.loads(val)
+		except: return [] if is_list else {}
+	return val or ([] if is_list else {})

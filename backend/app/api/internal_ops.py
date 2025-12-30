@@ -16,7 +16,8 @@ class XPAwardRequest(BaseModel):
 	metadata: Optional[dict] = None
 
 def verify_internal_secret(x_internal_secret: str = Header(..., alias="X-Internal-Secret")):
-	if x_internal_secret != settings.service_signing_key:
+	# Strip both values to handle any trailing whitespace in .env
+	if x_internal_secret.strip() != settings.service_signing_key.strip():
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid internal secret")
 
 @router.post("/xp/award", status_code=status.HTTP_200_OK)

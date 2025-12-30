@@ -9,8 +9,10 @@ import { SocialRoadmap } from "@/components/social/SocialRoadmap";
 import { SocialScoreGuideContent } from "@/components/social/SocialScoreGuide";
 
 import ProfileForm from "@/components/ProfileForm";
-
-import DiscoverySettings from "@/components/DiscoverySettings";
+import ProfileCompletion from "@/components/ProfileCompletion";
+import DiscoverySettings from "@/components/DiscoverySettings"; // Legacy
+import GallerySettings from "@/components/GallerySettings";
+import VibeSettings from "@/components/VibeSettings";
 import WebsiteSettings from "@/components/WebsiteSettings";
 import {
 	commitAvatar,
@@ -292,8 +294,8 @@ export default function ProfileSettingsPage() {
 	const toast = useContext(ToastContext);
 	const { getCampus } = useCampuses();
 	const searchParams = useSearchParams();
-	const initialTab = (["general", "reputation", "discovery", "courses", "settings"] as const).find(t => t === searchParams.get("tab")) || "general";
-	const [activeTab, setActiveTab] = useState<"general" | "reputation" | "discovery" | "courses" | "settings">(initialTab);
+	const initialTab = (["profile", "reputation", "courses", "settings"] as const).find(t => t === searchParams.get("tab")) || "profile";
+	const [activeTab, setActiveTab] = useState<"profile" | "reputation" | "courses" | "settings">(initialTab);
 	const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 	const [authReady, setAuthReady] = useState<boolean>(false);
 	const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -744,9 +746,8 @@ export default function ProfileSettingsPage() {
 	/* galleryDisabled removed */
 
 	const TABS = [
-		{ id: "general", label: "General", icon: User },
+		{ id: "profile", label: "Profile", icon: User },
 		{ id: "reputation", label: "Reputation", icon: Trophy },
-		{ id: "discovery", label: "Discovery Vibe", icon: Zap },
 		{ id: "courses", label: "Courses", icon: BookOpen },
 		{ id: "settings", label: "Settings", icon: Settings },
 	] as const;
@@ -755,22 +756,46 @@ export default function ProfileSettingsPage() {
 		if (!activeProfile) return null;
 
 		switch (activeTab) {
-			case "general":
+			case "profile":
 				return (
 					<motion.div
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2 }}
-						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
+						className="space-y-6"
 					>
-						<ProfileForm
-							profile={activeProfile}
-							onSubmit={formSubmit}
-							onAvatarUpload={avatarUpload}
-							onRequestDeletion={deletionHandler}
-							deleteLoading={deleteLoading}
-						/>
+						<ProfileCompletion profile={activeProfile} activeTab={activeTab} onNavigate={(tab) => setActiveTab(tab as any)} />
+
+						<div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+							<ProfileForm
+								profile={activeProfile}
+								onSubmit={formSubmit}
+								onAvatarUpload={avatarUpload}
+								onRequestDeletion={deletionHandler}
+								deleteLoading={deleteLoading}
+							/>
+						</div>
+
+						<div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+							<h3 className="text-lg font-bold text-slate-900 mb-6">Photo Gallery</h3>
+							<GallerySettings
+								gallery={galleryImages}
+								onGalleryUpload={handleGalleryUpload}
+								onGalleryRemove={handleGalleryRemove}
+								galleryUploading={galleryUploading}
+								galleryRemovingKey={galleryRemovingKey}
+								galleryError={galleryError}
+							/>
+						</div>
+
+						<div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+							<h3 className="text-lg font-bold text-slate-900 mb-6">Discovery Vibe</h3>
+							<VibeSettings
+								profile={activeProfile}
+								onSubmit={formSubmit}
+							/>
+						</div>
 					</motion.div>
 				);
 
@@ -958,26 +983,7 @@ export default function ProfileSettingsPage() {
 						) : null}
 					</motion.div>
 				);
-			case "discovery":
-				return (
-					<motion.div
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-						transition={{ duration: 0.2 }}
-						className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
-					>
 
-						<DiscoverySettings
-							gallery={galleryImages}
-							onGalleryUpload={handleGalleryUpload}
-							onGalleryRemove={handleGalleryRemove}
-							galleryUploading={galleryUploading}
-							galleryRemovingKey={galleryRemovingKey}
-							galleryError={galleryError}
-						/>
-					</motion.div>
-				);
 			case "settings":
 				return (
 					<motion.div

@@ -16,12 +16,17 @@ from app.infra.redis import redis_client
 W_INVITE_ACCEPT = 30.0   # Accepting a friend invite
 W_FRIEND_NEW = 50.0      # Making a new friend
 W_FRIEND_REMOVED = -50.0 # Losing a friend
+W_INVITE_SENT = 10.0     # Sending a friend invite
 W_DM_SENT = 2.0          # Sending a direct message (capped)
 W_ROOM_SENT = 1.0        # Sending a message in a room (capped)
 
 # Meetups/Rooms Category  
 W_ROOM_JOIN = 30.0       # Joining a room/meetup
 W_ROOM_CREATE = 100.0    # Creating/hosting a meetup
+
+# Discovery Category
+W_DISCOVERY_SWIPE = 2.0    # Swiping on a profile
+W_DISCOVERY_MATCH = 15.0   # Matching with someone
 
 # Games Category (separate from social, tracked as Game Points)
 W_ACT_PLAYED = 50.0      # Playing a game

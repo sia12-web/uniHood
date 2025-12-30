@@ -79,6 +79,27 @@ def _coerce_json_to_list(value: Any) -> list[str]:
 	return processed
 
 
+def _coerce_json_to_list_any(value: Any) -> list[Any]:
+	if not value:
+		return []
+	raw: Any = value
+	if isinstance(raw, (bytes, bytearray, memoryview)):
+		try:
+			raw = bytes(raw).decode("utf-8")
+		except Exception:
+			raw = value
+	if isinstance(raw, str):
+		try:
+			raw = json.loads(raw)
+		except json.JSONDecodeError:
+			return []
+	if isinstance(raw, Mapping):
+		return list(raw.values())
+	if isinstance(raw, (list, tuple, set)):
+		return list(raw)
+	return []
+
+
 @dataclass(slots=True)
 class ProfileImage:
 	"""Lightweight representation of a gallery image stored on a profile."""
@@ -184,6 +205,17 @@ class User:
 	ten_year_vision: Optional[str] = None
 	roles: list[str] = field(default_factory=list)
 	is_university_verified: bool = False
+	# Expanded Profile Fields
+	gender: Optional[str] = None
+	birthday: Optional[datetime] = None
+	hometown: Optional[str] = None
+	relationship_status: Optional[str] = None
+	sexual_orientation: Optional[str] = None
+	looking_for: list[str] = field(default_factory=list)
+	height: Optional[int] = None
+	languages: list[str] = field(default_factory=list)
+	profile_prompts: list[dict[str, str]] = field(default_factory=list)
+	lifestyle: dict[str, str] = field(default_factory=dict)
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -213,6 +245,17 @@ class User:
 			ten_year_vision=(str(record.get("ten_year_vision", "")).strip() or None),
 			roles=_coerce_json_to_list(record.get("roles")),
 			is_university_verified=bool(record.get("is_university_verified", False)),
+			# Expanded Fields
+			gender=str(record.get("gender", "")).strip() or None,
+			birthday=record.get("birthday"), # DATE type handled by driver usually
+			hometown=str(record.get("hometown", "")).strip() or None,
+			relationship_status=str(record.get("relationship_status", "")).strip() or None,
+			sexual_orientation=str(record.get("sexual_orientation", "")).strip() or None,
+			looking_for=_coerce_json_to_list(record.get("looking_for")),
+			height=int(record["height"]) if record.get("height") is not None else None,
+			languages=_coerce_json_to_list(record.get("languages")),
+			profile_prompts=_coerce_json_to_list_any(record.get("profile_prompts")),
+			lifestyle=_coerce_json_to_dict(record.get("lifestyle")),
 		)
 
 

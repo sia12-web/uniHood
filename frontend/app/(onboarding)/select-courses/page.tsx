@@ -266,13 +266,22 @@ export default function SelectCoursesPage() {
                         >
                             {submitting ? "Saving..." : "Continue"}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push("/passions")}
-                            className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
-                        >
-                            Skip for now
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => router.push("/major-year")}
+                                className="w-full rounded-md border border-slate-200 bg-white px-4 py-3.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                            >
+                                Back
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push("/passions")}
+                                className="w-full rounded-md border border-slate-200 bg-white px-4 py-3.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                            >
+                                Skip for now
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

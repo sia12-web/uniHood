@@ -53,6 +53,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	rows = await pool.fetch(
 		"""
 		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision, u.social_links, u.status, u.is_university_verified,
+		       u.gender, u.birthday, u.hometown, u.languages, u.relationship_status, u.sexual_orientation, u.looking_for, u.height, u.lifestyle, u.profile_prompts,
 		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
@@ -86,6 +87,16 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 			"social_links": _parse_dict(row.get("social_links")),
 			"status": _parse_dict(row.get("status")),
 			"is_university_verified": bool(row.get("is_university_verified", False)),
+			"gender": row.get("gender"),
+			"birthday": str(row["birthday"]) if row.get("birthday") else None,
+			"hometown": row.get("hometown"),
+			"languages": row.get("languages") or [],
+			"relationship_status": row.get("relationship_status"),
+			"sexual_orientation": row.get("sexual_orientation"),
+			"looking_for": row.get("looking_for") or [],
+			"height": row.get("height"),
+			"lifestyle": _parse_dict(row.get("lifestyle")),
+			"profile_prompts": _parse_dict(row.get("profile_prompts")) if isinstance(row.get("profile_prompts"), str) else (row.get("profile_prompts") or []),
 		}
 		for row in rows
 	}
@@ -378,6 +389,16 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
 					is_university_verified=profile.get("is_university_verified", False),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 
@@ -423,6 +444,16 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
 					is_university_verified=profile.get("is_university_verified", False),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -462,6 +493,16 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
 					is_university_verified=profile.get("is_university_verified", False),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)
@@ -505,6 +546,16 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
 					banner_url=(profile.get("status") or {}).get("banner_url"),
 					is_university_verified=profile.get("is_university_verified", False),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)

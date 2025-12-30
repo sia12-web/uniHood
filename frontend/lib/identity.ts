@@ -84,6 +84,16 @@ export type ProfilePatchPayload = {
 	campus_id?: string;
 	social_links?: SocialLinks;
 	ten_year_vision?: string | null;
+	gender?: string | null;
+	birthday?: string | null;
+	hometown?: string | null;
+	relationship_status?: string | null;
+	sexual_orientation?: string | null;
+	looking_for?: string[] | null;
+	height?: number | null;
+	languages?: string[] | null;
+	profile_prompts?: { question: string; answer: string }[] | null;
+	lifestyle?: Record<string, string> | null;
 };
 
 export type ProfileCourseInput = Pick<ProfileCourse, "id" | "name" | "code" | "term">;

@@ -64,6 +64,18 @@ class NearbyUser(BaseModel):
 	banner_url: Optional[str] = None
 	ten_year_vision: Optional[str] = None
 	is_university_verified: bool = False
+	
+	# Expanded Profile Fields
+	gender: Optional[str] = None
+	birthday: Optional[str] = None
+	hometown: Optional[str] = None
+	languages: list[str] = Field(default_factory=list)
+	relationship_status: Optional[str] = None
+	sexual_orientation: Optional[str] = None
+	looking_for: list[str] = Field(default_factory=list)
+	height: Optional[int] = None
+	lifestyle: dict = Field(default_factory=dict)
+	profile_prompts: list[dict] = Field(default_factory=list)
 
 
 class NearbyResponse(BaseModel):

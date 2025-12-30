@@ -44,6 +44,14 @@ export default function ProfileForm({
 	const [passions, setPassions] = useState<string[]>(profile.passions ?? []);
 	const [passionDraft, setPassionDraft] = useState<string>("");
 	const [socialLinks, setSocialLinks] = useState<SocialLinks>(profile.social_links ?? {});
+
+	// Extended fields
+	const [gender, setGender] = useState<string>(profile.gender ?? "");
+	const [birthday, setBirthday] = useState<string>(profile.birthday ? new Date(profile.birthday).toISOString().split('T')[0] : "");
+	const [hometown, setHometown] = useState<string>(profile.hometown ?? "");
+	const [height, setHeight] = useState<string>(profile.height ? String(profile.height) : "");
+	const [languages, setLanguages] = useState<string>(profile.languages ? profile.languages.join(", ") : "");
+
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -62,6 +70,11 @@ export default function ProfileForm({
 		setGraduationYear(next.graduation_year ? String(next.graduation_year) : "");
 		setPassions(next.passions ?? []);
 		setSocialLinks(next.social_links ?? {});
+		setGender(next.gender ?? "");
+		setBirthday(next.birthday ? new Date(next.birthday).toISOString().split('T')[0] : "");
+		setHometown(next.hometown ?? "");
+		setHeight(next.height ? String(next.height) : "");
+		setLanguages(next.languages ? next.languages.join(", ") : "");
 		setPassionDraft("");
 	}, []);
 
@@ -139,10 +152,43 @@ export default function ProfileForm({
 			changed = true;
 		}
 
+
 		const nextVision = (current.ten_year_vision ?? "").trim();
 		const oldVision = (profile.ten_year_vision ?? "").trim();
 		if (nextVision !== oldVision) {
 			patch.ten_year_vision = nextVision || null;
+			changed = true;
+		}
+
+		if (gender !== (current.gender ?? "")) {
+			patch.gender = gender || null;
+			changed = true;
+		}
+
+		const currentBday = current.birthday ? new Date(current.birthday).toISOString().split('T')[0] : "";
+		if (birthday !== currentBday) {
+			patch.birthday = birthday || null;
+			changed = true;
+		}
+
+		const trimmedHometown = hometown.trim();
+		if (trimmedHometown !== (current.hometown ?? "")) {
+			patch.hometown = trimmedHometown || null;
+			changed = true;
+		}
+
+		const parsedHeight = height ? parseInt(height) : null;
+		if (parsedHeight !== (current.height ?? null)) {
+			patch.height = parsedHeight;
+			changed = true;
+		}
+
+		const normLangs = languages.split(",").map(l => l.trim()).filter(Boolean);
+		const currentLangs = current.languages ?? [];
+		// Simple array comparison (assuming order matters or handled reasonably)
+		const langsChanged = normLangs.length !== currentLangs.length || normLangs.some((l, i) => l !== currentLangs[i]);
+		if (langsChanged) {
+			patch.languages = normLangs.length > 0 ? normLangs : null;
 			changed = true;
 		}
 
@@ -284,6 +330,67 @@ export default function ProfileForm({
 						</label>
 					</div>
 				</div>
+
+				<div className="grid gap-6 md:grid-cols-2 pt-2">
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Gender</span>
+						<select
+							value={gender}
+							onChange={(event) => setGender(event.target.value)}
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition bg-white"
+						>
+							<option value="">Select...</option>
+							<option value="Male">Male</option>
+							<option value="Female">Female</option>
+							<option value="Non-binary">Non-binary</option>
+							<option value="Prefer not to say">Prefer not to say</option>
+						</select>
+					</label>
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Birthday</span>
+						<input
+							type="date"
+							value={birthday}
+							onChange={(event) => setBirthday(event.target.value)}
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+						/>
+					</label>
+				</div>
+
+				<div className="grid gap-6 md:grid-cols-2 pt-2">
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Hometown</span>
+						<input
+							type="text"
+							value={hometown}
+							onChange={(event) => setHometown(event.target.value)}
+							maxLength={80}
+							placeholder="e.g. London, UK"
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+						/>
+					</label>
+					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<span className="font-semibold text-slate-900">Height (cm)</span>
+						<input
+							type="number"
+							value={height}
+							onChange={(event) => setHeight(event.target.value)}
+							placeholder="e.g. 175"
+							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+						/>
+					</label>
+				</div>
+
+				<label className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
+					<span className="font-semibold text-slate-900">Languages</span>
+					<input
+						type="text"
+						value={languages}
+						onChange={(event) => setLanguages(event.target.value)}
+						placeholder="English, Spanish, French..."
+						className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+					/>
+				</label>
 
 				<div className="grid gap-6 md:grid-cols-2 pt-2">
 					<label className="flex flex-col gap-1.5 text-sm text-slate-700">

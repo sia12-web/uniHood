@@ -60,6 +60,17 @@ class DiscoveryCard(BaseModel):
 	top_prompts: list[dict] = Field(default_factory=list) # [{question: ..., answer: ...}]
 	compatibility_hint: Optional[str] = None
 	is_university_verified: bool = False
+	
+	# Expanded Profile Fields
+	gender: Optional[str] = None
+	age: Optional[int] = None
+	hometown: Optional[str] = None
+	languages: list[str] = Field(default_factory=list)
+	relationship_status: Optional[str] = None
+	looking_for: list[str] = Field(default_factory=list)
+	lifestyle: dict = Field(default_factory=dict)
+	sexual_orientation: Optional[str] = None
+	height: Optional[int] = None
 
 
 class DiscoveryFeedResponse(BaseModel):

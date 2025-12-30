@@ -95,7 +95,9 @@ function ProfileDetailContent({
         return prompts;
     };
 
-    const prompts = getPrompts();
+    const prompts = (user.top_prompts && user.top_prompts.length > 0)
+        ? user.top_prompts.map(p => ({ k: p.question, v: p.answer }))
+        : getPrompts();
     const gallery = user.gallery || [];
 
     return (
@@ -146,7 +148,7 @@ function ProfileDetailContent({
                         {/* Name Overlay */}
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-32 pb-6 px-6">
                             <h1 className="text-4xl font-black tracking-tight text-white mb-1 flex items-center gap-2">
-                                {user.display_name}
+                                {user.display_name}{user.age ? `, ${user.age}` : ""}
                                 {user.level ? <LevelBadge level={user.level} size="sm" className="bg-white/20 text-white border-white/10" /> : null}
                                 {isOnline && <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />}
                             </h1>
@@ -173,6 +175,16 @@ function ProfileDetailContent({
                             {user.graduation_year && (
                                 <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                                     &apos;{String(user.graduation_year).slice(-2)}
+                                </div>
+                            )}
+                            {user.hometown && (
+                                <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1.5 border border-slate-200">
+                                    <MapPin size={14} className="text-rose-500" /> {user.hometown}
+                                </div>
+                            )}
+                            {user.languages && user.languages.length > 0 && (
+                                <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                    🗣️ {user.languages.join(", ")}
                                 </div>
                             )}
                         </div>
@@ -229,6 +241,27 @@ function ProfileDetailContent({
                             >
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">About Me</h3>
                                 <p className="text-xl text-slate-800 leading-relaxed font-medium">{user.bio}</p>
+                            </motion.div>
+                        )}
+
+                        {/* Lifestyle */}
+                        {user.lifestyle && Object.keys(user.lifestyle).length > 0 && (
+                            <motion.div
+                                variants={cardVariants}
+                                initial="hidden"
+                                whileInView="visible"
+                                viewport={{ once: true }}
+                                custom={1.2}
+                                className="grid grid-cols-2 md:grid-cols-3 gap-3"
+                            >
+                                {Object.entries(user.lifestyle).map(([k, v]) => (
+                                    v && (
+                                        <div key={k} className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+                                            <p className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-1">{k}</p>
+                                            <p className="text-slate-900 font-semibold capitalize">{v}</p>
+                                        </div>
+                                    )
+                                ))}
                             </motion.div>
                         )}
 

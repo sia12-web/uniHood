@@ -162,7 +162,7 @@ export default function VisionPage() {
 				ten_year_vision: trimmed || null,
 			});
 
-			router.push("/photos");
+			router.push("/welcome");
 		} catch (err) {
 			console.error(err);
 			setError("Failed to save your vision. Please try again.");
@@ -283,7 +283,7 @@ export default function VisionPage() {
 					<div className="flex items-center justify-between pt-2">
 						<button
 							type="button"
-							onClick={() => router.push("/passions")}
+							onClick={() => router.push("/vibes")}
 							className="text-sm font-medium text-slate-600 hover:text-slate-900"
 						>
 							Back
@@ -291,7 +291,7 @@ export default function VisionPage() {
 						<div className="flex items-center gap-3">
 							<button
 								type="button"
-								onClick={() => router.push("/photos")}
+								onClick={() => router.push("/welcome")}
 								className="text-sm font-medium text-slate-500 hover:text-slate-700"
 							>
 								Skip

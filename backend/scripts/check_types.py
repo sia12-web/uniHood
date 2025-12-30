@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from uuid import UUID
 
 # Ensure backend path is in sys.path
 if os.path.exists("backend"):
@@ -23,30 +22,18 @@ if os.path.exists(env_path):
                 os.environ[key.strip()] = value.strip()
 
 from app.infra.postgres import get_pool
-from app.domain.identity.deletion import force_delete
-from app.infra.auth import AuthenticatedUser
 
 async def main():
     pool = await get_pool()
     async with pool.acquire() as conn:
-        users = await conn.fetch("SELECT id, campus_id, email, handle FROM users")
-        print(f"Total users to delete: {len(users)}")
-        
-        for u in users:
-            user_id = str(u['id'])
-            campus_id = str(u['campus_id']) if u['campus_id'] else "00000000-0000-0000-0000-000000000000"
-            email = u['email']
-            handle = u['handle']
-            
-            print(f"Deleting user: {user_id} ({handle} | {email})")
-            auth_user = AuthenticatedUser(id=user_id, campus_id=campus_id)
-            try:
-                await force_delete(auth_user)
-                print(f"  Successfully deleted {user_id}")
-            except Exception as e:
-                print(f"  Failed to delete {user_id}: {e}")
-    
-    print("User deletion process completed.")
+        rows = await conn.fetch("""
+            SELECT column_name, data_type, udt_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users'
+            ORDER BY ordinal_position
+        """)
+        for r in rows:
+            print(f"{r['column_name']}: {r['data_type']} ({r['udt_name']})")
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

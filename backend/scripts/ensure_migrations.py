@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from uuid import UUID
+import re
 
 # Ensure backend path is in sys.path
 if os.path.exists("backend"):
@@ -23,30 +23,31 @@ if os.path.exists(env_path):
                 os.environ[key.strip()] = value.strip()
 
 from app.infra.postgres import get_pool
-from app.domain.identity.deletion import force_delete
-from app.infra.auth import AuthenticatedUser
 
 async def main():
+    migration_dir = "migrations"
+    if not os.path.exists(migration_dir):
+        print("Migrations directory not found.")
+        return
+
+    files = sorted([f for f in os.listdir(migration_dir) if f.endswith(".sql")])
     pool = await get_pool()
-    async with pool.acquire() as conn:
-        users = await conn.fetch("SELECT id, campus_id, email, handle FROM users")
-        print(f"Total users to delete: {len(users)}")
-        
-        for u in users:
-            user_id = str(u['id'])
-            campus_id = str(u['campus_id']) if u['campus_id'] else "00000000-0000-0000-0000-000000000000"
-            email = u['email']
-            handle = u['handle']
-            
-            print(f"Deleting user: {user_id} ({handle} | {email})")
-            auth_user = AuthenticatedUser(id=user_id, campus_id=campus_id)
-            try:
-                await force_delete(auth_user)
-                print(f"  Successfully deleted {user_id}")
-            except Exception as e:
-                print(f"  Failed to delete {user_id}: {e}")
     
-    print("User deletion process completed.")
+    async with pool.acquire() as conn:
+        for filename in files:
+            print(f"Executing {filename}...")
+            path = os.path.join(migration_dir, filename)
+            with open(path, "r") as f:
+                sql = f.read()
+            
+            # Use a simple approach: just run the SQL. 
+            # Most of our migrations use 'IF NOT EXISTS' or 'ALTER TABLE ... ADD COLUMN IF NOT EXISTS'.
+            try:
+                # asyncpg execute can handle multiple statements if they are separated by semicolons
+                await conn.execute(sql)
+                print(f"Finished {filename}")
+            except Exception as e:
+                print(f"Error in {filename}: {e}")
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

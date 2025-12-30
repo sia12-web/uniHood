@@ -3,7 +3,10 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import AppChrome from "@/components/AppChrome";
+
+const AppChrome = dynamic(() => import("@/components/AppChrome"), {
+  ssr: false,
+});
 
 const PerformanceMonitor = dynamic(() => import("@/components/PerformanceMonitor"), {
   ssr: false,

@@ -41,6 +41,15 @@ export type NearbyUser = {
   is_online?: boolean;
   vibe_tags?: string[];
   top_prompts?: { question: string; answer: string }[];
+  gender?: string | null;
+  age?: number | null;
+  hometown?: string | null;
+  languages?: string[];
+  relationship_status?: string | null;
+  sexual_orientation?: string | null;
+  looking_for?: string[];
+  height?: number | null;
+  lifestyle?: Record<string, string> | null;
   compatibility_hint?: string;
   is_university_verified?: boolean;
   // XP System (optional as not all endpoints might populate it immediately)
@@ -323,6 +332,16 @@ export type ProfileRecord = {
   gallery?: ProfileGalleryImage[];
   social_links?: SocialLinks;
   ten_year_vision?: string | null;
+  gender?: string | null;
+  birthday?: string | null;
+  hometown?: string | null;
+  relationship_status?: string | null;
+  sexual_orientation?: string | null;
+  looking_for?: string[] | null;
+  height?: number | null;
+  languages?: string[] | null;
+  profile_prompts?: { question: string; answer: string }[] | null;
+  lifestyle?: Record<string, string> | null;
   is_university_verified: boolean;
   // XP System
   xp: number;

@@ -18,7 +18,7 @@ import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap } from "lucide-react";
+import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles } from "lucide-react";
 
 
 
@@ -257,7 +257,10 @@ export default function HomePage() {
 
   const renderActivityItem = (item: ActivityLogItem) => {
     const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    let iconColor = "bg-slate-400";
+
+    let Icon = Zap;
+    let iconBg = "bg-slate-100 dark:bg-slate-800";
+    let iconColor = "text-slate-500 dark:text-slate-400";
     let content = <span>Unknown activity</span>;
     let xpGain = null;
 
@@ -268,38 +271,77 @@ export default function HomePage() {
 
     // Check for "xp.gained" first
     if (item.event === "xp.gained" && item.meta?.source_meta) {
-      // Attempt to extract context from source_meta if the main event is just xp.gained
-      // But usually we prefer specific events. However, if xp.gained is the only log for an action (like daily login), show it.
       const meta = item.meta as Record<string, any>;
       const action = meta.action;
       const amount = meta.amount;
-      iconColor = "bg-amber-500";
+
       if (action === "daily_login") {
+        Icon = Sun;
+        iconBg = "bg-amber-100 dark:bg-amber-900/30";
+        iconColor = "text-amber-600 dark:text-amber-400";
         content = <span>Daily login bonus!</span>;
       } else if (action === "chat_sent") {
+        Icon = MessageCircle;
+        iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
+        iconColor = "text-indigo-600 dark:text-indigo-400";
         content = <span>Sent a message</span>;
-        iconColor = "bg-indigo-500";
+      } else if (action === "game_played") {
+        Icon = Gamepad2;
+        iconBg = "bg-violet-100 dark:bg-violet-900/30";
+        iconColor = "text-violet-600 dark:text-violet-400";
+        content = <span>Played a game</span>;
+      } else if (action === "game_won") {
+        Icon = Trophy;
+        iconBg = "bg-yellow-100 dark:bg-yellow-900/30";
+        iconColor = "text-yellow-600 dark:text-yellow-400";
+        content = <span>Won a game!</span>;
+      } else if (action === "discovery_swipe") {
+        Icon = Heart;
+        iconBg = "bg-rose-100 dark:bg-rose-900/30";
+        iconColor = "text-rose-600 dark:text-rose-400";
+        content = <span>Swiped on profiles</span>;
+      } else if (action === "discovery_match") {
+        Icon = Sparkles;
+        iconBg = "bg-pink-100 dark:bg-pink-900/30";
+        iconColor = "text-pink-600 dark:text-pink-400";
+        content = <span>New Match!</span>;
+      } else if (action === "profile_update") {
+        Icon = UserPlus; // or UserCog
+        iconBg = "bg-slate-100 dark:bg-slate-800";
+        iconColor = "text-slate-600 dark:text-slate-400";
+        content = <span>Updated profile</span>;
       } else {
+        Icon = Zap;
+        iconBg = "bg-amber-100 dark:bg-amber-900/30";
+        iconColor = "text-amber-600 dark:text-amber-400";
         content = <span>Gained XP: {action}</span>;
       }
       xpGain = `+${amount} XP`;
     }
-    // Handle specific high-level events (preferred over raw XP logs if they exist duplicatively, but usually we filter)
+    // Handle specific high-level events
     else if (item.event === "friend.accepted") {
-      iconColor = "bg-emerald-500";
-      content = <span>{actor} became friends with <span className="font-bold">Someone</span></span>; // Ideally we'd have target details
-      if ((item.meta as Record<string, any>)?.xp) xpGain = `+${(item.meta as Record<string, any>).xp} XP`; // If we start logging XP in main events
+      Icon = UserPlus;
+      iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
+      iconColor = "text-emerald-600 dark:text-emerald-400";
+      content = <span>{actor} became friends with <span className="font-bold">Someone</span></span>;
+      if ((item.meta as Record<string, any>)?.xp) xpGain = `+${(item.meta as Record<string, any>).xp} XP`;
     }
     else if (item.event === "chat.sent") {
-      iconColor = "bg-indigo-500";
+      Icon = MessageCircle;
+      iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
+      iconColor = "text-indigo-600 dark:text-indigo-400";
       content = <span>{actor} sent a message</span>;
     }
     else if (item.event === "invite.sent") {
-      iconColor = "bg-blue-500";
+      Icon = Send;
+      iconBg = "bg-blue-100 dark:bg-blue-900/30";
+      iconColor = "text-blue-600 dark:text-blue-400";
       content = <span>{actor} sent a friend invite</span>;
     }
     else if (item.event === "meetup.created") {
-      iconColor = "bg-rose-500";
+      Icon = CalendarDays;
+      iconBg = "bg-rose-100 dark:bg-rose-900/30";
+      iconColor = "text-rose-600 dark:text-rose-400";
       content = <span>{actor} created a meetup</span>;
     }
     else if (item.event.startsWith("xp.gained")) {
@@ -307,14 +349,18 @@ export default function HomePage() {
       const meta = item.meta as Record<string, any>;
       const amount = meta.amount;
       const action = meta.action as string | undefined;
-      iconColor = "bg-amber-500";
+      Icon = Zap;
+      iconBg = "bg-amber-100 dark:bg-amber-900/30";
+      iconColor = "text-amber-600 dark:text-amber-400";
       content = <span>Earned XP for {action?.replace(/_/g, " ").toLowerCase()}</span>;
       xpGain = `+${amount} XP`;
     }
 
     return (
       <div key={item.id} className="relative pl-10 py-2">
-        <div className={`absolute left-0 top-3.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${iconColor}`}></div>
+        <div className={`absolute -left-2 top-2 h-6 w-6 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center ${iconBg} ${iconColor}`}>
+          <Icon size={12} strokeWidth={2.5} />
+        </div>
         <div className="flex flex-col gap-1">
           <p className="text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
             {content}

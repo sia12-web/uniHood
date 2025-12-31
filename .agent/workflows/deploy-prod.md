@@ -38,3 +38,7 @@ description: Promote changes from Development (dev-01) to Production (main)
     ```bash
     git checkout dev-01
     ```
+
+11. Verify Production Deployment (Render)
+    Use `/render-ops` to verify that the services correctly started on Render.
+    Basically, check `srv-d51m24euk2gs739vaf20` (backend) and `srv-d51mjleuk2gs739vl9gg` (frontend) deploy logs.

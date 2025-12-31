@@ -227,13 +227,14 @@ from app.domain.identity import s3 as _s3  # local import to avoid circulars
 _s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
 
 allow_origins = list(getattr(settings, "cors_allow_origins", []))
+print(f"DEBUG: Parsed CORS origins: {allow_origins}", flush=True)
 if not allow_origins:
 	allow_origins = [
 		"http://localhost:3000",
 		"http://127.0.0.1:3000",
 		"https://localhost:3000",
 		"https://127.0.0.1:3000",
-	] if settings.environment in ["dev", "development"] else ["https://app.divan.app"]
+	] if settings.environment in ["dev", "development"] else ["https://unihood.app", "https://www.unihood.app", "https://unihood-frontend.onrender.com"]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:
@@ -253,7 +254,7 @@ if "*" in allow_origins:
 			"https://127.0.0.1:3001",
 		]
 	else:
-		allow_origins = ["https://app.divan.app"]
+		allow_origins = ["https://unihood.app", "https://www.unihood.app", "https://unihood-frontend.onrender.com"]
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

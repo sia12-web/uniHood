@@ -7,6 +7,11 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    gcc \
+    g++ \
+    libpq-dev \
+    zlib1g-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -15,6 +20,8 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # Copy dependency files
 COPY pyproject.toml ./pyproject.toml
+# Copy lock file if it exists (it might not locally, but good practice)
+# COPY poetry.lock* ./
 
 # Install dependencies
 RUN poetry config virtualenvs.create false \
@@ -27,4 +34,5 @@ COPY . ./
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uvicorn", "app.main:socket_app", "--host", "0.0.0.0", "--port", "8000"]
+# Use sh -c to expand the PORT environment variable (Render sets this, usually 10000)
+CMD ["sh", "-c", "uvicorn app.main:socket_app --host 0.0.0.0 --port ${PORT:-8000}"]

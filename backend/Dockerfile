@@ -7,11 +7,6 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
-    gcc \
-    g++ \
-    libpq-dev \
-    zlib1g-dev \
-    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -20,8 +15,6 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # Copy dependency files
 COPY pyproject.toml ./pyproject.toml
-# Copy lock file if it exists (it might not locally, but good practice)
-# COPY poetry.lock* ./
 
 # Install dependencies
 RUN poetry config virtualenvs.create false \

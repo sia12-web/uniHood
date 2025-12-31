@@ -86,14 +86,17 @@ export type RoomsClientEvents = {
 
 export type RoomsSocket = Socket<RoomsServerEvents, RoomsClientEvents>;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+import { getBackendUrl } from './env';
+
+const API_BASE = getBackendUrl();
 let socketInstance: RoomsSocket | null = null;
 
 function resolveUrl(path: string): string {
-	if (!API_BASE) {
+	if (!API_BASE || path.startsWith('http')) {
 		return path;
 	}
-	return path.startsWith('/') ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
+	const prefix = path.startsWith('/') ? '' : '/';
+	return `${API_BASE}${prefix}${path}`;
 }
 
 async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {

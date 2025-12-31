@@ -1,11 +1,9 @@
 import axios from "axios";
 import { readAuthSnapshot } from "./auth-storage";
 
-const API_BASE =
-	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_COMMUNITIES_API_BASE : undefined) ??
-	(typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_API_BASE_URL : undefined) ??
-	(typeof process !== 'undefined' ? process.env?.API_BASE_URL : undefined) ??
-	"http://localhost:8001";
+import { getBackendUrl } from "./env";
+
+const API_BASE = getBackendUrl();
 
 export const api = axios.create({
 	baseURL: API_BASE,

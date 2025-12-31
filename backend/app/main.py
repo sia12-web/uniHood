@@ -397,7 +397,6 @@ app.add_middleware(
 	protected_paths=(
 		"/admin",
 		"/flags",
-		"/rooms",
 	),
 )
 # Security headers - enable HSTS only in production with HTTPS

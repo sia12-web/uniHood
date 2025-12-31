@@ -357,11 +357,32 @@ export default function HomePage() {
       iconColor = "text-blue-600 dark:text-blue-400";
       content = <span>{actor} sent a friend invite</span>;
     }
-    else if (item.event === "meetup.created") {
+    else if (item.event === "meetup.created" || item.event === "meetup.create") {
       Icon = CalendarDays;
       iconBg = "bg-rose-100 dark:bg-rose-900/30";
       iconColor = "text-rose-600 dark:text-rose-400";
-      content = <span>{actor} created a meetup</span>;
+      const title = (item.meta as Record<string, any>)?.title || "a meetup";
+      content = <span>{actor} created {title}</span>;
+    }
+    else if (item.event === "meetup.join") {
+      Icon = Users;
+      iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
+      iconColor = "text-emerald-600 dark:text-emerald-400";
+      content = <span>{actor} joined a meetup</span>;
+    }
+    else if (item.event === "activity.create") {
+      Icon = Gamepad2;
+      iconBg = "bg-violet-100 dark:bg-violet-900/30";
+      iconColor = "text-violet-600 dark:text-violet-400";
+      content = <span>{actor} started a game</span>;
+    }
+    else if (item.event === "activity.finish") {
+      const meta = item.meta as Record<string, any>;
+      const isWinner = meta.is_winner;
+      Icon = isWinner ? Trophy : Gamepad2;
+      iconBg = isWinner ? "bg-yellow-100 dark:bg-yellow-900/30" : "bg-slate-100 dark:bg-slate-800";
+      iconColor = isWinner ? "text-yellow-600 dark:text-yellow-400" : "text-slate-600 dark:text-slate-400";
+      content = <span>{actor} {isWinner ? "won" : "finished"} a game of {meta.kind || "something"}</span>;
     }
     else if (item.event.startsWith("xp.gained")) {
       // Fallback for direct XP events

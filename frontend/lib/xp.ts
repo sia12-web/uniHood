@@ -139,8 +139,9 @@ export function getLevelProgress(xp: number, level: number, nextLevelXp?: number
 }
 
 import { readAuthSnapshot } from "./auth-storage";
+import { getBackendUrl } from "./env";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = getBackendUrl();
 
 export type DailyChecklist = {
     daily_login: boolean;

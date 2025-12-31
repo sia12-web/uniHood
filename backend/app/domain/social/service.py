@@ -849,3 +849,15 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 					await _invalidate_friends_cache(user_id)
 					await _invalidate_friends_cache(target_id)
 
+					# Apply XP Penalty to the user who removed the friend
+					try:
+						from app.domain.xp.service import XPService
+						from app.domain.xp.models import XPAction
+						await XPService().award_xp(
+							user_id, 
+							XPAction.FRIEND_REMOVED, 
+							metadata={"friend_id": target_id}
+						)
+					except Exception:
+						logger.exception("Failed to apply XP penalty for friend removal")
+

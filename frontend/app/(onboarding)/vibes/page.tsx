@@ -178,9 +178,9 @@ export default function VibesPage() {
                 sexual_orientation: sexualOrientation || null,
                 looking_for: lookingFor.length > 0 ? lookingFor : null,
                 lifestyle: {
-                    drinking: drinking || null,
-                    smoking: smoking || null,
-                    workout: workout || null,
+                    drinking: drinking || "",
+                    smoking: smoking || "",
+                    workout: workout || "",
                 },
                 profile_prompts: prompts.filter(p => p.answer.trim().length > 0),
             });

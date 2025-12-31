@@ -192,7 +192,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
             {/* Prompts */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-slate-700">Profile Prompts</label>
+                    <label className="block text-sm font-medium text-slate-700">Discovery Vibe</label>
                     {prompts.length < 3 && (
                         <button type="button" onClick={addPrompt} className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
                             + Add Prompt

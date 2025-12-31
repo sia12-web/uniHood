@@ -74,12 +74,13 @@ class XPService:
         if target_id:
             target_id = str(target_id)
             # Don't apply diminishing returns if interacting with self
-            if target_id != uid:
+            # Also don't apply for negative XP (penalties shouldn't diminish)
+            if target_id != uid and amount > 0:
                 amount = await self._apply_diminishing_returns(uid, target_id, action, amount)
         # ---------------------------------------
         
-        if amount <= 0:
-            # No XP for this action, just return current stats
+        if amount == 0:
+            # No XP change for this action, just return current stats
             return await self.get_user_stats(uid)
 
         pool = await get_pool()
@@ -150,6 +151,17 @@ class XPService:
         pool = await get_pool()
         
         async with pool.acquire() as conn:
+            # Check if a record exists for today explicitly to be robust against schema issues or missing constraints
+            already_claimed = await conn.fetchval("""
+                SELECT 1 FROM daily_xp_claims 
+                WHERE user_id = $1 
+                  AND claim_date::date = CURRENT_DATE
+                LIMIT 1
+            """, uid)
+            
+            if already_claimed:
+                return None
+
             # Try to insert a claim for today. If it fails (unique constraint), they already claimed it.
             try:
                 await conn.execute("""

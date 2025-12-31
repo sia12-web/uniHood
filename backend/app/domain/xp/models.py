@@ -79,6 +79,7 @@ class XPAction(str, Enum):
     FRIEND_REQUEST_ACCEPTED = "friend_request_accepted"
     DISCOVERY_SWIPE = "discovery_swipe"
     DISCOVERY_MATCH = "discovery_match"
+    FRIEND_REMOVED = "friend_removed"
 
 XP_AMOUNTS = {
     XPAction.CHAT_SENT: 2,
@@ -92,4 +93,5 @@ XP_AMOUNTS = {
     XPAction.FRIEND_REQUEST_ACCEPTED: 50,
     XPAction.DISCOVERY_SWIPE: 2,
     XPAction.DISCOVERY_MATCH: 15,
+    XPAction.FRIEND_REMOVED: -50,
 }

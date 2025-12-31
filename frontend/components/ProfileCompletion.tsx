@@ -58,10 +58,10 @@ export default function ProfileCompletion({ profile, activeTab, onNavigate }: Pr
                 tab: "profile",
             },
             {
-                id: "vibe",
-                label: "Discovery Vibe",
-                description: "Relationship, looking for, etc.",
-                isComplete: !!(profile.relationship_status && profile.sexual_orientation && (profile.looking_for?.length ?? 0) > 0),
+                id: "vibe_details",
+                label: "Discovery Details",
+                description: "Relationship status & orientation.",
+                isComplete: !!(profile.relationship_status && profile.sexual_orientation),
                 tab: "profile",
             },
             {
@@ -73,9 +73,9 @@ export default function ProfileCompletion({ profile, activeTab, onNavigate }: Pr
             },
             {
                 id: "prompts",
-                label: "Profile Prompts",
-                description: "Answer at least one fun prompt.",
-                isComplete: (profile.profile_prompts?.length ?? 0) >= 1 && (profile.profile_prompts?.[0]?.answer?.length ?? 0) > 5,
+                label: "Discovery Vibe",
+                description: "Answer 3 fun prompts.",
+                isComplete: (profile.profile_prompts?.length ?? 0) >= 3,
                 tab: "profile",
             }
         ];

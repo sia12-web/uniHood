@@ -648,78 +648,75 @@ class LeaderboardService:
 		import logging
 		logger = logging.getLogger(__name__)
 		
-		pool = await get_pool()
-		async with pool.acquire() as conn:
-			# Get all users in this campus with their social activity counts
-			rows = await conn.fetch(
-				"""
-				SELECT 
-					u.id as user_id,
-					COALESCE(f.friend_count, 0) as friend_count,
-					COALESCE(mh.hosted_count, 0) as hosted_count,
-					COALESCE(mj.joined_count, 0) as joined_count,
-					COALESCE(ia.accepted_count, 0) as accepted_count
-				FROM users u
-				LEFT JOIN (
-					SELECT user_id, COUNT(*) as friend_count 
-					FROM friendships 
-					WHERE status = 'accepted' 
-					GROUP BY user_id
-				) f ON f.user_id = u.id
-				LEFT JOIN (
-					SELECT creator_user_id, COUNT(*) as hosted_count 
-					FROM meetups 
-					GROUP BY creator_user_id
-				) mh ON mh.creator_user_id = u.id
-				LEFT JOIN (
-					SELECT user_id, COUNT(*) as joined_count 
-					FROM meetup_participants 
-					WHERE status = 'JOINED' 
-					GROUP BY user_id
-				) mj ON mj.user_id = u.id
-				LEFT JOIN (
-					SELECT from_user_id, COUNT(*) as accepted_count
-					FROM invite_acceptances
-					GROUP BY from_user_id
-				) ia ON ia.from_user_id = u.id
-				WHERE u.campus_id = $1 AND u.deleted_at IS NULL
-				ORDER BY (
-					COALESCE(f.friend_count, 0) * 50 + 
-					COALESCE(mh.hosted_count, 0) * 100 + 
-					COALESCE(mj.joined_count, 0) * 30 +
-					COALESCE(ia.accepted_count, 0) * 30
-				) DESC
-				LIMIT $2
-				""",
-				campus_id,
-				limit,
-			)
-			
-			logger.info(
-				"_calculate_live_social_scores: campus_id=%s limit=%s found=%s users",
-				campus_id, limit, len(rows)
-			)
-			
-			results = []
-			for row in rows:
-				# Calculate total points
-				total_points = (
-					row["friend_count"] * policy.W_FRIEND_NEW +
-					row["hosted_count"] * policy.W_ROOM_CREATE +
-					row["joined_count"] * policy.W_ROOM_JOIN +
-					row["accepted_count"] * policy.W_INVITE_ACCEPT
+		try:
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				# Get all users in this campus with their social activity counts
+				# Note: invite_acceptances table may not exist, so we skip it
+				rows = await conn.fetch(
+					"""
+					SELECT 
+						u.id as user_id,
+						COALESCE(f.friend_count, 0) as friend_count,
+						COALESCE(mh.hosted_count, 0) as hosted_count,
+						COALESCE(mj.joined_count, 0) as joined_count
+					FROM users u
+					LEFT JOIN (
+						SELECT user_id, COUNT(*) as friend_count 
+						FROM friendships 
+						WHERE status = 'accepted' 
+						GROUP BY user_id
+					) f ON f.user_id = u.id
+					LEFT JOIN (
+						SELECT creator_user_id, COUNT(*) as hosted_count 
+						FROM meetups 
+						GROUP BY creator_user_id
+					) mh ON mh.creator_user_id = u.id
+					LEFT JOIN (
+						SELECT user_id, COUNT(*) as joined_count 
+						FROM meetup_participants 
+						WHERE status = 'JOINED' 
+						GROUP BY user_id
+					) mj ON mj.user_id = u.id
+					WHERE u.campus_id = $1 AND u.deleted_at IS NULL
+					ORDER BY (
+						COALESCE(f.friend_count, 0) * 50 + 
+						COALESCE(mh.hosted_count, 0) * 100 + 
+						COALESCE(mj.joined_count, 0) * 30
+					) DESC
+					LIMIT $2
+					""",
+					campus_id,
+					limit,
 				)
-				# Convert to Social Score level
-				social_score = policy.calculate_social_score_level(total_points)
-				results.append((str(row["user_id"]), float(social_score)))
-			
-			logger.info(
-				"_calculate_live_social_scores: returning %s results, top scores: %s",
-				len(results),
-				results[:5] if results else []
-			)
-			
-			return results
+				
+				logger.info(
+					"_calculate_live_social_scores: campus_id=%s limit=%s found=%s users",
+					campus_id, limit, len(rows)
+				)
+				
+				results = []
+				for row in rows:
+					# Calculate total points
+					total_points = (
+						row["friend_count"] * policy.W_FRIEND_NEW +
+						row["hosted_count"] * policy.W_ROOM_CREATE +
+						row["joined_count"] * policy.W_ROOM_JOIN
+					)
+					# Convert to Social Score level
+					social_score = policy.calculate_social_score_level(total_points)
+					results.append((str(row["user_id"]), float(social_score)))
+				
+				logger.info(
+					"_calculate_live_social_scores: returning %s results, top scores: %s",
+					len(results),
+					results[:5] if results else []
+				)
+				
+				return results
+		except Exception as e:
+			logger.error(f"_calculate_live_social_scores failed: {e}")
+			return []
 
 	async def _fetch_user_display_names(self, user_ids: List[str]) -> Dict[str, Dict[str, str]]:
 		"""Fetch display names and handles for a list of user IDs."""
@@ -924,17 +921,23 @@ class LeaderboardService:
 				user_id
 			)
 
-			# Count swipes (W_DISCOVERY_SWIPE)
-			swipes_row = await conn.fetchrow(
-				"SELECT COUNT(*) as count FROM discovery_interactions WHERE user_id = $1",
-				user_id
-			)
+			# Count swipes (W_DISCOVERY_SWIPE) - table may not exist
+			try:
+				swipes_row = await conn.fetchrow(
+					"SELECT COUNT(*) as count FROM discovery_interactions WHERE user_id = $1",
+					user_id
+				)
+			except Exception:
+				swipes_row = None
 
-			# Count matches (W_DISCOVERY_MATCH)
-			matches_row = await conn.fetchrow(
-				"SELECT COUNT(*) as count FROM discovery_matches WHERE user_a = $1 OR user_b = $1",
-				user_id
-			)
+			# Count matches (W_DISCOVERY_MATCH) - table may not exist
+			try:
+				matches_row = await conn.fetchrow(
+					"SELECT COUNT(*) as count FROM discovery_matches WHERE user_a = $1 OR user_b = $1",
+					user_id
+				)
+			except Exception:
+				matches_row = None
 			
 			f_count = friend_count_row["count"] if friend_count_row else 0
 			hosted_count = hosted_count_row["count"] if hosted_count_row else 0
@@ -983,6 +986,25 @@ class LeaderboardService:
 			counts_map["next_level"] = next_level
 			counts_map["points_to_next_level"] = int(points_needed)
 
+		# Fetch actual XP stats for syncing
+		try:
+			xp_svc = XPService()
+			xp_stats = await xp_svc.get_user_stats(user_id)
+			user_xp = xp_stats.total_xp
+			user_level = xp_stats.current_level
+			user_level_label = xp_stats.level_label
+			# Next level XP threshold
+			user_next_xp = xp_stats.next_level_xp
+		except Exception:
+			user_xp = 0
+			user_level = 1
+			user_level_label = "Newcomer"
+			user_next_xp = None
+
+		# If the user wants the "Social Explorer" level on the home page 
+		# to match their Reputation level, we should use user_level here.
+		scores["social"] = float(user_level)
+
 		streak = StreakSummarySchema(
 			current=current_streak,
 			best=best_streak,
@@ -1013,6 +1035,10 @@ class LeaderboardService:
 			counts=counts_map,
 			streak=streak,
 			badges=badge_payload,
+			xp=user_xp,
+			level=user_level,
+			level_label=user_level_label,
+			next_level_xp=user_next_xp,
 		)
 
 	async def get_streak_summary(self, user_id: UUID) -> StreakSummarySchema:

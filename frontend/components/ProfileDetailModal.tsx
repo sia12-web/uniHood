@@ -70,6 +70,7 @@ function ProfileDetailContent({
     const isOnline = presence?.online ?? user.is_online ?? false;
     const { containerRef, headerY, avatarScale, avatarY, backdropBlur, backdropBrightness } = useProfileScroll();
 
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [discoveryProfile, setDiscoveryProfile] = useState<DiscoveryProfile | null>(null);
 
     useEffect(() => {
@@ -99,6 +100,7 @@ function ProfileDetailContent({
         ? user.top_prompts.map(p => ({ k: p.question, v: p.answer }))
         : getPrompts();
     const gallery = user.gallery || [];
+    const remainingImages = gallery.slice(prompts.length);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 font-sans">
@@ -132,12 +134,13 @@ function ProfileDetailContent({
                 <div ref={containerRef} className="flex-1 overflow-y-auto scroll-smooth bg-white pb-24 scrollbar-hide">
                     {/* 1. HERO IMAGE (Avatar) */}
                     <motion.div
-                        className="relative aspect-[3/4] w-full bg-slate-200 overflow-hidden"
+                        className="relative aspect-[3/4] w-full bg-slate-200 overflow-hidden cursor-zoom-in group"
                         style={{ y: headerY }}
+                        onClick={() => avatarUrl && setSelectedImage(avatarUrl)}
                     >
                         {avatarUrl ? (
                             <motion.div style={{ scale: avatarScale, y: avatarY }} className="h-full w-full">
-                                <Image src={avatarUrl} alt={user.display_name} fill className="object-cover" priority />
+                                <Image src={avatarUrl} alt={user.display_name} fill className="object-cover transition group-hover:scale-105 duration-700" priority sizes="(max-width: 768px) 100vw, 500px" />
                             </motion.div>
                         ) : (
                             <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-6xl font-black text-indigo-200">
@@ -146,7 +149,7 @@ function ProfileDetailContent({
                         )}
 
                         {/* Name Overlay */}
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-32 pb-6 px-6">
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-32 pb-6 px-6 pointer-events-none">
                             <h1 className="text-4xl font-black tracking-tight text-white mb-1 flex items-center gap-2">
                                 {user.display_name}{user.age ? `, ${user.age}` : ""}
                                 {user.level ? <LevelBadge level={user.level} size="sm" className="bg-white/20 text-white border-white/10" /> : null}
@@ -244,24 +247,91 @@ function ProfileDetailContent({
                             </motion.div>
                         )}
 
-                        {/* Lifestyle */}
-                        {user.lifestyle && Object.keys(user.lifestyle).length > 0 && (
+                        {/* DETAILED IDENTITY & VIBE CHECK */}
+                        {(user.relationship_status || user.sexual_orientation || user.looking_for || user.lifestyle) && (
                             <motion.div
                                 variants={cardVariants}
                                 initial="hidden"
                                 whileInView="visible"
                                 viewport={{ once: true }}
                                 custom={1.2}
-                                className="grid grid-cols-2 md:grid-cols-3 gap-3"
+                                className="grid gap-4"
                             >
-                                {Object.entries(user.lifestyle).map(([k, v]) => (
-                                    v && (
-                                        <div key={k} className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
-                                            <p className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-1">{k}</p>
-                                            <p className="text-slate-900 font-semibold capitalize">{v}</p>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                    <Sparkles size={14} className="text-indigo-500" /> The Vibe Check
+                                </h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Identity Card */}
+                                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                                        <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                                            <span className="text-xl">🪪</span> Identity
                                         </div>
-                                    )
-                                ))}
+                                        <div className="space-y-3">
+                                            {user.relationship_status && (
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-slate-500 font-medium">Status</span>
+                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.relationship_status}</span>
+                                                </div>
+                                            )}
+                                            {user.sexual_orientation && user.sexual_orientation !== 'Prefer not to say' && (
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-slate-500 font-medium">Orientation</span>
+                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.sexual_orientation}</span>
+                                                </div>
+                                            )}
+                                            {user.looking_for && user.looking_for.length > 0 && (
+                                                <div>
+                                                    <span className="text-slate-500 font-medium text-sm block mb-1.5">Looking For</span>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {user.looking_for.map(l => (
+                                                            <span key={l} className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100">
+                                                                {l}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Lifestyle Card */}
+                                    {user.lifestyle && (
+                                        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                                            <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                                                <span className="text-xl">⚡</span> Lifestyle
+                                            </div>
+                                            <div className="space-y-3">
+                                                {user.lifestyle.drinking && user.lifestyle.drinking !== 'No' && (
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-slate-500 font-medium">Drinking</span>
+                                                        <span className="font-bold text-slate-900">{user.lifestyle.drinking}</span>
+                                                    </div>
+                                                )}
+                                                {user.lifestyle.smoking && user.lifestyle.smoking !== 'No' && (
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-slate-500 font-medium">Smoking</span>
+                                                        <span className="font-bold text-slate-900">{user.lifestyle.smoking}</span>
+                                                    </div>
+                                                )}
+                                                {user.lifestyle.workout && user.lifestyle.workout !== 'Never' && (
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-slate-500 font-medium">Workout</span>
+                                                        <span className="font-bold text-slate-900">{user.lifestyle.workout}</span>
+                                                    </div>
+                                                )}
+                                                {/* Fallback to show something if only 'No'/'Never' are selected, or empty */}
+                                                {(!user.lifestyle.drinking || user.lifestyle.drinking === 'No') &&
+                                                    (!user.lifestyle.smoking || user.lifestyle.smoking === 'No') &&
+                                                    (!user.lifestyle.workout || user.lifestyle.workout === 'Never') && (
+                                                        <div className="text-center text-slate-400 text-sm italic py-2">
+                                                            Straight edge lifestyle 🌿
+                                                        </div>
+                                                    )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </motion.div>
                         )}
 
@@ -338,26 +408,77 @@ function ProfileDetailContent({
                                 </motion.div>
                             ))}
 
-                            {/* Any remaining Photos if there are more photos than prompts */}
-                            {gallery.length > prompts.length && (
-                                <div className="grid grid-cols-2 gap-2 mt-4">
-                                    {gallery.slice(prompts.length).map((img, idx) => (
+                            {/* Remaining Photos Grid - REFACTORED */}
+                            {remainingImages.length > 0 && (
+                                <div className={cn(
+                                    "grid gap-2 mt-6",
+                                    remainingImages.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                                )}>
+                                    {remainingImages.map((img, idx) => (
                                         <motion.div
                                             key={img.key}
-                                            className="relative aspect-square rounded-2xl overflow-hidden bg-slate-100"
+                                            className={cn(
+                                                "relative overflow-hidden rounded-2xl bg-slate-100 cursor-zoom-in shadow-sm",
+                                                // If odd number > 1, make the first one span full width landscape
+                                                remainingImages.length > 1 && remainingImages.length % 2 !== 0 && idx === 0 ? "col-span-2 aspect-[16/9]" :
+                                                    // If exactly 1, make it generous portrait
+                                                    remainingImages.length === 1 ? "aspect-[4/5]" :
+                                                        // Default square
+                                                        "aspect-square"
+                                            )}
                                             variants={cardVariants}
                                             initial="hidden"
                                             whileInView="visible"
                                             viewport={{ once: true }}
                                             custom={idx}
+                                            onClick={() => setSelectedImage(img.url)}
                                         >
-                                            <Image src={img.url} alt="" fill className="object-cover" />
+                                            <Image
+                                                src={img.url}
+                                                alt=""
+                                                fill
+                                                className="object-cover hover:scale-105 transition duration-700"
+                                                quality={95}
+                                                sizes="(max-width: 768px) 100vw, 500px"
+                                            />
                                         </motion.div>
                                     ))}
                                 </div>
                             )}
                         </div>
                     </div>
+                    {/* Lightbox Overlay */}
+                    <AnimatePresence>
+                        {selectedImage && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[150] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
+                                onClick={() => setSelectedImage(null)}
+                            >
+                                <button className="absolute top-4 right-4 text-white/70 hover:text-white p-2">
+                                    <X size={32} />
+                                </button>
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.9, opacity: 0 }}
+                                    className="relative w-full max-w-4xl max-h-[90vh] aspect-[3/4] md:aspect-[16/9]"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Image
+                                        src={selectedImage}
+                                        alt="Full view"
+                                        fill
+                                        className="object-contain"
+                                        quality={100}
+                                        priority
+                                    />
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </motion.div>
         </div>

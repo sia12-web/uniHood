@@ -47,6 +47,11 @@ class MySummarySchema(BaseModel):
 	counts: Dict[str, int] = Field(default_factory=dict)
 	streak: StreakSummarySchema
 	badges: list[BadgeSummarySchema] = Field(default_factory=list)
+	# XP stats
+	xp: int = 0
+	level: int = 1
+	level_label: str = "Newcomer"
+	next_level_xp: Optional[int] = None
 
 
 class RecordGameOutcomeRequest(BaseModel):

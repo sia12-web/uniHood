@@ -11,7 +11,14 @@ import {
     Sparkles,
     Heart,
     Quote,
-    BadgeCheck
+    BadgeCheck,
+    Dumbbell,
+    Wine,
+    Flame,
+    HeartHandshake,
+    Globe2,
+    Languages,
+    Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NearbyUser } from "@/lib/types";
@@ -53,9 +60,8 @@ export function ParallaxProfileCard({
     }, [user]);
 
     const primaryImage = images[0] || null;
-    // Secondary and tertiary images are available but not used in current layout
-    // const secondaryImage = images[1] || primaryImage;
-    // const tertiaryImage = images[2] || primaryImage;
+    const secondaryImage = images[1] || null;
+    const tertiaryImage = images[2] || null;
 
     const distance = formatDistance(user.distance_m ?? null);
     const isPreview = variant === "preview";
@@ -237,13 +243,40 @@ export function ParallaxProfileCard({
                             )}
 
                             {/* Vibe Tags Preview for Grid */}
-                            {isPreview && user.vibe_tags && user.vibe_tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-3">
-                                    {user.vibe_tags.slice(0, 3).map(tag => (
-                                        <span key={tag} className="text-[10px] uppercase font-bold tracking-wider bg-white/10 text-white px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
-                                            {tag}
-                                        </span>
-                                    ))}
+                            {isPreview && (
+                                <div className="mt-3 flex flex-col gap-2">
+                                    {user.vibe_tags && user.vibe_tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1">
+                                            {user.vibe_tags.slice(0, 3).map(tag => (
+                                                <span key={tag} className="text-[10px] uppercase font-bold tracking-wider bg-white/10 text-white px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* Lifestyle & Basics Mini-Badges */}
+                                    <div className="flex items-center gap-2 text-white/80">
+                                        {user.relationship_status && (
+                                            <span className="p-1 rounded bg-white/10 backdrop-blur-sm" title={user.relationship_status}>
+                                                <HeartHandshake size={12} className="text-rose-300" />
+                                            </span>
+                                        )}
+                                        {user.lifestyle?.drinking && user.lifestyle.drinking !== 'No' && (
+                                            <span className="p-1 rounded bg-white/10 backdrop-blur-sm" title="Drinker">
+                                                <Wine size={12} className="text-amber-300" />
+                                            </span>
+                                        )}
+                                        {user.lifestyle?.workout && user.lifestyle.workout !== 'Never' && (
+                                            <span className="p-1 rounded bg-white/10 backdrop-blur-sm" title="Active">
+                                                <Dumbbell size={12} className="text-emerald-300" />
+                                            </span>
+                                        )}
+                                        {user.hometown && (
+                                            <span className="p-1 rounded bg-white/10 backdrop-blur-sm" title={`From ${user.hometown}`}>
+                                                <Globe2 size={12} className="text-indigo-300" />
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
@@ -326,14 +359,117 @@ export function ParallaxProfileCard({
                             </section>
                         )}
 
+                        {/* SECTION 2.75: THE VIBE CHECK (Snap Center) */}
+                        {(user.relationship_status || user.looking_for || user.lifestyle || user.hometown || user.languages) && (
+                            <section className="relative min-h-[50%] w-full bg-slate-900/50 px-6 py-12 snap-center flex flex-col justify-center gap-8">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                                        <Sparkles size={16} className="text-indigo-400" />
+                                    </div>
+                                    <h3 className="text-lg font-black text-white/90 tracking-tight">The Vibe Check</h3>
+                                </div>
+
+                                {/* Identity Grid */}
+                                {(user.relationship_status || user.sexual_orientation || (user.looking_for && user.looking_for.length > 0)) && (
+                                    <div className="grid gap-4">
+                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Identity & Intent</h4>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {user.relationship_status && (
+                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                    <HeartHandshake size={18} className="text-rose-400 shrink-0" />
+                                                    <span className="text-sm font-medium text-slate-200">{user.relationship_status}</span>
+                                                </div>
+                                            )}
+                                            {user.sexual_orientation && user.sexual_orientation !== 'Prefer not to say' && (
+                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                    <span className="text-lg leading-none">🌈</span>
+                                                    <span className="text-sm font-medium text-slate-200">{user.sexual_orientation}</span>
+                                                </div>
+                                            )}
+                                            {user.looking_for && user.looking_for.length > 0 && (
+                                                <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                    <Search size={18} className="text-blue-400 shrink-0 mt-0.5" />
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        <span className="text-sm font-medium text-slate-400 mr-1">Looking for:</span>
+                                                        {user.looking_for.map(l => (
+                                                            <span key={l} className="text-sm font-bold text-white">{l}</span>
+                                                        )).reduce((prev, curr) => [prev, <span key="sep" className="text-slate-600">, </span>, curr] as any)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Lifestyle Grid */}
+                                {user.lifestyle && (
+                                    <div className="grid gap-4">
+                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Lifestyle</h4>
+                                        <div className="flex flex-wrap gap-3">
+                                            {user.lifestyle.drinking && user.lifestyle.drinking !== 'No' && (
+                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                    <Wine size={14} className="text-amber-400" />
+                                                    <span className="text-xs font-bold">{user.lifestyle.drinking === 'Socially' ? 'Social Drinker' : 'Drinks'}</span>
+                                                </div>
+                                            )}
+                                            {user.lifestyle.smoking && user.lifestyle.smoking !== 'No' && (
+                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                    <Flame size={14} className="text-orange-400" />
+                                                    <span className="text-xs font-bold">{user.lifestyle.smoking === 'Socially' ? 'Social Smoker' : 'Smokes'}</span>
+                                                </div>
+                                            )}
+                                            {user.lifestyle.workout && user.lifestyle.workout !== 'Never' && (
+                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                    <Dumbbell size={14} className="text-emerald-400" />
+                                                    <span className="text-xs font-bold">{user.lifestyle.workout} Workout</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Roots & tongues */}
+                                {(user.hometown || user.languages) && (
+                                    <div className="grid gap-4">
+                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Roots</h4>
+                                        <div className="grid gap-3">
+                                            {user.hometown && (
+                                                <div className="flex items-center gap-3">
+                                                    <Globe2 size={16} className="text-indigo-400" />
+                                                    <span className="text-sm text-slate-300">From <span className="font-bold text-white">{user.hometown}</span></span>
+                                                </div>
+                                            )}
+                                            {user.languages && user.languages.length > 0 && (
+                                                <div className="flex items-start gap-3">
+                                                    <Languages size={16} className="text-indigo-400 mt-0.5" />
+                                                    <span className="text-sm text-slate-300">Speaks <span className="font-bold text-white">{user.languages.join(", ")}</span></span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
                         {/* SECTION 3: IMMERSIVE PROMPT (Snap Start) */}
                         {user.top_prompts && user.top_prompts[1] && (
                             <section className="relative h-full w-full snap-start overflow-hidden flex items-center justify-center bg-slate-900">
                                 {/* Parallax BG */}
-                                {/* Parallax BG - Replaced with Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-slate-900">
-                                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent" />
-                                </div>
+                                {secondaryImage ? (
+                                    <div className="absolute inset-0">
+                                        <Image
+                                            src={secondaryImage}
+                                            alt="Vibe Check"
+                                            fill
+                                            className="object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-slate-900">
+                                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent" />
+                                    </div>
+                                )}
 
                                 <div className="relative z-10 p-8 max-w-sm w-full mx-auto">
                                     <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl transform rotate-1">
@@ -375,9 +511,21 @@ export function ParallaxProfileCard({
                         {/* SECTION 5: FINAL PROMPT / GALLERY (Snap Start) */}
                         {user.top_prompts && user.top_prompts[2] && (
                             <section className="relative h-[80%] w-full snap-start overflow-hidden flex items-end bg-slate-900">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 to-emerald-950">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-                                </div>
+                                {tertiaryImage ? (
+                                    <div className="absolute inset-0">
+                                        <Image
+                                            src={tertiaryImage}
+                                            alt="Vibe Check"
+                                            fill
+                                            className="object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 to-emerald-950">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+                                    </div>
+                                )}
                                 <div className="relative z-10 w-full p-8 pb-32 bg-gradient-to-t from-slate-950 to-transparent">
                                     <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-2 block">
                                         {user.top_prompts[2].question}

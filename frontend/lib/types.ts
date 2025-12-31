@@ -171,9 +171,21 @@ export type MyLeaderboardSummary = {
   counts?: {
     games_played?: number;
     wins?: number;
+    // Additional counts from backend
+    social_points?: number;
+    friends?: number;
+    meetups_hosted?: number;
+    meetups_joined?: number;
+    next_level?: number;
+    points_to_next_level?: number;
   };
   streak: StreakSummary;
   badges: BadgeSummary[];
+  // XP System
+  xp?: number;
+  level?: number;
+  level_label?: string;
+  next_level_xp?: number | null;
 };
 
 export type SearchUserResult = {

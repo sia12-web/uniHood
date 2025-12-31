@@ -73,10 +73,11 @@ export default function HomePage() {
 
 
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
-  const [, setAllFriends] = useState<FriendRow[]>([]);
+  const [allFriends, setAllFriends] = useState<FriendRow[]>([]);
 
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
   const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
+  const [realActivity, setRealActivity] = useState<ActivityLogItem[]>([]);
 
   // Meetup notifications (unused directly here, but keeps hook active)
   const { } = useMeetupNotifications();
@@ -238,23 +239,32 @@ export default function HomePage() {
     }
   };
 
-
-  const [realActivity, setRealActivity] = useState<ActivityLogItem[]>([]);
-
   useEffect(() => {
     const loadActivity = async () => {
-      if (!authUser?.userId) return;
+      if (!authUser?.campusId) return;
       try {
-        const data = await fetchRecentActivity(10);
+        const data = await fetchRecentActivity(50);
         setRealActivity(data);
       } catch (err) {
-        console.error("Failed to load real activity", err);
+        console.error("Failed to load activity", err);
       }
     };
     if (authHydrated) {
       void loadActivity();
     }
-  }, [authHydrated, authUser?.userId]);
+  }, [authHydrated, authUser?.campusId]);
+
+
+  const [activityFilter, setActivityFilter] = useState<"all" | "self" | "friends">("all");
+
+  const filteredActivity = useMemo(() => {
+    if (activityFilter === 'self') return realActivity.filter(item => item.user_id === authUser?.userId);
+    if (activityFilter === 'friends') {
+      const friendIds = new Set(allFriends.map(f => f.friend_id));
+      return realActivity.filter(item => friendIds.has(item.user_id));
+    }
+    return realActivity;
+  }, [realActivity, activityFilter, authUser?.userId, allFriends]);
 
   const renderActivityItem = (item: ActivityLogItem) => {
     const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -264,6 +274,7 @@ export default function HomePage() {
     let iconColor = "text-slate-500 dark:text-slate-400";
     let content = <span>Unknown activity</span>;
     let xpGain = null;
+    let isNegative = false;
 
     // Helper to get name
     const actorName = item.user_display_name || "Someone";
@@ -275,6 +286,7 @@ export default function HomePage() {
       const meta = item.meta as Record<string, any>;
       const action = meta.action;
       const amount = meta.amount;
+      isNegative = amount < 0;
 
       if (action === "daily_login") {
         Icon = Sun;
@@ -286,6 +298,11 @@ export default function HomePage() {
         iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
         iconColor = "text-indigo-600 dark:text-indigo-400";
         content = <span>Sent a message</span>;
+      } else if (action === "friend_removed") {
+        Icon = UserPlus; // or UserMinus
+        iconBg = "bg-red-100 dark:bg-red-900/30";
+        iconColor = "text-red-600 dark:text-red-400";
+        content = <span>Unfriended a user</span>;
       } else if (action === "game_played") {
         Icon = Gamepad2;
         iconBg = "bg-violet-100 dark:bg-violet-900/30";
@@ -315,9 +332,10 @@ export default function HomePage() {
         Icon = Zap;
         iconBg = "bg-amber-100 dark:bg-amber-900/30";
         iconColor = "text-amber-600 dark:text-amber-400";
-        content = <span>Gained XP: {action}</span>;
+        content = <span>{isNegative ? "Lost XP" : "Gained XP"}: {action}</span>;
       }
-      xpGain = `+${amount} XP`;
+
+      xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
     }
     // Handle specific high-level events
     else if (item.event === "friend.accepted") {
@@ -347,14 +365,17 @@ export default function HomePage() {
     }
     else if (item.event.startsWith("xp.gained")) {
       // Fallback for direct XP events
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const meta = item.meta as Record<string, any>;
       const amount = meta.amount;
       const action = meta.action as string | undefined;
+      isNegative = amount < 0;
+
       Icon = Zap;
-      iconBg = "bg-amber-100 dark:bg-amber-900/30";
-      iconColor = "text-amber-600 dark:text-amber-400";
-      content = <span>Earned XP for {action?.replace(/_/g, " ").toLowerCase()}</span>;
-      xpGain = `+${amount} XP`;
+      iconBg = isNegative ? "bg-red-100 dark:bg-red-900/30" : "bg-amber-100 dark:bg-amber-900/30";
+      iconColor = isNegative ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
+      content = <span>{isNegative ? "Lost XP" : "Earned XP"} for {action?.replace(/_/g, " ").toLowerCase()}</span>;
+      xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
     }
 
     return (
@@ -366,7 +387,10 @@ export default function HomePage() {
           <p className="text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
             {content}
             {xpGain && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${isNegative
+                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                }`}>
                 <Zap size={10} className="mr-0.5" />{xpGain}
               </span>
             )}
@@ -378,116 +402,40 @@ export default function HomePage() {
       </div>
     );
   };
-
-  const discoveryPreviewList = useMemo<FriendPreview[]>(() => {
-    return discoverPeople.slice(0, 8).map((p) => ({
-      ...p,
-      status: discoverPresence[p.userId]?.online ? "Online" : "Away", // improved status logic
-    }));
-  }, [discoverPeople, discoverPresence]);
-
-
-  // Helper to check if a name is a default user_* pattern
-  const isDefaultName = (name?: string) => name && (name.startsWith("user_") || name === authUser?.userId);
-  const welcomeName = (!isDefaultName(authUser?.displayName) && authUser?.displayName)
-    || (!isDefaultName(authUser?.handle) && authUser?.handle)
-    || "Student";
-
-
-
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-base md:text-lg pb-12">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 space-y-8">
-        {/* Header */}
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Good afternoon,{" "}
-              <Link
-                href="/settings/profile"
-                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-                title="Edit Profile"
-              >
-                {welcomeName}
-              </Link>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
-              Campus is buzzing. <span className="font-semibold text-emerald-600 dark:text-emerald-400">{discoverPeople.filter(p => p.status === 'Online').length} students online.</span>
-            </p>
-          </div>
+    <main className="min-h-screen bg-slate-50 dark:bg-black pb-20 pt-8 px-4 md:px-6">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-        </header>
-
-        {/* Main Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
           {/* LEFT COLUMN (Main Content) */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 flex flex-col gap-6">
 
-            {/* 1. Live on Campus (Carousel) */}
-            <section className="relative overflow-hidden rounded-3xl border border-indigo-100 dark:border-indigo-900/50 bg-white dark:bg-slate-900 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    Live on Campus
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                    </span>
-                  </h2>
-                </div>
-                <Link href="/socials" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1">
-                  View Map
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                  </svg>
-                </Link>
-              </div>
-
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide mask-linear-fade">
-                {discoveryPreviewList.length === 0 ? (
-                  <div className="w-full text-center py-4">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">Everyone is quiet right now...</p>
-                  </div>
-                ) : (
-                  discoveryPreviewList.map((person) => (
-                    <div key={person.userId} className="group relative flex flex-col items-center gap-3 min-w-[100px] flex-shrink-0 transition transform">
-                      <div className={`relative h-20 w-20 rounded-full p-[3px] bg-gradient-to-tr ${person.status === "Online" ? "from-rose-400 to-amber-400" : "from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600"}`}>
-                        <div className="h-full w-full rounded-full bg-white dark:bg-slate-900 p-1">
-                          <div className="h-full w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
-                            <img
-                              src={person.imageUrl || ""}
-                              alt={person.name}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        </div>
-                        {/* Status Badge */}
-                        {person.status === "Online" && (
-                          <div className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900"></div>
-                        )}
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate w-24">{person.name.split(" ")[0]}</p>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-medium truncate w-24">
-                          {person.status === "Online" ? "Hanging Out" : "Away"}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-
+            {/* Sub-grid for Activity & Connections */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 2. Recent Activity Timeline */}
               <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm h-full">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Recent Activity</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+                    {(["all", "self", "friends"] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setActivityFilter(f)}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activityFilter === f
+                          ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                          }`}
+                      >
+                        {f === 'all' ? 'All' : f === 'self' ? 'You' : 'Friends'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="space-y-2 relative before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-800 ml-4">
-                  {realActivity.length === 0 ? (
+                  {filteredActivity.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400 pl-8 py-4">No recent activity.</p>
                   ) : (
-                    realActivity.map(renderActivityItem)
+                    filteredActivity.map(renderActivityItem)
                   )}
                 </div>
               </section>
@@ -591,18 +539,20 @@ export default function HomePage() {
                 </div>
               </section>
             </div>
-          </div>
+          </div >
 
           {/* RIGHT COLUMN (Sidebar) */}
-          <div className="lg:col-span-4 space-y-6">
+          < div className="lg:col-span-4 space-y-6" >
 
             {/* 4. Social Score (Sidebar Version) */}
-            <section className={`relative overflow-hidden rounded-3xl ${HERO_GRADIENTS[heroGradientIndex]} p-6 shadow-xl text-white`}>
+            < section className={`relative overflow-hidden rounded-3xl ${HERO_GRADIENTS[heroGradientIndex]} p-6 shadow-xl text-white`
+            }>
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNC0yIDQtMiA0LTItMiA0LTItMi00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20" />
 
               <div className="relative z-10 flex flex-col items-center text-center">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">Social Explorer</h2>
 
+                {/* Progress Circle */}
                 <div className="my-6 relative">
                   <svg className="h-32 w-32 transform -rotate-90">
                     <circle
@@ -621,26 +571,43 @@ export default function HomePage() {
                       stroke="white"
                       strokeWidth="8"
                       strokeDasharray={377}
-                      strokeDashoffset={377 - (377 * (Math.min(activitySnapshot.socialScore, 100) / 100))}
+                      strokeDashoffset={377 - (377 * (
+                        activitySnapshot.nextLevelXp
+                          ? Math.min(1, (activitySnapshot.xp / activitySnapshot.nextLevelXp))
+                          : 1
+                      ))}
                       strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-black">{activitySnapshot.available ? Math.floor(activitySnapshot.socialScore) : "-"}</span>
-                    <span className="text-xs font-medium text-white/80">Level {Math.floor(activitySnapshot.socialScore / 10) + 1}</span>
+                    <span className="text-4xl font-black">{activitySnapshot.available ? activitySnapshot.level : "-"}</span>
+                    <span className="text-xs font-medium text-white/80">{activitySnapshot.levelLabel || "Level 1"}</span>
                   </div>
                 </div>
 
-                <div className="w-full rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                  <p className="text-xs font-medium">
-                    {100 - (activitySnapshot.socialScore % 100)} points to next level
-                  </p>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-black/20 overflow-hidden">
-                    <div className="h-full bg-white rounded-full" style={{ width: `${activitySnapshot.socialScore % 100}%` }}></div>
+                <div className="w-full rounded-2xl bg-white/10 p-4 backdrop-blur-md">
+                  <div className="flex justify-between text-xs font-bold mb-2">
+                    <span>{activitySnapshot.xp} XP</span>
+                    <span>{activitySnapshot.nextLevelXp ? `${activitySnapshot.nextLevelXp} XP` : "Max Level"}</span>
                   </div>
+                  <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all duration-1000"
+                      style={{
+                        width: activitySnapshot.nextLevelXp
+                          ? `${(activitySnapshot.xp / activitySnapshot.nextLevelXp) * 100}%`
+                          : "100%"
+                      }}
+                    ></div>
+                  </div>
+                  <p className="mt-2 text-[10px] font-medium text-white/70 uppercase tracking-widest">
+                    {activitySnapshot.nextLevelXp
+                      ? `${activitySnapshot.nextLevelXp - activitySnapshot.xp} XP to next level`
+                      : "Campus Icon Reached"}
+                  </p>
                 </div>
               </div>
-            </section>
+            </section >
 
             <DailyXPChecklist />
 
@@ -673,8 +640,8 @@ export default function HomePage() {
               </div>
             </div>
 
-          </div>
-        </div>
+          </div >
+        </div >
 
         <SiteFooter />
       </div >

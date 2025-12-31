@@ -34,7 +34,7 @@ export default function SocialsPage() {
         {/* Header */}
         <header className="space-y-4">
           <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Socials</h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400">Discover people, manage friends, and join the vibe.</p>
+          <p className="text-lg text-slate-600 dark:text-slate-400">Discover people, manage friends, and connect with your campus.</p>
         </header>
 
         {/* Tabs */}

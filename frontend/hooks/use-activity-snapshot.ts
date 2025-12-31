@@ -8,6 +8,11 @@ export type CachedActivitySnapshot = {
     socialScore: number;
     rank: number | null;
     updatedAt: string;
+    // XP fields
+    xp?: number;
+    level?: number;
+    levelLabel?: string;
+    nextLevelXp?: number | null;
 };
 
 const ACTIVITY_SNAPSHOT_CACHE_KEY = "unihood.activitySnapshot.v1";
@@ -27,6 +32,10 @@ function readCachedActivitySnapshot(): CachedActivitySnapshot | null {
             socialScore: Math.max(0, parsed.socialScore),
             rank: typeof parsed.rank === "number" ? parsed.rank : null,
             updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
+            xp: parsed.xp,
+            level: parsed.level,
+            levelLabel: parsed.levelLabel,
+            nextLevelXp: parsed.nextLevelXp,
         };
     } catch {
         return null;
@@ -52,6 +61,11 @@ export function useActivitySnapshot() {
         available: boolean;
         loading: boolean;
         error: string | null;
+        // XP fields
+        xp: number;
+        level: number;
+        levelLabel: string;
+        nextLevelXp: number | null;
     }>({
         totalGames: 0,
         wins: 0,
@@ -60,6 +74,10 @@ export function useActivitySnapshot() {
         available: false,
         loading: true,
         error: null,
+        xp: 0,
+        level: 1,
+        levelLabel: "Newcomer",
+        nextLevelXp: null,
     });
 
     const [authHydrated, setAuthHydrated] = useState(false);
@@ -87,6 +105,10 @@ export function useActivitySnapshot() {
                 available: true,
                 loading: true,
                 error: null,
+                xp: cached.xp ?? 0,
+                level: cached.level ?? 1,
+                levelLabel: cached.levelLabel ?? "Newcomer",
+                nextLevelXp: cached.nextLevelXp ?? null,
             });
         }
     }, []);
@@ -111,8 +133,14 @@ export function useActivitySnapshot() {
                 const wins = summary.counts?.wins ?? Math.max(0, Math.round(summary.scores.overall ?? 0));
                 const socialScore = Math.max(0, Math.round(summary.scores.social ?? 0));
                 const rank = summary.ranks.overall ?? null;
-                writeCachedActivitySnapshot({ totalGames, wins, socialScore, rank });
-                setSnapshot({ totalGames, wins, socialScore, rank, available: true, loading: false, error: null });
+
+                const xp = summary.xp ?? 0;
+                const level = summary.level ?? 1;
+                const levelLabel = summary.level_label ?? "Newcomer";
+                const nextLevelXp = summary.next_level_xp ?? null;
+
+                writeCachedActivitySnapshot({ totalGames, wins, socialScore, rank, xp, level, levelLabel, nextLevelXp });
+                setSnapshot({ totalGames, wins, socialScore, rank, available: true, loading: false, error: null, xp, level, levelLabel, nextLevelXp });
             } catch (err) {
                 if (controller.signal.aborted) return;
                 const message = err instanceof Error ? err.message : "Unable to load activity snapshot";

@@ -490,30 +490,20 @@ async def commit_avatar(auth_user: AuthenticatedUser, request: schemas.AvatarCom
 		async with conn.transaction():
 			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
 			
-			# Add to gallery if not already present
-			gallery = list(user.profile_gallery)
-			if not any(img.key == key for img in gallery):
-				entry = models.ProfileImage(key=key, url=url, uploaded_at=_now_iso())
-				gallery.insert(0, entry)
-				gallery = gallery[:MAX_GALLERY_ITEMS]
-			
 			await conn.execute(
 				"""
 				UPDATE users
 				SET avatar_key = $1,
 					avatar_url = $2,
-					profile_gallery = $4::jsonb,
 					updated_at = NOW()
 				WHERE id = $3
 				""",
 				key,
 				url,
 				auth_user.id,
-				_serialize_gallery(gallery),
 			)
 			user.avatar_key = key
 			user.avatar_url = url
-			user.profile_gallery = gallery
 	
 	# Invalidate profile cache after avatar change
 	await _invalidate_profile_cache(str(auth_user.id))

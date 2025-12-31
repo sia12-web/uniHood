@@ -30,7 +30,6 @@ import type { NearbyDiff, NearbyUser } from "@/lib/types";
 import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, Home, GraduationCap, Building2, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
-import { DiscoveryOnboardingModal } from "@/components/DiscoveryOnboardingModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
 import { DiscoveryProfile, DiscoveryFeedResponse } from "@/lib/types";
 import { fetchProfile, fetchUserCourses } from "@/lib/identity";
@@ -135,7 +134,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [showProximityPrompt, setShowProximityPrompt] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [myCourses, setMyCourses] = useState<string[]>([]);
 
   // Filters
@@ -342,23 +340,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     }
   }, [authEvaluated, currentCampusId, currentUserId, discoveryMode, withFriendStatus]);
 
-  // Check for onboarding status
-  useEffect(() => {
-    if (!currentUserId || !authEvaluated) return;
 
-    const checkOnboarding = async () => {
-      try {
-        const profile = await apiFetch<DiscoveryProfile>("/discovery/profile");
-        if (!profile.auto_tags || profile.auto_tags.length === 0) {
-          setShowOnboarding(true);
-        }
-      } catch (err) {
-        console.warn("Failed to check onboarding status", err);
-      }
-    };
-
-    void checkOnboarding();
-  }, [currentUserId, authEvaluated]);
 
   // Initial Load
   useEffect(() => {
@@ -566,13 +548,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowOnboarding(true)}
-                className="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-200 hover:shadow-lg transition active:scale-95"
-              >
-                <Users size={14} className="opacity-75" /> Update Vibe
-              </button>
-
               {/* View Toggle */}
               <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 ring-1 ring-slate-200">
                 <button
@@ -1020,7 +995,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
         invitePending={selectedUser ? invitePendingId === selectedUser.user_id : false}
       />
 
-      <DiscoveryOnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
+
     </div>
   );
 }

@@ -13,7 +13,7 @@ export async function recordGameResult(
 
     console.log(`[Stats] Delegating game result to Backend API for user=${userId}, activity=${activityKey}`);
 
-    const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8001';
+    const BACKEND_URL = process.env.BACKEND_URL || 'https://unihood-backend-14x8.onrender.com';
     const INTERNAL_SECRET = process.env.SERVICE_SIGNING_KEY || 'pTv2KiIj';
 
     try {

@@ -15,7 +15,7 @@ function readOptionalEnv(value: string | undefined): string | null {
 
 export function getBackendUrl() {
   const value = readOptionalEnv(process.env.NEXT_PUBLIC_BACKEND_URL);
-  return value ?? "http://127.0.0.1:8001";
+  return value ?? "https://unihood-backend-14x8.onrender.com";
 }
 
 export function getDemoUserId() {

@@ -465,7 +465,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <Link
-                    href="/map"
+                    href="/socials"
                     className="flex items-center gap-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                   >
                     <MapPin size={12} />
@@ -479,10 +479,13 @@ export default function HomePage() {
                       <Link
                         key={person.userId}
                         href={`/u/${person.userId}`}
-                        className="relative flex-shrink-0 group"
+                        className="relative flex-shrink-0 group py-1 px-0.5"
                         title={person.name}
                       >
-                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105">
+                        <div className={`h-12 w-12 rounded-full overflow-hidden transition-transform group-hover:scale-105 ${isOnline
+                            ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
+                            : "border-2 border-white dark:border-slate-800 shadow-sm"
+                          }`}>
                           {person.imageUrl ? (
                             <img
                               src={person.imageUrl}
@@ -495,9 +498,6 @@ export default function HomePage() {
                             </div>
                           )}
                         </div>
-                        {isOnline && (
-                          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
-                        )}
                       </Link>
                     );
                   })}

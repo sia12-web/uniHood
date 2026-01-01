@@ -116,8 +116,14 @@ export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
             {/* Action Button */}
             <div className="mt-auto">
                 <button
-                    onClick={() => meetup.is_joined ? null : onJoin(meetup.id)}
-                    disabled={meetup.is_joined || meetup.participants_count >= meetup.capacity}
+                    onClick={() => {
+                        if (meetup.is_joined) {
+                            window.location.href = `/meetups/${meetup.id}`;
+                        } else {
+                            onJoin(meetup.id);
+                        }
+                    }}
+                    disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
                     className={cn(
                         "w-full rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
                         meetup.is_joined
@@ -125,7 +131,7 @@ export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
                             : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"
                     )}
                 >
-                    {meetup.is_joined ? "Joined Group" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
+                    {meetup.is_joined ? "Enter Room" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
                 </button>
             </div>
         </div>

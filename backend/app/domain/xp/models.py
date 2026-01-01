@@ -82,7 +82,7 @@ class XPAction(str, Enum):
     FRIEND_REMOVED = "friend_removed"
 
 XP_AMOUNTS = {
-    XPAction.CHAT_SENT: 2,
+    XPAction.CHAT_SENT: 0,
     XPAction.MEETUP_JOIN: 50,
     XPAction.MEETUP_HOST: 100,
     XPAction.GAME_PLAYED: 50,

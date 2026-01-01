@@ -19,7 +19,7 @@ import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles } from "lucide-react";
+import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users } from "lucide-react";
 
 
 
@@ -328,6 +328,26 @@ export default function HomePage() {
         iconBg = "bg-slate-100 dark:bg-slate-800";
         iconColor = "text-slate-600 dark:text-slate-400";
         content = <span>Updated profile</span>;
+      } else if (action === "meetup_join") {
+        Icon = CalendarDays;
+        iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
+        iconColor = "text-emerald-600 dark:text-emerald-400";
+        content = <span>Joined a meetup</span>;
+      } else if (action === "meetup_host") {
+        Icon = CalendarDays;
+        iconBg = "bg-rose-100 dark:bg-rose-900/30";
+        iconColor = "text-rose-600 dark:text-rose-400";
+        content = <span>Hosted a meetup</span>;
+      } else if (action === "friend_invite_sent") {
+        Icon = Send;
+        iconBg = "bg-blue-100 dark:bg-blue-900/30";
+        iconColor = "text-blue-600 dark:text-blue-400";
+        content = <span>Sent a friend invite</span>;
+      } else if (action === "friend_request_accepted") {
+        Icon = UserPlus;
+        iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
+        iconColor = "text-emerald-600 dark:text-emerald-400";
+        content = <span>Made a new friend!</span>;
       } else {
         Icon = Zap;
         iconBg = "bg-amber-100 dark:bg-amber-900/30";
@@ -430,6 +450,68 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT COLUMN (Main Content) */}
           <div className="lg:col-span-8 flex flex-col gap-6">
+
+            {/* Discovery Strip - People Online */}
+            {discoverPeople.length > 0 && (
+              <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <Users size={16} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">People on Campus</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{discoverPeople.length} students nearby</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/map"
+                    className="flex items-center gap-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                  >
+                    <MapPin size={12} />
+                    View Map
+                  </Link>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {discoverPeople.slice(0, 12).map((person) => {
+                    const isOnline = discoverPresence[person.userId]?.online;
+                    return (
+                      <Link
+                        key={person.userId}
+                        href={`/u/${person.userId}`}
+                        className="relative flex-shrink-0 group"
+                        title={person.name}
+                      >
+                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105">
+                          {person.imageUrl ? (
+                            <img
+                              src={person.imageUrl}
+                              alt={person.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className={`h-full w-full bg-gradient-to-br ${person.avatarColor} flex items-center justify-center text-white font-bold text-sm`}>
+                              {person.name[0]?.toUpperCase() || "?"}
+                            </div>
+                          )}
+                        </div>
+                        {isOnline && (
+                          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                  {discoverPeople.length > 12 && (
+                    <Link
+                      href="/socials"
+                      className="flex-shrink-0 h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      +{discoverPeople.length - 12}
+                    </Link>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* Sub-grid for Activity & Connections */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -710,24 +710,19 @@ class ActivitiesService:
 				for uid in awarded_users:
 					await xp_service.award_xp(uid, XPAction.GAME_PLAYED, metadata={"activity_id": activity.id, "kind": activity.kind})
 				
-				# Award winner XP
-				if winner_id and winner_id in awarded_users:
-					await xp_service.award_xp(winner_id, XPAction.GAME_WON, metadata={"activity_id": activity.id, "kind": activity.kind})
+				# Award outcome XP (Win or Loss)
+				is_draw = (winner_id is None)
+				for uid in awarded_users:
+					if winner_id and uid == winner_id:
+						await xp_service.award_xp(uid, XPAction.GAME_WON, metadata={"activity_id": activity.id, "kind": activity.kind})
+					else:
+						# Award GAME_LOST for either a loss or a draw
+						meta = {"activity_id": activity.id, "kind": activity.kind}
+						if is_draw:
+							meta["is_draw"] = True
+						await xp_service.award_xp(uid, XPAction.GAME_LOST, metadata=meta)
 			
-			# Analytics tracking - Activity Finish
-			from app.domain.identity import audit
-			for uid in user_ids:
-				await audit.append_db_event(
-					user_id=uid,
-					event="activity.finish",
-					meta={
-						"activity_id": activity.id,
-						"kind": activity.kind,
-						"winner_id": winner_id,
-						"is_winner": (uid == winner_id),
-						"duration_s": duration_seconds
-					}
-				)
+			# Deleted the redundant activity.finish audit log to prevent double items in feed.
 
 		except Exception:
 			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})

@@ -43,6 +43,15 @@ async def get_meetup(
     return await _service.get_meetup(meetup_id, auth_user)
 
 
+@router.put("/{meetup_id}", response_model=schemas.MeetupResponse)
+async def update_meetup(
+    meetup_id: UUID,
+    payload: schemas.MeetupUpdateRequest,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return await _service.update_meetup(meetup_id, auth_user, payload)
+
+
 @router.post("/{meetup_id}/join", status_code=status.HTTP_204_NO_CONTENT)
 async def join_meetup(
     meetup_id: UUID,

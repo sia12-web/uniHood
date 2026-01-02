@@ -73,6 +73,7 @@ class XPAction(str, Enum):
     MEETUP_HOST = "meetup_host"
     GAME_PLAYED = "game_played"
     GAME_WON = "game_won"
+    GAME_LOST = "game_lost"
     PROFILE_UPDATE = "profile_update"
     DAILY_LOGIN = "daily_login"
     FRIEND_INVITE_SENT = "friend_invite_sent"
@@ -87,6 +88,7 @@ XP_AMOUNTS = {
     XPAction.MEETUP_HOST: 100,
     XPAction.GAME_PLAYED: 50,
     XPAction.GAME_WON: 150,
+    XPAction.GAME_LOST: 10,
     XPAction.PROFILE_UPDATE: 15,
     XPAction.DAILY_LOGIN: 25,
     XPAction.FRIEND_INVITE_SENT: 10,

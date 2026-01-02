@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
-import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage } from "@/lib/meetups";
+import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, MeetupResponse, updateMeetup } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { fetchProfile } from "@/lib/identity";
 import { LEVEL_CONFIG } from "@/lib/xp";
@@ -53,6 +53,40 @@ export default function MeetupsPage() {
     },
     onError: (err: unknown) => alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to join meetup. Please try again.")
   });
+
+  const [editingMeetup, setEditingMeetup] = useState<MeetupResponse | null>(null);
+
+  const editMutation = useMutation({
+    mutationFn: (data: { id: string; payload: any }) => updateMeetup(data.id, data.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
+      queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
+      setEditingMeetup(null);
+    },
+    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to update meetup.")
+  });
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingMeetup) return;
+
+    const formData = new FormData(e.currentTarget);
+    const startAt = new Date(formData.get("start_at") as string).toISOString();
+
+    editMutation.mutate({
+      id: editingMeetup.id,
+      payload: {
+        title: formData.get("title") as string,
+        description: formData.get("description") as string,
+        location: formData.get("location") as string,
+        category: formData.get("category") as MeetupCategory,
+        start_at: startAt,
+        duration_min: Number(formData.get("duration_min")),
+        visibility: formData.get("visibility") as MeetupVisibility,
+        capacity: Number(formData.get("capacity")),
+      }
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: createMeetup,
@@ -156,11 +190,92 @@ export default function MeetupsPage() {
             </div>
           ) : (
             meetups?.map((meetup) => (
-              <MeetupCard key={meetup.id} meetup={meetup} onJoin={(id) => joinMutation.mutate(id)} />
+              <MeetupCard
+                key={meetup.id}
+                meetup={meetup}
+                onJoin={(id) => joinMutation.mutate(id)}
+                onEdit={(m) => setEditingMeetup(m)}
+              />
             ))
           )}
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingMeetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Edit Meetup</h2>
+
+            <form onSubmit={handleEditSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
+                <input name="title" required defaultValue={editingMeetup.title} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
+                <input name="location" defaultValue={editingMeetup.location} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
+                  <select name="category" defaultValue={editingMeetup.category} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200">
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
+                  <input type="datetime-local" name="start_at" required defaultValue={new Date(new Date(editingMeetup.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
+                  <input type="number" name="duration_min" defaultValue={editingMeetup.duration_min} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Capacity</label>
+                  <input type="number" name="capacity" defaultValue={editingMeetup.capacity} min={editingMeetup.participants_count} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="cursor-pointer">
+                    <input type="radio" name="visibility" value="FRIENDS" defaultChecked={editingMeetup.visibility === 'FRIENDS'} className="peer sr-only" />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                      Friends
+                    </div>
+                  </label>
+                  <label className="cursor-pointer">
+                    <input type="radio" name="visibility" value="CAMPUS" defaultChecked={editingMeetup.visibility === 'CAMPUS'} className="peer sr-only" />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                      Campus
+                    </div>
+                  </label>
+                  <label className="cursor-pointer">
+                    <input type="radio" name="visibility" value="CITY" defaultChecked={editingMeetup.visibility === 'CITY'} className="peer sr-only" />
+                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
+                      City
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setEditingMeetup(null)} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
+                <button type="submit" disabled={editMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3 font-bold text-white hover:bg-indigo-700 shadow-lg">
+                  {editMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Simple Modal for MVP - reused styling */}
       {isCreateOpen && (

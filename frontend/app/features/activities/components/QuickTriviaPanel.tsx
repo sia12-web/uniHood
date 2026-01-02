@@ -367,32 +367,13 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
           <div className="mt-2 text-lg text-slate-600">It was a tie!</div>
         ) : null}
 
-        {/* YOUR POINTS EARNED - Large prominent display */}
-        <div className="mt-8 mx-auto max-w-sm">
-          <div className={`rounded-2xl p-6 ${didWin || opponentLeft
-            ? "bg-gradient-to-br from-emerald-500 to-teal-600"
-            : "bg-gradient-to-br from-slate-600 to-slate-700"
-            } text-white shadow-xl`}>
-            <div className="text-sm font-medium uppercase tracking-wider opacity-80">
-              You Earned
-            </div>
-            <div className="mt-2 flex items-baseline justify-center gap-2">
-              <span className="text-5xl font-black">{earnedPoints}</span>
-              <span className="text-xl font-semibold opacity-80">points</span>
-            </div>
-            <div className="mt-3 flex items-center justify-center gap-2 text-sm opacity-90">
-              {didWin || opponentLeft ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>+1 Win added to your stats</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4" />
-                  <span>+1 Game added to your stats</span>
-                </>
-              )}
-            </div>
+        {/* Result Indicator */}
+        <div className="mt-8 flex justify-center">
+          <div className={`px-8 py-2 rounded-full font-bold text-white shadow-md ${didWin || opponentLeft
+            ? "bg-emerald-500"
+            : "bg-slate-600"
+            }`}>
+            {didWin || opponentLeft ? "Victory Rewards Granted!" : "Game Complete!"}
           </div>
         </div>
 
@@ -423,8 +404,9 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono text-lg font-bold text-slate-900">{fixedPoints}</div>
-                      <div className="text-[10px] uppercase tracking-wider text-slate-400">Points</div>
+                      <div className={`text-xs font-bold px-2 py-1 rounded ${i === 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                        {i === 0 ? "WINNER" : "FINISHED"}
+                      </div>
                     </div>
                   </div>
 

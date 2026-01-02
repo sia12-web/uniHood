@@ -451,32 +451,13 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                     )}
                 </div>
 
-                {/* YOUR POINTS EARNED - Large prominent display */}
-                <div className="mx-auto max-w-sm">
-                    <div className={`rounded-2xl p-6 ${isWinner || opponentLeft
-                        ? "bg-gradient-to-br from-emerald-500 to-teal-600"
-                        : "bg-gradient-to-br from-slate-600 to-slate-700"
-                        } text-white shadow-xl`}>
-                        <div className="text-sm font-medium uppercase tracking-wider opacity-80">
-                            You Earned
-                        </div>
-                        <div className="mt-2 flex items-baseline justify-center gap-2">
-                            <span className="text-5xl font-black">{isWinner || opponentLeft ? 200 : 50}</span>
-                            <span className="text-xl font-semibold opacity-80">points</span>
-                        </div>
-                        <div className="mt-3 flex items-center justify-center gap-2 text-sm opacity-90">
-                            {isWinner || opponentLeft ? (
-                                <>
-                                    <Check className="h-4 w-4" />
-                                    <span>+1 Win added to your stats</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Star className="h-4 w-4" />
-                                    <span>+1 Game added to your stats</span>
-                                </>
-                            )}
-                        </div>
+                {/* Result Title */}
+                <div className="text-center py-4">
+                    <div className={clsx(
+                        "inline-block px-6 py-2 rounded-full font-bold text-white shadow-md",
+                        isWinner || opponentLeft ? "bg-emerald-500" : "bg-slate-600"
+                    )}>
+                        {isWinner || opponentLeft ? "Victory Rewards Granted!" : "Game Complete!"}
                     </div>
                 </div>
 
@@ -507,7 +488,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                                     </span>
                                     <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                                         <Star className="h-3 w-3 fill-current" />
-                                        {Object.values(p.votes).reduce((a, b) => a + b, 0)} pts
+                                        Liked
                                     </div>
                                 </div>
                             </div>
@@ -529,7 +510,7 @@ export function StoryBuilderPanel({ sessionId }: { sessionId: string }) {
                                     {getDisplayName(p.userId)}
                                 </span>
                             </div>
-                            <span className="font-bold text-violet-600">{p.score} pts</span>
+                            <span className="font-bold text-violet-600">{idx === 0 ? "Winner" : "Finished"}</span>
                         </div>
                     ))}
                 </div>

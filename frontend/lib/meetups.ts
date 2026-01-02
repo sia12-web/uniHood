@@ -60,6 +60,22 @@ export interface MeetupCreateRequest {
   capacity: number;
 }
 
+export interface MeetupUpdateRequest {
+  title?: string;
+  description?: string;
+  location?: string;
+  category?: MeetupCategory;
+  start_at?: string;
+  duration_min?: number;
+  visibility?: MeetupVisibility;
+  capacity?: number;
+}
+
+export async function updateMeetup(id: string, data: MeetupUpdateRequest): Promise<MeetupResponse> {
+  const response = await api.put(`/meetups/${id}`, data);
+  return response.data;
+}
+
 export async function listMeetups(campusId?: string, category?: MeetupCategory): Promise<MeetupResponse[]> {
   const params = new URLSearchParams();
   if (campusId) params.set("campus_id", campusId);

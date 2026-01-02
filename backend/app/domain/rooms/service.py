@@ -342,6 +342,46 @@ class RoomRepository:
 			)
 			return row["join_code"] if row else None
 
+	async def update_room(
+		self,
+		room_id: str,
+		*,
+		name: Optional[str] = None,
+		capacity: Optional[int] = None,
+		visibility: Optional[str] = None,
+	) -> None:
+		pool = await self._get_pool()
+		if pool is None:
+			async with _MEMORY._lock:
+				room = _MEMORY.rooms.get(room_id)
+				if room:
+					if name is not None: room.name = name
+					if capacity is not None: room.capacity = capacity
+					if visibility is not None: room.visibility = visibility
+					_MEMORY.rooms[room_id] = room
+			return
+
+		update_fields = []
+		values = [room_id]
+		if name is not None:
+			update_fields.append(f"name = ${len(values)+1}")
+			values.append(name)
+		if capacity is not None:
+			update_fields.append(f"capacity = ${len(values)+1}")
+			values.append(capacity)
+		if visibility is not None:
+			update_fields.append(f"visibility = ${len(values)+1}")
+			values.append(visibility)
+
+		if not update_fields:
+			return
+
+		async with pool.acquire() as conn:
+			await conn.execute(
+				f"UPDATE rooms SET {', '.join(update_fields)}, updated_at = NOW() WHERE id = $1",
+				*values
+			)
+
 
 def _row_to_room(row: asyncpg.Record) -> models.Room:
 	return models.Room(

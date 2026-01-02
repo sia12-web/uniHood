@@ -614,6 +614,62 @@ class MeetupService:
             except Exception:
                 pass  # Non-critical, don't block meetup leave
 
+    async def update_meetup(
+        self, meetup_id: UUID, auth_user: AuthenticatedUser, payload: schemas.MeetupUpdateRequest
+    ) -> schemas.MeetupResponse:
+        pool = await self._get_pool()
+        
+        async with pool.acquire() as conn:
+            await self._ensure_schema(conn)
+            meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
+            if not meetup:
+                raise HTTPException(status_code=404, detail="Meetup not found")
+                
+            if str(meetup["creator_user_id"]) != str(auth_user.id):
+                raise HTTPException(status_code=403, detail="Only host can edit meetup")
+            
+            # Update fields
+            update_data = payload.dict(exclude_unset=True)
+            if not update_data:
+                return await self.get_meetup(meetup_id, auth_user)
+            
+            # Capacity check
+            if "capacity" in update_data:
+                await policy.enforce_create_limits(auth_user.id, update_data["capacity"])
+            
+            # Prepare update query
+            # We filter out keys that don't exist in the table columns if any, 
+            # but schemas match tables here.
+            keys = list(update_data.keys())
+            values = [update_data[k] for k in keys]
+            
+            # Visibility might be Enum, convert to string
+            for i, k in enumerate(keys):
+                if k == "visibility" and hasattr(values[i], "value"):
+                    values[i] = values[i].value
+                elif k == "category" and hasattr(values[i], "value"):
+                    values[i] = values[i].value
+
+            set_clause = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(keys)])
+            
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    f"UPDATE meetups SET {set_clause}, updated_at = NOW() WHERE id = $1 RETURNING *",
+                    meetup_id, *values
+                )
+                
+                # If title or capacity changed, update room
+                if "title" in update_data or "capacity" in update_data:
+                    room_id = str(meetup["room_id"]) if meetup["room_id"] else None
+                    if room_id:
+                        room_name = f"Meetup: {update_data['title']}" if "title" in update_data else None
+                        room_capacity = update_data.get("capacity")
+                        await self._room_service._repo.update_room(room_id, name=room_name, capacity=room_capacity)
+            
+            # No audit event for edit to avoid double activity, as requested.
+            
+            return self._map_row_to_response(row, auth_user.id, is_joined=True, my_role=schemas.MeetupRole.HOST)
+
     async def cancel_meetup(self, meetup_id: UUID, reason: str, auth_user: AuthenticatedUser) -> None:
         pool = await self._get_pool()
         room_id = None

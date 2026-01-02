@@ -63,6 +63,17 @@ class MeetupCreateRequest(BaseModel):
     location: Optional[str] = Field(None, max_length=100)
 
 
+class MeetupUpdateRequest(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    category: Optional[MeetupCategory] = None
+    start_at: Optional[datetime] = None
+    duration_min: Optional[int] = Field(None, ge=15, le=480)
+    visibility: Optional[MeetupVisibility] = None
+    capacity: Optional[int] = Field(None, ge=2, le=50)
+    location: Optional[str] = Field(None, max_length=100)
+
+
 class MeetupResponse(BaseModel):
     id: UUID
     creator_user_id: UUID

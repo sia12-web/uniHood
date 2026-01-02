@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users } from "lucide-react";
-import { listMeetups, joinMeetup } from "@/lib/meetups";
+import { Plus, Users, X, Calendar, MapPin, Clock } from "lucide-react";
+import { listMeetups, joinMeetup, updateMeetup, MeetupResponse, MeetupCategory, MeetupVisibility } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
-import { MeetupCard } from "@/components/MeetupCard";
+import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
+import { LEVEL_CONFIG } from "@/lib/xp";
+import { cn } from "@/lib/utils";
 
 export function MyMeetups() {
     const authUser = readAuthUser();
     const queryClient = useQueryClient();
     const [filter, setFilter] = useState<"all" | "hosting" | "joined">("all");
+    const [editingMeetup, setEditingMeetup] = useState<MeetupResponse | null>(null);
 
     const { data: meetups, isLoading } = useQuery({
         queryKey: ["meetups", authUser?.campusId],
@@ -24,39 +27,68 @@ export function MyMeetups() {
         onError: () => alert("Failed to join meetup. Please try again.")
     });
 
+    const editMutation = useMutation({
+        mutationFn: (data: { id: string; payload: any }) => updateMeetup(data.id, data.payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["meetups"] });
+            setEditingMeetup(null);
+        },
+        onError: (err: any) => alert(err?.response?.data?.detail || "Failed to update meetup.")
+    });
+
     if (!authUser) return null;
 
-    const myMeetups = meetups?.filter((meetup) => {
+    const myMeetups = meetups?.filter((meetup: MeetupResponse) => {
         const isHost = meetup.creator_user_id === authUser.userId;
         const isJoined = meetup.is_joined;
 
-        // "Manage meetups that the user created as host or join"
-        // So we primarily show these.
         if (!isHost && !isJoined) return false;
 
         if (filter === "hosting") return isHost;
-        if (filter === "joined") return isJoined;
-        return true; // "all" means all my relevant meetups
+        if (filter === "joined") return isJoined && !isHost;
+        return true; // "all"
     });
+
+    const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!editingMeetup) return;
+
+        const formData = new FormData(e.currentTarget);
+        const startAt = new Date(formData.get("start_at") as string).toISOString();
+
+        editMutation.mutate({
+            id: editingMeetup.id,
+            payload: {
+                title: formData.get("title") as string,
+                description: formData.get("description") as string,
+                location: formData.get("location") as string,
+                category: formData.get("category") as MeetupCategory,
+                start_at: startAt,
+                duration_min: Number(formData.get("duration_min")),
+                visibility: formData.get("visibility") as MeetupVisibility,
+                capacity: Number(formData.get("capacity")),
+            }
+        });
+    };
 
     return (
         <div className="space-y-6">
             <div className="flex gap-2">
                 <button
                     onClick={() => setFilter("all")}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${filter === "all" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "all" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
                 >
                     All My Meetups
                 </button>
                 <button
                     onClick={() => setFilter("hosting")}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${filter === "hosting" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "hosting" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
                 >
                     Hosting
                 </button>
                 <button
                     onClick={() => setFilter("joined")}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${filter === "joined" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "joined" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
                 >
                     Joined
                 </button>
@@ -64,21 +96,111 @@ export function MyMeetups() {
 
             {isLoading ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-200 animate-pulse rounded-3xl" />)}
+                    {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-200 animate-pulse rounded-[32px]" />)}
                 </div>
             ) : myMeetups?.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">
-                    <div className="mx-auto h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
-                        <Users className="h-8 w-8" />
+                <div className="text-center py-20 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                    <div className="mx-auto h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
+                        <Users className="h-10 w-10" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">No meetups found</h3>
-                    <p className="text-slate-500 dark:text-slate-400">You haven&apos;t joined any meetups yet.</p>
+                    <h3 className="text-xl font-bold text-slate-900">No meetups found</h3>
+                    <p className="text-slate-500 mt-2">
+                        {filter === 'hosting' ? "You aren't hosting any meetups." :
+                            filter === 'joined' ? "You haven't joined any meetups." :
+                                "You haven't joined or created any meetups yet."}
+                    </p>
                 </div>
             ) : (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {myMeetups?.map((meetup) => (
-                        <MeetupCard key={meetup.id} meetup={meetup} onJoin={(id) => joinMutation.mutate(id)} />
+                    {myMeetups?.map((meetup: MeetupResponse) => (
+                        <MeetupCard
+                            key={meetup.id}
+                            meetup={meetup}
+                            onJoin={(id) => joinMutation.mutate(id)}
+                            onEdit={(m) => setEditingMeetup(m)}
+                        />
                     ))}
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingMeetup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-slate-900">Edit Meetup</h2>
+                            <button onClick={() => setEditingMeetup(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                                <X className="h-5 w-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="space-y-5">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
+                                <input name="title" required defaultValue={editingMeetup.title} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
+                                <input name="location" defaultValue={editingMeetup.location} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
+                                    <select name="category" defaultValue={editingMeetup.category} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200">
+                                        {MEETUP_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
+                                    <input type="datetime-local" name="start_at" required defaultValue={new Date(new Date(editingMeetup.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
+                                    <input type="number" name="duration_min" defaultValue={editingMeetup.duration_min} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Capacity</label>
+                                    <input type="number" name="capacity" defaultValue={editingMeetup.capacity} min={editingMeetup.participants_count} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <label className="cursor-pointer">
+                                        <input type="radio" name="visibility" value="FRIENDS" defaultChecked={editingMeetup.visibility === 'FRIENDS'} className="peer sr-only" />
+                                        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                                            Friends
+                                        </div>
+                                    </label>
+                                    <label className="cursor-pointer">
+                                        <input type="radio" name="visibility" value="CAMPUS" defaultChecked={editingMeetup.visibility === 'CAMPUS'} className="peer sr-only" />
+                                        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                                            Campus
+                                        </div>
+                                    </label>
+                                    <label className="cursor-pointer">
+                                        <input type="radio" name="visibility" value="CITY" defaultChecked={editingMeetup.visibility === 'CITY'} className="peer sr-only" />
+                                        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
+                                            City
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button type="button" onClick={() => setEditingMeetup(null)} className="flex-1 rounded-xl bg-slate-100 py-3.5 font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+                                <button type="submit" disabled={editMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3.5 font-bold text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200/50 disabled:opacity-50 transition-all">
+                                    {editMutation.isPending ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

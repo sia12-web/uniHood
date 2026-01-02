@@ -19,7 +19,7 @@ import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users } from "lucide-react";
+import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle } from "lucide-react";
 
 
 
@@ -281,8 +281,8 @@ export default function HomePage() {
     const isSelf = item.user_id === authUser?.userId;
     const actor = isSelf ? "You" : actorName;
 
-    // Check for "xp.gained" first
-    if (item.event === "xp.gained" && item.meta?.source_meta) {
+    // 1. Handle XP events (which now include games)
+    if (item.event === "xp.gained") {
       const meta = item.meta as Record<string, any>;
       const action = meta.action;
       const amount = meta.amount;
@@ -298,84 +298,51 @@ export default function HomePage() {
         iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
         iconColor = "text-indigo-600 dark:text-indigo-400";
         content = <span>Sent a message</span>;
-      } else if (action === "friend_removed") {
-        Icon = UserPlus; // or UserMinus
-        iconBg = "bg-red-100 dark:bg-red-900/30";
-        iconColor = "text-red-600 dark:text-red-400";
-        content = <span>Unfriended a user</span>;
       } else if (action === "game_played") {
         Icon = Gamepad2;
         iconBg = "bg-violet-100 dark:bg-violet-900/30";
         iconColor = "text-violet-600 dark:text-violet-400";
-        content = <span>Played a game</span>;
+        const kind = (meta.source_meta as any)?.kind?.replace(/_/g, " ") || "a game";
+        content = <span>{actor} played {kind}</span>;
+        xpGain = ""; // Hide XP for games
       } else if (action === "game_won") {
         Icon = Trophy;
         iconBg = "bg-yellow-100 dark:bg-yellow-900/30";
         iconColor = "text-yellow-600 dark:text-yellow-400";
-        content = <span>Won a game!</span>;
+        const kind = (meta.source_meta as any)?.kind?.replace(/_/g, " ") || "a game";
+        content = <span>{actor} won {kind}!</span>;
+        xpGain = ""; // Hide XP for games
+      } else if (action === "game_lost") {
+        Icon = XCircle;
+        iconBg = "bg-slate-100 dark:bg-slate-800";
+        iconColor = "text-slate-600 dark:text-slate-400";
+        const sourceMeta = (meta.source_meta as any);
+        const kind = sourceMeta?.kind?.replace(/_/g, " ") || "a game";
+        const verb = sourceMeta?.is_draw ? "tied" : "lost";
+        content = <span>{actor} {verb} {kind}</span>;
+        xpGain = ""; // Hide XP for games
       } else if (action === "discovery_swipe") {
         Icon = Heart;
         iconBg = "bg-rose-100 dark:bg-rose-900/30";
         iconColor = "text-rose-600 dark:text-rose-400";
         content = <span>Swiped on profiles</span>;
-      } else if (action === "discovery_match") {
-        Icon = Sparkles;
-        iconBg = "bg-pink-100 dark:bg-pink-900/30";
-        iconColor = "text-pink-600 dark:text-pink-400";
-        content = <span>New Match!</span>;
-      } else if (action === "profile_update") {
-        Icon = UserPlus; // or UserCog
-        iconBg = "bg-slate-100 dark:bg-slate-800";
-        iconColor = "text-slate-600 dark:text-slate-400";
-        content = <span>Updated profile</span>;
-      } else if (action === "meetup_join") {
-        Icon = CalendarDays;
-        iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
-        iconColor = "text-emerald-600 dark:text-emerald-400";
-        content = <span>Joined a meetup</span>;
-      } else if (action === "meetup_host") {
-        Icon = CalendarDays;
-        iconBg = "bg-rose-100 dark:bg-rose-900/30";
-        iconColor = "text-rose-600 dark:text-rose-400";
-        content = <span>Hosted a meetup</span>;
-      } else if (action === "friend_invite_sent") {
-        Icon = Send;
-        iconBg = "bg-blue-100 dark:bg-blue-900/30";
-        iconColor = "text-blue-600 dark:text-blue-400";
-        content = <span>Sent a friend invite</span>;
-      } else if (action === "friend_request_accepted") {
-        Icon = UserPlus;
-        iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
-        iconColor = "text-emerald-600 dark:text-emerald-400";
-        content = <span>Made a new friend!</span>;
       } else {
         Icon = Zap;
         iconBg = "bg-amber-100 dark:bg-amber-900/30";
         iconColor = "text-amber-600 dark:text-amber-400";
-        content = <span>{isNegative ? "Lost XP" : "Gained XP"}: {action}</span>;
+        content = <span>{isNegative ? "Lost XP" : "Earned XP"} for {action?.replace(/_/g, " ").toLowerCase()}</span>;
       }
 
-      xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
+      if (!xpGain && action !== "game_played" && action !== "game_won" && action !== "game_lost") {
+        xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
+      }
     }
-    // Handle specific high-level events
+    // 2. Handle generic system events
     else if (item.event === "friend.accepted") {
       Icon = UserPlus;
       iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
       iconColor = "text-emerald-600 dark:text-emerald-400";
-      content = <span>{actor} became friends with <span className="font-bold">Someone</span></span>;
-      if ((item.meta as Record<string, any>)?.xp) xpGain = `+${(item.meta as Record<string, any>).xp} XP`;
-    }
-    else if (item.event === "chat.sent") {
-      Icon = MessageCircle;
-      iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
-      iconColor = "text-indigo-600 dark:text-indigo-400";
-      content = <span>{actor} sent a message</span>;
-    }
-    else if (item.event === "invite.sent") {
-      Icon = Send;
-      iconBg = "bg-blue-100 dark:bg-blue-900/30";
-      iconColor = "text-blue-600 dark:text-blue-400";
-      content = <span>{actor} sent a friend invite</span>;
+      content = <span>{actor} became friends with someone</span>;
     }
     else if (item.event === "meetup.created" || item.event === "meetup.create") {
       Icon = CalendarDays;
@@ -390,33 +357,14 @@ export default function HomePage() {
       iconColor = "text-emerald-600 dark:text-emerald-400";
       content = <span>{actor} joined a meetup</span>;
     }
-    else if (item.event === "activity.create") {
-      Icon = Gamepad2;
-      iconBg = "bg-violet-100 dark:bg-violet-900/30";
-      iconColor = "text-violet-600 dark:text-violet-400";
-      content = <span>{actor} started a game</span>;
+    // 3. Skip redundant events
+    else if (item.event === "activity.create" || item.event === "activity.finish") {
+      return null;
     }
-    else if (item.event === "activity.finish") {
-      const meta = item.meta as Record<string, any>;
-      const isWinner = meta.is_winner;
-      Icon = isWinner ? Trophy : Gamepad2;
-      iconBg = isWinner ? "bg-yellow-100 dark:bg-yellow-900/30" : "bg-slate-100 dark:bg-slate-800";
-      iconColor = isWinner ? "text-yellow-600 dark:text-yellow-400" : "text-slate-600 dark:text-slate-400";
-      content = <span>{actor} {isWinner ? "won" : "finished"} a game of {meta.kind || "something"}</span>;
-    }
-    else if (item.event.startsWith("xp.gained")) {
-      // Fallback for direct XP events
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const meta = item.meta as Record<string, any>;
-      const amount = meta.amount;
-      const action = meta.action as string | undefined;
-      isNegative = amount < 0;
-
+    else {
+      // Fallback
       Icon = Zap;
-      iconBg = isNegative ? "bg-red-100 dark:bg-red-900/30" : "bg-amber-100 dark:bg-amber-900/30";
-      iconColor = isNegative ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
-      content = <span>{isNegative ? "Lost XP" : "Earned XP"} for {action?.replace(/_/g, " ").toLowerCase()}</span>;
-      xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
+      content = <span>{actor} performed {item.event}</span>;
     }
 
     return (
@@ -501,8 +449,8 @@ export default function HomePage() {
                             <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-emerald-400 to-transparent opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
                           )}
                           <div className={`h-16 w-16 md:h-20 md:w-20 rounded-full p-[3px] bg-white dark:bg-slate-900 shadow-sm transition-transform duration-300 group-hover:scale-105 group-active:scale-95 ${isOnline
-                              ? "ring-[2px] ring-emerald-500 ring-offset-0 dark:ring-emerald-400"
-                              : "ring-1 ring-slate-100 dark:ring-slate-700"
+                            ? "ring-[2px] ring-emerald-500 ring-offset-0 dark:ring-emerald-400"
+                            : "ring-1 ring-slate-100 dark:ring-slate-700"
                             }`}>
                             <div className="h-full w-full rounded-full overflow-hidden relative bg-slate-100 dark:bg-slate-800">
                               {person.imageUrl ? (

@@ -17,9 +17,10 @@ export const MEETUP_CATEGORIES = [
 interface MeetupCardProps {
     meetup: MeetupResponse;
     onJoin: (id: string) => void;
+    onEdit?: (meetup: MeetupResponse) => void;
 }
 
-export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
+export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
     const category = MEETUP_CATEGORIES.find((c) => c.value === meetup.category) || {
         label: "Other", value: "other", icon: Users, color: "text-slate-600", bg: "bg-white", badgeBg: "bg-slate-100", badgeText: "text-slate-700"
     };
@@ -113,8 +114,19 @@ export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
                 </div>
             </div>
 
-            {/* Action Button */}
-            <div className="mt-auto">
+            {/* Action Buttons */}
+            <div className="mt-auto flex gap-2">
+                {meetup.my_role === 'HOST' && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit?.(meetup);
+                        }}
+                        className="flex-1 rounded-xl py-3 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-100"
+                    >
+                        Edit Details
+                    </button>
+                )}
                 <button
                     onClick={() => {
                         if (meetup.is_joined) {
@@ -125,7 +137,7 @@ export function MeetupCard({ meetup, onJoin }: MeetupCardProps) {
                     }}
                     disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
                     className={cn(
-                        "w-full rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
+                        "flex-[2] rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
                         meetup.is_joined
                             ? "bg-emerald-500 shadow-emerald-200/50 hover:bg-emerald-600"
                             : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"

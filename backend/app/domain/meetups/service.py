@@ -692,7 +692,7 @@ class MeetupService:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             hosting_usage = await conn.fetchval(
-                "SELECT COUNT(*) FROM meetups WHERE creator_user_id = $1 AND status IN ('UPCOMING', 'ACTIVE')",
+                "SELECT COUNT(*) FROM meetups WHERE creator_user_id = $1 AND status IN ('UPCOMING', 'ACTIVE') AND (start_at + (duration_min || ' minutes')::interval) > NOW()",
                 UUID(auth_user.id)
             )
             joining_usage = await conn.fetchval(
@@ -701,6 +701,7 @@ class MeetupService:
                 JOIN meetups m ON mp.meetup_id = m.id
                 WHERE mp.user_id = $1 AND mp.status = 'JOINED' 
                 AND m.status IN ('UPCOMING', 'ACTIVE')
+                AND (m.start_at + (m.duration_min || ' minutes')::interval) > NOW()
                 """,
                 UUID(auth_user.id)
             )

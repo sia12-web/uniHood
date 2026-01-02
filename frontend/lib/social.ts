@@ -152,6 +152,10 @@ export async function markNotificationRead(userId: string, campusId: string | nu
 	await request(`/notifications/${notificationId}/read`, userId, campusId, { method: "POST" });
 }
 
+export async function markAllNotificationsRead(userId: string, campusId: string | null): Promise<void> {
+	await request("/notifications/read-all", userId, campusId, { method: "POST" });
+}
+
 export async function fetchNotificationUnreadCount(userId: string, campusId: string | null): Promise<number> {
 	const response = await request<NotificationUnreadResponse>("/notifications/unread", userId, campusId);
 	return typeof response.unread === "number" ? response.unread : 0;

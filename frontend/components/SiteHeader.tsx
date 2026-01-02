@@ -8,7 +8,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Bell, Gamepad2, Info, MessageSquare, ThumbsUp, UserPlus, LogOut } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { onAuthChange, readAuthUser, type AuthUser, clearAuthSnapshot } from "@/lib/auth-storage";
-import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, type Notification, fetchInviteInbox } from "@/lib/social";
+import { fetchNotificationUnreadCount, fetchNotifications, markNotificationRead, markAllNotificationsRead, type Notification, fetchInviteInbox } from "@/lib/social";
 import { fetchProfile } from "@/lib/identity";
 import { fetchUpcomingMeetupsCount } from "@/lib/meetups";
 import type { ProfileRecord } from "@/lib/types";
@@ -217,11 +217,7 @@ export default function SiteHeader() {
         ),
       );
       setUnreadCount((prev) => Math.max(prev - unread.length, 0));
-      await Promise.all(
-        unread.map((entry) =>
-          markNotificationRead(authUser.userId, authUser.campusId ?? null, entry.id).catch(() => undefined),
-        ),
-      );
+      await markAllNotificationsRead(authUser.userId, authUser.campusId ?? null).catch(() => undefined);
     },
     [authUser?.campusId, authUser?.userId],
   );
@@ -318,19 +314,27 @@ export default function SiteHeader() {
         setUnreadCount((prev) => prev + 1);
       }
     };
-    const handleRead = (payload: { id: string }) => {
-      let updated = false;
-      setNotifications((prev) =>
-        prev.map((item) => {
-          if (item.id === payload.id && !item.read_at) {
-            updated = true;
-            return { ...item, read_at: new Date().toISOString() };
-          }
-          return item;
-        }),
-      );
-      if (updated) {
-        setUnreadCount((prev) => Math.max(prev - 1, 0));
+    const handleRead = (payload: { id?: string; all?: boolean }) => {
+      const now = new Date().toISOString();
+      if (payload.all) {
+        setNotifications((prev) => prev.map((item) => ({ ...item, read_at: item.read_at || now })));
+        setUnreadCount(0);
+        return;
+      }
+      if (payload.id) {
+        let updated = false;
+        setNotifications((prev) =>
+          prev.map((item) => {
+            if (item.id === payload.id && !item.read_at) {
+              updated = true;
+              return { ...item, read_at: now };
+            }
+            return item;
+          }),
+        );
+        if (updated) {
+          setUnreadCount((prev) => Math.max(prev - 1, 0));
+        }
       }
     };
     const handleInviteUpdate = () => {

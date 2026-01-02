@@ -258,6 +258,15 @@ async def list_notifications(
 	return [item.to_dict() for item in items]
 
 
+@router.post("/notifications/read-all")
+async def mark_all_notifications_read(
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> dict:
+	service = notifications.NotificationService()
+	await service.mark_all_read(auth_user.id)
+	return {"status": "ok"}
+
+
 @router.post("/notifications/{notification_id}/read")
 async def mark_notification_read(
 	notification_id: str,

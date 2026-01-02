@@ -57,7 +57,7 @@ LEVEL_DAILY_JOIN_LIMIT = {
     6: 20,
 }
 
-async def enforce_create_limits(user_id: str, requested_capacity: int) -> None:
+async def enforce_create_limits(user_id: str, requested_capacity: int, skip_hosting_check: bool = False) -> None:
     xp_stats = await XPService().get_user_stats(user_id)
     level = xp_stats.current_level
     
@@ -69,6 +69,9 @@ async def enforce_create_limits(user_id: str, requested_capacity: int) -> None:
             detail=f"At level {level}, you can only host meetups for up to {max_capacity} people."
         )
     
+    if skip_hosting_check:
+        return
+
     # 2. Check Simultaneous Hosting
     max_hosting = LEVEL_MAX_SIMULTANEOUS_HOSTING.get(level, 1)
     

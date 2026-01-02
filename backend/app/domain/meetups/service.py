@@ -635,7 +635,7 @@ class MeetupService:
             
             # Capacity check
             if "capacity" in update_data:
-                await policy.enforce_create_limits(auth_user.id, update_data["capacity"])
+                await policy.enforce_create_limits(auth_user.id, update_data["capacity"], skip_hosting_check=True)
             
             # Prepare update query
             # We filter out keys that don't exist in the table columns if any, 

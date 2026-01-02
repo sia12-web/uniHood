@@ -124,9 +124,23 @@ class NotificationRepository:
                 """
                 UPDATE notifications
                 SET read_at = $3
-                WHERE id = $1 AND user_id = $2
+                WHERE id = $1::uuid AND user_id = $2::uuid
                 """,
                 notification_id,
+                user_id,
+                now,
+            )
+
+    async def mark_all_read(self, user_id: str) -> None:
+        pool = await get_pool()
+        now = datetime.now(timezone.utc)
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE notifications
+                SET read_at = $2
+                WHERE user_id = $1::uuid AND read_at IS NULL
+                """,
                 user_id,
                 now,
             )
@@ -174,6 +188,17 @@ class NotificationService:
 
     async def mark_read(self, user_id: str, notification_id: str) -> None:
         await self._repo.mark_read(user_id, notification_id)
+        try:
+            await sockets.emit_notification_read(user_id, {"id": notification_id})
+        except Exception:
+            pass
+
+    async def mark_all_read(self, user_id: str) -> None:
+        await self._repo.mark_all_read(user_id)
+        try:
+            await sockets.emit_notification_read(user_id, {"all": True})
+        except Exception:
+            pass
 
     async def get_unread_count(self, user_id: str) -> int:
         """Get count of unread notifications for a user."""

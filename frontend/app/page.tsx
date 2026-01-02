@@ -459,9 +459,9 @@ export default function HomePage() {
                     href="/socials"
                     className="flex items-center gap-2 rounded-full bg-white dark:bg-slate-800 pl-4 pr-1.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all group"
                   >
-                    View Map
+                    Request a Friendship
                     <span className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                      <MapPin size={12} strokeWidth={2.5} />
+                      <UserPlus size={12} strokeWidth={2.5} />
                     </span>
                   </Link>
                 </div>

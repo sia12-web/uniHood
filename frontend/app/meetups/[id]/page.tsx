@@ -125,7 +125,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       const handleConnect = () => {
         if (!mounted) return;
         console.log("Socket connected/reconnected, joining room:", roomId);
-        socket?.emit("room:join", { room_id: roomId });
+        socket?.emit("room_join", { room_id: roomId });
         joinedRoomRef.current = roomId;
       };
 
@@ -147,15 +147,15 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       };
 
       // Register listeners
-      socket.on("room:msg:new", handleMessage);
+      socket.on("room_msg_new", handleMessage);
       socket.on("connect", handleConnect);
-      socket.on("room:member_joined", handleMemberJoined);
-      socket.on("room:member_left", handleMemberLeft);
+      socket.on("room_member_joined", handleMemberJoined);
+      socket.on("room_member_left", handleMemberLeft);
 
-      // If already connected, emit room:join immediately
+      // If already connected, emit room_join immediately
       if (socket.connected) {
         console.log("Socket already connected, joining room:", roomId);
-        socket.emit("room:join", { room_id: roomId });
+        socket.emit("room_join", { room_id: roomId });
         joinedRoomRef.current = roomId;
       }
     };
@@ -166,12 +166,12 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       mounted = false;
       if (retryTimeout) clearTimeout(retryTimeout);
       if (socket) {
-        socket.off("room:msg:new");
+        socket.off("room_msg_new");
         socket.off("connect");
-        socket.off("room:member_joined");
-        socket.off("room:member_left");
+        socket.off("room_member_joined");
+        socket.off("room_member_left");
         if (joinedRoomRef.current === roomId) {
-          socket.emit("room:leave", { room_id: roomId });
+          socket.emit("room_leave", { room_id: roomId });
           joinedRoomRef.current = null;
         }
       }
@@ -192,7 +192,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
       const socket = roomsSocket();
       if (socket.connected) {
         console.log("Socket status connected, rejoining room:", roomId);
-        socket.emit("room:join", { room_id: roomId });
+        socket.emit("room_join", { room_id: roomId });
         joinedRoomRef.current = roomId;
       }
     } catch (err) {

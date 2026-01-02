@@ -66,22 +66,22 @@ export type RoomMessageSend = {
 type TypingEvent = { room_id: string; user_id: string; on: boolean };
 
 export type RoomsServerEvents = {
-	'rooms:ack': (payload: { ok: boolean }) => void;
-	'room:created': (summary: RoomSummary) => void;
-	'room:updated': (summary: RoomSummary) => void;
-	'room:member_joined': (payload: { room_id: string; user_id: string; role: RoomRole }) => void;
-	'room:member_left': (payload: { room_id: string; user_id: string }) => void;
-	'room:member_updated': (payload: { room_id: string; user_id: string; role: RoomRole; muted: boolean }) => void;
-	'room:msg:new': (message: RoomMessageDTO) => void;
-	'room:msg:delivered': (payload: { room_id: string; user_id: string; up_to_seq: number }) => void;
-	'room:msg:read': (payload: { room_id: string; user_id: string; up_to_seq: number }) => void;
-	'room:typing': (payload: TypingEvent) => void;
+	'room_ack': (payload: { ok: boolean }) => void;
+	'room_created': (summary: RoomSummary) => void;
+	'room_updated': (summary: RoomSummary) => void;
+	'room_member_joined': (payload: { room_id: string; user_id: string; role: RoomRole }) => void;
+	'room_member_left': (payload: { room_id: string; user_id: string }) => void;
+	'room_member_updated': (payload: { room_id: string; user_id: string; role: RoomRole; muted: boolean }) => void;
+	'room_msg_new': (message: RoomMessageDTO) => void;
+	'room_msg_delivered': (payload: { room_id: string; user_id: string; up_to_seq: number }) => void;
+	'room_msg_read': (payload: { room_id: string; user_id: string; up_to_seq: number }) => void;
+	'room_typing': (payload: TypingEvent) => void;
 };
 
 export type RoomsClientEvents = {
-	'room:join': (payload: { room_id: string }) => void;
-	'room:leave': (payload: { room_id: string }) => void;
-	'room:typing': (payload: TypingEvent) => void;
+	'room_join': (payload: { room_id: string }) => void;
+	'room_leave': (payload: { room_id: string }) => void;
+	'room_typing': (payload: TypingEvent) => void;
 };
 
 export type RoomsSocket = Socket<RoomsServerEvents, RoomsClientEvents>;

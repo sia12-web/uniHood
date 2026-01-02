@@ -15,6 +15,15 @@ import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
 // Alias to avoid renaming everything below
 const CATEGORIES = MEETUP_CATEGORIES;
 
+const DEFAULT_BANNERS = [
+  "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=1470&auto=format&fit=crop", // Campus/Grad
+  "https://images.unsplash.com/photo-1523050335102-c89b036573c0?q=80&w=1470&auto=format&fit=crop", // Study/Library
+  "https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=1374&auto=format&fit=crop", // Social/Party
+  "https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=1470&auto=format&fit=crop", // Coffee/Chat
+  "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1470&auto=format&fit=crop", // Group/Workshop
+  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1470&auto=format&fit=crop", // Friends/Outdoor
+];
+
 
 export default function MeetupsPage() {
   const authUser = readAuthUser();
@@ -84,6 +93,7 @@ export default function MeetupsPage() {
         duration_min: Number(formData.get("duration_min")),
         visibility: formData.get("visibility") as MeetupVisibility,
         capacity: Number(formData.get("capacity")),
+        banner_url: formData.get("banner_url") as string || undefined,
       }
     });
   };
@@ -115,6 +125,7 @@ export default function MeetupsPage() {
       campus_id: authUser?.campusId ?? undefined,
       visibility: formData.get("visibility") as MeetupVisibility,
       capacity: Number(formData.get("capacity")),
+      banner_url: formData.get("banner_url") as string || DEFAULT_BANNERS[0],
     });
   };
 
@@ -204,75 +215,123 @@ export default function MeetupsPage() {
       {/* Edit Modal */}
       {editingMeetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Edit Meetup</h2>
-
-            <form onSubmit={handleEditSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
-                <input name="title" required defaultValue={editingMeetup.title} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+          <div className="w-full max-w-lg rounded-[32px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Banner Preview */}
+            <div className="relative h-48 w-full bg-slate-100 flex-shrink-0 group">
+              <img
+                src={(new FormData().get('banner_url') as string) || editingMeetup.banner_url || DEFAULT_BANNERS[0]}
+                alt="Banner preview"
+                className="h-full w-full object-cover"
+                id="edit-banner-preview"
+              />
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <h2 className="text-2xl font-bold text-white drop-shadow-md">Edit Meetup</h2>
               </div>
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
-                <input name="location" defaultValue={editingMeetup.location} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
-              </div>
+            <div className="p-8 overflow-y-auto">
+              <form onSubmit={handleEditSubmit} className="space-y-6">
+                {/* Banner Chooser */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Change Background</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {DEFAULT_BANNERS.map((url, i) => (
+                      <label key={i} className="relative flex-shrink-0 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="banner_url"
+                          value={url}
+                          defaultChecked={editingMeetup.banner_url === url}
+                          onChange={(e) => {
+                            const img = document.getElementById('edit-banner-preview') as HTMLImageElement;
+                            if (img) img.src = e.target.value;
+                          }}
+                          className="peer sr-only"
+                        />
+                        <img src={url} className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all" />
+                      </label>
+                    ))}
+                    <div className="relative flex-shrink-0">
+                      <input
+                        type="text"
+                        name="banner_url_custom"
+                        placeholder="Custom URL..."
+                        className="h-12 w-32 rounded-lg border-2 border-slate-200 bg-slate-50 px-2 text-[10px] focus:border-indigo-500 outline-none"
+                        onChange={(e) => {
+                          const img = document.getElementById('edit-banner-preview') as HTMLImageElement;
+                          if (img && e.target.value) img.src = e.target.value;
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
                   <select name="category" defaultValue={editingMeetup.category} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200">
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
-                  <input type="datetime-local" name="start_at" required defaultValue={new Date(new Date(editingMeetup.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
-                  <input type="number" name="duration_min" defaultValue={editingMeetup.duration_min} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
+                  <input name="title" required defaultValue={editingMeetup.title} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
+                  <input name="location" defaultValue={editingMeetup.location} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
+                    <input type="datetime-local" name="start_at" required defaultValue={new Date(new Date(editingMeetup.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
+                    <input type="number" name="duration_min" defaultValue={editingMeetup.duration_min} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Capacity</label>
                   <input type="number" name="capacity" defaultValue={editingMeetup.capacity} min={editingMeetup.participants_count} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
-                <div className="grid grid-cols-3 gap-3">
-                  <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="FRIENDS" defaultChecked={editingMeetup.visibility === 'FRIENDS'} className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Friends
-                    </div>
-                  </label>
-                  <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="CAMPUS" defaultChecked={editingMeetup.visibility === 'CAMPUS'} className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Campus
-                    </div>
-                  </label>
-                  <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="CITY" defaultChecked={editingMeetup.visibility === 'CITY'} className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
-                      City
-                    </div>
-                  </label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="cursor-pointer">
+                      <input type="radio" name="visibility" value="FRIENDS" defaultChecked={editingMeetup.visibility === 'FRIENDS'} className="peer sr-only" />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                        Friends
+                      </div>
+                    </label>
+                    <label className="cursor-pointer">
+                      <input type="radio" name="visibility" value="CAMPUS" defaultChecked={editingMeetup.visibility === 'CAMPUS'} className="peer sr-only" />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                        Campus
+                      </div>
+                    </label>
+                    <label className="cursor-pointer">
+                      <input type="radio" name="visibility" value="CITY" defaultChecked={editingMeetup.visibility === 'CITY'} className="peer sr-only" />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
+                        City
+                      </div>
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setEditingMeetup(null)} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
-                <button type="submit" disabled={editMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3 font-bold text-white hover:bg-indigo-700 shadow-lg">
-                  {editMutation.isPending ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setEditingMeetup(null)} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
+                  <button type="submit" disabled={editMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all">
+                    {editMutation.isPending ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
@@ -280,61 +339,79 @@ export default function MeetupsPage() {
       {/* Simple Modal for MVP - reused styling */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl font-bold text-slate-900">Create New Meetup</h2>
-              <div className="bg-indigo-50 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-indigo-600 border border-indigo-100">
-                Lvl {userLevel} Restrictions
+          <div className="w-full max-w-lg rounded-[32px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col border-4 border-indigo-100">
+            {/* Banner Preview */}
+            <div className="relative h-48 w-full bg-slate-100 flex-shrink-0">
+              <img
+                src={DEFAULT_BANNERS[0]}
+                alt="Banner preview"
+                className="h-full w-full object-cover"
+                id="banner-preview"
+              />
+              <div className="absolute inset-0 bg-black/20" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <h2 className="text-2xl font-bold text-white drop-shadow-md">Create New Meetup</h2>
+                <div className="mt-1 flex gap-2">
+                  <span className="bg-white/90 backdrop-blur-sm text-[10px] font-bold px-2 py-0.5 rounded text-indigo-700 uppercase tracking-wider">
+                    Lvl {userLevel} host
+                  </span>
+                </div>
               </div>
             </div>
 
-            {usage && (
-              <div className="text-xs text-slate-400 mb-6 font-medium space-y-1">
-                <p>
-                  Active Hosting: <span className={cn("font-bold", usage.hosting_usage >= usage.hosting_limit ? "text-rose-500" : "text-indigo-600")}>
-                    {usage.hosting_usage}/{usage.hosting_limit}
-                  </span> • Active Joined: <span className={cn("font-bold", usage.joining_usage >= usage.joining_limit ? "text-rose-500" : "text-indigo-600")}>
-                    {usage.joining_usage}/{usage.joining_limit}
-                  </span>
-                </p>
-                <p>
-                  Daily Created: <span className={cn("font-bold", usage.daily_create_usage >= usage.daily_create_limit ? "text-rose-500" : "text-indigo-600")}>
-                    {usage.daily_create_usage}/{usage.daily_create_limit}
-                  </span>
-                </p>
-              </div>
-            )}
+            <div className="p-8 overflow-y-auto">
+              <form onSubmit={handleCreate} className="space-y-6">
+                {/* Banner Chooser */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Pick a Vibe</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {DEFAULT_BANNERS.map((url, i) => (
+                      <label key={url} className="relative flex-shrink-0 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="banner_url"
+                          value={url}
+                          defaultChecked={i === 0}
+                          onChange={(e) => {
+                            const img = document.getElementById('banner-preview') as HTMLImageElement;
+                            if (img) img.src = e.target.value;
+                          }}
+                          className="peer sr-only"
+                        />
+                        <img src={url} className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all opacity-80 peer-checked:opacity-100" />
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-            <form onSubmit={handleCreate} className="mt-2 space-y-5">
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
-                <input name="title" required className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" placeholder="e.g. Late Night Library Grind" />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
-                <input name="location" className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" placeholder="e.g. Main Library, 3rd Floor" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
                   <select name="category" className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200">
                     {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
-                  <input type="datetime-local" name="start_at" required className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
-                  <input type="number" name="duration_min" defaultValue={60} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Title</label>
+                  <input name="title" required className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" placeholder="e.g. Late Night Library Grind" />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</label>
+                  <input name="location" className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" placeholder="e.g. Main Library, 3rd Floor" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Time</label>
+                    <input type="datetime-local" name="start_at" required className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Duration (min)</label>
+                    <input type="number" name="duration_min" defaultValue={60} min={15} className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200" />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Capacity (Max {LEVEL_CONFIG[userLevel].maxMeetupCapacity})
@@ -347,49 +424,45 @@ export default function MeetupsPage() {
                     className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200"
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
-                <div className="grid grid-cols-3 gap-3">
-                  <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="FRIENDS" defaultChecked className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Friends
-                    </div>
-                  </label>
-                  <label className="cursor-pointer">
-                    <input type="radio" name="visibility" value="CAMPUS" className="peer sr-only" />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
-                      Campus
-                    </div>
-                  </label>
-                  <label className={cn("cursor-pointer", userLevel < 2 && "opacity-50 cursor-not-allowed")}>
-                    <input
-                      type="radio"
-                      name="visibility"
-                      value="CITY"
-                      disabled={userLevel < 2}
-                      className="peer sr-only"
-                    />
-                    <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
-                      City {userLevel < 2 && "🔒"}
-                    </div>
-                  </label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Visibility</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="cursor-pointer">
+                      <input type="radio" name="visibility" value="FRIENDS" defaultChecked className="peer sr-only" />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                        Friends
+                      </div>
+                    </label>
+                    <label className="cursor-pointer">
+                      <input type="radio" name="visibility" value="CAMPUS" className="peer sr-only" />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 transition-all">
+                        Campus
+                      </div>
+                    </label>
+                    <label className={cn("cursor-pointer", userLevel < 2 && "opacity-50 cursor-not-allowed")}>
+                      <input
+                        type="radio"
+                        name="visibility"
+                        value="CITY"
+                        disabled={userLevel < 2}
+                        className="peer sr-only"
+                      />
+                      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-2 py-3 text-center text-[10px] font-bold text-slate-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-600 transition-all">
+                        City {userLevel < 2 && "🔒"}
+                      </div>
+                    </label>
+                  </div>
                 </div>
-                <p className="text-[10px] text-slate-400 px-1">
-                  {userLevel < 2 ? "Lvl 2+ required for City scope. " : ""}
-                  Friends: Only visible to mutually connected friends. Campus: visible to your university. City: visible to all local students.
-                </p>
-              </div>
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
-                <button type="submit" disabled={createMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3 font-bold text-white hover:bg-indigo-700 shadow-sm">
-                  {createMutation.isPending ? "Creating..." : "Create"}
-                </button>
-              </div>
-            </form>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
+                  <button type="submit" disabled={createMutation.isPending} className="flex-1 rounded-xl bg-[#4f46e5] py-3 font-bold text-white hover:bg-indigo-700 shadow-xl transition-all">
+                    {createMutation.isPending ? "Creating..." : "Build Meetup"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

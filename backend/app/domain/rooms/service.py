@@ -475,7 +475,7 @@ class RoomService:
 		await outbox.append_room_event("member_joined", room.id, user_id=auth_user.id)
 		obs_metrics.inc_room_join()
 		await sockets.emit_member_event(
-			"room:member_joined",
+			"room_member_joined",
 			room.id,
 			{"room_id": room.id, "user_id": auth_user.id, "role": member.role},
 		)
@@ -501,7 +501,7 @@ class RoomService:
 		await outbox.append_room_event("member_joined_direct", room_id, user_id=auth_user.id)
 		obs_metrics.inc_room_join()
 		await sockets.emit_member_event(
-			"room:member_joined",
+			"room_member_joined",
 			room_id,
 			{"room_id": room_id, "user_id": auth_user.id, "role": member.role},
 		)
@@ -519,7 +519,7 @@ class RoomService:
 		room.members_count = max(room.members_count - 1, 0)
 		await outbox.append_room_event("member_left", room_id, user_id=auth_user.id)
 		await sockets.emit_member_event(
-			"room:member_left",
+			"room_member_left",
 			room_id,
 			{"room_id": room_id, "user_id": auth_user.id},
 		)
@@ -578,7 +578,7 @@ class RoomService:
 		target.role = payload.role
 		await self._repo.update_member(target)
 		await sockets.emit_member_event(
-			"room:member_updated",
+			"room_member_updated",
 			room_id,
 			{"room_id": room.id, "user_id": target_user_id, "role": payload.role, "muted": target.muted},
 		)
@@ -603,7 +603,7 @@ class RoomService:
 			"role": target.role,
 			"muted": payload.on,
 		}
-		await sockets.emit_member_event("room:member_updated", room_id, event_payload)
+		await sockets.emit_member_event("room_member_updated", room_id, event_payload)
 		await outbox.append_room_event("member_muted", room_id, user_id=target_user_id, meta={"muted": payload.on})
 
 	async def kick_member(self, auth_user: AuthenticatedUser, room_id: str, target_user_id: str) -> None:
@@ -614,7 +614,7 @@ class RoomService:
 		await self._repo.remove_member(room, target_user_id)
 		room.members_count = max(room.members_count - 1, 0)
 		await sockets.emit_member_event(
-			"room:member_left",
+			"room_member_left",
 			room_id,
 			{"room_id": room.id, "user_id": target_user_id},
 		)

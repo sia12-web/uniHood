@@ -61,6 +61,7 @@ class MeetupCreateRequest(BaseModel):
     visibility: MeetupVisibility = MeetupVisibility.FRIENDS
     capacity: int = Field(10, ge=2, le=50)
     location: Optional[str] = Field(None, max_length=100)
+    banner_url: Optional[str] = None
 
 
 class MeetupUpdateRequest(BaseModel):
@@ -72,6 +73,7 @@ class MeetupUpdateRequest(BaseModel):
     visibility: Optional[MeetupVisibility] = None
     capacity: Optional[int] = Field(None, ge=2, le=50)
     location: Optional[str] = Field(None, max_length=100)
+    banner_url: Optional[str] = None
 
 
 class MeetupResponse(BaseModel):
@@ -98,6 +100,7 @@ class MeetupResponse(BaseModel):
     creator_name: Optional[str] = None
     creator_avatar_url: Optional[str] = None
     recent_participants_avatars: List[str] = []
+    banner_url: Optional[str] = None
 
 
 

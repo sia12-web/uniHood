@@ -325,7 +325,7 @@ class RoomChatService:
 			payload=payload,
 			members=members,
 		)
-		await sockets.emit_message("room:msg:new", room_id, message.to_dict())
+		await sockets.emit_message("room_msg_new", room_id, message.to_dict())
 		delivered = await self._repo.update_delivered(room_id, auth_user.id, message.seq)
 		await sockets.emit_user_event(
 			auth_user.id,
@@ -377,7 +377,7 @@ class RoomChatService:
 		await self._room_service._require_member(room_id, auth_user.id)
 		up_to = await self._repo.update_read(room_id, auth_user.id, payload.up_to_seq)
 		await sockets.emit_message(
-			"room:msg:read",
+			"room_msg_read",
 			room_id,
 			{"room_id": room_id, "user_id": auth_user.id, "up_to_seq": up_to},
 		)

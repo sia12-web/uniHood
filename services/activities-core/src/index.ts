@@ -602,7 +602,7 @@ server.register(async function (fastify) {
                                             s.countdownValue = undefined;
                                             broadcastGenericState(sessionId);
                                             broadcastGenericRoundStarted(sessionId, s.currentRound ?? 0);
-                                        }, 3000); // 3 second delay between rounds
+                                        }, 5000); // 5 second delay between rounds
                                     }
                                 }
                             }

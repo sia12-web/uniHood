@@ -80,20 +80,25 @@ class AnalyticsService:
                 for r in rows
             ]
 
-    async def get_recent_activity(self, limit: int = 20) -> List[schemas.ActivityLogItem]:
+    async def get_recent_activity(self, limit: int = 20, current_user_id: Optional[str] = None) -> List[schemas.ActivityLogItem]:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             # Join with users to get display names
+            # Join with activity_likes to get counts and current user's status
             rows = await conn.fetch(
                 """
                 SELECT a.id, a.user_id, a.event, a.meta, a.created_at,
-                       u.display_name, u.avatar_url, u.handle
+                       u.display_name, u.avatar_url, u.handle,
+                       (SELECT COUNT(*) FROM activity_likes WHERE audit_log_id = a.id) as likes_count,
+                       CASE WHEN $2::uuid IS NULL THEN FALSE
+                            ELSE EXISTS(SELECT 1 FROM activity_likes WHERE audit_log_id = a.id AND user_id = $2::uuid)
+                       END as is_liked
                 FROM audit_log a
                 LEFT JOIN users u ON a.user_id::uuid = u.id
                 ORDER BY a.created_at DESC
                 LIMIT $1
                 """,
-                limit
+                limit, current_user_id
             )
             
             results = []
@@ -112,7 +117,30 @@ class AnalyticsService:
                         meta=meta,
                         created_at=r["created_at"],
                         user_display_name=r["display_name"] or r["handle"],
-                        user_avatar_url=r["avatar_url"]
+                        user_avatar_url=r["avatar_url"],
+                        likes_count=r["likes_count"],
+                        is_liked=r["is_liked"]
                     )
                 )
             return results
+
+    async def toggle_like(self, user_id: str, audit_log_id: int) -> bool:
+        """Toggle a like on an activity item. Returns True if liked, False if unliked."""
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            existing = await conn.fetchval(
+                "SELECT 1 FROM activity_likes WHERE audit_log_id = $1 AND user_id = $2",
+                audit_log_id, user_id
+            )
+            if existing:
+                await conn.execute(
+                    "DELETE FROM activity_likes WHERE audit_log_id = $1 AND user_id = $2",
+                    audit_log_id, user_id
+                )
+                return False
+            else:
+                await conn.execute(
+                    "INSERT INTO activity_likes (audit_log_id, user_id) VALUES ($1, $2)",
+                    audit_log_id, user_id
+                )
+                return True

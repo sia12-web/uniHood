@@ -18,7 +18,7 @@ import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
-import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
+import { fetchRecentActivity, toggleLikeActivity, type ActivityLogItem } from "@/lib/analytics";
 import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle } from "lucide-react";
 
 
@@ -255,7 +255,7 @@ export default function HomePage() {
   }, [authHydrated, authUser?.campusId]);
 
 
-  const [activityFilter, setActivityFilter] = useState<"all" | "self" | "friends">("all");
+  const [activityFilter, setActivityFilter] = useState<"self" | "friends">("friends");
 
   const filteredActivity = useMemo(() => {
     if (activityFilter === 'self') return realActivity.filter(item => item.user_id === authUser?.userId);
@@ -265,6 +265,23 @@ export default function HomePage() {
     }
     return realActivity;
   }, [realActivity, activityFilter, authUser?.userId, allFriends]);
+  const handleToggleLike = async (activityId: number) => {
+    try {
+      const result = await toggleLikeActivity(activityId);
+      setRealActivity(prev => prev.map(item => {
+        if (item.id === activityId) {
+          return {
+            ...item,
+            is_liked: result.liked,
+            likes_count: result.liked ? item.likes_count + 1 : Math.max(0, item.likes_count - 1)
+          };
+        }
+        return item;
+      }));
+    } catch (err) {
+      console.error("Failed to toggle like", err);
+    }
+  };
 
   const renderActivityItem = (item: ActivityLogItem) => {
     const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -368,7 +385,7 @@ export default function HomePage() {
     }
 
     return (
-      <div key={item.id} className="relative pl-10 py-2">
+      <div key={item.id} className="relative pl-10 py-2 group/item">
         <div className={`absolute -left-2 top-2 h-6 w-6 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center ${iconBg} ${iconColor}`}>
           <Icon size={12} strokeWidth={2.5} />
         </div>
@@ -386,6 +403,20 @@ export default function HomePage() {
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <span>{time}</span>
+            <button
+              onClick={() => handleToggleLike(item.id)}
+              className={`flex items-center gap-1.5 transition-colors ${item.is_liked
+                ? "text-rose-500 font-bold"
+                : "hover:text-rose-500"
+                }`}
+            >
+              <Heart
+                size={12}
+                className={item.is_liked ? "fill-current" : ""}
+                strokeWidth={item.is_liked ? 3 : 2}
+              />
+              <span>{item.likes_count > 0 ? item.likes_count : "Like"}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -499,7 +530,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
                   <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
-                    {(["all", "self", "friends"] as const).map(f => (
+                    {(["self", "friends"] as const).map(f => (
                       <button
                         key={f}
                         onClick={() => setActivityFilter(f)}
@@ -508,7 +539,7 @@ export default function HomePage() {
                           : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                           }`}
                       >
-                        {f === 'all' ? 'All' : f === 'self' ? 'You' : 'Friends'}
+                        {f === 'self' ? 'You' : 'Friends'}
                       </button>
                     ))}
                   </div>

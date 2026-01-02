@@ -68,6 +68,13 @@ class MeetupService:
                 ) THEN
                     ALTER TABLE meetups ADD COLUMN location TEXT;
                 END IF;
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetups' AND column_name = 'banner_url'
+                ) THEN
+                    ALTER TABLE meetups ADD COLUMN banner_url TEXT;
+                END IF;
             END
             $$;
             """
@@ -104,9 +111,9 @@ class MeetupService:
                     """
                     INSERT INTO meetups (
                         creator_user_id, campus_id, title, description, category,
-                        start_at, duration_min, status, room_id, visibility, capacity, location
+                        start_at, duration_min, status, room_id, visibility, capacity, location, banner_url
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING *
                     """,
                     UUID(auth_user.id),
@@ -120,7 +127,8 @@ class MeetupService:
                     UUID(room.id),
                     payload.visibility.value,
                     payload.capacity,
-                    payload.location
+                    payload.location,
+                    payload.banner_url
                 )
                 
                 # Insert host participant
@@ -518,7 +526,7 @@ class MeetupService:
                 # Emit real-time event for instant participant update
                 from app.domain.rooms import sockets as room_sockets
                 await room_sockets.emit_member_event(
-                    "room:member_joined",
+                    "room_member_joined",
                     room_id,
                     {
                         "room_id": room_id,
@@ -595,7 +603,7 @@ class MeetupService:
                 # Emit real-time event for instant participant update
                 from app.domain.rooms import sockets as room_sockets
                 await room_sockets.emit_member_event(
-                    "room:member_left",
+                    "room_member_left",
                     room_id,
                     {
                         "room_id": room_id,
@@ -730,7 +738,8 @@ class MeetupService:
             capacity=row.get("capacity", 10),
             creator_name=row.get("creator_name"),
             creator_avatar_url=row.get("creator_avatar_url"),
-            recent_participants_avatars=row.get("recent_participants_avatars", [])
+            recent_participants_avatars=row.get("recent_participants_avatars", []),
+            banner_url=row.get("banner_url")
         )
 
     async def get_usage(self, auth_user: AuthenticatedUser) -> schemas.MeetupUsageResponse:

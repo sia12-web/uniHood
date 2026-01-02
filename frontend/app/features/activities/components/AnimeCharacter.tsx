@@ -48,11 +48,13 @@ export const AnimeCharacter: React.FC<AnimeCharacterProps> = ({ state, isOpponen
             },
         },
         action: {
-            x: isOpponent ? [50, 0] : [-50, 0],
-            scale: [0.8, 1.2, 1],
+            x: isOpponent ? [100, 0] : [-100, 0],
+            scale: [0.5, 1.4, 1],
+            rotate: isOpponent ? [0, -10, 0] : [0, 10, 0],
             transition: {
-                x: { type: "spring", stiffness: 300, damping: 15 },
-                scale: { duration: 0.4, ease: "easeInOut" }
+                x: { type: "spring", stiffness: 100, damping: 10 },
+                scale: { duration: 0.8, ease: "easeOut" },
+                rotate: { duration: 0.8, ease: "easeOut" }
             },
         },
         win: {
@@ -93,7 +95,7 @@ export const AnimeCharacter: React.FC<AnimeCharacterProps> = ({ state, isOpponen
                         scaleX: isOpponent ? -1 : 1, // Mirror opponent
                     } as any}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.5, ease: "anticipate" }}
                     className="relative h-full w-full"
                 >
                     {/* Using next/image for optimization, but standard img works nicely with motion too.

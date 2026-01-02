@@ -15,8 +15,13 @@ async def get_recent_activity(
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ) -> List[schemas.ActivityLogItem]:
     """Get the recent global activity feed (for the dashboard)."""
-    # Note: In a real app, this should probably be scoped to friends + self, or campus.
-    # The current AnalyticsService.get_recent_activity fetches global audit log joined with users.
-    # For this MVP phase, we might want to filter it or just use the global one for "City Mode" vibes.
-    # Given the user asked for "Recent Activity", we'll return the backend's current logic.
-    return await _service.get_recent_activity(limit=limit)
+    return await _service.get_recent_activity(limit=limit, current_user_id=auth_user.id)
+
+@router.post("/activity/{id}/like")
+async def toggle_activity_like(
+    id: int,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """Toggle a like on an activity feed item."""
+    liked = await _service.toggle_like(auth_user.id, id)
+    return {"id": id, "liked": liked}

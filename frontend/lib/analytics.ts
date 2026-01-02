@@ -27,10 +27,18 @@ export type ActivityLogItem = {
   created_at: string;
   user_display_name: string | null;
   user_avatar_url: string | null;
+  likes_count: number;
+  is_liked: boolean;
 };
 
 import { apiFetch } from "@/app/lib/http/client";
 
 export async function fetchRecentActivity(limit = 20): Promise<ActivityLogItem[]> {
   return apiFetch<ActivityLogItem[]>(`/analytics/activity?limit=${limit}`);
+}
+
+export async function toggleLikeActivity(activityId: number): Promise<{ id: number; liked: boolean }> {
+  return apiFetch<{ id: number; liked: boolean }>(`/analytics/activity/${activityId}/like`, {
+    method: "POST",
+  });
 }

@@ -40,7 +40,7 @@ class RoomsNamespace(socketio.AsyncNamespace):
 			raise ConnectionRefusedError("unauthorized") from None
 		self._sessions[sid] = user
 		await self.enter_room(sid, self.user_room(user.id))
-		await self.emit("rooms:ack", {"ok": True}, room=sid)
+		await self.emit("room_ack", {"ok": True}, room=sid)
 
 	async def on_disconnect(self, sid: str) -> None:
 		obs_metrics.socket_disconnected(self.namespace)
@@ -79,7 +79,7 @@ class RoomsNamespace(socketio.AsyncNamespace):
 		on_flag = bool(payload.get("on", True))
 		await policy.enforce_typing_limit(user.id)
 		await self.emit(
-			"room:typing",
+			"room_typing",
 			{"room_id": room_id, "user_id": user.id, "on": on_flag},
 			room=self.room_channel(room_id),
 		)
@@ -160,7 +160,7 @@ async def emit_room_created(user_id: str, payload: dict) -> None:
 	if _namespace is None:
 		return
 	obs_metrics.socket_event(_namespace.namespace, "room:created")
-	await _namespace.emit("room:created", payload, room=RoomsNamespace.user_room(user_id))
+	await _namespace.emit("room_created", payload, room=RoomsNamespace.user_room(user_id))
 
 
 async def emit_member_event(event: str, room_id: str, payload: dict) -> None:
@@ -181,7 +181,7 @@ async def emit_room_updated(room_id: str, payload: dict) -> None:
 	if _namespace is None:
 		return
 	obs_metrics.socket_event(_namespace.namespace, "room:updated")
-	await _namespace.emit("room:updated", payload, room=RoomsNamespace.room_channel(room_id))
+	await _namespace.emit("room_updated", payload, room=RoomsNamespace.room_channel(room_id))
 
 
 async def emit_user_event(user_id: str, event: str, payload: dict) -> None:

@@ -42,6 +42,7 @@ export interface MeetupResponse {
   creator_name?: string;
   creator_avatar_url?: string;
   recent_participants_avatars?: string[];
+  banner_url?: string;
 }
 
 export interface MeetupDetailResponse extends MeetupResponse {
@@ -58,6 +59,7 @@ export interface MeetupCreateRequest {
   campus_id?: string;
   visibility: MeetupVisibility;
   capacity: number;
+  banner_url?: string;
 }
 
 export interface MeetupUpdateRequest {
@@ -69,6 +71,7 @@ export interface MeetupUpdateRequest {
   duration_min?: number;
   visibility?: MeetupVisibility;
   capacity?: number;
+  banner_url?: string;
 }
 
 export async function updateMeetup(id: string, data: MeetupUpdateRequest): Promise<MeetupResponse> {

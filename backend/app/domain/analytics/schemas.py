@@ -25,3 +25,5 @@ class ActivityLogItem(BaseModel):
     created_at: datetime
     user_display_name: Optional[str] = None
     user_avatar_url: Optional[str] = None
+    likes_count: int = 0
+    is_liked: bool = False

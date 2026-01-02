@@ -60,7 +60,7 @@ export const AnimeDuelArena: React.FC<AnimeDuelArenaProps> = ({
                     setMyAnimState(myPlayed as AnimeState);
                     setOppAnimState(oppPlayed as AnimeState);
 
-                    // After brief delay, show Win/Lose
+                    // After delay, show Win/Lose
                     const timer = setTimeout(() => {
                         if (lastRoundWinner === selfUserId) {
                             setMyAnimState("win");
@@ -73,7 +73,7 @@ export const AnimeDuelArena: React.FC<AnimeDuelArenaProps> = ({
                             setMyAnimState("idle");
                             setOppAnimState("idle");
                         }
-                    }, 1500);
+                    }, 2500); // Increased from 1500 to 2500
 
                     return () => clearTimeout(timer);
                 }
@@ -124,7 +124,7 @@ export const AnimeDuelArena: React.FC<AnimeDuelArenaProps> = ({
                 </div>
 
                 {/* Center: Overlay Info */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none w-full">
                     <AnimatePresence mode="wait">
                         {isCountdown && state.countdown && (
                             <motion.div
@@ -138,7 +138,29 @@ export const AnimeDuelArena: React.FC<AnimeDuelArenaProps> = ({
                             </motion.div>
                         )}
 
-                        {state.phase === "running" && !lastRoundMoves && (
+                        {isRunning && lastRoundMoves && (
+                            <motion.div
+                                key="reveal"
+                                initial={{ scale: 0, opacity: 0, rotate: -20 }}
+                                animate={{ scale: 1.2, opacity: 1, rotate: 0 }}
+                                exit={{ scale: 1.5, opacity: 0 }}
+                                className="flex flex-col items-center"
+                            >
+                                <motion.span
+                                    initial={{ y: -50, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-4xl font-bold text-white/50 uppercase tracking-[0.5em] mb-4 italic"
+                                >
+                                    {myAnimState === 'win' || oppAnimState === 'win' || (myAnimState === 'idle' && oppAnimState === 'idle') ? "RESULT" : "CLASH!"}
+                                </motion.span>
+                                <span className="text-7xl font-black text-amber-400 uppercase tracking-tighter drop-shadow-[0_0_20px_rgba(251,191,36,0.8)] px-4 text-center">
+                                    {myAnimState === 'win' || oppAnimState === 'win' ? (lastRoundWinner === selfUserId ? "VICTORY!" : "DEFEAT") : (myAnimState === 'idle' && oppAnimState === 'idle' ? "DRAW" : "SHOWDOWN!")}
+                                </span>
+                            </motion.div>
+                        )}
+
+                        {isRunning && !lastRoundMoves && !state.submittedMove && (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}

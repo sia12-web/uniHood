@@ -35,116 +35,128 @@ export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
     const percentFull = Math.min(100, Math.max(0, (meetup.participants_count / meetup.capacity) * 100));
 
     return (
-        <div className="group flex flex-col rounded-[32px] bg-white dark:bg-slate-900 p-6 shadow-sm transition-all hover:shadow-xl border border-slate-100/50 dark:border-slate-800">
-            {/* Header Badge */}
-            <div className="flex items-start justify-between">
-                <span className={cn("flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide", category.badgeBg, category.badgeText)}>
-                    <CategoryIcon className="h-4 w-4" />
-                    {category.label}
-                </span>
-
-                <span className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
-                    meetup.visibility === "CITY" ? "bg-emerald-100 text-emerald-700" :
-                        meetup.visibility === "CAMPUS" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
-                )}>
-                    {meetup.visibility === "CITY" ? <Globe size={10} /> : meetup.visibility === "CAMPUS" ? <Building2 size={10} /> : <Users size={10} />}
-                    {meetup.visibility?.toLowerCase()}
-                </span>
+        <div className="group flex flex-col rounded-[32px] bg-white dark:bg-slate-900 overflow-hidden shadow-sm transition-all hover:shadow-xl border border-slate-100/50 dark:border-slate-800">
+            {/* Banner Section */}
+            <div className="relative h-32 w-full overflow-hidden">
+                <img
+                    src={meetup.banner_url || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=1470&auto=format&fit=crop"}
+                    alt="Meetup Banner"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
 
-            {/* Title & Info */}
-            <div className="mt-5 space-y-4">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
-                    {meetup.title}
-                </h3>
+            <div className="p-6 flex-1 flex flex-col">
+                {/* Header Badge */}
+                <div className="flex items-start justify-between">
+                    <span className={cn("flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide", category.badgeBg, category.badgeText)}>
+                        <CategoryIcon className="h-4 w-4" />
+                        {category.label}
+                    </span>
 
-                <div className="space-y-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-                    <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
-                        <span>{dateStr}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="line-clamp-1">{location}</span>
-                    </div>
-                </div>
-
-                {/* Host Info */}
-                <div className="flex items-center gap-3 pt-1">
-                    <div className="relative h-8 w-8 overflow-hidden rounded-full bg-slate-200 ring-2 ring-white dark:ring-slate-800">
-                        {meetup.creator_avatar_url ? (
-                            <Image src={meetup.creator_avatar_url} alt="Host" fill className="object-cover" />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-300 text-xs font-bold text-slate-500">
-                                {meetup.creator_name?.[0]?.toUpperCase() || "H"}
-                            </div>
-                        )}
-                    </div>
-                    <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                        Hosted by: <span className="text-slate-900 dark:text-slate-200 font-semibold">{meetup.creator_name || "Community Member"}</span>
+                    <span className={cn(
+                        "flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+                        meetup.visibility === "CITY" ? "bg-emerald-100 text-emerald-700" :
+                            meetup.visibility === "CAMPUS" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
+                    )}>
+                        {meetup.visibility === "CITY" ? <Globe size={10} /> : meetup.visibility === "CAMPUS" ? <Building2 size={10} /> : <Users size={10} />}
+                        {meetup.visibility?.toLowerCase()}
                     </span>
                 </div>
-            </div>
 
-            {/* Participants Progress */}
-            <div className="mt-6 mb-6">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Participants</span>
-                <div className="mt-2 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                        className="h-full rounded-full bg-indigo-500 transition-all duration-500"
-                        style={{ width: `${percentFull}%` }}
-                    />
-                </div>
-                <div className="mt-2.5 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{meetup.participants_count}/{meetup.capacity} joined</span>
-                    <div className="flex -space-x-2">
-                        {meetup.recent_participants_avatars?.map((avatar, i) => (
-                            <div key={i} className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white dark:border-slate-800 bg-slate-200">
-                                {avatar && <Image src={avatar} alt="Participant" fill className="object-cover" />}
-                            </div>
-                        ))}
-                        {/* Fallback empty circles if no avatars but count > 0 */}
-                        {(meetup.participants_count > (meetup.recent_participants_avatars?.length || 0)) && (
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-500">
-                                +{meetup.participants_count - (meetup.recent_participants_avatars?.length || 0)}
-                            </div>
-                        )}
+                {/* Title & Info */}
+                <div className="mt-5 space-y-4">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
+                        {meetup.title}
+                    </h3>
+
+                    <div className="space-y-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span>{dateStr}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span className="line-clamp-1">{location}</span>
+                        </div>
+                    </div>
+
+                    {/* Host Info */}
+                    <div className="flex items-center gap-3 pt-1">
+                        <div className="relative h-8 w-8 overflow-hidden rounded-full bg-slate-200 ring-2 ring-white dark:ring-slate-800">
+                            {meetup.creator_avatar_url ? (
+                                <Image src={meetup.creator_avatar_url} alt="Host" fill className="object-cover" />
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-slate-300 text-xs font-bold text-slate-500">
+                                    {meetup.creator_name?.[0]?.toUpperCase() || "H"}
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                            Hosted by: <span className="text-slate-900 dark:text-slate-200 font-semibold">{meetup.creator_name || "Community Member"}</span>
+                        </span>
                     </div>
                 </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="mt-auto flex gap-2">
-                {meetup.my_role === 'HOST' && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit?.(meetup);
-                        }}
-                        className="flex-1 rounded-xl py-3 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-100"
-                    >
-                        Edit Details
-                    </button>
-                )}
-                <button
-                    onClick={() => {
-                        if (meetup.is_joined) {
-                            window.location.href = `/meetups/${meetup.id}`;
-                        } else {
-                            onJoin(meetup.id);
-                        }
-                    }}
-                    disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
-                    className={cn(
-                        "flex-[2] rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
-                        meetup.is_joined
-                            ? "bg-emerald-500 shadow-emerald-200/50 hover:bg-emerald-600"
-                            : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"
+                {/* Participants Progress */}
+                <div className="mt-6 mb-6">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Participants</span>
+                    <div className="mt-2 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div
+                            className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+                            style={{ width: `${percentFull}%` }}
+                        />
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{meetup.participants_count}/{meetup.capacity} joined</span>
+                        <div className="flex -space-x-2">
+                            {meetup.recent_participants_avatars?.map((avatar, i) => (
+                                <div key={i} className="relative h-6 w-6 overflow-hidden rounded-full border-2 border-white dark:border-slate-800 bg-slate-200">
+                                    {avatar && <Image src={avatar} alt="Participant" fill className="object-cover" />}
+                                </div>
+                            ))}
+                            {/* Fallback empty circles if no avatars but count > 0 */}
+                            {(meetup.participants_count > (meetup.recent_participants_avatars?.length || 0)) && (
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-500">
+                                    +{meetup.participants_count - (meetup.recent_participants_avatars?.length || 0)}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-auto flex gap-2">
+                    {meetup.my_role === 'HOST' && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit?.(meetup);
+                            }}
+                            className="flex-1 rounded-xl py-3 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-100"
+                        >
+                            Edit Details
+                        </button>
                     )}
-                >
-                    {meetup.is_joined ? "Enter Room" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
-                </button>
+                    <button
+                        onClick={() => {
+                            if (meetup.is_joined) {
+                                window.location.href = `/meetups/${meetup.id}`;
+                            } else {
+                                onJoin(meetup.id);
+                            }
+                        }}
+                        disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
+                        className={cn(
+                            "flex-[2] rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
+                            meetup.is_joined
+                                ? "bg-emerald-500 shadow-emerald-200/50 hover:bg-emerald-600"
+                                : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"
+                        )}
+                    >
+                        {meetup.is_joined ? "Enter Room" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
+                    </button>
+                </div>
             </div>
         </div>
     );

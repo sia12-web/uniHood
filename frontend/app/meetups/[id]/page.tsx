@@ -19,26 +19,34 @@ import { useRouter } from "next/navigation";
 
 // Helper to upsert messages - handles both regular and optimistic messages
 function upsertMessage(prev: RoomMessageDTO[], incoming: RoomMessageDTO): RoomMessageDTO[] {
-  // Find existing message by id OR by client_msg_id (for optimistic message replacement)
-  const existingIndex = prev.findIndex((message) => {
-    // Direct ID match (but not for temp messages)
-    if (!message.id.startsWith("temp-") && message.id === incoming.id) return true;
-    // Client message ID match (optimistic message being replaced by real one)
-    if (incoming.client_msg_id && message.client_msg_id === incoming.client_msg_id) return true;
-    return false;
-  });
-
-  if (existingIndex >= 0) {
-    const existing = prev[existingIndex];
-    // If incoming is same as existing (same real ID), skip
-    if (existing.id === incoming.id && !existing.id.startsWith("temp-")) {
-      return prev;
-    }
-    // Replace optimistic with real, or update existing
+  // 1. Find exact ID match (real ID vs real ID)
+  const idMatchIndex = prev.findIndex(m => !m.id.startsWith("temp-") && m.id === incoming.id);
+  if (idMatchIndex >= 0 && !incoming.id.startsWith("temp-")) {
+    // We already have this confirmed message, just update it (or ignore)
     const next = [...prev];
-    next[existingIndex] = incoming;
-    return next.sort((a, b) => a.seq - b.seq);
+    next[idMatchIndex] = incoming;
+    return next;
   }
+
+  // 2. Find client-side ID match (optimistic replacement)
+  if (incoming.client_msg_id) {
+    const clientMatchIndex = prev.findIndex(m => m.client_msg_id === incoming.client_msg_id);
+    if (clientMatchIndex >= 0) {
+      const existing = prev[clientMatchIndex];
+
+      // If the existing one is real and this is temp, ignore temp
+      if (!existing.id.startsWith("temp-") && incoming.id.startsWith("temp-")) {
+        return prev;
+      }
+
+      // Replace existing (temp or old confirmed with same client-id) with new confirmed
+      const next = [...prev];
+      next[clientMatchIndex] = incoming;
+      return next.sort((a, b) => a.seq - b.seq);
+    }
+  }
+
+  // 3. If it's a new message, add it and sort
   return [...prev, incoming].sort((a, b) => a.seq - b.seq);
 }
 

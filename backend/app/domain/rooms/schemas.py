@@ -75,6 +75,7 @@ class RoomMessageDTO(BaseModel):
     room_id: str
     seq: int
     sender_id: str
+    client_msg_id: Optional[str] = None
     kind: str
     content: Optional[str] = None
     media_key: Optional[str] = None

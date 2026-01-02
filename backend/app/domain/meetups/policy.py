@@ -80,7 +80,7 @@ async def enforce_create_limits(user_id: str, requested_capacity: int) -> None:
             FROM meetups 
             WHERE creator_user_id = $1 
             AND status IN ('UPCOMING', 'ACTIVE')
-            AND (start_at + (duration_min || ' minutes')::interval) > NOW()
+            AND (start_at + (duration_min * INTERVAL '1 minute')) > NOW()
             """,
             UUID(user_id)
         )
@@ -125,7 +125,7 @@ async def enforce_join_limits(user_id: str) -> None:
             WHERE mp.user_id = $1 
             AND mp.status = 'JOINED'
             AND m.status IN ('UPCOMING', 'ACTIVE')
-            AND (m.start_at + (m.duration_min || ' minutes')::interval) > NOW()
+            AND (m.start_at + (m.duration_min * INTERVAL '1 minute')) > NOW()
             """,
             UUID(user_id)
         )

@@ -259,7 +259,7 @@ class MeetupService:
                 FROM meetups m
                 WHERE m.campus_id = $1 
                   AND m.status != 'CANCELLED'
-                  AND (m.start_at + (m.duration_min || ' minutes')::interval) > $3
+                  AND (m.start_at + (m.duration_min * INTERVAL '1 minute')) > $3
                   AND (
                     m.visibility = 'GLOBAL' 
                     OR m.creator_user_id = $2
@@ -326,7 +326,7 @@ class MeetupService:
             # Default feed: Upcoming only
             params.append(now)
             n_idx = len(params)
-            where_conditions.append(f"(m.start_at + (m.duration_min || ' minutes')::interval) > ${n_idx}")
+            where_conditions.append(f"(m.start_at + (m.duration_min * INTERVAL '1 minute')) > ${n_idx}")
         
         # Visibility Logic
         where_conditions.append("""
@@ -692,7 +692,7 @@ class MeetupService:
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             hosting_usage = await conn.fetchval(
-                "SELECT COUNT(*) FROM meetups WHERE creator_user_id = $1 AND status IN ('UPCOMING', 'ACTIVE') AND (start_at + (duration_min || ' minutes')::interval) > NOW()",
+                "SELECT COUNT(*) FROM meetups WHERE creator_user_id = $1 AND status IN ('UPCOMING', 'ACTIVE') AND (start_at + (duration_min * INTERVAL '1 minute')) > NOW()",
                 UUID(auth_user.id)
             )
             joining_usage = await conn.fetchval(
@@ -701,7 +701,7 @@ class MeetupService:
                 JOIN meetups m ON mp.meetup_id = m.id
                 WHERE mp.user_id = $1 AND mp.status = 'JOINED' 
                 AND m.status IN ('UPCOMING', 'ACTIVE')
-                AND (m.start_at + (m.duration_min || ' minutes')::interval) > NOW()
+                AND (m.start_at + (m.duration_min * INTERVAL '1 minute')) > NOW()
                 """,
                 UUID(auth_user.id)
             )

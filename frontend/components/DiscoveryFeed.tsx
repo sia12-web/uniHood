@@ -120,8 +120,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("campus"); // Default to campus
   const [users, setUsers] = useState<NearbyUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'swipe'>('grid');
-  const [swipeIndex, setSwipeIndex] = useState(0);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,10 +167,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     });
   }, [users, filterMajor, filterYear, discoveryMode]);
 
-  // Reset swipe index when filters change, but not when user data (like is_friend) updates
-  useEffect(() => {
-    setSwipeIndex(0);
-  }, [filterMajor, filterYear, discoveryMode]);
+
 
   const uniqueMajors = useMemo(() => {
     const userMajors = users
@@ -548,32 +543,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
 
             <div className="flex items-center gap-3">
-              {/* View Toggle */}
-              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 ring-1 ring-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    "rounded-md p-1.5 transition-all",
-                    viewMode === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                  title="Grid View"
-                >
-                  <LayoutGrid size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('swipe')}
-                  className={cn(
-                    "rounded-md p-1.5 transition-all",
-                    viewMode === 'swipe' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                  )}
-                  title="Swipe View"
-                >
-                  <Smartphone size={16} />
-                </button>
-              </div>
-
               <div className={cn(
                 "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset backdrop-blur-md",
                 isDirectoryMode
@@ -809,7 +778,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               Try clearing your filters or check back later.
             </p>
           </div>
-        ) : viewMode === 'grid' ? (
+        ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredUsers.map((user) => (
               <ParallaxProfileCard
@@ -825,92 +794,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 myCourses={myCourses}
               />
             ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-8">
-            {swipeIndex < filteredUsers.length ? (
-              <div className="flex w-full max-w-lg items-center justify-center gap-6">
-                {/* Left Arrow (Previous) */}
-                <button
-                  onClick={() => setSwipeIndex((prev) => Math.max(0, prev - 1))}
-                  disabled={swipeIndex === 0}
-                  className="hidden rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:shadow-md disabled:opacity-50 sm:block"
-                  aria-label="Previous Profile"
-                >
-                  <ChevronLeft size={24} className="text-slate-600" />
-                </button>
-
-                <div className="w-full max-w-sm">
-                  <ParallaxProfileCard
-                    key={filteredUsers[swipeIndex].user_id}
-                    user={filteredUsers[swipeIndex]}
-                    isFriend={friendIds.has(filteredUsers[swipeIndex].user_id)}
-                    isInvited={invitedIds.has(filteredUsers[swipeIndex].user_id)}
-                    onInvite={async () => {
-                      await handleInvite(filteredUsers[swipeIndex].user_id);
-                      setSwipeIndex((prev) => prev + 1);
-                    }}
-                    onChat={() => handleChat(filteredUsers[swipeIndex].user_id)}
-                    onProfileClick={() => setSelectedUser(filteredUsers[swipeIndex])}
-                    invitePending={invitePendingId === filteredUsers[swipeIndex].user_id}
-                    variant="full"
-                    myCourses={myCourses}
-                  />
-
-                  {/* Mobile Navigation Controls (Below Card) */}
-                  <div className="mt-6 flex items-center justify-center gap-4 sm:hidden">
-                    <button
-                      onClick={() => setSwipeIndex((prev) => Math.max(0, prev - 1))}
-                      disabled={swipeIndex === 0}
-                      className="rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:opacity-50"
-                      aria-label="Previous Profile"
-                    >
-                      <ChevronLeft size={24} className="text-slate-600" />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (filteredUsers[swipeIndex]) {
-                          void handlePass(filteredUsers[swipeIndex].user_id);
-                        }
-                        setSwipeIndex((prev) => prev + 1);
-                      }}
-                      className="rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
-                      aria-label="Next Profile"
-                    >
-                      <ChevronRight size={24} className="text-slate-600" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Arrow (Next) */}
-                <button
-                  onClick={async () => {
-                    if (filteredUsers[swipeIndex]) {
-                      void handlePass(filteredUsers[swipeIndex].user_id);
-                    }
-                    setSwipeIndex((prev) => prev + 1);
-                  }}
-                  className="hidden rounded-full bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:shadow-md sm:block"
-                  aria-label="Next Profile"
-                >
-                  <ChevronRight size={24} className="text-slate-600" />
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="mb-4 inline-flex rounded-full bg-slate-100 p-6">
-                  <Users className="h-10 w-10 text-slate-400" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">That&apos;s everyone!</h3>
-                <p className="text-slate-500">You&apos;ve seen all profiles in this area.</p>
-                <button
-                  onClick={() => setSwipeIndex(0)}
-                  className="mt-4 font-medium text-rose-600 hover:underline"
-                >
-                  Start Over
-                </button>
-              </div>
-            )}
           </div>
         )}
       </main>

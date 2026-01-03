@@ -28,6 +28,7 @@ from app.infra.redis import redis_client
 from app.infra.postgres import get_pool
 from app.domain.xp.service import XPService
 from app.domain.xp.models import XPAction
+from app.settings import settings
 
 
 async def list_feed(

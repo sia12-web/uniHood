@@ -858,6 +858,17 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 					# Invalidate friends cache for both users
 					await _invalidate_friends_cache(user_id)
 					await _invalidate_friends_cache(target_id)
+					
+					# Analytics (Activity Feed) - Log for the person who did it
+					try:
+						from app.domain.identity import audit as db_audit
+						await db_audit.append_db_event(
+							user_id=user_id,
+							event="friend.removed",
+							meta={"friend_id": target_id}
+						)
+					except Exception:
+						pass
 
 					# Apply XP Penalty to BOTH users to ensure net-zero for the interaction
 					try:

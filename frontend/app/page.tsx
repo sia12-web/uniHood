@@ -19,7 +19,7 @@ import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, toggleLikeActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle, ArrowUpCircle } from "lucide-react";
+import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle, ArrowUpCircle, UserMinus } from "lucide-react";
 
 
 
@@ -255,7 +255,7 @@ export default function HomePage() {
   }, [authHydrated, authUser?.campusId]);
 
 
-  const [activityFilter, setActivityFilter] = useState<"self" | "friends">("friends");
+  const [activityFilter, setActivityFilter] = useState<"self" | "friends">("self");
 
   const filteredActivity = useMemo(() => {
     if (activityFilter === 'self') return realActivity.filter(item => item.user_id === authUser?.userId);
@@ -326,6 +326,12 @@ export default function HomePage() {
       iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
       iconColor = "text-emerald-600 dark:text-emerald-400";
       content = <span>{actor} became friends with someone</span>;
+    }
+    else if (item.event === "friend.removed") {
+      Icon = UserMinus;
+      iconBg = "bg-red-100 dark:bg-red-900/30";
+      iconColor = "text-red-600 dark:text-red-400";
+      content = <span>{actor} removed a friend</span>;
     }
     else if (item.event === "meetup.created" || item.event === "meetup.create") {
       Icon = CalendarDays;

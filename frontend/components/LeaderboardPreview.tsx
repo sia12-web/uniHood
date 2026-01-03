@@ -5,7 +5,7 @@ import Link from "next/link";
 import { fetchLeaderboard } from "@/lib/leaderboards";
 import type { LeaderboardRow, NearbyUser } from "@/lib/types";
 import { Trophy } from "lucide-react";
-import { ProfileDetailModal } from "@/components/ProfileDetailModal";
+import { ProfileDetailModal } from "./ProfileDetailModal";
 
 export function LeaderboardPreview() {
   const [leaders, setLeaders] = useState<LeaderboardRow[]>([]);

@@ -309,7 +309,7 @@ export default function HomePage() {
         Icon = Trophy;
         iconBg = "bg-yellow-100 dark:bg-yellow-900/30";
         iconColor = "text-yellow-600 dark:text-yellow-400";
-        const kind = (meta.source_meta as any)?.kind?.replace(/_/g, " ") || "a game";
+        const kind = (meta.source_meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
         content = <span>{actor} won {kind}!</span>;
         xpGain = `+${amount} XP`;
       } else {
@@ -351,14 +351,14 @@ export default function HomePage() {
       Icon = Gamepad2;
       iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
       iconColor = "text-indigo-600 dark:text-indigo-400";
-      const kind = (item.meta as any)?.kind?.replace(/_/g, " ") || "a game";
+      const kind = (item.meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
       content = <span>{actor} created {kind}</span>;
     }
     else if (item.event === "activity.join") {
       Icon = Gamepad2;
       iconBg = "bg-violet-100 dark:bg-violet-900/30";
       iconColor = "text-violet-600 dark:text-violet-400";
-      const kind = (item.meta as any)?.kind?.replace(/_/g, " ") || "a game";
+      const kind = (item.meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
       content = <span>{actor} joined {kind}</span>;
     }
     else if (item.event === "meetup.join") {

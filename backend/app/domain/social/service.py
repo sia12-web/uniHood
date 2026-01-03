@@ -780,6 +780,16 @@ async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> Frie
 					await _leaderboards.record_friendship_removed(user_a=blocker_id, user_b=target_id)
 				except Exception:
 					logger.exception("Failed to record friendship removal (block) for leaderboards")
+				
+				# Apply XP Penalty (Friendship dissolved)
+				try:
+					from app.domain.xp.service import XPService
+					from app.domain.xp.models import XPAction
+					xp_service = XPService()
+					await xp_service.award_xp(blocker_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": target_id, "reason": "block"})
+					await xp_service.award_xp(target_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": blocker_id, "reason": "blocked_by"})
+				except Exception:
+					logger.exception("Failed to apply XP penalty for friend removal via block")
 
 			await policy.cancel_other_open_between_pair(conn, blocker_id, target_id, exclude=[])
 			row = await conn.fetchrow(
@@ -849,14 +859,22 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 					await _invalidate_friends_cache(user_id)
 					await _invalidate_friends_cache(target_id)
 
-					# Apply XP Penalty to the user who removed the friend
+					# Apply XP Penalty to BOTH users to ensure net-zero for the interaction
 					try:
 						from app.domain.xp.service import XPService
 						from app.domain.xp.models import XPAction
-						await XPService().award_xp(
+						xp_service = XPService()
+						# User who triggered removal
+						await xp_service.award_xp(
 							user_id, 
 							XPAction.FRIEND_REMOVED, 
 							metadata={"friend_id": target_id}
+						)
+						# User who was removed
+						await xp_service.award_xp(
+							target_id, 
+							XPAction.FRIEND_REMOVED, 
+							metadata={"friend_id": user_id}
 						)
 					except Exception:
 						logger.exception("Failed to apply XP penalty for friend removal")

@@ -44,6 +44,8 @@ export default function VibesPage() {
     const [height, setHeight] = useState("");
     const [languages, setLanguages] = useState("");
 
+    const [bio, setBio] = useState("");
+
     // Identity (from vibes)
     const [relationshipStatus, setRelationshipStatus] = useState("");
     const [sexualOrientation, setSexualOrientation] = useState("");
@@ -76,6 +78,7 @@ export default function VibesPage() {
                 if (profile.hometown) setHometown(profile.hometown);
                 if (profile.height) setHeight(String(profile.height));
                 if (profile.languages) setLanguages(profile.languages.join(", "));
+                if (profile.bio) setBio(profile.bio);
 
                 // Vibes
                 if (profile.relationship_status) setRelationshipStatus(profile.relationship_status);
@@ -132,20 +135,20 @@ export default function VibesPage() {
     // --- Completion Stats ---
 
     const sections = useMemo(() => {
-        const basicsDone = [gender, birthday, hometown, height, languages].filter(Boolean).length;
+        const basicsDone = [gender, birthday, hometown, height, languages, bio].filter(Boolean).length;
         const identityDone = [relationshipStatus, sexualOrientation].filter(Boolean).length;
         const goalsDone = lookingFor.length > 0 ? 1 : 0;
         const lifestyleDone = [drinking, smoking, workout].filter(Boolean).length;
         const promptsDone = prompts.filter(p => p.answer.trim().length > 3).length;
 
         return [
-            { id: 'basics', title: 'Basics', icon: User, current: basicsDone, total: 5, color: 'bg-blue-500' },
+            { id: 'basics', title: 'Basics', icon: User, current: basicsDone, total: 6, color: 'bg-blue-500' },
             { id: 'identity', title: 'Identity', icon: Heart, current: identityDone, total: 2, color: 'bg-rose-500' },
             { id: 'goals', title: 'Interests', icon: Sparkles, current: goalsDone, total: 1, color: 'bg-amber-500' },
             { id: 'lifestyle', title: 'Lifestyle', icon: Activity, current: lifestyleDone, total: 3, color: 'bg-emerald-500' },
             { id: 'prompts', title: 'Prompts', icon: Quote, current: promptsDone, total: 3, color: 'bg-indigo-500' },
         ];
-    }, [gender, birthday, hometown, height, languages, relationshipStatus, sexualOrientation, lookingFor, drinking, smoking, workout, prompts]);
+    }, [gender, birthday, hometown, height, languages, bio, relationshipStatus, sexualOrientation, lookingFor, drinking, smoking, workout, prompts]);
 
     const totalProgress = useMemo(() => {
         const total = sections.reduce((acc, s) => acc + s.total, 0);
@@ -168,6 +171,7 @@ export default function VibesPage() {
 
             await patchProfile(auth.user_id, campusId, {
                 // Personal
+                bio: bio || undefined,
                 gender: gender || null,
                 birthday: birthday || null,
                 hometown: hometown || null,
@@ -269,58 +273,75 @@ export default function VibesPage() {
                         <h2 className="text-xl font-bold text-slate-900">Basics</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-6">
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Gender</label>
-                            <select
-                                value={gender}
-                                onChange={(e) => setGender(e.target.value)}
-                                className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
-                            >
-                                <option value="">Select</option>
-                                {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Birthday</label>
-                            <input
-                                type="date"
-                                value={birthday}
-                                onChange={(e) => setBirthday(e.target.value)}
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Bio</label>
+                            <textarea
+                                value={bio}
+                                onChange={(e) => setBio(e.target.value)}
+                                placeholder="Tell everyone a bit about yourself..."
+                                maxLength={160}
+                                rows={3}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
                             />
+                            <div className="mt-1 text-right text-xs text-slate-400">
+                                {bio.length}/160
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Hometown</label>
-                            <input
-                                type="text"
-                                value={hometown}
-                                onChange={(e) => setHometown(e.target.value)}
-                                placeholder="Where are you from?"
-                                className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Height (cm)</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Gender</label>
+                                <select
+                                    value={gender}
+                                    onChange={(e) => setGender(e.target.value)}
+                                    className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
+                                >
+                                    <option value="">Select</option>
+                                    {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Birthday</label>
                                 <input
-                                    type="number"
-                                    value={height}
-                                    onChange={(e) => setHeight(e.target.value)}
-                                    placeholder="e.g. 175"
+                                    type="date"
+                                    value={birthday}
+                                    onChange={(e) => setBirthday(e.target.value)}
                                     className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
                                 />
                             </div>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Languages</label>
-                            <input
-                                type="text"
-                                value={languages}
-                                onChange={(e) => setLanguages(e.target.value)}
-                                placeholder="English, French, etc."
-                                className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
-                            />
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Hometown</label>
+                                <input
+                                    type="text"
+                                    value={hometown}
+                                    onChange={(e) => setHometown(e.target.value)}
+                                    placeholder="Where are you from?"
+                                    className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Height (cm)</label>
+                                    <input
+                                        type="number"
+                                        value={height}
+                                        onChange={(e) => setHeight(e.target.value)}
+                                        placeholder="e.g. 175"
+                                        className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Languages</label>
+                                <input
+                                    type="text"
+                                    value={languages}
+                                    onChange={(e) => setLanguages(e.target.value)}
+                                    placeholder="English, French, etc."
+                                    className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

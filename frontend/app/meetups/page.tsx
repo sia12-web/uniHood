@@ -154,6 +154,30 @@ export default function MeetupsPage() {
           </button>
         </div>
 
+        {/* Capacity Overview */}
+        {usage && (
+          <div className="flex flex-wrap gap-4 mt-2">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Hosting:</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">{usage.hosting_usage}/{usage.hosting_limit}</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Joined:</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">{usage.joining_usage}/{usage.joining_limit}</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Day Creates:</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">{usage.daily_create_usage}/{usage.daily_create_limit}</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Max Size:</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">{usage.max_capacity}</span>
+            </div>
+          </div>
+        )}
+
         {/* Filter Bar */}
         <div className="mt-10 flex flex-wrap gap-4">
           <button
@@ -414,13 +438,13 @@ export default function MeetupsPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Capacity (Max {LEVEL_CONFIG[userLevel].maxMeetupCapacity})
+                    Capacity (Max {usage?.max_capacity || LEVEL_CONFIG[userLevel].maxMeetupCapacity})
                   </label>
                   <input
                     type="number"
                     name="capacity"
-                    defaultValue={Math.min(10, LEVEL_CONFIG[userLevel].maxMeetupCapacity)}
-                    max={LEVEL_CONFIG[userLevel].maxMeetupCapacity}
+                    defaultValue={Math.min(10, usage?.max_capacity || LEVEL_CONFIG[userLevel].maxMeetupCapacity)}
+                    max={usage?.max_capacity || LEVEL_CONFIG[userLevel].maxMeetupCapacity}
                     className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200"
                   />
                 </div>

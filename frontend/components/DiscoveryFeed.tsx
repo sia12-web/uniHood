@@ -492,7 +492,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       // Room mode requires location permission
       setShowProximityPrompt(true);
     } else if (mode === "city") {
-      if (userLevel < 2) {
+      if (userLevel < 1) {
         setInviteError("Social Level 2 required for City Mode");
         setTimeout(() => setInviteError(null), 3000);
         return;
@@ -610,7 +610,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 {DISCOVERY_MODES.map((modeOption) => {
                   const isSelected = discoveryMode === modeOption.mode;
                   const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
-                  const isLocked = (modeOption.mode === 'room' && (userLevel < 4 || !authUser?.isUniversityVerified)) || (modeOption.mode === 'city' && userLevel < 2);
+                  const isLocked = (modeOption.mode === 'room' && (userLevel < 4 || !authUser?.isUniversityVerified)) || (modeOption.mode === 'city' && userLevel < 1);
 
                   return (
                     <button

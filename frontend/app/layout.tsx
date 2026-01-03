@@ -12,6 +12,10 @@ const PerformanceMonitor = dynamic(() => import("@/components/PerformanceMonitor
   ssr: false,
 });
 
+const CookieBanner = dynamic(() => import("@/components/CookieBanner"), {
+  ssr: false,
+});
+
 export const metadata: Metadata = {
   title: {
     default: "uniHood",
@@ -74,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <PerformanceMonitor />
           <AppChrome>{children}</AppChrome>
+          <CookieBanner />
         </Suspense>
       </body>
     </html>

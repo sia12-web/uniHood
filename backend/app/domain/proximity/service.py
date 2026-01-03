@@ -49,16 +49,16 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 	if not user_ids:
 		return {}
 	pool = await get_pool()
-	# Cast parameter to uuid[] to avoid mismatched comparisons when passing string IDs
+	is_dev = settings.is_dev()
 	rows = await pool.fetch(
-		"""
+		f"""
 		SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.bio, u.graduation_year, u.profile_gallery, u.passions, u.ten_year_vision, u.social_links, u.status, u.is_university_verified,
 		       u.gender, u.birthday, u.hometown, u.languages, u.relationship_status, u.sexual_orientation, u.looking_for, u.height, u.lifestyle, u.profile_prompts,
 		       c.name as campus_name,
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
 		LEFT JOIN campuses c ON u.campus_id = c.id
-		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND u.email_verified = TRUE
+		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND (u.email_verified = TRUE OR {str(is_dev).upper()})
 		""",
 		list({uid for uid in user_ids}),
 	)
@@ -170,13 +170,14 @@ async def _fetch_directory_candidates(
 	"""
 	pool = await get_pool()
 	
+	is_dev = settings.is_dev()
 	if lat is None or lon is None:
 		# Fallback: return users ordered by creation date if we don't know where the user is
 		if campus_id:
 			rows = await pool.fetch(
-				"""
+				f"""
 				SELECT id FROM users u
-				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND email_verified = TRUE
+				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",
@@ -188,9 +189,9 @@ async def _fetch_directory_candidates(
 		elif exclude_campus_id:
 			# City mode: exclude users from the viewer's own campus
 			rows = await pool.fetch(
-				"""
+				f"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE
+				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
 				AND (campus_id IS NULL OR campus_id != $2)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
@@ -202,9 +203,9 @@ async def _fetch_directory_candidates(
 			)
 		else:
 			rows = await pool.fetch(
-				"""
+				f"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE
+				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
 				ORDER BY created_at DESC
 				LIMIT $2 OFFSET $3
 				""",
@@ -216,17 +217,20 @@ async def _fetch_directory_candidates(
 
 	# Haversine formula in SQL
 	# 6371000 is Earth radius in meters
+	# In Directory mode, we show all users but sort by distance if location is available.
 	if campus_id:
 		rows = await pool.fetch(
-			"""
+			f"""
 			SELECT id, 
-				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
-					cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
-					sin(radians($3)) * sin(radians(lat))
-				)))) AS distance
+				CASE WHEN lat IS NOT NULL AND lon IS NOT NULL THEN
+					(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+						cos(radians($3)) * cos(radians(lat)) * cos(radians(lon) - radians($4)) + 
+						sin(radians($3)) * sin(radians(lat))
+					))))
+				ELSE NULL END AS distance
 			FROM users u
-			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
-			ORDER BY distance ASC
+			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+			ORDER BY distance ASC NULLS LAST
 			LIMIT $5 OFFSET $6
 			""",
 			campus_id,
@@ -239,16 +243,18 @@ async def _fetch_directory_candidates(
 	elif exclude_campus_id:
 		# City mode: exclude users from the viewer's own campus, with distance calculation
 		rows = await pool.fetch(
-			"""
+			f"""
 			SELECT id, 
-				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
-					cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
-					sin(radians($2)) * sin(radians(lat))
-				)))) AS distance
+				CASE WHEN lat IS NOT NULL AND lon IS NOT NULL THEN
+					(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+						cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
+						sin(radians($2)) * sin(radians(lat))
+					))))
+				ELSE NULL END AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
+			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
 			AND (campus_id IS NULL OR campus_id != $4)
-			ORDER BY distance ASC
+			ORDER BY distance ASC NULLS LAST
 			LIMIT $5 OFFSET $6
 			""",
 			auth_user_id,
@@ -260,15 +266,17 @@ async def _fetch_directory_candidates(
 		)
 	else:
 		rows = await pool.fetch(
-			"""
+			f"""
 			SELECT id, 
-				(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
-					cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
-					sin(radians($2)) * sin(radians(lat))
-				)))) AS distance
+				CASE WHEN lat IS NOT NULL AND lon IS NOT NULL THEN
+					(6371000 * acos(LEAST(1.0, GREATEST(-1.0, 
+						cos(radians($2)) * cos(radians(lat)) * cos(radians(lon) - radians($3)) + 
+						sin(radians($2)) * sin(radians(lat))
+					))))
+				ELSE NULL END AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND email_verified = TRUE AND lat IS NOT NULL AND lon IS NOT NULL
-			ORDER BY distance ASC
+			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+			ORDER BY distance ASC NULLS LAST
 			LIMIT $4 OFFSET $5
 			""",
 			auth_user_id,
@@ -277,7 +285,7 @@ async def _fetch_directory_candidates(
 			limit,
 			offset,
 		)
-	return [(str(row["id"]), float(row["distance"])) for row in rows]
+	return [(str(row["id"]), float(row["distance"]) if row["distance"] is not None else 0.0) for row in rows]
 
 
 async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> NearbyResponse:
@@ -418,45 +426,52 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		lon = user_row["lon"] if user_row else None
 
 		live = await _fetch_directory_candidates(campus_id, auth_user.id, lat, lon, limit=query.limit)
-		
-		profiles = await _load_user_lite([uid for uid, _ in live])
+		user_ids = [uid for uid, _ in live]
+		distances = {uid: dist for uid, dist in live}
+
+		profiles = await _load_user_lite(user_ids)
+		friends_map = await load_friendship_flags(auth_user.id, user_ids)
 		
 		items = []
-		for uid, distance in live:
+		for uid in user_ids:
 			profile = profiles.get(uid)
 			if not profile:
 				continue
+			distance = distances.get(uid, 0.0)
+			is_friend = bool(friends_map.get(uid))
+			
 			items.append(
 				NearbyUser(
 					user_id=UUID(uid),
-					display_name=str(profile["display_name"]),
-					handle=str(profile["handle"]),
-					avatar_url=str(profile["avatar_url"]) if profile["avatar_url"] else None,
-					major=str(profile["major"]) if profile["major"] else None,
-					bio=str(profile["bio"]) if profile["bio"] else None,
-					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
+					display_name=profile.display_name,
+					handle=profile.handle,
+					avatar_url=profile.avatar_url,
+					campus_name=profile.campus_name,
+					major=profile.major,
+					graduation_year=profile.graduation_year,
 					distance_m=int(distance) if distance > 0 else None,
-					gallery=profile["gallery"],
-					passions=profile["passions"],
-					courses=profile.get("courses") or [],
-					campus_name=profile.get("campus_name"),
-					ten_year_vision=profile.get("ten_year_vision"),
-					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
-					banner_url=(profile.get("status") or {}).get("banner_url"),
-					is_university_verified=profile.get("is_university_verified", False),
-					gender=profile.get("gender"),
-					birthday=profile.get("birthday"),
-					hometown=profile.get("hometown"),
-					languages=profile.get("languages") or [],
-					relationship_status=profile.get("relationship_status"),
-					sexual_orientation=profile.get("sexual_orientation"),
-					looking_for=profile.get("looking_for") or [],
-					height=profile.get("height"),
-					lifestyle=profile.get("lifestyle") or {},
-					profile_prompts=profile.get("profile_prompts") or [],
+					is_friend=is_friend,
+					bio=profile.bio,
+					passions=profile.passions,
+					gallery=profile.gallery,
+					courses=profile.courses,
+					social_links=profile.social_links,
+					banner_url=profile.banner_url,
+					ten_year_vision=profile.ten_year_vision,
+					is_university_verified=profile.is_university_verified,
+					gender=profile.gender,
+					birthday=profile.birthday,
+					hometown=profile.hometown,
+					languages=profile.languages,
+					relationship_status=profile.relationship_status,
+					sexual_orientation=profile.sexual_orientation,
+					looking_for=profile.looking_for,
+					height=profile.height,
+					lifestyle=profile.lifestyle,
+					profile_prompts=profile.profile_prompts,
 				)
 			)
-		return NearbyResponse(items=items, cursor=None)
+		return NearbyResponse(items=items)
 
 	# City mode: Directory from DB, all campuses
 	elif query.mode == "city":
@@ -465,44 +480,53 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		lat = user_row["lat"] if user_row else None
 		lon = user_row["lon"] if user_row else None
 
-		# Pass None for campus_id to get all users
-		live = await _fetch_directory_candidates(None, auth_user.id, lat, lon, limit=query.limit)
-		
-		profiles = await _load_user_lite([uid for uid, _ in live])
-		
+		# exclude_campus_id to focus on students from OTHER universities in the area
+		live = await _fetch_directory_candidates(
+			None, auth_user.id, lat, lon, limit=query.limit, exclude_campus_id=campus_id
+		)
+		user_ids = [uid for uid, _ in live]
+		distances = {uid: dist for uid, dist in live}
+
+		profiles = await _load_user_lite(user_ids)
+		friends_map = await load_friendship_flags(auth_user.id, user_ids)
+
 		items = []
-		for uid, distance in live:
+		for uid in user_ids:
 			profile = profiles.get(uid)
 			if not profile:
 				continue
+			distance = distances.get(uid, 0.0)
+			is_friend = bool(friends_map.get(uid))
+
 			items.append(
 				NearbyUser(
 					user_id=UUID(uid),
-					display_name=str(profile["display_name"]),
-					handle=str(profile["handle"]),
-					avatar_url=str(profile["avatar_url"]) if profile["avatar_url"] else None,
-					major=str(profile["major"]) if profile["major"] else None,
-					bio=str(profile["bio"]) if profile["bio"] else None,
-					graduation_year=int(profile["graduation_year"]) if profile["graduation_year"] else None,
+					display_name=profile.display_name,
+					handle=profile.handle,
+					avatar_url=profile.avatar_url,
+					campus_name=profile.campus_name,
+					major=profile.major,
+					graduation_year=profile.graduation_year,
 					distance_m=int(distance) if distance > 0 else None,
-					gallery=profile["gallery"],
-					passions=profile["passions"],
-					courses=profile.get("courses") or [],
-					campus_name=profile.get("campus_name"),
-					ten_year_vision=profile.get("ten_year_vision"),
-					social_links=identity_schemas.SocialLinks(**(profile.get("social_links") or {})),
-					banner_url=(profile.get("status") or {}).get("banner_url"),
-					is_university_verified=profile.get("is_university_verified", False),
-					gender=profile.get("gender"),
-					birthday=profile.get("birthday"),
-					hometown=profile.get("hometown"),
-					languages=profile.get("languages") or [],
-					relationship_status=profile.get("relationship_status"),
-					sexual_orientation=profile.get("sexual_orientation"),
-					looking_for=profile.get("looking_for") or [],
-					height=profile.get("height"),
-					lifestyle=profile.get("lifestyle") or {},
-					profile_prompts=profile.get("profile_prompts") or [],
+					is_friend=is_friend,
+					bio=profile.bio,
+					passions=profile.passions,
+					gallery=profile.gallery,
+					courses=profile.courses,
+					social_links=profile.social_links,
+					banner_url=profile.banner_url,
+					ten_year_vision=profile.ten_year_vision,
+					is_university_verified=profile.is_university_verified,
+					gender=profile.gender,
+					birthday=profile.birthday,
+					hometown=profile.hometown,
+					languages=profile.languages,
+					relationship_status=profile.relationship_status,
+					sexual_orientation=profile.sexual_orientation,
+					looking_for=profile.looking_for,
+					height=profile.height,
+					lifestyle=profile.lifestyle,
+					profile_prompts=profile.profile_prompts,
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)

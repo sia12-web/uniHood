@@ -775,7 +775,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
             <h3 className="text-lg font-bold text-slate-900">No students found</h3>
             <p className="mt-1 max-w-xs text-sm text-slate-500">
-              Try clearing your filters or check back later.
+              No new students to discover here. Try switching between Campus, City, or Room modes, or check your Friends tab!
             </p>
           </div>
         ) : (

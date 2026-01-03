@@ -104,10 +104,7 @@ async def list_feed(
 		if uid_str in liked or uid_str in passed or uid_str in seen_ids:
 			continue
 		
-		# Explicitly skip friends
-		if getattr(user, "is_friend", False):
-			continue
-
+		# Previously we skipped friends, but we keep them now to show a full directory
 		raw_passions = getattr(user, "passions", None) or getattr(user, "interests", None) or []
 		passions: list[str] = [str(p).strip() for p in raw_passions if isinstance(p, str) and str(p).strip()]
 		gallery = getattr(user, "gallery", None) or []
@@ -206,10 +203,11 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 	
 	campus_id = str(auth_user.campus_id)
 
+	is_dev = settings.is_dev()
 	try:
 		async with pool.acquire() as conn:
 			rows = await conn.fetch(
-				"""
+				f"""
 				WITH my_courses AS (
 					SELECT course_code FROM user_courses WHERE user_id = $1
 				),
@@ -248,8 +246,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 					FROM users u
 					WHERE u.campus_id = $2
 					  AND u.id != $1
-					  AND u.email_verified = TRUE
-					  AND u.id NOT IN (SELECT friend_id FROM my_friends)
+					  AND (u.email_verified = TRUE OR {str(is_dev).upper()})
 					  AND u.deleted_at IS NULL
 				)
 				SELECT * FROM candidates WHERE score > 0 ORDER BY score DESC LIMIT $3

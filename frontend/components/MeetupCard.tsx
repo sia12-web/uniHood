@@ -39,7 +39,7 @@ export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
             {/* Banner Section */}
             <div className="relative h-32 w-full overflow-hidden">
                 <img
-                    src={meetup.banner_url || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=1470&auto=format&fit=crop"}
+                    src={meetup.banner_url || "https://images.unsplash.com/photo-1492538356227-3eb926ca44ad?q=80&w=1470&auto=format&fit=crop"}
                     alt="Meetup Banner"
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />

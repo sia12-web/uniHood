@@ -15,7 +15,7 @@ import {
 	removeGalleryImage
 } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
-import { ProfileGalleryImage, ProfileRecord } from "@/lib/types";
+import { ProfileRecord } from "@/lib/types";
 import ImageCropper from "@/components/ImageCropper";
 import { cn } from "@/lib/utils";
 
@@ -102,7 +102,7 @@ export default function PhotosPage() {
 			});
 
 			// 3. Commit
-			const key = presigned.key || (presigned as any).fields?.key;
+			const key = presigned.key;
 			const updatedProfile = await commitFn(auth.user_id, profile.campus_id || null, key);
 
 			setProfile(updatedProfile);

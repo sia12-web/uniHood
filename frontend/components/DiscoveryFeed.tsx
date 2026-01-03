@@ -27,11 +27,11 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, LayoutGrid, Smartphone, ChevronLeft, ChevronRight, Home, GraduationCap, Building2, BadgeCheck } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, Home, GraduationCap, Building2, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import { DiscoveryProfile, DiscoveryFeedResponse } from "@/lib/types";
+import { DiscoveryFeedResponse } from "@/lib/types";
 import { fetchProfile, fetchUserCourses } from "@/lib/identity";
 import { Lock } from "lucide-react";
 
@@ -459,24 +459,8 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     (targetUserId: string) => {
       router.push(`/chat/${targetUserId}`);
     },
-    [router],
+    [router]
   );
-
-  const handlePass = useCallback(
-    async (targetUserId: string) => {
-      if (!currentUserId) return;
-      try {
-        await apiFetch("/discovery/pass", {
-          method: "POST",
-          body: { target_id: targetUserId },
-        });
-      } catch (err) {
-        console.warn("Failed to record pass", err);
-      }
-    },
-    [currentUserId]
-  );
-
   const handleModeSelect = (mode: DiscoveryMode) => {
     if (mode === "room") {
       if (userLevel < 4) {

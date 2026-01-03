@@ -4,13 +4,13 @@
 import { useCallback, useContext, useEffect, useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, BookOpen, Settings, Zap, Trophy, Sparkles } from "lucide-react";
+import { User, BookOpen, Settings, Trophy, Sparkles } from "lucide-react";
 import { SocialRoadmap } from "@/components/social/SocialRoadmap";
 import { SocialScoreGuideContent } from "@/components/social/SocialScoreGuide";
 
 import ProfileForm from "@/components/ProfileForm";
 import ProfileCompletion from "@/components/ProfileCompletion";
-import DiscoverySettings from "@/components/DiscoverySettings"; // Legacy
+
 import GallerySettings from "@/components/GallerySettings";
 import VibeSettings from "@/components/VibeSettings";
 import WebsiteSettings from "@/components/WebsiteSettings";
@@ -765,7 +765,7 @@ export default function ProfileSettingsPage() {
 						transition={{ duration: 0.2 }}
 						className="space-y-6"
 					>
-						<ProfileCompletion profile={activeProfile} activeTab={activeTab} onNavigate={(tab) => setActiveTab(tab as any)} />
+						<ProfileCompletion profile={activeProfile} activeTab={activeTab} onNavigate={(tab) => setActiveTab(tab as "profile" | "reputation" | "courses" | "settings")} />
 
 						<div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
 							<ProfileForm

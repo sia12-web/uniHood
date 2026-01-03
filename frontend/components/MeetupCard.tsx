@@ -38,10 +38,11 @@ export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
         <div className="group flex flex-col rounded-[32px] bg-white dark:bg-slate-900 overflow-hidden shadow-sm transition-all hover:shadow-xl border border-slate-100/50 dark:border-slate-800">
             {/* Banner Section */}
             <div className="relative h-32 w-full overflow-hidden">
-                <img
+                <Image
                     src={meetup.banner_url || "https://images.unsplash.com/photo-1492538356227-3eb926ca44ad?q=80&w=1470&auto=format&fit=crop"}
                     alt="Meetup Banner"
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>

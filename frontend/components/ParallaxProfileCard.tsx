@@ -393,7 +393,7 @@ export function ParallaxProfileCard({
                                                         <span className="text-sm font-medium text-slate-400 mr-1">Looking for:</span>
                                                         {user.looking_for.map(l => (
                                                             <span key={l} className="text-sm font-bold text-white">{l}</span>
-                                                        )).reduce((prev, curr) => [prev, <span key="sep" className="text-slate-600">, </span>, curr] as any)}
+                                                        )).reduce((prev, curr) => [prev, <span key={`sep-${Math.random()}`} className="text-slate-600">, </span>, curr] as unknown as React.ReactNode)}
                                                     </div>
                                                 </div>
                                             )}

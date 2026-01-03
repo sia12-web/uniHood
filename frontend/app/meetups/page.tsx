@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -66,13 +67,13 @@ export default function MeetupsPage() {
   const [editingMeetup, setEditingMeetup] = useState<MeetupResponse | null>(null);
 
   const editMutation = useMutation({
-    mutationFn: (data: { id: string; payload: any }) => updateMeetup(data.id, data.payload),
+    mutationFn: (data: { id: string; payload: Record<string, unknown> }) => updateMeetup(data.id, data.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetups"] });
       queryClient.invalidateQueries({ queryKey: ["meetup-usage"] });
       setEditingMeetup(null);
     },
-    onError: (err: any) => alert(err?.response?.data?.detail || "Failed to update meetup.")
+    onError: (err: { response?: { data?: { detail?: string } } }) => alert(err?.response?.data?.detail || "Failed to update meetup.")
   });
 
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -273,7 +274,7 @@ export default function MeetupsPage() {
                           }}
                           className="peer sr-only"
                         />
-                        <img src={url} className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all" />
+                        <img src={url} alt="Banner option" className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all" />
                       </label>
                     ))}
                     <div className="relative flex-shrink-0">
@@ -402,7 +403,7 @@ export default function MeetupsPage() {
                           }}
                           className="peer sr-only"
                         />
-                        <img src={url} className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all opacity-80 peer-checked:opacity-100" />
+                        <img src={url} alt="Banner option" className="h-12 w-16 rounded-lg object-cover border-2 border-transparent peer-checked:border-indigo-600 transition-all opacity-80 peer-checked:opacity-100" />
                       </label>
                     ))}
                   </div>

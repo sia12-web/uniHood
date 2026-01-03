@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Users, X, Calendar, MapPin, Clock } from "lucide-react";
+import { Users, X } from "lucide-react";
 import { listMeetups, joinMeetup, updateMeetup, MeetupResponse, MeetupCategory, MeetupVisibility } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
-import { LEVEL_CONFIG } from "@/lib/xp";
-import { cn } from "@/lib/utils";
 
 export function MyMeetups() {
     const authUser = readAuthUser();
@@ -28,12 +26,12 @@ export function MyMeetups() {
     });
 
     const editMutation = useMutation({
-        mutationFn: (data: { id: string; payload: any }) => updateMeetup(data.id, data.payload),
+        mutationFn: (data: { id: string; payload: Record<string, unknown> }) => updateMeetup(data.id, data.payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["meetups"] });
             setEditingMeetup(null);
         },
-        onError: (err: any) => alert(err?.response?.data?.detail || "Failed to update meetup.")
+        onError: (err: { response?: { data?: { detail?: string } } }) => alert(err?.response?.data?.detail || "Failed to update meetup.")
     });
 
     if (!authUser) return null;

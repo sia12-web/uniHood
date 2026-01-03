@@ -331,7 +331,7 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
   const renderResults = () => {
     const selfUserId = self || authUser?.userId;
     const didWin = state.winnerUserId === selfUserId || state.tieBreakWinnerUserId === selfUserId;
-    const earnedPoints = (didWin || opponentLeft) ? 30 : 10;
+
 
     return (
       <div className="text-center">
@@ -384,8 +384,8 @@ export const QuickTriviaPanelView: React.FC<QuickTriviaPanelViewProps> = ({ cont
             .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
             .map((p, i) => {
               const tally = state.tally?.[p.userId];
-              const isWinner = p.userId === state.winnerUserId || p.userId === state.tieBreakWinnerUserId || (opponentLeft && p.isSelf);
-              const fixedPoints = isWinner ? 30 : 10;
+
+
 
               return (
                 <div

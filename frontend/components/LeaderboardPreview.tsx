@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { fetchLeaderboard } from "@/lib/leaderboards";
 import type { LeaderboardRow, NearbyUser } from "@/lib/types";
 import { Trophy } from "lucide-react";
@@ -89,11 +90,14 @@ export function LeaderboardPreview() {
 
                 <div className="relative">
                   {leader.avatar_url ? (
-                    <img
-                      src={leader.avatar_url}
-                      alt={leader.display_name || "User"}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
-                    />
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                      <Image
+                        src={leader.avatar_url}
+                        alt={leader.display_name || "User"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">
                       {(leader.display_name?.[0] || "U").toUpperCase()}

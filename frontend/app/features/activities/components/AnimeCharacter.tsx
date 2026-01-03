@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, TargetAndTransition } from "framer-motion";
 
 export type AnimeState = "idle" | "countdown" | "rock" | "paper" | "scissors" | "win" | "lose";
 
@@ -93,7 +93,7 @@ export const AnimeCharacter: React.FC<AnimeCharacterProps> = ({ state, isOpponen
                         ...variants[currentVariant as keyof typeof variants],
                         opacity: 1,
                         scaleX: isOpponent ? -1 : 1, // Mirror opponent
-                    } as any}
+                    } as TargetAndTransition}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.5, ease: "anticipate" }}
                     className="relative h-full w-full"

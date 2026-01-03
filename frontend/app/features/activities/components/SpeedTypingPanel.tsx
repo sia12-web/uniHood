@@ -414,7 +414,7 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
   }, [state.winnerUserId, selfUserId]);
 
   // Fixed points for leaderboard: 30 for winner (10 played + 20 win bonus), 10 for loser
-  const earnedPoints = (didWin || opponentLeft) ? 30 : 10;
+
 
   const renderResults = () => (
     <div className="text-center">
@@ -467,8 +467,8 @@ export const SpeedTypingPanel: React.FC<{ sessionId: string }> = ({ sessionId })
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
           .map((p, i) => {
             // Calculate fixed leaderboard points for each participant
-            const isWinner = p.userId === state.winnerUserId || (opponentLeft && p.isSelf);
-            const fixedPoints = isWinner ? 30 : 10;
+
+
 
             return (
               <div

@@ -86,13 +86,14 @@ export default function VibesPage() {
                 if (profile.looking_for) setLookingFor(profile.looking_for);
 
                 if (profile.lifestyle) {
-                    setDrinking((profile.lifestyle as any).drinking || "");
-                    setSmoking((profile.lifestyle as any).smoking || "");
-                    setWorkout((profile.lifestyle as any).workout || "");
+                    const lifestyle = profile.lifestyle as Record<string, string>;
+                    setDrinking(lifestyle.drinking || "");
+                    setSmoking(lifestyle.smoking || "");
+                    setWorkout(lifestyle.workout || "");
                 }
 
                 if (profile.profile_prompts && profile.profile_prompts.length > 0) {
-                    setPrompts(profile.profile_prompts.map((p: any) => ({
+                    setPrompts(profile.profile_prompts.map((p) => ({
                         question: p.question || VIBE_PROMPTS[0],
                         answer: p.answer || ""
                     })));

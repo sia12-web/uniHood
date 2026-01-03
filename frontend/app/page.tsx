@@ -18,8 +18,8 @@ import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
-import { fetchRecentActivity, toggleLikeActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle, ArrowUpCircle, UserMinus } from "lucide-react";
+import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
+import { Zap, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Users, ArrowUpCircle, UserMinus } from "lucide-react";
 
 
 
@@ -265,23 +265,6 @@ export default function HomePage() {
     }
     return realActivity;
   }, [realActivity, activityFilter, authUser?.userId, allFriends]);
-  const handleToggleLike = async (activityId: number) => {
-    try {
-      const result = await toggleLikeActivity(activityId);
-      setRealActivity(prev => prev.map(item => {
-        if (item.id === activityId) {
-          return {
-            ...item,
-            is_liked: result.liked,
-            likes_count: result.liked ? item.likes_count + 1 : Math.max(0, item.likes_count - 1)
-          };
-        }
-        return item;
-      }));
-    } catch (err) {
-      console.error("Failed to toggle like", err);
-    }
-  };
 
   const renderActivityItem = (item: ActivityLogItem) => {
     const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -300,9 +283,9 @@ export default function HomePage() {
 
     // 1. Handle XP events (which now include games)
     if (item.event === "xp.gained") {
-      const meta = item.meta as Record<string, any>;
-      const action = meta.action;
-      const amount = meta.amount;
+      const meta = item.meta as Record<string, unknown>;
+      const action = meta.action as string | undefined;
+      const amount = meta.amount as number;
       isNegative = amount < 0;
 
       if (action === "game_won") {
@@ -337,14 +320,14 @@ export default function HomePage() {
       Icon = CalendarDays;
       iconBg = "bg-rose-100 dark:bg-rose-900/30";
       iconColor = "text-rose-600 dark:text-rose-400";
-      const title = (item.meta as Record<string, any>)?.title || "a meetup";
+      const title = ((item.meta as Record<string, unknown>)?.title as string) || "a meetup";
       content = <span>{actor} created {title}</span>;
     }
     else if (item.event === "level.up") {
       Icon = ArrowUpCircle;
       iconBg = "bg-amber-100 dark:bg-amber-900/30";
       iconColor = "text-amber-600 dark:text-amber-400";
-      const lvl = (item.meta as any)?.level || "";
+      const lvl = (item.meta as { level?: string })?.level || "";
       content = <span>{actor} leveled up to {lvl}!</span>;
     }
     else if (item.event === "activity.create") {

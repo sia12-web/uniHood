@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 
 const STEPS = [

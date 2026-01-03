@@ -19,7 +19,7 @@ type CompletionItem = {
     tab: string;
 };
 
-export default function ProfileCompletion({ profile, activeTab, onNavigate }: ProfileCompletionProps) {
+export default function ProfileCompletion({ profile, onNavigate }: ProfileCompletionProps) {
     const items = useMemo((): CompletionItem[] => {
         return [
             {

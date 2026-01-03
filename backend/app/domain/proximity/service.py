@@ -170,14 +170,20 @@ async def _fetch_directory_candidates(
 	"""
 	pool = await get_pool()
 	
+	# Limit queries to return dummy data for now
+	# ...
+	
 	is_dev = settings.is_dev()
+	# FORCE SHOW ALL USERS even if unverified for debugging specific user issue
+	force_show = "TRUE" # previously str(is_dev).upper()
+
 	if lat is None or lon is None:
 		# Fallback: return users ordered by creation date if we don't know where the user is
 		if campus_id:
 			rows = await pool.fetch(
 				f"""
 				SELECT id FROM users u
-				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+				WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",
@@ -191,7 +197,7 @@ async def _fetch_directory_candidates(
 			rows = await pool.fetch(
 				f"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 				AND (campus_id IS NULL OR campus_id != $2)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
@@ -205,7 +211,7 @@ async def _fetch_directory_candidates(
 			rows = await pool.fetch(
 				f"""
 				SELECT id FROM users u
-				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 				ORDER BY created_at DESC
 				LIMIT $2 OFFSET $3
 				""",
@@ -229,7 +235,7 @@ async def _fetch_directory_candidates(
 					))))
 				ELSE NULL END AS distance
 			FROM users u
-			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+			WHERE campus_id = $1 AND id != $2 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 			ORDER BY distance ASC NULLS LAST
 			LIMIT $5 OFFSET $6
 			""",
@@ -252,7 +258,7 @@ async def _fetch_directory_candidates(
 					))))
 				ELSE NULL END AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 			AND (campus_id IS NULL OR campus_id != $4)
 			ORDER BY distance ASC NULLS LAST
 			LIMIT $5 OFFSET $6
@@ -275,7 +281,7 @@ async def _fetch_directory_candidates(
 					))))
 				ELSE NULL END AS distance
 			FROM users u
-			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {str(is_dev).upper()})
+			WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
 			ORDER BY distance ASC NULLS LAST
 			LIMIT $4 OFFSET $5
 			""",

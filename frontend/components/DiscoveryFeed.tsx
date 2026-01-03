@@ -492,11 +492,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       // Room mode requires location permission
       setShowProximityPrompt(true);
     } else if (mode === "city") {
-      if (userLevel < 1) {
-        setInviteError("Social Level 2 required for City Mode");
-        setTimeout(() => setInviteError(null), 3000);
-        return;
-      }
       setDiscoveryMode(mode);
     } else {
       setDiscoveryMode(mode);

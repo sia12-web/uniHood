@@ -167,7 +167,7 @@ export default function AccountSettingsPage() {
 			setDeletionStatus(status);
 			setDeletionSuccess("Your account has been deleted and sessions were revoked.");
 			clearAuthSnapshot();
-			router.push("/login");
+			router.push("/");
 		} catch (err) {
 			const raw = err instanceof Error ? err.message : "Deletion failed";
 			setDeletionError(formatDeletionError(raw));
@@ -192,9 +192,9 @@ export default function AccountSettingsPage() {
 			setAuditPage((prev) =>
 				prev
 					? {
-							items: [...prev.items, ...nextPage.items],
-							cursor: nextPage.cursor,
-						}
+						items: [...prev.items, ...nextPage.items],
+						cursor: nextPage.cursor,
+					}
 					: nextPage,
 			);
 		} catch (err) {
@@ -346,8 +346,8 @@ export default function AccountSettingsPage() {
 											{Object.keys(item.meta).length === 0
 												? "—"
 												: Object.entries(item.meta)
-														.map(([key, value]) => `${key}: ${value}`)
-														.join(", ")}
+													.map(([key, value]) => `${key}: ${value}`)
+													.join(", ")}
 										</td>
 									</tr>
 								))

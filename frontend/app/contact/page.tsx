@@ -253,23 +253,26 @@ export default function ContactPage() {
                         </div>
 
                         {/* Submit Button */}
-                        <button
-                            type="submit"
-                            disabled={formState === "submitting"}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-coral to-rose-500 px-6 py-4 font-semibold text-white shadow-lg transition hover:from-coral/90 hover:to-rose-500/90 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 dark:from-indigo-600 dark:to-violet-600 dark:hover:from-indigo-500 dark:hover:to-violet-500"
-                        >
-                            {formState === "submitting" ? (
-                                <>
-                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                                    Sending...
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="h-5 w-5" />
-                                    Send Message
-                                </>
-                            )}
-                        </button>
+                        <div className="pt-2">
+                            <button
+                                id="contact-submit-button"
+                                type="submit"
+                                disabled={formState === "submitting"}
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-coral to-rose-500 px-6 py-4 font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:from-indigo-600 dark:to-violet-600 dark:hover:from-indigo-500 dark:hover:to-violet-500"
+                            >
+                                {formState === "submitting" ? (
+                                    <>
+                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                        <span>Sending your message...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="h-5 w-5" />
+                                        <span>Submit Message</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </form>
                 </div>
 

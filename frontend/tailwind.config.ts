@@ -10,7 +10,18 @@ const config: Config = {
     "./store/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        cream: "var(--color-cream)",
+        "warm-sand": "var(--color-warm-sand)",
+        ink: "var(--color-ink)",
+        navy: "var(--color-navy)",
+        coral: "var(--color-coral)",
+        midnight: "var(--color-midnight)",
+        aqua: "var(--color-aqua)",
+        sunrise: "var(--color-sunrise)",
+      },
+    },
   },
   plugins: [],
 };

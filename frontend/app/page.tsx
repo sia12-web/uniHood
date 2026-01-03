@@ -423,98 +423,96 @@ export default function HomePage() {
           {/* LEFT COLUMN (Main Content) */}
           <div className="lg:col-span-8 flex flex-col gap-6">
 
-            {/* Discovery Strip - People Online */}
-            {discoverPeople.length > 0 && (
-              <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 p-6 shadow-sm relative overflow-hidden">
-                {/* Subtle decorative background pattern */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            {/* Discovery Strip - Always visible to encourage discovery */}
+            <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 p-6 shadow-sm relative overflow-hidden">
+              {/* Subtle decorative background pattern */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                <div className="relative flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-20 blur-sm animate-pulse" />
-                      <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-900/40 dark:to-slate-800 flex items-center justify-center shadow-inner ring-1 ring-white/50 dark:ring-white/10">
-                        <Users size={20} className="text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Live on Campus</h3>
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        {discoverPeople.length} students active now
-                      </p>
+              <div className="relative flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-20 blur-sm animate-pulse" />
+                    <div className="relative h-10 w-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-900/40 dark:to-slate-800 flex items-center justify-center shadow-inner ring-1 ring-white/50 dark:ring-white/10">
+                      <Users size={20} className="text-emerald-600 dark:text-emerald-400" />
                     </div>
                   </div>
-                  <Link
-                    href="/socials"
-                    className="flex items-center gap-2 rounded-full bg-white dark:bg-slate-800 pl-4 pr-1.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all group"
-                  >
-                    Request a Friendship
-                    <span className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                      <UserPlus size={12} strokeWidth={2.5} />
-                    </span>
-                  </Link>
+                  <div>
+                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Live on Campus</h3>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      {discoverPeople.length} students active now
+                    </p>
+                  </div>
                 </div>
+                <Link
+                  href="/socials"
+                  className="flex items-center gap-2 rounded-full bg-white dark:bg-slate-800 pl-4 pr-1.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all group"
+                >
+                  Request a Friendship
+                  <span className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <UserPlus size={12} strokeWidth={2.5} />
+                  </span>
+                </Link>
+              </div>
 
-                <div className="relative flex items-start gap-5 overflow-x-auto pb-4 pt-2 px-1 scrollbar-hide snap-x">
-                  {discoverPeople.slice(0, 15).map((person) => {
-                    const isOnline = discoverPresence[person.userId]?.online;
-                    return (
-                      <Link
-                        key={person.userId}
-                        href={`/u/${person.userId}`}
-                        className="flex flex-col items-center gap-2 flex-shrink-0 group snap-start"
-                      >
-                        <div className="relative">
-                          {isOnline && (
-                            <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-emerald-400 to-transparent opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
-                          )}
-                          <div className={`h-16 w-16 md:h-20 md:w-20 rounded-full p-[3px] bg-white dark:bg-slate-900 shadow-sm transition-transform duration-300 group-hover:scale-105 group-active:scale-95 ${isOnline
-                            ? "ring-[2px] ring-emerald-500 ring-offset-0 dark:ring-emerald-400"
-                            : "ring-1 ring-slate-100 dark:ring-slate-700"
-                            }`}>
-                            <div className="h-full w-full rounded-full overflow-hidden relative bg-slate-100 dark:bg-slate-800">
-                              {person.imageUrl ? (
-                                <img
-                                  src={person.imageUrl}
-                                  alt={person.name}
-                                  className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-                                />
-                              ) : (
-                                <div className={`h-full w-full bg-gradient-to-br ${person.avatarColor} flex items-center justify-center text-white font-bold text-xl`}>
-                                  {person.name[0]?.toUpperCase() || "?"}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {isOnline && (
-                            <div className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-emerald-500 border-[3px] border-white dark:border-slate-900 z-10 shadow-sm" title="Online now" />
-                          )}
-                        </div>
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-[4.5rem] truncate text-center group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          {person.name.split(" ")[0]}
-                        </span>
-                      </Link>
-                    );
-                  })}
-
-                  {discoverPeople.length > 15 && (
+              <div className="relative flex items-start gap-5 overflow-x-auto pb-4 pt-2 px-1 scrollbar-hide snap-x">
+                {discoverPeople.slice(0, 15).map((person) => {
+                  const isOnline = discoverPresence[person.userId]?.online;
+                  return (
                     <Link
-                      href="/socials"
+                      key={person.userId}
+                      href={`/u/${person.userId}`}
                       className="flex flex-col items-center gap-2 flex-shrink-0 group snap-start"
                     >
-                      <div className="h-16 w-16 md:h-20 md:w-20 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all">
-                        <span className="text-sm font-extrabold">+{discoverPeople.length - 15}</span>
+                      <div className="relative">
+                        {isOnline && (
+                          <div className="absolute -inset-1 rounded-full bg-gradient-to-b from-emerald-400 to-transparent opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
+                        )}
+                        <div className={`h-16 w-16 md:h-20 md:w-20 rounded-full p-[3px] bg-white dark:bg-slate-900 shadow-sm transition-transform duration-300 group-hover:scale-105 group-active:scale-95 ${isOnline
+                          ? "ring-[2px] ring-emerald-500 ring-offset-0 dark:ring-emerald-400"
+                          : "ring-1 ring-slate-100 dark:ring-slate-700"
+                          }`}>
+                          <div className="h-full w-full rounded-full overflow-hidden relative bg-slate-100 dark:bg-slate-800">
+                            {person.imageUrl ? (
+                              <img
+                                src={person.imageUrl}
+                                alt={person.name}
+                                className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+                              />
+                            ) : (
+                              <div className={`h-full w-full bg-gradient-to-br ${person.avatarColor} flex items-center justify-center text-white font-bold text-xl`}>
+                                {person.name[0]?.toUpperCase() || "?"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isOnline && (
+                          <div className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-emerald-500 border-[3px] border-white dark:border-slate-900 z-10 shadow-sm" title="Online now" />
+                        )}
                       </div>
-                      <span className="text-xs font-bold text-slate-400">View All</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-[4.5rem] truncate text-center group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {person.name.split(" ")[0]}
+                      </span>
                     </Link>
-                  )}
-                </div>
-              </section>
-            )}
+                  );
+                })}
+
+                {discoverPeople.length > 15 && (
+                  <Link
+                    href="/socials"
+                    className="flex flex-col items-center gap-2 flex-shrink-0 group snap-start"
+                  >
+                    <div className="h-16 w-16 md:h-20 md:w-20 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all">
+                      <span className="text-sm font-extrabold">+{discoverPeople.length - 15}</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400">View All</span>
+                  </Link>
+                )}
+              </div>
+            </section>
 
             {/* Sub-grid for Activity & Connections */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

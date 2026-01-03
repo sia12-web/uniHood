@@ -179,7 +179,7 @@ export default function HomePage() {
           };
         });
         if (!cancelled) {
-          setDiscoverPeople(mapped.filter((p) => !!p.imageUrl));
+          setDiscoverPeople(mapped);
         }
       } catch (err) {
         if (!cancelled) {

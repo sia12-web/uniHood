@@ -41,44 +41,83 @@ export function LeaderboardPreview() {
     );
   }
 
+  const getRankStyles = (rank: number) => {
+    switch (rank) {
+      case 1: return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", icon: "text-yellow-500" };
+      case 2: return { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", icon: "text-slate-500" };
+      case 3: return { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", icon: "text-orange-500" };
+      default: return { bg: "bg-white", border: "border-transparent", text: "text-slate-600", icon: "text-slate-400" };
+    }
+  };
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <h3 className="text-sm font-medium text-slate-900">Top Players</h3>
-        <Trophy className="h-4 w-4 text-slate-400" />
+      <div className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-slate-50 mb-4">
+        <h3 className="text-lg font-bold text-slate-900">Top Players</h3>
+        <Trophy className="h-5 w-5 text-indigo-500" />
       </div>
-      <div className="pt-4">
-        <div className="space-y-4">
-          {leaders.map((leader, index) => (
-            <div key={leader.user_id} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-yellow-100 text-yellow-700" :
-                  index === 1 ? "bg-gray-100 text-gray-700" :
-                    index === 2 ? "bg-orange-100 text-orange-700" :
-                      "bg-slate-100 text-slate-500"
-                  }`}>
+
+      <div className="space-y-3">
+        {leaders.map((leader, index) => {
+          const styles = getRankStyles(leader.rank);
+          return (
+            <div
+              key={leader.user_id}
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${styles.bg} ${styles.border}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full font-black text-xs ${styles.text}`}>
                   {leader.rank}
-                </span>
+                </div>
+
+                <div className="relative">
+                  {leader.avatar_url ? (
+                    <img
+                      src={leader.avatar_url}
+                      alt={leader.display_name || "User"}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">
+                      {(leader.display_name?.[0] || "U").toUpperCase()}
+                    </div>
+                  )}
+                  {index < 3 && (
+                    <div className="absolute -top-1 -right-1">
+                      <Trophy className={`w-4 h-4 fill-current ${styles.icon}`} />
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium leading-none text-slate-900">
+                  <span className="text-sm font-bold text-slate-900 line-clamp-1">
                     {leader.display_name || "Anonymous"}
                   </span>
+                  <span className="text-[10px] text-slate-500 font-medium">@{leader.handle || "user"}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono text-sm font-bold text-slate-900">{Math.floor(leader.score)}</span>
-                <span className="text-xs text-slate-500">Social Score</span>
+
+              <div className="text-right">
+                <div className="font-black text-indigo-600 text-sm">{Math.floor(leader.score)}</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">XP</div>
               </div>
             </div>
-          ))}
-          <div className="pt-2">
-            <Link
-              href="/leaderboards"
-              className="block w-full rounded-md bg-indigo-50 py-2 text-center text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-            >
-              View Full Leaderboard
-            </Link>
+          );
+        })}
+
+        {leaders.length === 0 && (
+          <div className="text-center py-8 text-slate-400 text-sm">
+            No rankings yet. Be the first!
           </div>
+        )}
+
+        <div className="pt-2">
+          <Link
+            href="/leaderboards"
+            className="block w-full rounded-xl bg-indigo-50 py-3 text-center text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition-colors"
+          >
+            View Full Leaderboard
+          </Link>
         </div>
       </div>
     </div>

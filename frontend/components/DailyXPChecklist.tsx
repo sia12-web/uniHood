@@ -23,7 +23,7 @@ export function DailyXPChecklist() {
         { key: 'daily_login', label: "Daily Login", xp: 25, done: checklist.daily_login },
         { key: 'chat_sent', label: "Send a Message", xp: 2, done: checklist.chat_sent },
         { key: 'game_played', label: "Play a Game", xp: 50, done: checklist.game_played },
-        { key: 'discovery_swipe', label: "Swipe Profiles", xp: 2, done: checklist.discovery_swipe },
+        { key: 'discovery_swipe', label: "Click on a Profile", xp: 2, done: checklist.discovery_swipe },
     ] as const;
 
     const completedCount = tasks.filter(t => t.done).length;

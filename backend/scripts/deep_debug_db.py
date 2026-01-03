@@ -31,7 +31,7 @@ async def main():
     print(f"DSN being used by app: {dsn}")
     
     # Try multiple common ports if 5433 fails
-    ports = ["5433", "5432"]
+    ports = ["5432"]
     for port in ports:
         test_dsn = dsn.replace(":5433", f":{port}")
         print(f"Trying port {port} ({test_dsn})...")

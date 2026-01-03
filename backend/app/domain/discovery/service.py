@@ -93,7 +93,10 @@ async def list_feed(
 	# Add priority candidates first
 	for card in priority_cards:
 		uid_str = str(card.user_id)
-		if uid_str in liked or uid_str in passed or uid_str in seen_ids:
+		# Temporarily disable filtering
+		# if uid_str in liked or uid_str in passed or uid_str in seen_ids:
+		# 	continue
+		if uid_str in seen_ids:
 			continue
 		items.append(card)
 		seen_ids.add(uid_str)
@@ -101,7 +104,10 @@ async def list_feed(
 	# Add nearby candidates
 	for user in nearby.items:
 		uid_str = str(user.user_id)
-		if uid_str in liked or uid_str in passed or uid_str in seen_ids:
+		# Temporarily disable filtering to ensure content is visible
+		# if uid_str in liked or uid_str in passed or uid_str in seen_ids:
+		# 	continue
+		if uid_str in seen_ids:
 			continue
 		
 		# Previously we skipped friends, but we keep them now to show a full directory

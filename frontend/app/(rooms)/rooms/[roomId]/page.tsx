@@ -86,7 +86,7 @@ export default function RoomPage({ params }: Props) {
   }, [roomId]);
 
   useEffect(() => {
-  const socket = roomsSocket();
+    const socket = roomsSocket();
     const handleMessageNew = (message: RoomMessageDTO) => {
       if (message.room_id !== roomId) {
         return;
@@ -147,20 +147,20 @@ export default function RoomPage({ params }: Props) {
       setRoom((prev) => (prev ? { ...prev, ...summary } : prev));
     };
 
-    socket.emit('room:join', { room_id: roomId });
-    socket.on('room:msg:new', handleMessageNew);
-    socket.on('room:member_joined', handleMemberJoined);
-    socket.on('room:member_left', handleMemberLeft);
-    socket.on('room:member_updated', handleMemberUpdated);
-    socket.on('room:updated', handleRoomUpdated);
+    socket.emit('room_join', { room_id: roomId });
+    socket.on('room_msg_new', handleMessageNew);
+    socket.on('room_member_joined', handleMemberJoined);
+    socket.on('room_member_left', handleMemberLeft);
+    socket.on('room_member_updated', handleMemberUpdated);
+    socket.on('room_updated', handleRoomUpdated);
 
     return () => {
-      socket.emit('room:leave', { room_id: roomId });
-      socket.off('room:msg:new', handleMessageNew);
-      socket.off('room:member_joined', handleMemberJoined);
-      socket.off('room:member_left', handleMemberLeft);
-      socket.off('room:member_updated', handleMemberUpdated);
-      socket.off('room:updated', handleRoomUpdated);
+      socket.emit('room_leave', { room_id: roomId });
+      socket.off('room_msg_new', handleMessageNew);
+      socket.off('room_member_joined', handleMemberJoined);
+      socket.off('room_member_left', handleMemberLeft);
+      socket.off('room_member_updated', handleMemberUpdated);
+      socket.off('room_updated', handleRoomUpdated);
       if (!socket.connected) {
         disconnectRoomsSocket();
       }

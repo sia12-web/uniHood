@@ -52,7 +52,6 @@ export function XPRewardModal({ amount, action, onClose }: XPRewardModalProps) {
     const startColor = isNegative ? "from-red-400/20" : "from-amber-400/20";
     const bgBlur = isNegative ? "bg-red-500" : "bg-amber-400";
     const gradient = isNegative ? "from-red-400 to-red-600" : "from-amber-300 to-amber-500";
-    const starFill = isNegative ? "text-red-400 fill-red-400" : "text-yellow-400 fill-yellow-400";
     const textColor = isNegative ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
     const buttonBg = isNegative ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white" : "bg-slate-900 dark:bg-white text-white dark:text-slate-900";
 

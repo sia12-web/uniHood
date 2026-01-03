@@ -396,20 +396,16 @@ export default function HomePage() {
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <span>{time}</span>
-            <button
-              onClick={() => handleToggleLike(item.id)}
-              className={`flex items-center gap-1.5 transition-colors ${item.is_liked
-                ? "text-rose-500 font-bold"
-                : "hover:text-rose-500"
-                }`}
-            >
-              <Heart
-                size={12}
-                className={item.is_liked ? "fill-current" : ""}
-                strokeWidth={item.is_liked ? 3 : 2}
-              />
-              <span>{item.likes_count > 0 ? item.likes_count : "Like"}</span>
-            </button>
+            {item.likes_count > 0 && (
+              <span className="flex items-center gap-1.5 text-rose-500 font-bold">
+                <Heart
+                  size={12}
+                  className="fill-current"
+                  strokeWidth={3}
+                />
+                <span>{item.likes_count}</span>
+              </span>
+            )}
           </div>
         </div>
       </div>

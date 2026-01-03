@@ -7,7 +7,14 @@ description: Promote changes from Development (dev-01) to Production (main) with
 Follow this strictly to ensure that what works in `dev-01` also works in `main`.
 
 ## 1. 🛡️ Pre-Flight Integrity Checks (CRITICAL)
-Before merging, you **MUST** verify these common failure points:
+Before merging, you **MUST** run the complete check-quality workflow and verify these common failure points:
+
+### 0. 🧪 Run Quality Suite
+```bash
+/check-quality
+```
+Ensure **zero** lint errors in both Frontend and Backend.
+
 
 ### A. Frontend Environment Variables
 Next.js **requires** static lookups for `NEXT_PUBLIC_` variables at build time.
@@ -21,7 +28,12 @@ grep -r "process.env\[" frontend/
 grep -r "process.env?." frontend/
 ```
 
-### B. Database Migrations
+### B. Python Static Analysis (Backend)
+The backend uses FastAPI. Missing imports or `NameError`s often survive until the endpoint is hit.
+- **Action**: Run `ruff check .` or `flake8` to catch `F401` (unused imports) and `F821` (undefined names).
+- **Check**: Specifically verify new services in `app/domain/` have all their dependencies imported.
+
+### C. Database Migrations
 Ensure that `dev` hasn't "drifted" from `prod`.
 - Check `backend/migrations/` for any new `.sql` files.
 - **Crucial**: Ensure the `preDeployCommand` on Render is set to run your migration script (e.g., `python scripts/apply_migrations.py`).

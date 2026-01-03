@@ -511,6 +511,18 @@ export default function HomePage() {
                     <span className="text-xs font-bold text-slate-400">View All</span>
                   </Link>
                 )}
+                {discoverPeople.length === 0 && (
+                  <div className="w-full flex flex-col items-center justify-center py-6 text-center">
+                    <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                      <Users size={20} className="text-slate-400" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No one nearby right now</p>
+                    <p className="text-xs text-slate-400 mb-3">Try checking City Mode!</p>
+                    <Link href="/socials" className="text-xs font-bold text-indigo-500 hover:text-indigo-600">
+                      Explore Everyone
+                    </Link>
+                  </div>
+                )}
               </div>
             </section>
 

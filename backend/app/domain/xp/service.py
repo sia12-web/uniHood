@@ -141,6 +141,16 @@ class XPService:
                     
                     # Trigger level up notification
                     await sockets.emit_level_up(uid, calculated_level)
+                    
+                    # Log to Activity Feed (Audit)
+                    try:
+                        await audit.append_db_event(
+                            user_id=uid,
+                            event="level.up",
+                            meta={"level": calculated_level}
+                        )
+                    except Exception:
+                        logger.warning("Failed to log level up audit event", exc_info=True)
                 
                 # Re-fetch strictly to match UserXPStats structure with ID
                 return await self.get_user_stats(uid)

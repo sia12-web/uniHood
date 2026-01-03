@@ -1038,12 +1038,20 @@ class ActivitiesService:
 			await self._persist_round(round_obj)
 		summary = _activity_summary(activity)
 		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
-		await outbox.append_activity_event(
-			"activity_started",
-			activity_id=activity.id,
-			kind=activity.kind,
-			user_id=auth_user.id,
-		)
+		# Analytics tracking
+		try:
+			from app.domain.identity import audit
+			await audit.append_db_event(
+				user_id=auth_user.id,
+				event="activity.join",
+				meta={
+					"activity_id": activity.id,
+					"kind": activity.kind
+				}
+			)
+		except Exception:
+			pass
+
 		return summary
 
 	async def get_activity(self, auth_user: AuthenticatedUser, activity_id: str) -> schemas.ActivityDetail:

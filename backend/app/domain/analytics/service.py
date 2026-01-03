@@ -95,6 +95,15 @@ class AnalyticsService:
                        END as is_liked
                 FROM audit_log a
                 LEFT JOIN users u ON a.user_id::uuid = u.id
+                WHERE (
+                    a.event IN ('friend.accepted', 'activity.create', 'activity.join', 'meetup.create', 'level.up')
+                    OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
+                )
+                AND (
+                    $2::uuid IS NULL 
+                    OR a.user_id::uuid = $2::uuid 
+                    OR EXISTS(SELECT 1 FROM friendships f WHERE f.user_id = $2::uuid AND f.friend_id = a.user_id::uuid AND f.status = 'accepted')
+                )
                 ORDER BY a.created_at DESC
                 LIMIT $1
                 """,

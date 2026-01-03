@@ -19,7 +19,7 @@ import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, toggleLikeActivity, type ActivityLogItem } from "@/lib/analytics";
-import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle } from "lucide-react";
+import { Zap, Sun, MessageCircle, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Send, Sparkles, MapPin, Users, XCircle, ArrowUpCircle } from "lucide-react";
 
 
 
@@ -305,52 +305,18 @@ export default function HomePage() {
       const amount = meta.amount;
       isNegative = amount < 0;
 
-      if (action === "daily_login") {
-        Icon = Sun;
-        iconBg = "bg-amber-100 dark:bg-amber-900/30";
-        iconColor = "text-amber-600 dark:text-amber-400";
-        content = <span>Daily login bonus!</span>;
-      } else if (action === "chat_sent") {
-        Icon = MessageCircle;
-        iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
-        iconColor = "text-indigo-600 dark:text-indigo-400";
-        content = <span>Sent a message</span>;
-      } else if (action === "game_played") {
-        Icon = Gamepad2;
-        iconBg = "bg-violet-100 dark:bg-violet-900/30";
-        iconColor = "text-violet-600 dark:text-violet-400";
-        const kind = (meta.source_meta as any)?.kind?.replace(/_/g, " ") || "a game";
-        content = <span>{actor} played {kind}</span>;
-        xpGain = ""; // Hide XP for games
-      } else if (action === "game_won") {
+      if (action === "game_won") {
         Icon = Trophy;
         iconBg = "bg-yellow-100 dark:bg-yellow-900/30";
         iconColor = "text-yellow-600 dark:text-yellow-400";
         const kind = (meta.source_meta as any)?.kind?.replace(/_/g, " ") || "a game";
         content = <span>{actor} won {kind}!</span>;
-        xpGain = ""; // Hide XP for games
-      } else if (action === "game_lost") {
-        Icon = XCircle;
-        iconBg = "bg-slate-100 dark:bg-slate-800";
-        iconColor = "text-slate-600 dark:text-slate-400";
-        const sourceMeta = (meta.source_meta as any);
-        const kind = sourceMeta?.kind?.replace(/_/g, " ") || "a game";
-        const verb = sourceMeta?.is_draw ? "tied" : "lost";
-        content = <span>{actor} {verb} {kind}</span>;
-        xpGain = ""; // Hide XP for games
-      } else if (action === "discovery_swipe") {
-        Icon = Heart;
-        iconBg = "bg-rose-100 dark:bg-rose-900/30";
-        iconColor = "text-rose-600 dark:text-rose-400";
-        content = <span>Swiped on profiles</span>;
+        xpGain = `+${amount} XP`;
       } else {
         Icon = Zap;
         iconBg = "bg-amber-100 dark:bg-amber-900/30";
         iconColor = "text-amber-600 dark:text-amber-400";
         content = <span>{isNegative ? "Lost XP" : "Earned XP"} for {action?.replace(/_/g, " ").toLowerCase()}</span>;
-      }
-
-      if (!xpGain && action !== "game_played" && action !== "game_won" && action !== "game_lost") {
         xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
       }
     }
@@ -368,6 +334,27 @@ export default function HomePage() {
       const title = (item.meta as Record<string, any>)?.title || "a meetup";
       content = <span>{actor} created {title}</span>;
     }
+    else if (item.event === "level.up") {
+      Icon = ArrowUpCircle;
+      iconBg = "bg-amber-100 dark:bg-amber-900/30";
+      iconColor = "text-amber-600 dark:text-amber-400";
+      const lvl = (item.meta as any)?.level || "";
+      content = <span>{actor} leveled up to {lvl}!</span>;
+    }
+    else if (item.event === "activity.create") {
+      Icon = Gamepad2;
+      iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
+      iconColor = "text-indigo-600 dark:text-indigo-400";
+      const kind = (item.meta as any)?.kind?.replace(/_/g, " ") || "a game";
+      content = <span>{actor} created {kind}</span>;
+    }
+    else if (item.event === "activity.join") {
+      Icon = Gamepad2;
+      iconBg = "bg-violet-100 dark:bg-violet-900/30";
+      iconColor = "text-violet-600 dark:text-violet-400";
+      const kind = (item.meta as any)?.kind?.replace(/_/g, " ") || "a game";
+      content = <span>{actor} joined {kind}</span>;
+    }
     else if (item.event === "meetup.join") {
       Icon = Users;
       iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
@@ -375,7 +362,7 @@ export default function HomePage() {
       content = <span>{actor} joined a meetup</span>;
     }
     // 3. Skip redundant events
-    else if (item.event === "activity.create" || item.event === "activity.finish") {
+    else if (item.event === "activity.finish") {
       return null;
     }
     else {

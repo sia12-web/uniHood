@@ -13,7 +13,7 @@ HANDLE_PATTERN = r"^[a-z0-9_-]{3,30}$"
 
 class GalleryImage(BaseModel):
 	key: str
-	url: HttpUrl
+	url: str
 	uploaded_at: Optional[str] = None
 
 
@@ -117,7 +117,7 @@ class ProfileOut(BaseModel):
 	handle: str
 	display_name: str
 	bio: Annotated[str, Field(max_length=500)] = ""
-	avatar_url: Optional[HttpUrl] = None
+	avatar_url: Optional[str] = None
 	avatar_key: Optional[str] = None
 	campus_id: Optional[UUID] = None
 	privacy: PrivacySettings

@@ -44,7 +44,7 @@ class DiscoveryCard(BaseModel):
 	user_id: UUID
 	display_name: str = ""
 	handle: Optional[str] = None
-	avatar_url: Optional[HttpUrl] = None
+	avatar_url: Optional[str] = None
 	campus_id: Optional[UUID] = None
 	major: Optional[str] = None
 	graduation_year: Optional[int] = Field(default=None, ge=1900, le=2100)

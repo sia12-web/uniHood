@@ -3,12 +3,28 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchLeaderboard } from "@/lib/leaderboards";
-import type { LeaderboardRow } from "@/lib/types";
+import type { LeaderboardRow, NearbyUser } from "@/lib/types";
 import { Trophy } from "lucide-react";
+import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 
 export function LeaderboardPreview() {
   const [leaders, setLeaders] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
+
+  const handleRowClick = (row: LeaderboardRow) => {
+    // Construct minimal NearbyUser for the modal
+    const user: NearbyUser = {
+      user_id: row.user_id,
+      display_name: row.display_name || "Anonymous",
+      handle: row.handle || "",
+      avatar_url: row.avatar_url,
+      // Default or minimal values for required fields
+      distance_m: null,
+    } as NearbyUser;
+
+    setSelectedUser(user);
+  };
 
   useEffect(() => {
     // Fetch social leaderboard to show players with highest Social Score
@@ -63,7 +79,8 @@ export function LeaderboardPreview() {
           return (
             <div
               key={leader.user_id}
-              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${styles.bg} ${styles.border}`}
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer hover:shadow-md ${styles.bg} ${styles.border}`}
+              onClick={() => handleRowClick(leader)}
             >
               <div className="flex items-center gap-4">
                 <div className={`flex items-center justify-center w-6 h-6 rounded-full font-black text-xs ${styles.text}`}>
@@ -120,6 +137,19 @@ export function LeaderboardPreview() {
           </Link>
         </div>
       </div>
+
+      {selectedUser && (
+        <ProfileDetailModal
+          user={selectedUser}
+          isOpen={!!selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onInvite={() => { }}
+          onChat={() => { }}
+          isFriend={false}
+          isInvited={false}
+          invitePending={false}
+        />
+      )}
     </div>
   );
 }

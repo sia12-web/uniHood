@@ -449,11 +449,12 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		
 		items = []
 		for uid in user_ids:
-			profile = profiles.get(uid)
+			uid_str = str(uid)
+			profile = profiles.get(uid_str)
 			if not profile:
 				continue
 			distance = distances.get(uid, 0.0)
-			is_friend = bool(friends_map.get(uid))
+			is_friend = bool(friends_map.get(uid_str))
 			
 			items.append(
 				NearbyUser(

@@ -151,17 +151,30 @@ export default function PhotosPage() {
 		const [moved] = nextSlots.splice(fromIndex, 1);
 		nextSlots.splice(toIndex, 0, moved);
 
+		const originalProfile = { ...profile };
+
+		// Truly Optimistic Update: Refresh the UI immediately
+		const nextAvatar = nextSlots[0];
+		const nextGallery = nextSlots.slice(1);
+
+		setProfile({
+			...profile,
+			avatar_url: nextAvatar.url,
+			avatar_key: nextAvatar.key,
+			gallery: nextGallery
+		});
+
 		const auth = readAuthSnapshot();
 		if (!auth?.user_id) return;
 
 		try {
-			// Optimistic update
 			const keys = nextSlots.map(s => s.key);
 			const updatedProfile = await reorderPhotos(auth.user_id, profile.campus_id || null, keys);
 			setProfile(updatedProfile);
 		} catch (err) {
 			console.error("Reorder failed", err);
 			setError("Failed to rearrange photos.");
+			setProfile(originalProfile); // Rollback
 		}
 	};
 
@@ -220,15 +233,17 @@ export default function PhotosPage() {
 						layoutId={slot.data?.key}
 						drag={!!slot.data}
 						dragSnapToOrigin
+						whileDrag={{
+							scale: 1.05,
+							zIndex: 50,
+							boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+							cursor: "grabbing"
+						}}
+						whileHover={slot.data ? { scale: 1.02 } : {}}
 						onDragEnd={(_, info) => {
-							// Determine which slot we are over
-							// This is a simplified hit-test. 
-							// For 5 slots in this specific grid, we can estimate by position or use a better approach.
-							// Here we'll use a simpler approach: swap with whatever is closest.
 							const x = info.point.x;
 							const y = info.point.y;
 
-							// Find the element at this point
 							const elements = document.elementsFromPoint(x, y);
 							const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
 							if (slotElement) {
@@ -243,7 +258,7 @@ export default function PhotosPage() {
 							"relative rounded-2xl overflow-hidden transition-all duration-300 group",
 							index === 0 ? "col-span-2 md:row-span-2 aspect-square rounded-3xl" : "aspect-square",
 							slot.data
-								? "bg-white ring-1 ring-slate-200 cursor-grab active:cursor-grabbing z-0 hover:z-10 shadow-sm"
+								? "bg-white ring-1 ring-slate-200 cursor-grab z-10 shadow-sm"
 								: "bg-slate-50 border-2 border-dashed border-slate-200"
 						)}
 					>

@@ -54,6 +54,8 @@ async def list_feed(
 	def _safe_uuid(value: Optional[str]) -> Optional[UUID]:
 		if not value:
 			return None
+		if isinstance(value, UUID):
+			return value
 		try:
 			return UUID(str(value))
 		except Exception:
@@ -61,7 +63,7 @@ async def list_feed(
 
 	try:
 		query = NearbyQuery(
-			campus_id=_safe_uuid(auth_user.campus_id if isinstance(auth_user.campus_id, str) else str(auth_user.campus_id) if auth_user.campus_id else None),
+			campus_id=_safe_uuid(auth_user.campus_id),
 			radius_m=radius_m,
 			cursor=cursor,
 			limit=min(limit, 100),
@@ -74,7 +76,7 @@ async def list_feed(
 		# Presence missing or rate limited: return exhausted feed
 		return DiscoveryFeedResponse(items=[], cursor=None, exhausted=True)
 
-	card_campus = _safe_uuid(auth_user.campus_id if isinstance(auth_user.campus_id, str) else str(auth_user.campus_id) if auth_user.campus_id else None)
+	card_campus = _safe_uuid(auth_user.campus_id)
 
 	liked = set(await redis_client.smembers(f"discovery:like:{auth_user.id}") or [])
 	passed = set(await redis_client.smembers(f"discovery:pass:{auth_user.id}") or [])
@@ -217,10 +219,12 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 		return []
 
 	# Campus ID is required for this logic
-	if not auth_user.campus_id:
-		return []
-	
-	campus_id = str(auth_user.campus_id)
+	campus_id = auth_user.campus_id
+	if isinstance(campus_id, str):
+		try:
+			campus_id = UUID(campus_id)
+		except:
+			return []
 
 	is_dev = settings.is_dev()
 	try:
@@ -261,11 +265,11 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 						   CASE
 							   WHEN u.is_university_verified THEN 5
 							   ELSE 0
-						   END as score
+						   END +
+						   1 as score
 					FROM users u
 					WHERE u.campus_id = $2
-					  AND u.id != $1
-					  AND (u.email_verified = TRUE OR TRUE)
+					  AND u.id = ANY(SELECT id FROM users WHERE id != $1)
 					  AND u.deleted_at IS NULL
 				)
 				SELECT * FROM candidates WHERE score > 0 ORDER BY score DESC LIMIT $3
@@ -297,7 +301,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 						display_name=row["display_name"],
 						handle=row["handle"],
 						avatar_url=row["avatar_url"],
-						campus_id=UUID(campus_id),
+						campus_id=campus_id,
 						major=row["major"],
 						graduation_year=row["graduation_year"],
 						interests=passions,

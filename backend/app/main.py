@@ -101,6 +101,14 @@ async def ensure_mcgill_campus(pool) -> None:
 	from uuid import UUID
 	mcgill_uuid = UUID(MCGILL_CAMPUS_ID)
 	async with pool.acquire() as conn:
+		# Emergency schema fix: ensure columns exist for this record
+		try:
+			await conn.execute("ALTER TABLE campuses ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION")
+		except Exception: pass
+		try:
+			await conn.execute("ALTER TABLE campuses ADD COLUMN IF NOT EXISTS lon DOUBLE PRECISION")
+		except Exception: pass
+
 		await conn.execute(
 			"""
 			INSERT INTO campuses (id, name, domain, lat, lon)

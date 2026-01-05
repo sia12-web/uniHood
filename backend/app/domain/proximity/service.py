@@ -198,7 +198,7 @@ async def _fetch_directory_candidates(
 				f"""
 				SELECT id FROM users u
 				WHERE id != $1 AND deleted_at IS NULL AND (email_verified = TRUE OR {force_show})
-				AND (campus_id IS NULL OR campus_id != $2)
+				AND ($2::uuid IS NULL OR campus_id IS NULL OR campus_id != $2)
 				ORDER BY created_at DESC
 				LIMIT $3 OFFSET $4
 				""",

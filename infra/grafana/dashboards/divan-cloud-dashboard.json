@@ -346,6 +346,120 @@
                     "max": 1
                 }
             }
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Identity Security: Refresh Events",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (increase(unihood_identity_refresh_events_total[5m]))",
+                    "legendFormat": "{{type}}",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "reuse"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": "red"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "race"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": "yellow"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "success"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": "green"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": 10,
+            "type": "timeseries",
+            "title": "Identity Security: Auth Failures",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "sum by (type) (increase(unihood_identity_auth_fails_total[5m]))",
+                    "legendFormat": "{{type}}",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "grafanacloud-siavashdivan-prom"
+                    }
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 20
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "db_unavailable_503"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": "red"
+                            }
+                        ]
+                    }
+                ]
+            }
         }
     ]
 }

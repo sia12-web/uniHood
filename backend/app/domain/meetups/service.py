@@ -149,8 +149,10 @@ class MeetupService:
             await lb_service.record_room_created(user_id=auth_user.id, room_id=str(room.id))
 
 
-            # Award XP moved to update_attendance to prevent ghost meetup spam
-            # We only record the leaderboard stats here
+            # Award Host XP
+            from app.domain.xp.service import XPService
+            from app.domain.xp.models import XPAction
+            await XPService().award_xp(auth_user.id, XPAction.MEETUP_HOST, metadata={"meetup_id": str(row["id"])})
         except Exception:
             pass  # Non-critical, don't block meetup creation
 
@@ -847,6 +849,14 @@ class MeetupService:
                 meetup_id, reason
             )
         
+        # Deduct XP for cancellation
+        try:
+            from app.domain.xp.service import XPService
+            from app.domain.xp.models import XPAction
+            await XPService().award_xp(auth_user.id, XPAction.MEETUP_CANCEL, metadata={"meetup_id": str(meetup_id)})
+        except Exception:
+            pass
+
         # Track meetup cancellation for leaderboard (may remove points if cancelled too quickly)
         if room_id:
             try:
@@ -1000,20 +1010,7 @@ class MeetupService:
                             }
                         )
                 
-                # Award Host XP if not already awarded (Ghost Meetup Prevention)
-                # We do this only if at least one person was PRESENT
-                if payload.user_ids:
-                    host_xp_awarded = await conn.fetchval(
-                        "SELECT 1 FROM xp_events WHERE user_id = $1 AND action_type = 'meetup_host' AND metadata->>'meetup_id' = $2",
-                        UUID(auth_user.id), str(meetup_id)
-                    )
-                    
-                    if not host_xp_awarded:
-                        await XPService().award_xp(
-                            str(auth_user.id),
-                            XPAction.MEETUP_HOST,
-                            metadata={"meetup_id": str(meetup_id)}
-                        )
+                # Host XP is now awarded on creation.
 
                 # Optional: Mark in DB that they attended (for future analytics)
                 # This would require schema change, let's skip for now unless requested.

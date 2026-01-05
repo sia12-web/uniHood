@@ -3,61 +3,66 @@ description: Perform a comprehensive security audit (Secrets, SQL Injection, Dep
 ---
 # Security Audit Workflow
 
-Run this workflow periodically or before major releases to ensure the application is secure.
+This workflow outlines the steps to perform a routine security audit of the uniHood platform. Run this at least monthly or before major releases.
 
-## 1. Client-Side Secret Leak Check
-Ensure no sensitive environment variables or keys are leaked to the client bundle.
+## 1. Dependency Vulnerability Check
+Scan Python and Node.js dependencies for known CVEs.
 
-### 1.1 Check for Backend Secrets in Frontend Code
-Run the following command to find potentially leaked secrets in the `frontend` directory.
-// turbo
 ```bash
-grep -rEi "SECRET_KEY|API_KEY|PASSWORD|TOKEN" frontend/app frontend/components --include=*.tsx --include=*.ts --exclude-dir=node_modules
-```
-**Action**: If any results appear that are NOT explicit `NEXT_PUBLIC_` variables, **remove them immediately**. 
-*   ❌ Bad: `const apiKey = "12345";`
-*   ✅ Good: `const apiKey = process.env.NEXT_PUBLIC_API_KEY;`
-*   ⚠️ Critical: NEVER use `process.env.SECRET_KEY` in frontend code. It will be undefined or leak if misconfigured.
+# Backend (Python)
+cd backend
+pip install safety
+safety check
 
-### 1.2 Verify `.env` handling
-Ensure `.env` files are in `.gitignore`.
-// turbo
-```bash
-grep ".env" .gitignore
+# Frontend (Node.js)
+cd frontend
+npm audit
 ```
 
-## 2. SQL Injection Vulnerability Scan
-The backend uses `asyncpg`. Ensure all queries use **parameter substitution** (`$1`, `$2`) and NOT f-string formatting.
+## 2. Configuration Review
+Verify production security settings.
 
-### 2.1 Scan for Dangerous SQL patterns
-Search for f-strings used inside SQL execution calls.
-// turbo
+1.  **HSTS & HTTPS**: Ensure `STRICT_TRANSPORT_SECURITY` header is present in responses.
+2.  **Cookies**: Verify `HttpOnly` and `Secure` flags are set on session cookies.
+3.  **Debug Mode**: Ensure `DEBUG=False` (or `ENVIRONMENT=production`) in live env.
+
+## 3. Access Control Audit
+Review administrative access and role integrity.
+
+1.  **MFA Status**: Run the following SQL to find admins without 2FA (Severity: CRITICAL):
+    ```sql
+    SELECT u.email, u.handle 
+    FROM users u
+    JOIN user_roles ur ON ur.user_id = u.id
+    JOIN roles r ON r.id = ur.role_id
+    WHERE r.name = 'admin'
+    AND NOT EXISTS (SELECT 1 FROM twofa t WHERE t.user_id = u.id AND t.enabled = true);
+    ```
+2.  **Audit Log Health**: Verify `audit_logs` are capturing events:
+    ```sql
+    SELECT COUNT(*) FROM audit_logs WHERE created_at > NOW() - INTERVAL '24 hours';
+    ```
+3.  **Token Version Integrity**: valid users should represent the majority version:
+    ```sql
+    SELECT token_version, COUNT(*) FROM users GROUP BY token_version;
+    ```
+4.  **Role Review**: Revoke `admin` role from users who no longer need it.
+
+## 4. Secret Scanning
+Check codebase for accidentally committed secrets.
+
 ```bash
-grep -r "execute(f\"" backend/app
-grep -r "fetch(f\"" backend/app
-grep -r "fetchrow(f\"" backend/app
-```
-**Action**: 
-*   ❌ Bad: `await conn.execute(f"SELECT * FROM users WHERE id = '{user_id}'")`
-*   ✅ Good: `await conn.execute("SELECT * FROM users WHERE id = $1", user_id)`
-
-If any f-string SQL queries are found, refactor them immediately to use bind parameters.
-
-## 3. Dependency Vulnerability Check
-
-### 3.1 Frontend Audit
-// turbo
-```bash
-cd frontend && npm audit
+# Requires 'detect-secrets' or similar tool
+detect-secrets scan
 ```
 
-### 3.2 Backend Audit
-// turbo
-```bash
-cd backend && pip install pip-audit && pip-audit
-```
+## 5. Database & Infrastructure
+1.  **SSL**: Confirm application connects with `ssl_mode=require`.
+2.  **Backups**: Verify latest automated backup completed successfully.
+3.  **Rate Limits**: Check Redis key expiration times to ensure strict limits are active.
+    ```bash
+    redis-cli keys "rl:2fa_verify:*"
+    ```
 
-## 4. API Security Header Verification
-Ensure the backend is setting security headers.
-Check `backend/app/main.py` for `CORSMiddleware` configuration.
-*   Ensure `allow_origins` is NOT `["*"]` in production. It should be the specific frontend domain (e.g., `https://unihood-frontend.onrender.com`).
+## 6. Report
+Document findings in a new Security Audit Issue and assign remediation tasks.

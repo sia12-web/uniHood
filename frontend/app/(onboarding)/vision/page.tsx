@@ -217,7 +217,7 @@ export default function VisionPage() {
 							onChange={(event) => setVision(event.target.value.slice(0, 500))}
 							rows={4}
 							maxLength={500}
-							placeholder="e.g., Working in an office • Building a startup • Game developer • Directing films"
+							placeholder="Describe your 10-year vision..."
 							className="mt-1 block w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
 						/>
 						<div className="flex items-center justify-between text-xs text-slate-500">

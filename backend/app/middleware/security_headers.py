@@ -47,17 +47,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if self.enable_hsts:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         
-        # Content Security Policy - adjust as needed
+        # Content Security Policy (Report-Only for initial rollout)
+        # Allows scripts/styles from 'self' and unsafe-inline (needed for some UI setups pending refactor)
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none';"
+            "font-src 'self' data: https://fonts.gstatic.com; "
+            "connect-src 'self' https: wss:; "
+            "object-src 'none'; "
+            "base-uri 'self';"
         )
-        response.headers["Content-Security-Policy"] = csp
+        # Using Report-Only to avoid breaking UI during rollout
+        response.headers["Content-Security-Policy-Report-Only"] = csp
         
         # Control referrer information
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -71,7 +74,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "usb=(), "
             "magnetometer=(), "
             "gyroscope=(), "
-            "accelerometer=()"
+            "accelerometer=(), "
+            "autoplay=(), "
+            "display-capture=()"
         )
         
         return response

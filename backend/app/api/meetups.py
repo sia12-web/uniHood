@@ -26,13 +26,15 @@ async def list_meetups(
     campus_id: Optional[str] = None,
     category: Optional[schemas.MeetupCategory] = None,
     user_id: Optional[str] = Query(default=None, description="Filter by participant ID"),
+    creator_id: Optional[str] = Query(default=None, description="Filter by creator ID"),
+    year: Optional[int] = Query(default=None, description="Filter by year (e.g. 2025)"),
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
     # Default to user's campus if not provided
     cid = campus_id or auth_user.campus_id
     if not cid:
         raise HTTPException(status_code=400, detail="Campus ID required")
-    return await _service.list_meetups(auth_user, cid, category, participant_id=user_id)
+    return await _service.list_meetups(auth_user, cid, category, participant_id=user_id, creator_id=creator_id, year=year)
 
 
 @router.get("/{meetup_id}", response_model=schemas.MeetupDetailResponse)
@@ -42,6 +44,22 @@ async def get_meetup(
 ):
     return await _service.get_meetup(meetup_id, auth_user)
 
+
+@router.post("/{meetup_id}/reviews", response_model=schemas.MeetupReviewResponse)
+async def create_review(
+    meetup_id: UUID,
+    payload: schemas.MeetupReviewCreateRequest,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return await _service.create_review(meetup_id, auth_user, payload)
+
+
+@router.get("/{meetup_id}/reviews", response_model=List[schemas.MeetupReviewResponse])
+async def list_reviews(
+    meetup_id: UUID,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return await _service.get_reviews(meetup_id, auth_user)
 
 @router.put("/{meetup_id}", response_model=schemas.MeetupResponse)
 async def update_meetup(

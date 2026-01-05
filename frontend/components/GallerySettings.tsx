@@ -47,10 +47,10 @@ export default function GallerySettings({
     };
 
     return (
-        <section className="space-y-4">
+        <section id="section-gallery" className="space-y-4">
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                {Array.from({ length: 6 }).map((_, index) => {
+                {Array.from({ length: 4 }).map((_, index) => {
                     const img = gallery[index];
                     return (
                         <div key={index} className="relative aspect-[3/4] rounded-lg overflow-hidden bg-slate-50 border border-slate-200 group transition-all hover:border-indigo-400">

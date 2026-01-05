@@ -10,6 +10,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import secrets
+import sys
 
 from app.infra import rate_limit
 from app.settings import settings  # noqa: F401 - may be used for future gating
@@ -19,7 +20,7 @@ from app.api.request_id import get_request_id
 from app.domain.identity import policy, schemas, service, recovery, sessions, models
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.infra.postgres import get_pool
-from app.obs import metrics as obs_metrics
+from app.obs.metrics import inc_identity_reject as _inc_id_reject_actual
 
 router = APIRouter()
 
@@ -63,8 +64,15 @@ def _raise(detail: str, status_code: int) -> None:
 	raise HTTPException(status_code=status_code, detail=detail, headers={"X-Request-Id": get_request_id()})
 
 
+def _inc_reject(reason: str) -> None:
+	try:
+		_inc_id_reject_actual(reason)
+	except Exception:
+		pass
+
+
 def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
-	obs_metrics.inc_identity_reject(exc.reason)
+	_inc_reject(exc.reason)
 	if isinstance(exc, policy.IdentityRateLimitExceeded):
 		return HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail=exc.reason)
 	if isinstance(exc, policy.HandleConflict) or isinstance(exc, policy.EmailConflict):
@@ -93,7 +101,7 @@ async def register(payload: schemas.RegisterRequest, request: Request, response:
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 
 
@@ -130,7 +138,7 @@ async def login(payload: schemas.LoginRequest, request: Request, response: Respo
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.LoginFailed as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 
 
@@ -152,7 +160,7 @@ async def verify_email(payload: schemas.VerifyRequest, request: Request, respons
 		response.headers["X-Request-Id"] = get_request_id()
 		return res
 	except service.VerificationError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		raise HTTPException(status_code=exc.status_code, detail=exc.reason, headers={"X-Request-Id": get_request_id()})
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
@@ -170,7 +178,7 @@ async def resend_verification(payload: schemas.ResendRequest, response: Response
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 	return {"status": "ok"}
 
@@ -201,7 +209,7 @@ async def refresh(request: Request, response: Response, payload: schemas.Refresh
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 
 @router.post("/auth/logout")
@@ -214,7 +222,7 @@ async def logout(request: Request, response: Response, payload: schemas.LogoutRe
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except service.IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		_raise(exc.reason, exc.status_code)
 
 

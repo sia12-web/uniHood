@@ -255,7 +255,7 @@ export default function MajorYearPage() {
 									onFocus={() => setIsMajorOpen(true)}
 									maxLength={120}
 									className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
-									placeholder="Search for your major..."
+									placeholder="Select your major"
 									autoComplete="off"
 								/>
 								<div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
@@ -310,7 +310,7 @@ export default function MajorYearPage() {
 								value={gradYear}
 								onChange={(e) => setGradYear(e.target.value)}
 								className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600 sm:text-sm"
-								placeholder={`${YEAR_MIN + 3}`}
+								placeholder="Select your year"
 							/>
 							<p className="mt-1 text-xs text-slate-500">{gradYearHelp}</p>
 						</div>

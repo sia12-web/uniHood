@@ -18,9 +18,10 @@ interface MeetupCardProps {
     meetup: MeetupResponse;
     onJoin: (id: string) => void;
     onEdit?: (meetup: MeetupResponse) => void;
+    onReview?: (meetup: MeetupResponse) => void;
 }
 
-export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
+export function MeetupCard({ meetup, onJoin, onEdit, onReview }: MeetupCardProps) {
     const category = MEETUP_CATEGORIES.find((c) => c.value === meetup.category) || {
         label: "Other", value: "other", icon: Users, color: "text-slate-600", bg: "bg-white", badgeBg: "bg-slate-100", badgeText: "text-slate-700"
     };
@@ -128,7 +129,19 @@ export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
 
                 {/* Action Buttons */}
                 <div className="mt-auto flex gap-2">
-                    {meetup.my_role === 'HOST' && (
+                    {meetup.status === 'ENDED' && meetup.is_joined && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onReview?.(meetup);
+                            }}
+                            className="flex-1 rounded-xl py-3 text-sm font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all border border-amber-100"
+                        >
+                            Review
+                        </button>
+                    )}
+
+                    {meetup.my_role === 'HOST' && meetup.status !== 'ENDED' && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -136,27 +149,30 @@ export function MeetupCard({ meetup, onJoin, onEdit }: MeetupCardProps) {
                             }}
                             className="flex-1 rounded-xl py-3 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-100"
                         >
-                            Edit Details
+                            Edit
                         </button>
                     )}
-                    <button
-                        onClick={() => {
-                            if (meetup.is_joined) {
-                                window.location.href = `/meetups/${meetup.id}`;
-                            } else {
-                                onJoin(meetup.id);
-                            }
-                        }}
-                        disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
-                        className={cn(
-                            "flex-[2] rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
-                            meetup.is_joined
-                                ? "bg-emerald-500 shadow-emerald-200/50 hover:bg-emerald-600"
-                                : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"
-                        )}
-                    >
-                        {meetup.is_joined ? "Enter Room" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
-                    </button>
+
+                    {meetup.status !== 'ENDED' && (
+                        <button
+                            onClick={() => {
+                                if (meetup.is_joined) {
+                                    window.location.href = `/meetups/${meetup.id}`;
+                                } else {
+                                    onJoin(meetup.id);
+                                }
+                            }}
+                            disabled={!meetup.is_joined && meetup.participants_count >= meetup.capacity}
+                            className={cn(
+                                "flex-[2] rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
+                                meetup.is_joined
+                                    ? "bg-emerald-500 shadow-emerald-200/50 hover:bg-emerald-600"
+                                    : "bg-[#4f46e5] shadow-sm hover:bg-indigo-700"
+                            )}
+                        >
+                            {meetup.is_joined ? "Enter Room" : meetup.participants_count >= meetup.capacity ? "Full" : "Join Group"}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

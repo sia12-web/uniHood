@@ -1,0 +1,3 @@
+-- 034_fix_campuses_schema.sql
+ALTER TABLE campuses ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE campuses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();

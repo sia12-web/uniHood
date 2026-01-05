@@ -1,6 +1,6 @@
-const AUTH_STORAGE_KEY = "divan.auth";
-const AUTH_EVENT = "divan:auth-changed";
-const AUTH_COOKIE = "divan.auth";
+const AUTH_STORAGE_KEY = "unihood.auth";
+const AUTH_EVENT = "unihood:auth-changed";
+const AUTH_COOKIE = "unihood.auth";
 const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export type AuthSnapshot = {

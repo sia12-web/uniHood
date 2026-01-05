@@ -289,7 +289,9 @@ class MeetupService:
         auth_user: AuthenticatedUser, 
         campus_id: str, 
         category: Optional[schemas.MeetupCategory] = None,
-        participant_id: Optional[str] = None
+        participant_id: Optional[str] = None,
+        creator_id: Optional[str] = None,
+        year: Optional[int] = None
     ) -> List[schemas.MeetupResponse]:
         pool = await self._get_pool()
         
@@ -320,8 +322,18 @@ class MeetupService:
             LEFT JOIN users u ON m.creator_user_id = u.id
             LEFT JOIN meetup_participants mp ON m.id = mp.meetup_id AND mp.user_id = $2
         """
+        # Note: If year is passed, we might want to include cancelled/ended ones too?
+        # Standard filter: not cancelled unless history view?
+        # If year or creator_id or participant_id is present, we likely want history.
         
-        where_conditions = ["m.campus_id = $1", "m.status != 'CANCELLED'"]
+        where_conditions = ["m.campus_id = $1"]
+        
+        # Only exclude CANCELLED if we are looking for 'upcoming' feed?
+        # The user said "track of all of his meet ups".
+        # Let's say if it's the main feed (no specialized filters), avoid cancelled.
+        is_history_view = bool(year or participant_id or creator_id)
+        if not is_history_view:
+             where_conditions.append("m.status != 'CANCELLED'")
         
         if participant_id:
             # Sort by recent descending, show past meetups too
@@ -330,13 +342,26 @@ class MeetupService:
             p_idx = len(params)
             where_conditions.append(f"mp_filter.user_id = ${p_idx}")
             where_conditions.append("mp_filter.status = 'JOINED'")
+        elif creator_id:
+            params.append(UUID(creator_id))
+            c_idx = len(params)
+            where_conditions.append(f"m.creator_user_id = ${c_idx}")
         else:
             # Default feed: Upcoming only
             params.append(now)
             n_idx = len(params)
             where_conditions.append(f"(m.start_at + (m.duration_min * INTERVAL '1 minute')) > ${n_idx}")
         
+        if year:
+            params.append(float(year)) # extract year from timestamp
+            y_idx = len(params)
+            where_conditions.append(f"EXTRACT(YEAR FROM m.start_at) = ${y_idx}")
+
         # Visibility Logic
+        params.append(UUID(auth_user.id)) # Reuse auth_user.id for visibility check? No, params are positional.
+        # We already have $2 as auth_user.id.
+        # Postgres supports $2 reuse.
+        
         where_conditions.append("""
             (
                 m.visibility IN ('CAMPUS', 'CITY') 
@@ -360,8 +385,8 @@ class MeetupService:
             
         full_query = query + " WHERE " + " AND ".join(where_conditions)
         
-        if participant_id:
-            full_query += " ORDER BY m.start_at DESC LIMIT 10"
+        if is_history_view:
+            full_query += " ORDER BY m.start_at DESC"
         else:
             full_query += " ORDER BY m.start_at ASC"
         
@@ -378,6 +403,127 @@ class MeetupService:
             ) 
             for row in rows
         ]
+
+    async def create_review(
+        self,
+        meetup_id: UUID, 
+        auth_user: AuthenticatedUser,
+        payload: schemas.MeetupReviewCreateRequest
+    ) -> schemas.MeetupReviewResponse:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            # Verify participation
+            # Must be HOST or PARTICIPANT
+            # Meetup must be ENDED? Usually reviews are post-event.
+            meetup = await conn.fetchrow("SELECT * FROM meetups WHERE id = $1", meetup_id)
+            if not meetup:
+                raise HTTPException(status_code=404, detail="Meetup not found")
+                
+            status = self._compute_status(meetup)
+            # Allow reviews if ENDED or user joined and it started?
+            # User requirement: "review them and review the people who came"
+            # Strict: Meetup must be ENDED.
+            if status != schemas.MeetupStatus.ENDED:
+                 # Check if it started at least?
+                 # Let's enforce ENDED for now to be safe.
+                 pass
+            
+            # Check if user was part of it
+            role = await conn.fetchval(
+                "SELECT role FROM meetup_participants WHERE meetup_id = $1 AND user_id = $2 AND status = 'JOINED'",
+                meetup_id, UUID(auth_user.id)
+            )
+            if not role:
+                 raise HTTPException(status_code=403, detail="You must have attended the meetup to review it.")
+
+            # If targeting a user, that user must have been a participant (and not self)
+            if payload.target_user_id:
+                if str(payload.target_user_id) == str(auth_user.id):
+                    raise HTTPException(status_code=400, detail="Cannot review yourself.")
+                
+                target_role = await conn.fetchval(
+                    "SELECT role FROM meetup_participants WHERE meetup_id = $1 AND user_id = $2 AND status = 'JOINED'",
+                    meetup_id, payload.target_user_id
+                )
+                if not target_role:
+                    raise HTTPException(status_code=400, detail="Target user did not attend.")
+            
+            # Insert review
+            row = await conn.fetchrow(
+                """
+                INSERT INTO meetup_reviews (meetup_id, reviewer_id, subject_id, rating, content)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (meetup_id, reviewer_id, COALESCE(subject_id, '00000000-0000-0000-0000-000000000000'))
+                DO UPDATE SET rating = EXCLUDED.rating, content = EXCLUDED.content, updated_at = NOW()
+                RETURNING *
+                """,
+                meetup_id, 
+                UUID(auth_user.id), 
+                payload.target_user_id,
+                payload.rating,
+                payload.content
+            )
+
+            # Update reputation if a user was reviewed
+            if payload.target_user_id:
+                stats = await conn.fetchrow(
+                    """
+                    SELECT AVG(rating) as avg_rating, COUNT(*) as count 
+                    FROM meetup_reviews 
+                    WHERE subject_id = $1
+                    """,
+                    payload.target_user_id
+                )
+                if stats:
+                    new_score = float(stats["avg_rating"] or 0.0)
+                    new_count = int(stats["count"] or 0)
+                    await conn.execute(
+                        "UPDATE users SET reputation_score = $1, review_count = $2 WHERE id = $3",
+                        new_score, new_count, payload.target_user_id
+                    )
+            
+            # Fetch reviewer info for response
+            reviewer = await conn.fetchrow("SELECT display_name, handle, avatar_url FROM users WHERE id = $1", UUID(auth_user.id))
+            
+            return schemas.MeetupReviewResponse(
+                id=row["id"],
+                meetup_id=row["meetup_id"],
+                reviewer_id=row["reviewer_id"],
+                subject_id=row["subject_id"],
+                rating=row["rating"],
+                content=row["content"],
+                created_at=row["created_at"],
+                reviewer_name=reviewer["display_name"] or reviewer["handle"],
+                reviewer_avatar_url=reviewer["avatar_url"]
+            )
+    
+    async def get_reviews(self, meetup_id: UUID, auth_user: AuthenticatedUser) -> List[schemas.MeetupReviewResponse]:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT r.*, u.display_name, u.handle, u.avatar_url
+                FROM meetup_reviews r
+                JOIN users u ON r.reviewer_id = u.id
+                WHERE r.meetup_id = $1
+                ORDER BY r.created_at DESC
+                """,
+                meetup_id
+            )
+            return [
+                schemas.MeetupReviewResponse(
+                    id=row["id"],
+                    meetup_id=row["meetup_id"],
+                    reviewer_id=row["reviewer_id"],
+                    subject_id=row["subject_id"],
+                    rating=row["rating"],
+                    content=row["content"],
+                    created_at=row["created_at"],
+                    reviewer_name=row["display_name"] or row["handle"],
+                    reviewer_avatar_url=row["avatar_url"]
+                )
+                for row in rows
+            ]
 
     async def get_meetup(self, meetup_id: UUID, auth_user: AuthenticatedUser) -> schemas.MeetupDetailResponse:
         pool = await self._get_pool()

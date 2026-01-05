@@ -42,9 +42,9 @@ export function OnboardingStepIndicator() {
                 <span>{isWelcome ? "All Steps Completed" : `Step ${progress} of ${total}`}</span>
                 <span>{percentage}% Complete</span>
             </div>
-            <div className="h-2 w-full bg-slate-200/50 backdrop-blur-sm rounded-full overflow-hidden">
+            <div className="h-3 w-full bg-slate-200/50 backdrop-blur-sm rounded-full overflow-hidden">
                 <motion.div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                    className="h-full bg-gradient-to-r from-purple-700 via-violet-500 to-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.6)]"
                     initial={{ width: 0 }}
                     animate={{ width: `${percentage}%` }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}

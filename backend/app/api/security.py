@@ -136,7 +136,33 @@ async def twofa_enable(
 
 
 @router.post("/security/2fa/verify", response_model=schemas.LoginResponse)
-async def twofa_verify(payload: schemas.TwoFAVerifyRequest) -> schemas.LoginResponse:
+async def twofa_verify(
+	payload: schemas.TwoFAVerifyRequest,
+	request: Request,
+) -> schemas.LoginResponse:
+	client_ip = _client_ip(request)
+	
+	# v2 Security Hardening: Strict Rate Limit
+	# 5 attempts per 5 minutes per IP
+	from app.infra import rate_limit
+	
+	allowed = await rate_limit.allow(
+		"2fa_verify:ip", 
+		client_ip, 
+		limit=5, 
+		window_seconds=300
+	)
+	if not allowed:
+		raise HTTPException(
+			status.HTTP_429_TOO_MANY_REQUESTS, 
+			detail="rate_limit_exceeded"
+		)
+		
+	# Also limit by challenge_id if possible, but payload.challenge_id is simpler to spoof?
+	# Better to limit by IP for brute force. 
+	# User-based limit would be better but we don't have user_id here easily without looking up challenge first.
+	# The service `verify_challenge` handles validity.
+	
 	try:
 		return await twofa.verify_challenge(
 			payload.challenge_id,

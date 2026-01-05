@@ -27,6 +27,10 @@ class AuthenticatedUser:
 	display_name: Optional[str] = None
 	roles: Tuple[str, ...] = ()
 	session_id: Optional[str] = None
+	# v2 Security Hardening
+	token_version: int = 0
+	is_2fa_verified: bool = False
+	is_university_verified: bool = False
 
 	def has_role(self, role: str) -> bool:
 		return role in self.roles
@@ -42,6 +46,7 @@ def verify_access_jwt(token: str) -> AuthenticatedUser:
 	- issuer="divan-api", audience="divan-fe"
 	- required claims: sub, sid, exp, iat, ver, campus_id
 	- roles can be list[str] or comma-separated string.
+	- Hardened: Extracts token_version and amr (MFA status)
 	"""
 	try:
 		payload = jwt_helper.decode_access(token)
@@ -66,6 +71,13 @@ def verify_access_jwt(token: str) -> AuthenticatedUser:
 		roles = ()
 
 	session_id = payload.get("sid")
+	
+	# v2 Security: Extract MFA status and token version
+	token_version = int(payload.get("token_version") or 0)
+	amr = payload.get("amr") or []
+	is_2fa_verified = "mfa" in amr if isinstance(amr, list) else False
+	
+	# Future: Check jti if added
 
 	return AuthenticatedUser(
 		id=sub,
@@ -74,6 +86,9 @@ def verify_access_jwt(token: str) -> AuthenticatedUser:
 		display_name=str(display_name) if display_name is not None else None,
 		roles=roles,
 		session_id=str(session_id).strip() if session_id is not None else None,
+		token_version=token_version,
+		is_2fa_verified=is_2fa_verified,
+		is_university_verified=bool(payload.get("is_university_verified", False)),
 	)
 
 
@@ -89,9 +104,29 @@ async def get_current_user(
 	In development we allow simple headers. In all other environments, headers are
 	ignored and a valid Bearer JWT is required.
 	"""
+	from app.infra.postgres import get_pool  # Lazy import to avoid circulars if any
+	
 	# Prefer bearer JWT when present
 	if credentials and credentials.scheme.lower() == "bearer":
 		user = verify_access_jwt(credentials.credentials)
+		
+		# v2 Hardening: Verify token_version against DB to allow instant revocation
+		pool = await get_pool()
+		async with pool.acquire() as conn:
+			# We fetch only the version to keep it lightweight. 
+			# In high-scale, cache this in Redis "user:v:{id}" -> int
+			current_version = await conn.fetchval(
+				"SELECT token_version FROM users WHERE id = $1", 
+				user.id
+			)
+			if current_version is not None and current_version > user.token_version:
+				# Token is older than current version -> Revoked
+				raise HTTPException(
+					status_code=status.HTTP_401_UNAUTHORIZED, 
+					detail="token_revoked",
+					headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"revoked\""}
+				)
+
 		_enforce_signed_intent_identity(request, user)
 		return user
 
@@ -99,7 +134,15 @@ async def get_current_user(
 	if settings.is_dev():
 		if x_user_id and x_campus_id:
 			roles = tuple(filter(None, (x_user_roles or "").split(","))) if x_user_roles else ()
-			user = AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles)
+			# Dev fallback users are not MFA verified by default unless roles implies it? 
+			# For safety, let's assume False unless manually overridden.
+			user = AuthenticatedUser(
+				id=x_user_id, 
+				campus_id=x_campus_id, 
+				roles=roles,
+				token_version=1,
+				is_2fa_verified=True # Allow dev tools to bypass MFA check if they use headers
+			)
 			_enforce_signed_intent_identity(request, user)
 			return user
 
@@ -131,7 +174,7 @@ async def get_optional_user(
 	if settings.is_dev():
 		if x_user_id and x_campus_id:
 			roles = tuple(filter(None, (x_user_roles or "").split(","))) if x_user_roles else ()
-			user = AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles)
+			user = AuthenticatedUser(id=x_user_id, campus_id=x_campus_id, roles=roles, is_2fa_verified=True)
 			_enforce_signed_intent_identity(request, user)
 			return user
 
@@ -140,9 +183,18 @@ async def get_optional_user(
 
 
 async def get_admin_user(user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
-	if user.has_role("admin"):
-		return user
-	raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")
+	if not user.has_role("admin"):
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")
+	
+	# v2 Security: Strict MFA check for admins
+	if not user.is_2fa_verified:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, 
+			detail="mfa_required",
+			headers={"X-MFA-Required": "true"}
+		)
+	
+	return user
 
 
 def require_roles(*required: Iterable[str]):

@@ -15,6 +15,24 @@ from app.infra.postgres import get_pool
 from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 
+def _inc_metrics(attr_name: str, *args, **kwargs) -> None:
+	try:
+		obj = getattr(obs_metrics, attr_name, None)
+		if obj and hasattr(obj, "inc"):
+			obj.inc()
+		elif callable(obj):
+			obj(*args, **kwargs)
+	except Exception:
+		pass
+
+def _inc_labels(attr_name: str, **labels) -> None:
+	try:
+		obj = getattr(obs_metrics, attr_name, None)
+		if obj and hasattr(obj, "labels"):
+			obj.labels(**labels).inc()
+	except Exception:
+		pass
+
 ACL_CACHE_TTL_SECONDS = 15 * 60
 
 
@@ -340,8 +358,27 @@ async def grant_role(
 				scope,
 				granted_by or actor_id,
 			)
-			obs_metrics.RBAC_USER_GRANTS.labels(role=role_row["name"], scope=str(scope or "global")).inc()
+			_inc_labels("RBAC_USER_GRANTS", role=role_row["name"], scope=str(scope or "global"))
+			
+			# v2 Security: Log Critical Action
+			from app.domain.identity import audit
+			await audit.log_event(
+				"role_granted", 
+				user_id=actor_id, # The admin who performed the action
+				meta={
+					"target_user_id": user_id, 
+					"role": role_row["name"], 
+					"scope": str(scope or "global")
+				}
+			)
+
 	await invalidate_acl_cache(user_id)
+	
+	# v2 Security: Revoke tokens to force re-auth/new claims
+	# This ensures the new role is reflected immediately and checks/balances are reset
+	from app.domain.identity import service
+	await service.revoke_user_tokens(user_id)
+	
 	return await list_user_roles(user_id)
 
 
@@ -356,6 +393,16 @@ async def revoke_role(
 	pool = await get_pool()
 	async with pool.acquire() as conn:
 		scope = request.campus_id or campus_id
+		# Fetch role name for audit before deleting
+		role_name = await conn.fetchval(
+			"""
+			SELECT r.name FROM roles r 
+			JOIN user_roles ur ON ur.role_id = r.id 
+			WHERE ur.user_id = $1 AND ur.role_id = $2 AND (ur.campus_id IS NOT DISTINCT FROM $3)
+			""", 
+			user_id, request.role_id, scope
+		)
+		
 		result = await conn.execute(
 			"""
 			DELETE FROM user_roles
@@ -369,5 +416,23 @@ async def revoke_role(
 		)
 	if result.endswith("0"):
 		raise RBACError("role_not_assigned")
+		
+	# v2 Security: Log Critical Action
+	from app.domain.identity import audit
+	await audit.log_event(
+		"role_revoked", 
+		user_id=actor_id, # The admin who performed the action
+		meta={
+			"target_user_id": user_id, 
+			"role": role_name or str(request.role_id), 
+			"scope": str(scope or "global")
+		}
+	)
+		
 	await invalidate_acl_cache(user_id)
+	
+	# v2 Security: Revoke tokens
+	from app.domain.identity import service
+	await service.revoke_user_tokens(user_id)
+	
 	return await list_user_roles(user_id)

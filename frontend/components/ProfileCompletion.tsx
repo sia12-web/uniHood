@@ -118,23 +118,35 @@ export default function ProfileCompletion({ profile, onNavigate }: ProfileComple
             <div className="p-4 md:p-6 space-y-3 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {items.map((item) => (
-                        <div
+                        <button
                             key={item.id}
+                            onClick={() => {
+                                if (item.isComplete) return;
+                                if (onNavigate) onNavigate(item.tab);
+                                // Small timeout to allow tab switch if needed
+                                setTimeout(() => {
+                                    const el = document.getElementById(`section-${item.id}`);
+                                    if (el) {
+                                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    }
+                                }, 50);
+                            }}
+                            disabled={item.isComplete}
                             className={cn(
-                                "flex items-center gap-3 p-3 rounded-xl border transition-all cursor-default",
+                                "flex items-center text-left gap-3 p-3 rounded-xl border transition-all w-full",
                                 item.isComplete
-                                    ? "bg-slate-50 border-slate-100 text-slate-500"
-                                    : "bg-white border-slate-200 hover:border-indigo-300 shadow-sm"
+                                    ? "bg-slate-50 border-slate-100 text-slate-500 cursor-default"
+                                    : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 shadow-sm cursor-pointer"
                             )}
                         >
                             <div className="shrink-0">
                                 {item.isComplete ? (
                                     <CheckCircle2 className="text-emerald-500" size={20} />
                                 ) : (
-                                    <Circle className="text-slate-300" size={20} />
+                                    <Circle className="text-slate-300 group-hover:text-indigo-400 transition-colors" size={20} />
                                 )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <div className={cn("text-sm font-bold truncate", item.isComplete ? "text-slate-500" : "text-slate-900")}>
                                     {item.label}
                                 </div>
@@ -142,14 +154,23 @@ export default function ProfileCompletion({ profile, onNavigate }: ProfileComple
                                     <p className="text-[11px] text-slate-500 font-medium truncate">{item.description}</p>
                                 )}
                             </div>
-                        </div>
+                            {!item.isComplete && <ArrowRight size={14} className="text-slate-300" />}
+                        </button>
                     ))}
                 </div>
 
                 {percentage < 100 && nextItem && (
                     <div className="pt-4 mt-2">
                         <button
-                            onClick={() => onNavigate?.(nextItem.tab)}
+                            onClick={() => {
+                                if (onNavigate) onNavigate(nextItem.tab);
+                                setTimeout(() => {
+                                    const el = document.getElementById(`section-${nextItem.id}`);
+                                    if (el) {
+                                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    }
+                                }, 50);
+                            }}
                             className="w-full flex items-center justify-between p-4 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all hover:translate-y-[-1px]"
                         >
                             <span>Up Next: {nextItem.label}</span>

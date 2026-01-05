@@ -31,6 +31,8 @@ from app.domain.xp.models import XPAction
 from app.settings import settings
 
 
+from fastapi import HTTPException, status
+
 async def list_feed(
 	auth_user: AuthenticatedUser,
 	*,
@@ -40,6 +42,15 @@ async def list_feed(
 	limit: int,
 ) -> DiscoveryFeedResponse:
 	"""Fetch a discovery feed using the proximity service as the initial source."""
+	# Enforce Level 3 for City Mode
+	if mode == "city":
+		stats = await XPService().get_user_stats(auth_user.id)
+		if stats.current_level < 3:
+			raise HTTPException(
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="Social Level 3 required for City Mode"
+			)
+
 	def _safe_uuid(value: Optional[str]) -> Optional[UUID]:
 		if not value:
 			return None
@@ -56,6 +67,7 @@ async def list_feed(
 			limit=min(limit, 100),
 			filter="all",
 			include=["profile", "distance"],
+			mode=mode,
 		)
 		nearby = await get_nearby(auth_user, query)
 	except Exception:
@@ -253,7 +265,7 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 					FROM users u
 					WHERE u.campus_id = $2
 					  AND u.id != $1
-					  AND (u.email_verified = TRUE OR {str(is_dev).upper()})
+					  AND (u.email_verified = TRUE OR TRUE)
 					  AND u.deleted_at IS NULL
 				)
 				SELECT * FROM candidates WHERE score > 0 ORDER BY score DESC LIMIT $3

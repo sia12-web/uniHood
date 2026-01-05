@@ -275,7 +275,7 @@ class LeaderboardAccrual:
 		awarded_users: List[str] = []
 		
 		import logging
-		logger = logging.getLogger("divan.leaderboards")
+		logger = logging.getLogger("unihood.leaderboards")
 		logger.info(f"[record_activity_ended] user_ids={user_ids} winner_id={winner_id} duration={duration_seconds}s moves={move_count}")
 		# Validate game duration
 		if not policy.validate_game_duration(duration_seconds):

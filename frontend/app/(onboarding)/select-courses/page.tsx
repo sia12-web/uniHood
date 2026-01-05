@@ -180,7 +180,7 @@ export default function SelectCoursesPage() {
                                     type="text"
                                     id="custom-course"
                                     className="block w-full rounded-md border-slate-200 pl-10 pr-3 py-3 text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm bg-slate-50"
-                                    placeholder="Add a course (e.g. MATH 201)"
+                                    placeholder="Select or search for a course (e.g. MATH 201)"
                                     value={customInput}
                                     onChange={(e) => setCustomInput(e.target.value)}
                                     onKeyDown={(e) => {

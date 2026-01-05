@@ -298,7 +298,7 @@ export default function VibesPage() {
                                     onChange={(e) => setGender(e.target.value)}
                                     className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
                                 >
-                                    <option value="">Select</option>
+                                    <option value="" disabled hidden>Select your gender</option>
                                     {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
                                 </select>
                             </div>
@@ -364,7 +364,7 @@ export default function VibesPage() {
                                 onChange={e => setRelationshipStatus(e.target.value)}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
                             >
-                                <option value="">Select</option>
+                                <option value="" disabled hidden>Select your status</option>
                                 {RELATIONSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
@@ -375,7 +375,7 @@ export default function VibesPage() {
                                 onChange={e => setSexualOrientation(e.target.value)}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
                             >
-                                <option value="">Select</option>
+                                <option value="" disabled hidden>Select your orientation</option>
                                 {ORIENTATIONS.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
@@ -420,7 +420,7 @@ export default function VibesPage() {
                                 onChange={e => setDrinking(e.target.value)}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600"
                             >
-                                <option value="">-</option>
+                                <option value="" disabled hidden>Select</option>
                                 {LIFESTYLE_OPTIONS.drinking.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
@@ -431,7 +431,7 @@ export default function VibesPage() {
                                 onChange={e => setSmoking(e.target.value)}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600"
                             >
-                                <option value="">-</option>
+                                <option value="" disabled hidden>Select</option>
                                 {LIFESTYLE_OPTIONS.smoking.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
@@ -442,7 +442,7 @@ export default function VibesPage() {
                                 onChange={e => setWorkout(e.target.value)}
                                 className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600"
                             >
-                                <option value="">-</option>
+                                <option value="" disabled hidden>Select</option>
                                 {LIFESTYLE_OPTIONS.workout.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>

@@ -126,6 +126,7 @@ export default function SelectUniversityPage() {
                             value={selectedCampusId}
                             onChange={(e) => setSelectedCampusId(e.target.value)}
                         >
+                            <option value="" disabled hidden>Select your university</option>
                             {campuses.map((campus) => (
                                 <option key={campus.id} value={campus.id}>
                                     {campus.name}

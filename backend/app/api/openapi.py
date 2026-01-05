@@ -8,9 +8,9 @@ from app.settings import settings
 def custom_openapi(app):
     def _gen():
         openapi_schema = get_openapi(
-            title="Divan API",
+            title="uniHood API",
             version=settings.git_commit[:7] if settings.git_commit else "dev",
-            description="Divan backend API",
+            description="uniHood backend API",
             routes=app.routes,
         )
         comps = openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})

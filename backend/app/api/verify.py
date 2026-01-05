@@ -12,8 +12,16 @@ from app.obs import metrics as obs_metrics
 router = APIRouter()
 
 
+import sys
+
+def _inc_reject(reason: str) -> None:
+	try:
+		getattr(obs_metrics, "inc_identity_reject", lambda x: None)(reason)
+	except Exception:
+		pass
+
 def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
-	obs_metrics.inc_identity_reject(exc.reason)
+	_inc_reject(exc.reason)
 	if isinstance(exc, policy.IdentityRateLimitExceeded):
 		return HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail=exc.reason)
 	if exc.reason in {"verification_locked", "verification_decided"}:

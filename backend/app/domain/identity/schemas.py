@@ -147,6 +147,8 @@ class ProfileOut(BaseModel):
 	languages: list[str] = Field(default_factory=list)
 	profile_prompts: list[dict[str, str]] = Field(default_factory=list)
 	lifestyle: dict[str, str] = Field(default_factory=dict)
+	reputation_score: float = 0.0
+	review_count: int = 0
 
 
 class ProfilePatch(BaseModel):
@@ -204,6 +206,10 @@ class GalleryCommitRequest(BaseModel):
 
 class GalleryRemoveRequest(BaseModel):
 	key: str
+
+
+class PhotosSortRequest(BaseModel):
+	keys: list[str]
 
 
 class VerificationStatus(BaseModel):

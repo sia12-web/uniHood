@@ -55,6 +55,19 @@ def _refresh_used_key(token_hash: str) -> str:
 def _build_access_token(user: models.User, session_id: UUID) -> str:
 	now = int(time.time())
 	exp = now + ACCESS_TTL_SECONDS
+	# v2 Hardening: Add jti for kill-switch and token_version for instant revocation
+	jti = secrets.token_hex(16)
+	
+	# Determine MFA status for AMR claim
+	# In this flow, we don't have direct context of "did they just do MFA?" easily unless passed down.
+	# For now, we'll assume if they have a session, they are authenticated.
+	# Real implementation should track "mfa_completed" in the session row or Redis if possible.
+	# For Phase 1 MVP+, we'll just omit 'mfa' here and let 'step_up' logic add it later?
+	# Actually, the 'AuthenticatedUser' model expects 'amr'. 
+	# Let's add a placeholder or derived amr.
+	amr = ["pwd"] 
+	# (Real MFA integration would append 'mfa' to this list upon 2FA verification)
+	
 	payload = {
 		"sub": str(user.id),
 		"sid": str(session_id),
@@ -67,6 +80,9 @@ def _build_access_token(user: models.User, session_id: UUID) -> str:
 		"is_university_verified": user.is_university_verified,
 		"exp": exp,
 		"iat": now,
+		"jti": jti,
+		"token_version": user.token_version,
+		"amr": amr,
 	}
 	return jwt_helper.encode_access(payload)
 

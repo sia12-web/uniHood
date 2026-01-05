@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 import asyncpg
 from argon2 import exceptions as argon_exc
 
-from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer, rbac
+from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer, rbac, audit
 from app.infra.password import PASSWORD_HASHER, check_needs_rehash
 from app.infra.postgres import get_pool
 import re
@@ -23,6 +23,12 @@ HANDLE_ALLOWED_RE = re.compile(r"[^a-z0-9-]")
 
 VERIFICATION_TTL_SECONDS = 24 * 3600
 _PASSWORD_HASHER = PASSWORD_HASHER
+
+def _inc_metrics(func_name: str, *args, **kwargs) -> None:
+	try:
+		getattr(obs_metrics, func_name, lambda *a, **k: None)(*args, **kwargs)
+	except Exception:
+		pass
 
 MAIN_CAMPUS_ID = UUID("33333333-3333-3333-3333-333333333333")
 MCGILL_CAMPUS_ID = UUID("c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2")
@@ -285,7 +291,7 @@ async def register(payload: schemas.RegisterRequest, *, ip_address: str) -> sche
 		if reserved:
 			await policy.release_handle(handle)
 
-	obs_metrics.inc_identity_register()
+	_inc_metrics("inc_identity_register")
 	
 	# Send verification email
 	# if not settings.is_dev():
@@ -486,3 +492,30 @@ async def refresh(
 async def logout(payload: schemas.LogoutRequest) -> None:
 	"""Revoke a session and clear its refresh token."""
 	await sessions.revoke_session(str(payload.user_id), payload.session_id)
+
+
+async def revoke_user_tokens(user_id: str) -> int:
+	"""Revoke all token access for a user by incrementing their token_version.
+
+	This is a V2 Security Hardening feature that allows instant revocation of all 
+	issued JWTs without needing to track individual jti deny-lists for every access token.
+	"""
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		new_version = await conn.fetchval(
+			"""
+			UPDATE users 
+			SET token_version = token_version + 1, updated_at = NOW()
+			WHERE id = $1
+			RETURNING token_version
+			""",
+			user_id
+		)
+		# Also revoke all refresh sessions for good measure
+		# (Though arguably token_version invalidating access tokens is the primary goal,
+		# revoking sessions cleans up the refresh token store too)
+		await sessions.revoke_all_sessions(user_id)
+		
+	obs_metrics.inc_identity_revoke_all()
+	await audit.log_event("tokens_revoked_all", user_id=user_id, meta={"new_version": str(new_version)})
+	return new_version or 0

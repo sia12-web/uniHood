@@ -187,7 +187,7 @@ export default function PassionsPage() {
 								}
 							}}
 							maxLength={40}
-							placeholder={passions.length === 0 ? "e.g., Hackathons" : "Add another passion"}
+							placeholder={passions.length === 0 ? "Select or search passions" : "Add another passion"}
 							className="grow rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-indigo-600"
 						/>
 						<button

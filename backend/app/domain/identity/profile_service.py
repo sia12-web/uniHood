@@ -102,6 +102,8 @@ def _to_profile(user: models.User, courses: Optional[list[schemas.Course]] = Non
 		height=user.height,
 		lifestyle=user.lifestyle or {},
 		profile_prompts=user.profile_prompts or [],
+		reputation_score=user.reputation_score,
+		review_count=user.review_count,
 	)
 
 
@@ -585,5 +587,64 @@ async def remove_gallery_image(auth_user: AuthenticatedUser, request: schemas.Ga
 	courses_for_profile = await courses_service.get_user_courses(user.id)
 	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	obs_metrics.inc_profile_update()
+	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
+	return await _augment_with_xp(profile, str(auth_user.id))
+
+
+async def reorder_photos(auth_user: AuthenticatedUser, request: schemas.PhotosSortRequest) -> schemas.ProfileOut:
+	keys = request.keys
+	if not keys:
+		raise policy.IdentityPolicyError("no_keys_provided")
+	
+	# Validate prefix for all keys
+	prefix = f"{s3.DEFAULT_BUCKET_PREFIX}/{auth_user.id}/"
+	for key in keys:
+		if not key.startswith(prefix):
+			raise policy.IdentityPolicyError("invalid_photo_key")
+
+	new_avatar_key = keys[0]
+	new_gallery_keys = keys[1:]
+
+	pool = await get_pool()
+	async with pool.acquire() as conn:
+		async with conn.transaction():
+			user = await _load_user(conn, auth_user.id, auth_user=auth_user)
+			
+			# Map existing to preserve metadata if any
+			existing = {img.key: img for img in user.profile_gallery}
+			if user.avatar_key:
+				existing[user.avatar_key] = models.ProfileImage(key=user.avatar_key, url=user.avatar_url)
+
+			reordered_gallery = []
+			for k in new_gallery_keys:
+				if k in existing:
+					reordered_gallery.append(existing[k])
+				else:
+					url = f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{k}"
+					reordered_gallery.append(models.ProfileImage(key=k, url=url))
+
+			new_avatar_url = f"{s3.DEFAULT_BASE_URL.rstrip('/')}/{new_avatar_key}"
+			
+			await conn.execute(
+				"""
+				UPDATE users
+				SET avatar_key = $1,
+					avatar_url = $2,
+					profile_gallery = $3::jsonb,
+					updated_at = NOW()
+				WHERE id = $4
+				""",
+				new_avatar_key,
+				new_avatar_url,
+				_serialize_gallery(reordered_gallery[:MAX_GALLERY_ITEMS]),
+				auth_user.id,
+			)
+			user.avatar_key = new_avatar_key
+			user.avatar_url = new_avatar_url
+			user.profile_gallery = reordered_gallery[:MAX_GALLERY_ITEMS]
+
+	await _invalidate_profile_cache(str(auth_user.id))
+	courses_for_profile = await courses_service.get_user_courses(user.id)
+	profile = _to_profile(user, [schemas.Course(code=row.code, name=row.code) for row in courses_for_profile])
 	await profile_public.rebuild_public_profile(auth_user.id, viewer_scope="everyone", force=True)
 	return await _augment_with_xp(profile, str(auth_user.id))

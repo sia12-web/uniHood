@@ -216,6 +216,9 @@ class User:
 	languages: list[str] = field(default_factory=list)
 	profile_prompts: list[dict[str, str]] = field(default_factory=list)
 	lifestyle: dict[str, str] = field(default_factory=dict)
+	reputation_score: float = 0.0
+	review_count: int = 0
+	token_version: int = 1
 
 	@classmethod
 	def from_record(cls, record: RecordLike) -> "User":
@@ -256,6 +259,8 @@ class User:
 			languages=_coerce_json_to_list(record.get("languages")),
 			profile_prompts=_coerce_json_to_list_any(record.get("profile_prompts")),
 			lifestyle=_coerce_json_to_dict(record.get("lifestyle")),
+			reputation_score=float(record.get("reputation_score", 0.0)),
+			review_count=int(record.get("review_count", 0)),
 		)
 
 

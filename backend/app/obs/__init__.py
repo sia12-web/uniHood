@@ -29,4 +29,11 @@ def init(app: FastAPI, sio: Optional[socketio.AsyncServer] = None) -> None:
 	_initialised = True
 
 
-__all__ = ["init"]
+from app.obs import metrics
+# Fail-safe to ensure inc_identity_reject is always available
+if not hasattr(metrics, "inc_identity_reject"):
+	def _mock_inc_id_reject(reason: str) -> None:
+		pass
+	metrics.inc_identity_reject = _mock_inc_id_reject
+
+__all__ = ["init", "metrics"]

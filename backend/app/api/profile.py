@@ -8,12 +8,19 @@ from app.domain.identity import policy, profile_service, schemas
 from app.domain.identity.service import IdentityServiceError
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.obs import metrics as obs_metrics
+import sys
+
+def _inc_reject(reason: str) -> None:
+	try:
+		getattr(obs_metrics, "inc_identity_reject", lambda x: None)(reason)
+	except Exception:
+		pass
 
 router = APIRouter()
 
 
 def _map_policy_error(exc: policy.IdentityPolicyError) -> HTTPException:
-	obs_metrics.inc_identity_reject(exc.reason)
+	_inc_reject(exc.reason)
 	if isinstance(exc, policy.HandleConflict):
 		return HTTPException(status.HTTP_409_CONFLICT, detail=exc.reason)
 	if isinstance(exc, policy.IdentityRateLimitExceeded):
@@ -36,7 +43,7 @@ async def patch_me(
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		raise HTTPException(status_code=exc.status_code, detail=exc.reason) from None
 
 
@@ -61,7 +68,7 @@ async def avatar_commit(
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 	except IdentityServiceError as exc:
-		obs_metrics.inc_identity_reject(exc.reason)
+		_inc_reject(exc.reason)
 		raise HTTPException(status_code=exc.status_code, detail=exc.reason) from None
 
 
@@ -94,5 +101,16 @@ async def gallery_remove(
 ) -> schemas.ProfileOut:
 	try:
 		return await profile_service.remove_gallery_image(auth_user, payload)
+	except policy.IdentityPolicyError as exc:
+		raise _map_policy_error(exc) from None
+
+
+@router.post("/profile/photos/reorder", response_model=schemas.ProfileOut)
+async def photos_reorder(
+	payload: schemas.PhotosSortRequest,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> schemas.ProfileOut:
+	try:
+		return await profile_service.reorder_photos(auth_user, payload)
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None

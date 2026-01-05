@@ -100,7 +100,7 @@ export default function CookiesPage() {
                                             </span>
                                         ) : (
                                             <button
-                                                onClick={() => handleToggle(cat.id as any)}
+                                                onClick={() => handleToggle(cat.id as keyof Omit<CookieConsent, "essential" | "acknowledgedAt">)}
                                                 className={`relative h-7 w-12 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${consent[cat.id as keyof CookieConsent] ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-700"
                                                     }`}
                                             >
@@ -131,8 +131,8 @@ export default function CookiesPage() {
                         onClick={handleSave}
                         disabled={saved}
                         className={`flex items-center justify-center gap-2 rounded-2xl px-8 py-4 text-sm font-bold shadow-xl transition-all active:scale-95 ${saved
-                                ? "bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none"
-                                : "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-500 dark:shadow-none"
+                            ? "bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none"
+                            : "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-500 dark:shadow-none"
                             }`}
                     >
                         {saved ? (

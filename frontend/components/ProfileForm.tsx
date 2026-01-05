@@ -296,13 +296,23 @@ export default function ProfileForm({
 
 			<form onSubmit={handleSubmitForm} className="flex flex-col gap-6">
 				<div className="flex flex-col md:flex-row gap-8">
-					<div className="shrink-0 flex flex-col gap-4">
+					<div id="section-avatar" className="shrink-0 flex flex-col gap-4">
 						<AvatarUploader
 							avatarUrl={current.avatar_url ?? null}
 							onUpload={handleAvatarChange}
 							disabled={saving}
 							onChange={(next) => syncProfile(next)}
 						/>
+						<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-center">
+							<div className="flex items-center justify-center gap-1">
+								<span className="text-2xl font-bold text-slate-900">
+									{current.reputation_score ? current.reputation_score.toFixed(1) : "New"}
+								</span>
+								{current.reputation_score ? <span className="text-amber-400 text-lg">★</span> : null}
+							</div>
+							<div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Reputation</div>
+							<div className="text-xs text-slate-400 mt-1">{current.review_count || 0} Reviews</div>
+						</div>
 					</div>
 
 					<div className="flex-1 flex flex-col gap-4">
@@ -314,17 +324,17 @@ export default function ProfileForm({
 								maxLength={50}
 								onChange={(event) => setDisplayName(event.target.value)}
 								placeholder="Your name"
-								className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+								className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 							/>
 						</label>
-						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
+						<label id="section-bio" className="flex flex-col gap-1.5 text-sm text-slate-700">
 							<span className="font-semibold text-slate-900">Bio</span>
 							<textarea
 								value={bio}
 								onChange={(event) => setBio(event.target.value)}
 								maxLength={500}
 								rows={3}
-								className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition resize-none"
+								className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all resize-none shadow-sm"
 							/>
 							<span className="text-xs text-slate-400 text-right">{characterCount}</span>
 						</label>
@@ -337,9 +347,9 @@ export default function ProfileForm({
 						<select
 							value={gender}
 							onChange={(event) => setGender(event.target.value)}
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition bg-white"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						>
-							<option value="">Select...</option>
+							<option value="" disabled hidden>Select your gender</option>
 							<option value="Male">Male</option>
 							<option value="Female">Female</option>
 							<option value="Non-binary">Non-binary</option>
@@ -352,7 +362,7 @@ export default function ProfileForm({
 							type="date"
 							value={birthday}
 							onChange={(event) => setBirthday(event.target.value)}
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>
 				</div>
@@ -366,7 +376,7 @@ export default function ProfileForm({
 							onChange={(event) => setHometown(event.target.value)}
 							maxLength={80}
 							placeholder="e.g. London, UK"
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>
 					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
@@ -376,7 +386,7 @@ export default function ProfileForm({
 							value={height}
 							onChange={(event) => setHeight(event.target.value)}
 							placeholder="e.g. 175"
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>
 				</div>
@@ -388,11 +398,11 @@ export default function ProfileForm({
 						value={languages}
 						onChange={(event) => setLanguages(event.target.value)}
 						placeholder="English, Spanish, French..."
-						className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+						className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 					/>
 				</label>
 
-				<div className="grid gap-6 md:grid-cols-2 pt-2">
+				<div id="section-details" className="grid gap-6 md:grid-cols-2 pt-2">
 					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
 						<span className="font-semibold text-slate-900">Major or Program</span>
 						<input
@@ -400,8 +410,8 @@ export default function ProfileForm({
 							value={major}
 							onChange={(event) => setMajor(event.target.value)}
 							maxLength={80}
-							placeholder="e.g., Computer Science"
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							placeholder="Select your major"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>
 					<label className="flex flex-col gap-1.5 text-sm text-slate-700">
@@ -412,13 +422,13 @@ export default function ProfileForm({
 							onChange={(event) => setGraduationYear(event.target.value)}
 							min={gradYearMin}
 							max={gradYearMax}
-							placeholder="2027"
-							className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							placeholder="Select your year"
+							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>
 				</div>
 
-				<section className="flex flex-col gap-2 pt-2">
+				<section id="section-passions" className="flex flex-col gap-2 pt-2">
 					<div className="flex flex-col gap-1">
 						<span className="text-sm font-semibold text-slate-900">Passions</span>
 						<p className="text-xs text-slate-500">
@@ -453,21 +463,21 @@ export default function ProfileForm({
 							onChange={(event) => setPassionDraft(event.target.value.slice(0, 40))}
 							onKeyDown={handlePassionKeyDown}
 							maxLength={40}
-							placeholder="Add more..."
-							className="grow rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+							placeholder="Select or search passions"
+							className="grow rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</div>
 				</section>
 
-				<label className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
+				<label id="section-vision" className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
 					<span className="font-semibold text-slate-900">10-Year Vision</span>
 					<input
 						type="text"
 						value={current.ten_year_vision || ""}
 						onChange={(event) => syncProfile({ ...current, ten_year_vision: event.target.value })}
 						maxLength={60}
-						placeholder="How do you see yourself in the future? (Max 60 chars)"
-						className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+						placeholder="Describe your 10-year vision..."
+						className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 					/>
 				</label>
 
@@ -480,39 +490,39 @@ export default function ProfileForm({
 						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
 							<span className="font-medium text-xs text-slate-500 uppercase">Instagram</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
+								<span className="absolute left-3 top-3 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.instagram || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
 									maxLength={30}
-									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+									className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-8 pr-4 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 								/>
 							</div>
 						</label>
 						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
 							<span className="font-medium text-xs text-slate-500 uppercase">Twitter / X</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
+								<span className="absolute left-3 top-3 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.twitter || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
 									maxLength={30}
-									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+									className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-8 pr-4 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 								/>
 							</div>
 						</label>
 						<label className="flex flex-col gap-1.5 text-sm text-slate-700">
 							<span className="font-medium text-xs text-slate-500 uppercase">TikTok</span>
 							<div className="relative">
-								<span className="absolute left-3 top-2.5 text-slate-400">@</span>
+								<span className="absolute left-3 top-3 text-slate-400">@</span>
 								<input
 									type="text"
 									value={socialLinks.tiktok || ""}
 									onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
 									maxLength={30}
-									className="w-full rounded-md border border-slate-300 py-2.5 pl-7 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+									className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-8 pr-4 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 								/>
 							</div>
 						</label>
@@ -524,7 +534,7 @@ export default function ProfileForm({
 								onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
 								maxLength={100}
 								placeholder="https://"
-								className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+								className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 							/>
 						</label>
 						<label className="flex flex-col gap-1.5 text-sm text-slate-700 md:col-span-4 mt-2">
@@ -535,7 +545,7 @@ export default function ProfileForm({
 								onChange={(e) => setSocialLinks({ ...socialLinks, website: e.target.value })}
 								maxLength={200}
 								placeholder="https://"
-								className="rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition"
+								className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 							/>
 						</label>
 					</div>

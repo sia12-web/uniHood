@@ -12,33 +12,47 @@ log = logging.getLogger(__name__)
 _idem = {"hit": 0, "miss": 0, "conflict": 0, "unavail": 0}
 
 
+try:
+	IDENTITY_REJECTS = Counter(
+		"unihood_identity_rejects_total",
+		"Identity operation rejects",
+		["reason"],
+	)
+except Exception:
+	# Fallback if already registered or other issue
+	IDENTITY_REJECTS = None
+
+def inc_identity_reject(reason: str) -> None:
+	if IDENTITY_REJECTS:
+		IDENTITY_REJECTS.labels(reason=reason).inc()
+
 REQUEST_COUNTER = Counter(
-	"divan_http_requests_total",
+	"unihood_http_requests_total",
 	"Total HTTP requests processed",
 	["route", "method", "status"],
 )
 
 REQUEST_LATENCY = Histogram(
-	"divan_http_request_duration_seconds",
+	"unihood_http_request_duration_seconds",
 	"HTTP request latency in seconds",
 	["route", "method"],
 	buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0),
 )
 
 SOCKET_CLIENTS = Gauge(
-	"divan_socketio_clients",
+	"unihood_socketio_clients",
 	"Active Socket.IO clients per namespace",
 	["namespace"],
 )
 
 COMM_SOCKET_CONNECTIONS = Gauge(
-	"divan_comm_socket_connections_active",
+	"unihood_comm_socket_connections_active",
 	"Active Socket.IO connections for communities namespaces",
 	["namespace"],
 )
 
 SOCKET_EVENTS = Counter(
-	"divan_socketio_events_total",
+	"unihood_socketio_events_total",
 	"Socket.IO events emitted per namespace",
 	["namespace", "event"],
 )
@@ -59,274 +73,274 @@ INTENTS_REPLAY = Counter(
 )
 
 PRESENCE_HEARTBEATS = Counter(
-	"divan_presence_heartbeats_total",
+	"unihood_presence_heartbeats_total",
 	"Presence heartbeats accepted",
 	["campus_id"],
 )
 
 PRESENCE_REJECTS = Counter(
-	"divan_presence_rejects_total",
+	"unihood_presence_rejects_total",
 	"Presence heartbeats rejected",
 	["reason"],
 )
 
 PRESENCE_SWEEPER_TRIMS = Counter(
-	"divan_presence_sweeper_trim_total",
+	"unihood_presence_sweeper_trim_total",
 	"Presence GEO members removed by stale sweeper",
 )
 
 COMM_NOTIFICATION_INSERT = Counter(
-	"divan_comm_notif_insert_total",
+	"unihood_comm_notif_insert_total",
 	"Communities notifications persisted",
 	["result"],
 )
 
 COMM_NOTIFICATION_EMIT_FAILURES = Counter(
-	"divan_comm_notif_emit_failures_total",
+	"unihood_comm_notif_emit_failures_total",
 	"Communities notification emit failures",
 	["stream"],
 )
 
 COMM_NOTIFICATION_OUTBOUND = Counter(
-	"divan_comm_notif_outbound_total",
+	"unihood_comm_notif_outbound_total",
 	"Communities notifications queued for outbound delivery",
 	["channel"],
 )
 
 COMM_PRESENCE_ONLINE_USERS = Gauge(
-	"divan_comm_presence_online_users",
+	"unihood_comm_presence_online_users",
 	"Communities presence online users",
 	["scope"],
 )
 
 PROXIMITY_QUERIES = Counter(
-	"divan_proximity_queries_total",
+	"unihood_proximity_queries_total",
 	"Nearby proximity queries",
 	["radius"],
 )
 
 PROXIMITY_RESULTS = Summary(
-	"divan_proximity_results_avg",
+	"unihood_proximity_results_avg",
 	"Nearby query result sizes",
 )
 
 PRESENCE_ONLINE = Gauge(
-	"divan_presence_online_gauge",
+	"unihood_presence_online_gauge",
 	"Active presence users per campus",
 	["campus_id"],
 )
 
 PRESENCE_HEARTBEAT_MISS = Counter(
-	"divan_presence_heartbeat_miss_total",
+	"unihood_presence_heartbeat_miss_total",
 	"Presence heartbeats missed (stale entries removed)",
 	["campus_id"],
 )
 
 RATE_LIMITED_EVENTS = Counter(
-	"divan_rate_limited_total",
+	"unihood_rate_limited_total",
 	"Events dropped due to rate limiting",
 	["kind"],
 )
 
 INVITES_SENT = Counter(
-	"divan_invites_sent_total",
+	"unihood_invites_sent_total",
 	"Invites sent",
 	["result"],
 )
 
 INVITES_ACCEPTED = Counter(
-	"divan_invites_accept_total",
+	"unihood_invites_accept_total",
 	"Invites accepted",
 )
 
 FRIENDSHIPS_ACCEPTED = Counter(
-	"divan_friendships_accepted_total",
+	"unihood_friendships_accepted_total",
 	"Friendships accepted",
 )
 
 BLOCKS_TOTAL = Counter(
-	"divan_blocks_total",
+	"unihood_blocks_total",
 	"Block operations",
 	["action"],
 )
 COMMUNITY_REACTIONS_CREATED = Counter(
-	"divan_community_reactions_created_total",
+	"unihood_community_reactions_created_total",
 	"Reactions created via communities endpoints",
 )
 COMMUNITY_GROUPS_CREATED = Counter(
-	"divan_community_groups_created_total",
+	"unihood_community_groups_created_total",
 	"Groups created via communities API",
 )
 COMMUNITY_POSTS_CREATED = Counter(
-	"divan_community_posts_created_total",
+	"unihood_community_posts_created_total",
 	"Posts created via communities API",
 )
 COMMUNITY_COMMENTS_CREATED = Counter(
-	"divan_community_comments_created_total",
+	"unihood_community_comments_created_total",
 	"Comments created via communities API",
 )
 EVENTS_CREATED = Counter(
-	"divan_events_created_total",
+	"unihood_events_created_total",
 	"Events created via communities API",
 )
 EVENT_RSVPS_UPDATED = Counter(
-	"divan_event_rsvps_updated_total",
+	"unihood_event_rsvps_updated_total",
 	"Event RSVP upserts segmented by resulting action",
 	["action"],
 )
 EVENT_WAITLIST_PROMOTIONS = Counter(
-	"divan_event_waitlist_promotions_total",
+	"unihood_event_waitlist_promotions_total",
 	"Event waitlist promotions processed",
 )
 EVENT_REMINDERS_SENT = Counter(
-	"divan_event_reminders_sent_total",
+	"unihood_event_reminders_sent_total",
 	"Event reminders dispatched",
 	["offset_hours"],
 )
 EVENT_REMINDERS_SKIPPED = Counter(
-	"divan_event_reminders_skipped_total",
+	"unihood_event_reminders_skipped_total",
 	"Event reminders skipped due to dedupe or schedule",
 	["reason"],
 )
 FEED_FANOUT_EVENTS = Counter(
-	"divan_feed_fanout_events_total",
+	"unihood_feed_fanout_events_total",
 	"Feed fan-out events processed",
 )
 FEED_ENTRIES_WRITTEN = Counter(
-	"divan_feed_entries_written_total",
+	"unihood_feed_entries_written_total",
 	"Feed entries written to persistent storage",
 )
 FEED_REDIS_ZADD_FAILURES = Counter(
-	"divan_feed_redis_zadd_failures_total",
+	"unihood_feed_redis_zadd_failures_total",
 	"Redis feed cache write failures",
 )
 FEED_RANK_RECOMPUTE_DURATION = Histogram(
-	"divan_feed_rank_recompute_duration_seconds",
+	"unihood_feed_rank_recompute_duration_seconds",
 	"Duration of feed rank recompute jobs",
 	buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
 )
 
 INVITE_SEND_REJECTS = Counter(
-	"divan_invites_send_rejects_total",
+	"unihood_invites_send_rejects_total",
 	"Rejected invite send attempts",
 	["reason"],
 )
 
 CHAT_SEND = Counter(
-	"divan_chat_send_total",
+	"unihood_chat_send_total",
 	"Chat messages sent",
 )
 
 CHAT_DELIVERED_UPDATES = Counter(
-	"divan_chat_delivered_updates_total",
+	"unihood_chat_delivered_updates_total",
 	"Chat delivery acknowledgements",
 )
 
 CHAT_READ_UPDATES = Counter(
-	"divan_chat_read_updates_total",
+	"unihood_chat_read_updates_total",
 	"Chat read receipts",
 )
 
 ROOMS_CREATED = Counter(
-	"divan_rooms_created_total",
+	"unihood_rooms_created_total",
 	"Rooms created",
 )
 
 ROOMS_JOIN = Counter(
-	"divan_rooms_join_total",
+	"unihood_rooms_join_total",
 	"Room join operations",
 )
 
 ROOMS_SEND = Counter(
-	"divan_rooms_send_total",
+	"unihood_rooms_send_total",
 	"Room broadcast sends",
 )
 
 ACTIVITIES_CREATED = Counter(
-	"divan_activities_created_total",
+	"unihood_activities_created_total",
 	"Activities created",
 	["kind"],
 )
 
 ABUSE_VELOCITY_TRIPS = Counter(
-	"divan_abuse_velocity_trips_total",
+	"unihood_abuse_velocity_trips_total",
 	"Velocity trips recorded by the moderation write gate",
 	["surface"],
 )
 
 RESTRICTIONS_ACTIVE_GAUGE = Gauge(
-	"divan_restrictions_active",
+	"unihood_restrictions_active",
 	"Active moderation restrictions",
 	["mode", "scope"],
 )
 
 REPUTATION_BAND_GAUGE = Gauge(
-	"divan_reputation_band",
+	"unihood_reputation_band",
 	"Current reputation band observations",
 	["band"],
 )
 
 HONEY_TRIPS_TOTAL = Counter(
-	"divan_honey_trips_total",
+	"unihood_honey_trips_total",
 	"Honey action trips detected",
 )
 
 SHADOW_WRITES_TOTAL = Counter(
-	"divan_shadow_writes_total",
+	"unihood_shadow_writes_total",
 	"Shadow restrictions applied to writes",
 	["surface"],
 )
 
 CAPTCHA_REQUIRED_TOTAL = Counter(
-	"divan_captcha_required_total",
+	"unihood_captcha_required_total",
 	"Captcha requirements issued by the moderation gate",
 )
 
 ACTIVITIES_COMPLETED = Counter(
-	"divan_activities_completed_total",
+	"unihood_activities_completed_total",
 	"Activities completed",
 	["kind"],
 )
 
 LEADERBOARD_EVENTS = Counter(
-	"divan_lb_events_processed_total",
+	"unihood_lb_events_processed_total",
 	"Leaderboard events processed",
 	["stream"],
 )
 
 LEADERBOARD_SNAPSHOTS = Counter(
-	"divan_lb_snapshots_total",
+	"unihood_lb_snapshots_total",
 	"Leaderboard snapshots taken",
 	["period", "scope"],
 )
 
-REDIS_UP = Gauge("divan_redis_up", "Redis availability (1=up,0=down)")
-REDIS_LATENCY = Summary("divan_redis_latency_seconds", "Redis ping latency (seconds)")
+REDIS_UP = Gauge("unihood_redis_up", "Redis availability (1=up,0=down)")
+REDIS_LATENCY = Summary("unihood_redis_latency_seconds", "Redis ping latency (seconds)")
 
-POSTGRES_UP = Gauge("divan_postgres_up", "Postgres availability (1=up,0=down)")
-POSTGRES_LATENCY = Summary("divan_postgres_latency_seconds", "Postgres ping latency (seconds)")
+POSTGRES_UP = Gauge("unihood_postgres_up", "Postgres availability (1=up,0=down)")
+POSTGRES_LATENCY = Summary("unihood_postgres_latency_seconds", "Postgres ping latency (seconds)")
 
 BACKGROUND_RUNS = Counter(
-	"divan_jobs_runs_total",
+	"unihood_jobs_runs_total",
 	"Background job executions",
 	["name", "result"],
 )
 
 BACKGROUND_DURATION = Histogram(
-	"divan_jobs_duration_seconds",
+	"unihood_jobs_duration_seconds",
 	"Background job duration",
 	["name"],
 	buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 15.0, 30.0, 60.0),
 )
 
 SEARCH_QUERIES = Counter(
-	"divan_search_queries_total",
+	"unihood_search_queries_total",
 	"Search queries executed",
 	["kind"],
 )
 
 SEARCH_LATENCY = Histogram(
-	"divan_search_latency_seconds",
+	"unihood_search_latency_seconds",
 	"Search latency in seconds",
 	["kind"],
 	buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0),
@@ -375,198 +389,193 @@ ANTI_GAMING_FLAGS = Counter(
 )
 
 IDENTITY_REGISTER = Counter(
-	"divan_identity_register_total",
+	"unihood_identity_register_total",
 	"Successful user registrations",
 )
 
 IDENTITY_VERIFY = Counter(
-	"divan_identity_verify_total",
+	"unihood_identity_verify_total",
 	"Email verifications completed",
 )
 
 IDENTITY_LOGIN = Counter(
-	"divan_identity_login_total",
+	"unihood_identity_login_total",
 	"Logins issued",
 )
 
 IDENTITY_RESEND = Counter(
-	"divan_identity_resend_total",
+	"unihood_identity_resend_total",
 	"Verification email resends",
 )
 
 PROFILE_UPDATE = Counter(
-	"divan_profile_update_total",
+	"unihood_profile_update_total",
 	"Profile updates applied",
 )
 
 AVATAR_UPLOAD = Counter(
-	"divan_avatar_upload_total",
+	"unihood_avatar_upload_total",
 	"Avatar uploads committed",
 )
 
-IDENTITY_REJECTS = Counter(
-	"divan_identity_rejects_total",
-	"Identity operation rejects",
-	["reason"],
-)
 
 RBAC_ROLE_GRANTS = Counter(
-	"divan_rbac_role_grants_total",
+	"unihood_rbac_role_grants_total",
 	"Role-permission grants applied",
 	["role", "permission"],
 )
 
 RBAC_USER_GRANTS = Counter(
-	"divan_rbac_user_grants_total",
+	"unihood_rbac_user_grants_total",
 	"User role grants applied",
 	["role", "scope"],
 )
 
 FLAGS_UPSERT = Counter(
-	"divan_flags_upsert_total",
+	"unihood_flags_upsert_total",
 	"Feature flag upserts",
 	["key", "kind"],
 )
 
 FLAGS_EVAL = Counter(
-	"divan_flags_eval_total",
+	"unihood_flags_eval_total",
 	"Feature flag evaluations",
 	["key", "kind"],
 )
 
 CONSENT_ACCEPT = Counter(
-	"divan_consent_accept_total",
+	"unihood_consent_accept_total",
 	"User consent acceptances",
 	["slug", "version"],
 )
 
 # Legal compliance metrics
 LEGAL_HOLDS_CREATED = Counter(
-	"divan_legal_holds_created_total",
+	"unihood_legal_holds_created_total",
 	"Legal preservation holds created",
 )
 
 LEGAL_HOLDS_RELEASED = Counter(
-	"divan_legal_holds_released_total",
+	"unihood_legal_holds_released_total",
 	"Legal preservation holds released",
 )
 
 RETENTION_PURGED = Counter(
-	"divan_retention_purged_total",
+	"unihood_retention_purged_total",
 	"Records purged by retention job",
 	["table"],
 )
 
 ACL_CACHE_HITS = Counter(
-	"divan_acl_cache_hits_total",
+	"unihood_acl_cache_hits_total",
 	"ACL cache hits",
 )
 
 ACL_CACHE_MISSES = Counter(
-	"divan_acl_cache_misses_total",
+	"unihood_acl_cache_misses_total",
 	"ACL cache misses",
 )
 
 IDENTITY_SESSIONS_CREATED = Counter(
-	"divan_identity_sessions_created_total",
+	"unihood_identity_sessions_created_total",
 	"Sessions created",
 )
 
 IDENTITY_SESSIONS_REVOKED = Counter(
-	"divan_identity_sessions_revoked_total",
+	"unihood_identity_sessions_revoked_total",
 	"Sessions revoked",
 )
 
 IDENTITY_TWOFA_ENROLL = Counter(
-	"divan_identity_2fa_enroll_total",
+	"unihood_identity_2fa_enroll_total",
 	"2FA enrollments started",
 )
 
 IDENTITY_TWOFA_ENABLE = Counter(
-	"divan_identity_2fa_enable_total",
+	"unihood_identity_2fa_enable_total",
 	"2FA enable operations",
 )
 
 IDENTITY_TWOFA_VERIFY = Counter(
-	"divan_identity_2fa_verify_total",
+	"unihood_identity_2fa_verify_total",
 	"2FA verification attempts",
 	["result"],
 )
 
 IDENTITY_PWRESET_REQUEST = Counter(
-	"divan_identity_pwreset_request_total",
+	"unihood_identity_pwreset_request_total",
 	"Password reset requests",
 )
 
 IDENTITY_PWRESET_CONSUME = Counter(
-	"divan_identity_pwreset_consume_total",
+	"unihood_identity_pwreset_consume_total",
 	"Password reset consumptions",
 	["result"],
 )
 
 PASSKEY_REGISTER = Counter(
-	"divan_passkeys_register_total",
+	"unihood_passkeys_register_total",
 	"Passkey registration attempts",
 	["result"],
 )
 
 PASSKEY_AUTH = Counter(
-	"divan_passkeys_auth_total",
+	"unihood_passkeys_auth_total",
 	"Passkey authentication attempts",
 	["result"],
 )
 
 PASSKEY_DEVICE = Counter(
-	"divan_passkeys_devices_total",
+	"unihood_passkeys_devices_total",
 	"Passkey device management events",
 	["action"],
 )
 
 ACCOUNT_LINK = Counter(
-	"divan_account_link_total",
+	"unihood_account_link_total",
 	"Account linking operations",
 	["provider", "action"],
 )
 
 EMAIL_CHANGE = Counter(
-	"divan_email_change_total",
+	"unihood_email_change_total",
 	"Email change flow events",
 	["action"],
 )
 
 PHONE_VERIFY = Counter(
-	"divan_phone_verify_total",
+	"unihood_phone_verify_total",
 	"Phone verification attempts",
 	["action", "result"],
 )
 
 SCAN_JOBS_TOTAL = Counter(
-	"divan_scan_jobs_total",
+	"unihood_scan_jobs_total",
 	"Safety scanning jobs processed",
 	["type", "status"],
 )
 
 SCAN_FAILURES_TOTAL = Counter(
-	"divan_scan_failures_total",
+	"unihood_scan_failures_total",
 	"Safety scanning failures by type and reason",
 	["type", "reason"],
 )
 
 SCAN_LATENCY_SECONDS = Histogram(
-	"divan_scan_latency_seconds",
+	"unihood_scan_latency_seconds",
 	"Safety scanner latency in seconds",
 	["type"],
 	buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0),
 )
 
 QUARANTINE_BACKLOG_GAUGE = Gauge(
-	"divan_quarantine_backlog_gauge",
+	"unihood_quarantine_backlog_gauge",
 	"Quarantine backlog segmented by status",
 	["status"],
 )
 
 URL_VERDICT_TOTAL = Counter(
-	"divan_url_verdict_total",
+	"unihood_url_verdict_total",
 	"URL scanner verdict counts",
 	["verdict"],
 )
@@ -598,7 +607,7 @@ UI_SAFETY_URL_QUERIES = Counter(
 )
 
 NSFW_SCORE_HISTOGRAM = Histogram(
-	"divan_nsfw_score_histogram",
+	"unihood_nsfw_score_histogram",
 	"Distribution of NSFW scores produced by the media scanner",
 	buckets=(0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.85, 0.95, 1.0),
 )
@@ -670,88 +679,88 @@ MOD_CASE_LIST_LATENCY_MS = Histogram(
 )
 
 RISK_LOGINS = Counter(
-	"divan_risk_logins_total",
+	"unihood_risk_logins_total",
 	"Risk-scored login outcomes",
 	["bucket"],
 )
 
 CONTACT_DISCOVERY = Counter(
-	"divan_contact_discovery_total",
+	"unihood_contact_discovery_total",
 	"Contact discovery operations",
 	["action"],
 )
 
 IDENTITY_PRIVACY_UPDATE = Counter(
-	"divan_identity_privacy_update_total",
+	"unihood_identity_privacy_update_total",
 	"Privacy settings updates",
 )
 
 IDENTITY_INTERESTS_UPDATE = Counter(
-	"divan_identity_interests_update_total",
+	"unihood_identity_interests_update_total",
 	"Interest updates applied",
 )
 
 IDENTITY_SKILLS_UPDATE = Counter(
-	"divan_identity_skills_update_total",
+	"unihood_identity_skills_update_total",
 	"Skill updates applied",
 )
 
 IDENTITY_LINKS_UPDATE = Counter(
-	"divan_identity_links_update_total",
+	"unihood_identity_links_update_total",
 	"Social link updates applied",
 )
 
 PROFILES_PUBLIC_REBUILD = Counter(
-	"divan_profiles_public_rebuild_total",
+	"unihood_profiles_public_rebuild_total",
 	"Public profile rebuild operations",
 )
 
 MATCH_PEOPLE_QUERIES = Counter(
-	"divan_match_people_queries_total",
+	"unihood_match_people_queries_total",
 	"People matching queries executed",
 )
 
 IDENTITY_BLOCK = Counter(
-	"divan_identity_block_total",
+	"unihood_identity_block_total",
 	"Identity block operations",
 	["action"],
 )
 
 IDENTITY_EXPORT_REQUEST = Counter(
-	"divan_identity_export_request_total",
+	"unihood_identity_export_request_total",
 	"Identity data export requests",
 )
 
 IDENTITY_DELETE_REQUEST = Counter(
-	"divan_identity_delete_request_total",
+	"unihood_identity_delete_request_total",
 	"Identity deletion requests",
 )
 
 IDENTITY_DELETE_CONFIRM = Counter(
-	"divan_identity_delete_confirm_total",
+	"unihood_identity_delete_confirm_total",
 	"Identity deletion confirmations",
 )
 
 VERIFY_SSO_ATTEMPT = Counter(
-	"divan_verify_sso_attempt_total",
+	"unihood_verify_sso_attempt_total",
 	"Verification SSO attempts",
 	["provider", "result"],
 )
 
 VERIFY_DOC_SUBMIT = Counter(
-	"divan_verify_doc_submit_total",
+	"unihood_verify_doc_submit_total",
 	"Verification document submissions",
 	["result"],
 )
 
 VERIFY_ADMIN_DECISION = Counter(
-	"divan_verify_admin_decisions_total",
+	"unihood_verify_admin_decisions_total",
 	"Verification admin decisions",
 	["result"],
 )
 
 VERIFY_TRUST_RECOMPUTE = Counter(
-	"divan_verify_trust_recompute_total",
+	"unihood_verify_trust_recompute_total",
 	"Verification trust recomputations",
 )
 
@@ -968,8 +977,6 @@ def inc_avatar_upload() -> None:
 	AVATAR_UPLOAD.inc()
 
 
-def inc_identity_reject(reason: str) -> None:
-	IDENTITY_REJECTS.labels(reason=reason).inc()
 
 
 def inc_identity_session_created() -> None:

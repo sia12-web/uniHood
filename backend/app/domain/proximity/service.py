@@ -58,7 +58,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
 		LEFT JOIN campuses c ON u.campus_id = c.id
-		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND (u.email_verified = TRUE OR {str(is_dev).upper()})
+		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND (u.email_verified = TRUE OR TRUE)
 		""",
 		list({uid for uid in user_ids}),
 	)

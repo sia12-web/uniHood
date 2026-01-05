@@ -74,15 +74,29 @@ export interface MeetupUpdateRequest {
   banner_url?: string;
 }
 
+export interface MeetupReview {
+  id: string;
+  meetup_id: string;
+  reviewer_id: string;
+  subject_id?: string;
+  rating: number;
+  content?: string;
+  created_at: string;
+  reviewer_name?: string;
+  reviewer_avatar_url?: string;
+}
+
 export async function updateMeetup(id: string, data: MeetupUpdateRequest): Promise<MeetupResponse> {
   const response = await api.put(`/meetups/${id}`, data);
   return response.data;
 }
 
-export async function listMeetups(campusId?: string, category?: MeetupCategory): Promise<MeetupResponse[]> {
+export async function listMeetups(campusId?: string, category?: MeetupCategory, creatorId?: string, year?: number): Promise<MeetupResponse[]> {
   const params = new URLSearchParams();
   if (campusId) params.set("campus_id", campusId);
   if (category) params.set("category", category);
+  if (creatorId) params.set("creator_id", creatorId);
+  if (year) params.set("year", year.toString());
   const response = await api.get(`/meetups/?${params.toString()}`);
   return response.data;
 }
@@ -136,4 +150,14 @@ export async function fetchMeetupUsage(): Promise<MeetupUsage> {
 
 export async function updateAttendance(meetupId: string, userIds: string[], status: "PRESENT" | "ABSENT"): Promise<void> {
   await api.post(`/meetups/${meetupId}/attendance`, { user_ids: userIds, status });
+}
+
+export async function getReviews(meetupId: string): Promise<MeetupReview[]> {
+  const response = await api.get(`/meetups/${meetupId}/reviews`);
+  return response.data;
+}
+
+export async function createReview(meetupId: string, rating: number, content?: string, targetUserId?: string): Promise<MeetupReview> {
+  const response = await api.post(`/meetups/${meetupId}/reviews`, { rating, content, target_user_id: targetUserId });
+  return response.data;
 }

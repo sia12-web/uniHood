@@ -260,6 +260,18 @@ export async function removeGalleryImage(
 	});
 }
 
+export async function reorderPhotos(
+	userId: string,
+	campusId: string | null,
+	keys: string[],
+): Promise<ProfileRecord> {
+	return request<ProfileRecord>("/profile/photos/reorder", {
+		method: "POST",
+		body: { keys },
+		headers: authHeaders(userId, campusId),
+	});
+}
+
 export async function saveProfileCourses(
 	userId: string,
 	campusId: string | null,

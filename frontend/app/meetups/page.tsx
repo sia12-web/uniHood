@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
-import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, MeetupResponse, updateMeetup } from "@/lib/meetups";
+import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, MeetupResponse, updateMeetup, getMeetup, createReview } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { fetchProfile } from "@/lib/identity";
 import { LEVEL_CONFIG } from "@/lib/xp";
@@ -30,7 +30,10 @@ export default function MeetupsPage() {
   const authUser = readAuthUser();
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<MeetupCategory | undefined>();
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [year, setYear] = useState<number | undefined>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [reviewingMeetup, setReviewingMeetup] = useState<MeetupResponse | null>(null);
   const [mounted, setMounted] = useState(false);
   const [userLevel, setUserLevel] = useState<number>(1);
 
@@ -44,8 +47,8 @@ export default function MeetupsPage() {
   }, [authUser]);
 
   const { data: meetups, isLoading } = useQuery({
-    queryKey: ["meetups", authUser?.campusId, selectedCategory],
-    queryFn: () => listMeetups(authUser?.campusId ?? undefined, selectedCategory),
+    queryKey: ["meetups", authUser?.campusId, selectedCategory, showOnlyMine, year],
+    queryFn: () => listMeetups(authUser?.campusId ?? undefined, selectedCategory, showOnlyMine ? authUser?.userId : undefined, year),
     enabled: !!authUser?.campusId,
   });
 
@@ -107,6 +110,22 @@ export default function MeetupsPage() {
       setIsCreateOpen(false);
     },
     onError: (err: unknown) => alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to create meetup.")
+  });
+
+  // Review Logic
+  const { data: reviewDetails } = useQuery({
+    queryKey: ["meetup-detail", reviewingMeetup?.id],
+    queryFn: () => getMeetup(reviewingMeetup!.id),
+    enabled: !!reviewingMeetup,
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: (data: { id: string; rating: number; content: string; targetId?: string }) =>
+      createReview(data.id, data.rating, data.content, data.targetId),
+    onSuccess: () => {
+      alert("Review submitted!");
+    },
+    onError: (err: unknown) => alert((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Failed to submit review")
   });
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -193,6 +212,18 @@ export default function MeetupsPage() {
             All
           </button>
 
+          <button
+            onClick={() => setShowOnlyMine(!showOnlyMine)}
+            className={cn(
+              "flex items-center gap-2 rounded-2xl px-8 py-3.5 text-sm font-bold shadow-sm transition-all hover:scale-105 hover:shadow-md",
+              showOnlyMine
+                ? "bg-indigo-600 text-white shadow-sm ring-2 ring-transparent hover:bg-indigo-700"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+            )}
+          >
+            My Meetups
+          </button>
+
           {CATEGORIES.map((cat) => (
             <button
               key={cat.value}
@@ -208,6 +239,19 @@ export default function MeetupsPage() {
               {cat.label}
             </button>
           ))}
+
+          {/* Year Filter */}
+          <select
+            value={year || ""}
+            onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
+            className="rounded-2xl border-none bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">Upcoming</option>
+            {Array.from({ length: 3 }).map((_, i) => {
+              const y = new Date().getFullYear() - i;
+              return <option key={y} value={y}>{y} History</option>;
+            })}
+          </select>
         </div>
 
         {/* Grid */}
@@ -231,6 +275,7 @@ export default function MeetupsPage() {
                 meetup={meetup}
                 onJoin={(id) => joinMutation.mutate(id)}
                 onEdit={(m) => setEditingMeetup(m)}
+                onReview={(m) => setReviewingMeetup(m)}
               />
             ))
           )}
@@ -487,6 +532,63 @@ export default function MeetupsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewingMeetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-[32px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-slate-900">Review Meetup</h2>
+              <button onClick={() => setReviewingMeetup(null)} className="p-2 hover:bg-slate-100 rounded-full">✕</button>
+            </div>
+
+            <div className="overflow-y-auto space-y-6">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <h3 className="font-bold text-slate-900 mb-2">Rate the Event</h3>
+                <div className="flex gap-2 mb-3">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button key={star} onClick={() => reviewMutation.mutate({ id: reviewingMeetup.id, rating: star, content: "" })} className="text-2xl hover:scale-110 transition-transform">⭐</button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500">Click a star to quick-rate the vibe.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-slate-900 mb-4">Participants</h3>
+                {reviewDetails ? (
+                  <div className="space-y-3">
+                    {reviewDetails.participants.filter(p => p.user_id !== authUser?.userId).map(p => (
+                      <div key={p.user_id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-indigo-200 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden relative">
+                            {p.avatar_url && <img src={p.avatar_url} alt={p.display_name || ""} className="object-cover h-full w-full" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900">{p.display_name || "User"}</p>
+                            <p className="text-xs text-slate-500">{p.role}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const rating = prompt("Rate this person (1-5):");
+                            if (rating) reviewMutation.mutate({ id: reviewingMeetup.id, rating: Number(rating), content: "Participant review", targetId: p.user_id });
+                          }}
+                          className="px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100"
+                        >
+                          Rate
+                        </button>
+                      </div>
+                    ))}
+                    {reviewDetails.participants.length <= 1 && <p className="text-slate-500 italic text-sm">No other participants to review.</p>}
+                  </div>
+                ) : (
+                  <div className="flex justify-center py-4"><span className="animate-spin">⏳</span></div>
+                )}
+              </div>
             </div>
           </div>
         </div>

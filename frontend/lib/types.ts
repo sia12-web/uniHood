@@ -360,6 +360,8 @@ export type ProfileRecord = {
   level: number;
   level_label: string;
   next_level_xp?: number | null;
+  reputation_score?: number;
+  review_count?: number;
 };
 
 // Minimal image shape used by profile gallery UI

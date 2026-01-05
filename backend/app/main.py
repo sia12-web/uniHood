@@ -41,6 +41,7 @@ from app.api import (
 	proximity,
 	rbac as rbac_api,
 	rooms,
+	clubs,
 	search,
 	security,
 	social,
@@ -216,7 +217,7 @@ async def lifespan(app: FastAPI):
 		await postgres.close_pool()
 
 
-app = FastAPI(title="Divan Proximity Core", lifespan=lifespan)
+app = FastAPI(title="uniHood Core", lifespan=lifespan)
 custom_openapi(app)
 install_error_handlers(app)
 
@@ -432,6 +433,7 @@ app.include_router(discovery.router, tags=["discovery"])
 app.include_router(social.router, tags=["social"])
 app.include_router(chat.router, tags=["chat"])
 app.include_router(rooms.router, tags=["rooms"])
+app.include_router(clubs.router, tags=["clubs"])
 app.include_router(activities.router, tags=["activities"])
 app.include_router(leaderboards.router, tags=["leaderboards"])
 app.include_router(meetups.router, tags=["meetups"])

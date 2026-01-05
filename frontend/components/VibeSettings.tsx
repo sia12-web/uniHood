@@ -107,13 +107,13 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
             )}
 
             {/* Relationship & Orientation */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="section-vibe_details" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Relationship Status</label>
                     <select
                         value={relationshipStatus}
                         onChange={(e) => setRelationshipStatus(e.target.value)}
-                        className="block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                        className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm transition-all"
                     >
                         <option value="">Select...</option>
                         {RELATIONSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -124,7 +124,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                     <select
                         value={sexualOrientation}
                         onChange={(e) => setSexualOrientation(e.target.value)}
-                        className="block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm"
+                        className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm transition-all"
                     >
                         <option value="">Select...</option>
                         {ORIENTATIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -153,13 +153,13 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
             </div>
 
             {/* Lifestyle */}
-            <div className="grid grid-cols-3 gap-4">
+            <div id="section-lifestyle" className="grid grid-cols-3 gap-4">
                 <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Drinking</label>
                     <select
                         value={drinking}
                         onChange={e => setDrinking(e.target.value)}
-                        className="block w-full rounded-md border-slate-300 text-sm py-1.5"
+                        className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 transition-all"
                     >
                         <option value="">-</option>
                         {LIFESTYLE_OPTIONS.drinking.map(o => <option key={o} value={o}>{o}</option>)}
@@ -170,7 +170,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                     <select
                         value={smoking}
                         onChange={e => setSmoking(e.target.value)}
-                        className="block w-full rounded-md border-slate-300 text-sm py-1.5"
+                        className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 transition-all"
                     >
                         <option value="">-</option>
                         {LIFESTYLE_OPTIONS.smoking.map(o => <option key={o} value={o}>{o}</option>)}
@@ -181,7 +181,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                     <select
                         value={workout}
                         onChange={e => setWorkout(e.target.value)}
-                        className="block w-full rounded-md border-slate-300 text-sm py-1.5"
+                        className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 transition-all"
                     >
                         <option value="">-</option>
                         {LIFESTYLE_OPTIONS.workout.map(o => <option key={o} value={o}>{o}</option>)}
@@ -190,7 +190,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
             </div>
 
             {/* Prompts */}
-            <div className="space-y-4">
+            <div id="section-prompts" className="space-y-4">
                 <div className="flex items-center justify-between">
                     <label className="block text-sm font-medium text-slate-700">Discovery Vibe</label>
                     {prompts.length < 3 && (
@@ -201,12 +201,12 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                 </div>
 
                 {prompts.map((prompt, idx) => (
-                    <div key={idx} className="bg-slate-50 p-4 rounded-lg relative group">
-                        <div className="mb-2">
+                    <div key={idx} className="bg-slate-50 p-6 rounded-2xl relative group border border-slate-100 shadow-sm">
+                        <div className="mb-4">
                             <select
                                 value={prompt.question}
                                 onChange={(e) => updatePrompt(idx, 'question', e.target.value)}
-                                className="block w-full border-none bg-transparent p-0 text-sm font-medium text-slate-900 focus:ring-0 cursor-pointer"
+                                className="block w-full border-none bg-transparent p-0 text-sm font-bold text-slate-900 focus:ring-0 cursor-pointer"
                             >
                                 {VIBE_PROMPTS.map(q => <option key={q} value={q}>{q}</option>)}
                             </select>
@@ -215,9 +215,9 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                             value={prompt.answer}
                             onChange={(e) => updatePrompt(idx, 'answer', e.target.value)}
                             placeholder="Your answer..."
-                            rows={2}
+                            rows={3}
                             maxLength={150}
-                            className="block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white"
+                            className="block w-full rounded-xl border-0 px-4 py-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white transition-all"
                         />
                         {prompts.length > 1 && (
                             <button

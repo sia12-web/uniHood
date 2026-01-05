@@ -16,7 +16,7 @@ _ROUTE: ContextVar[Optional[str]] = ContextVar("obs_route", default=None)
 _USER_ID: ContextVar[Optional[str]] = ContextVar("obs_user_id", default=None)
 _CLIENT_IP: ContextVar[Optional[str]] = ContextVar("obs_client_ip", default=None)
 
-_LOGGER_NAME = "divan"
+_LOGGER_NAME = "unihood"
 
 try:  # pragma: no cover - otel optional
 	from opentelemetry import trace as otel_trace

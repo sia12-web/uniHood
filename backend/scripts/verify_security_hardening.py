@@ -69,9 +69,56 @@ class AsyncMockRedis:
                  del self._data[k]
                  c += 1
         return c
+
+    async def eval(self, script, numkeys, *keys_and_args):
+        # KEYS[1]: session:refresh:{sid}, KEYS[2]: used_set, KEYS[3]: meta_key
+        # ARGV[1]: presented_hash, ARGV[2]: new_hash, ARGV[3]: TTL, ARGV[4]: now, ARGV[5]: grace, ARGV[6]: fingerprint
+        current_hash_key = keys_and_args[0]
+        used_set_key = keys_and_args[1]
+        meta_key = keys_and_args[2]
+        presented_hash = keys_and_args[3]
+        new_hash = keys_and_args[4]
+        now = keys_and_args[6]
+        grace = keys_and_args[7]
+        presented_fp = keys_and_args[8]
+        
+        current_hash = self._data.get(current_hash_key)
+        used_set = self._data.get(used_set_key, set())
+        
+        if presented_hash in used_set:
+            meta = self._data.get(meta_key, {})
+            last_rot = int(meta.get('last_rot', 0))
+            last_fp = meta.get('last_fp')
+            if (now - last_rot) < grace and last_fp == presented_fp:
+                return 2
+            return 1
+        
+        if current_hash != presented_hash:
+            return 2
+            
+        used_set.add(presented_hash)
+        self._data[used_set_key] = used_set
+        self._data[current_hash_key] = new_hash
+        self._data[meta_key] = {'last_rot': now, 'last_fp': presented_fp}
+        return 0
         
     async def exists(self, key):
         return 1 if key in self._data else 0
+
+    async def sismember(self, key, member):
+        s = self._data.get(key, set())
+        return 1 if member in s else 0
+
+    async def hmget(self, key, *fields):
+        h = self._data.get(key, {})
+        return [h.get(f) for f in fields]
+
+    async def hset(self, key, mapping=None, **kwargs):
+        h = self._data.get(key, {})
+        if mapping: h.update(mapping)
+        if kwargs: h.update(kwargs)
+        self._data[key] = h
+        return len(kwargs) + (len(mapping) if mapping else 0)
 
     async def xadd(self, stream, fields):
         return "1-0"
@@ -95,10 +142,28 @@ app.infra.redis.redis_client = AsyncMockRedis()
 from unittest.mock import MagicMock
 metrics_mock = MagicMock()
 metrics_mock.__file__ = "mocked_metrics.py"
+import sys
 sys.modules["app.obs.metrics"] = metrics_mock
+# Also inject it into sessions.py if it was already imported, though here we import later
+# Wait, sessions.py imports "from app.obs import metrics as obs_metrics".
+# So inside sessions.py, "obs_metrics" refers to the mock we just injected into sys.modules.
 
 from app.domain.identity import models, schemas, sessions, service, rbac, audit
 from app.infra import auth, jwt, postgres
+
+# Force re-bind of obs_metrics in sessions if needed (usually module cache handles it if we patched sys.modules first)
+# But sessions.py uses "obs_metrics.inc_..." so if we mocked it, it should work.
+# The error says "NameError: name 'obs_metrics' is not defined" in sessions.py?
+# Ah, sessions.py imports it as: from app.obs import metrics as obs_metrics
+# If sessions.py was imported BEFORE we patched sys.modules, it would have the real one (or fail).
+# But verify_security_hardening starts with patching.
+# Wait, looking at the previous file view, we patched sys.modules["app.obs.metrics"] = metrics_mock.
+# But 'sessions.py' typically does `from app.obs import metrics as obs_metrics`.
+# If `sessions.py` was imported *after* patching, `obs_metrics` would be the mock.
+# BUT, if `sessions.py` code has `obs_metrics.inc_refresh_success()`, and it fails with NameError, it means `obs_metrics` is not in the local or global scope of `sessions.py`.
+# That's impossible if it's imported at top level.
+# Unless... I introduced a bug in `sessions.py` where I used `obs_metrics` without importing it?
+# Let's check sessions.py imports.
 
 async def cleanup_by_email(email: str):
     pool = await postgres.get_pool()
@@ -164,7 +229,65 @@ async def run_verification():
     # await debug_schema()
     
     print(f"--- Verify Security Hardening (v2.1) ---")
+
+    # 0. Fail-Closed Test (Check sensitive routes if DB is down)
+    print("\n[FailClosed] Verifying sensitive routes block if DB fails...")
+    from app.infra import auth as auth_mod
+    original_get_pool = postgres.get_pool
+    postgres.get_pool = lambda: exec("raise(Exception('DB_DOWN'))") # This is a bit hacky in lambda
     
+    # Better: just use a Mock
+    from unittest.mock import AsyncMock
+    postgres.get_pool = AsyncMock(side_effect=Exception("DB_DOWN"))
+    
+    try:
+        # Simulate request to sensitive route
+        class MockRequest:
+            url = type('obj', (object,), {'path': '/admin/users'})
+            
+        try:
+             # This should trigger the fail-closed 503 logic in auth.py
+             from fastapi.security import HTTPAuthorizationCredentials
+             orig_verify = auth.verify_access_jwt
+             # Mock a user with a valid token v1
+             auth.verify_access_jwt = lambda x: type('obj', (object,), {'id': '123', 'token_version': 1})
+             try:
+                creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="dummy.token")
+                # Need to use keywords because of multiple Header args in signature
+                await auth_mod.get_current_user(MockRequest(), credentials=creds)
+                print("[FAIL] Sensitive route allowed when DB down!")
+             finally:
+                 auth.verify_access_jwt = orig_verify
+        except Exception as e:
+             if hasattr(e, 'status_code') and e.status_code == 503:
+                 print(f"[PASS] Sensitive route blocked (503) when DB down.")
+             else:
+                 print(f"[FAIL] Unexpected error on fail-closed: {e}")
+
+        # Test Path Normalization Bypass (e.g. /Admin/users)
+        try:
+             class MockRequestCase:
+                 url = type('obj', (object,), {'path': '/Admin/users'})
+             
+             orig_verify = auth.verify_access_jwt
+             auth.verify_access_jwt = lambda x: type('obj', (object,), {'id': '123', 'token_version': 1})
+             try:
+                 # Should still trigger 503 if normalization works
+                 creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="dummy.token")
+                 await auth_mod.get_current_user(MockRequestCase(), credentials=creds)
+                 print("[FAIL] /Admin/users allowed (Normalization failed)!")
+             finally:
+                 auth.verify_access_jwt = orig_verify
+        except Exception as e:
+             if hasattr(e, 'status_code') and e.status_code == 503:
+                 print(f"[PASS] Path normalization (/Admin/users) blocked (503).")
+             else:
+                 print(f"[FAIL] Unexpected error on normalization test: {e}")
+
+    finally:
+        postgres.get_pool = original_get_pool
+
+    # Real run starts here
     pool = await postgres.get_pool()
     async with pool.acquire() as conn:
         # Ensure at least one campus exists for service.register to work
@@ -328,8 +451,8 @@ async def run_verification():
         refresh_2 = rotate_res.refresh_token
         print("       [PASS] Rotation successful.")
 
-        # Reuse Old Refresh (Detect Theft)
-        print("       Attempting to reuse refresh token 1 (Should Fail)...")
+        # Reuse Old Refresh (Detect Theft) - WITHIN GRACE
+        print("       Attempting to reuse refresh token 1 (Within Grace)...")
         try:
             await sessions.refresh_session(
                 user_obj_v2, session_id=sid, refresh_token=refresh_1, 
@@ -337,10 +460,71 @@ async def run_verification():
             )
             print("[FAIL] Reuse of refresh token 1 allowed tokens!")
         except Exception as e:
-            if "refresh_reuse" in str(e) or "refresh_invalid" in str(e):
-                 print(f"[PASS] Reuse blocked: {e}")
+            if "refresh_invalid" in str(e):
+                 print(f"[PASS] Reuse within grace blocked as invalid (no nuke): {e}")
             else:
                  print(f"[FAIL] Unexpected error on reuse: {e}")
+
+        # Reuse Old Refresh - WITHIN GRACE BUT DIFFERENT FINGERPRINT (Attacker Scenario)
+        print("       Attempting reuse within grace but different fingerprint (Should be Theft)...")
+        # Reuse 'sid' which didn't have a fingerprint initially, so let's use the one from Device Binding test later or assume empty works
+        # Actually sessions.refresh_session checks allow missing fingerprint if stored is missing.
+        # But our Lua script checks for equality. If stored meta has last_fp=None, and we send None, it matches?
+        # Let's verify strict grace safety:
+        # We need to simulate a rotation that stored a fingerprint, then reuse with a *different* fingerprint.
+        
+        # 1. Issue session with FP
+        res_fp_grace = await sessions.issue_session_tokens(
+            user_obj_v2, ip="1.1.1.1", user_agent="DeviceGrace", fingerprint="fp_original"
+        )
+        t1 = res_fp_grace.refresh_token
+        sid_fp = res_fp_grace.session_id
+        
+        # 2. Rotate it (stores last_fp="fp_original" in Redis meta)
+        res_rot = await sessions.refresh_session(
+            user_obj_v2, session_id=sid_fp, refresh_token=t1, 
+            ip="1.1.1.1", user_agent="DeviceGrace", fingerprint="fp_original"
+        )
+        
+        # 3. Reuse t1 within grace but with "fp_attacker"
+        try:
+             await sessions.refresh_session(
+                 user_obj_v2, session_id=sid_fp, refresh_token=t1,
+                 ip="6.6.6.6", user_agent="AttackerDevice", fingerprint="fp_attacker"
+             )
+             print("[FAIL] Attacker reuse allowed within grace!")
+        except Exception as e:
+             if "refresh_reuse" in str(e):
+                 print(f"[PASS] Grace bypassed for different fingerprint (Theft Detected): {e}")
+             elif "refresh_step_up_required" in str(e):
+                 print(f"[PASS] Grace bypassed for different fingerprint (Step-Up Required): {e}")
+             elif "refresh_invalid" in str(e):
+                 print(f"[FAIL] Attacker reuse treated as benign race! (refresh_invalid)")
+             else:
+                 print(f"[FAIL] Unexpected error: {e}")
+
+        # Reuse Old Refresh (Detect Theft) - AFTER GRACE
+        print("       Attempting to reuse refresh token 1 (After Grace - Simulation)...")
+        try:
+            # We mock 'now' in sessions.py by monkeypatching time.time or just trusting our mock eval handling
+            # In our script, sessions.refresh_session calls int(time.time()). 
+            # To simulate 'after grace', we can wait or patch. Let's patch.
+            import time as time_mod
+            original_time = time_mod.time
+            time_mod.time = lambda: original_time() + 10 # Simulate 10s later
+            try:
+                await sessions.refresh_session(
+                    user_obj_v2, session_id=sid, refresh_token=refresh_1, 
+                    ip="127.0.0.1", user_agent="DeviceA"
+                )
+            finally:
+                time_mod.time = original_time
+            print("[FAIL] Reuse of refresh token 1 allowed AFTER GRACE!")
+        except Exception as e:
+            if "refresh_reuse" in str(e):
+                 print(f"[PASS] Malicious reuse detected after grace: {e}")
+            else:
+                 print(f"[FAIL] Unexpected error on late reuse: {e}")
 
         # Device Binding (Wrong UA/Fingerprint)
         # Note: Current implementation binds to 'fingerprint_hash' if provided.
@@ -357,10 +541,39 @@ async def run_verification():
             )
             print("[FAIL] Wrong fingerprint allowed refresh!")
         except Exception as e:
-            if "refresh_invalid" in str(e):
-                print("[PASS] Device binding enforced (Fingerprint mismatch rejected).")
+            if "refresh_invalid" in str(e) or "refresh_step_up_required" in str(e):
+                print(f"[PASS] Device binding enforced ({e}).")
             else:
                  print(f"[FAIL] Unexpected error on binding: {e}")
+
+        # 8. Parallel Refresh Race Test
+        print("\n[Race] Testing Parallel Refresh (Atomic Lua)...")
+        # Issue a fresh session
+        race_res = await sessions.issue_session_tokens(user_obj_v2, ip="127.0.0.1", user_agent="RaceDevice")
+        refresh_race = race_res.refresh_token
+        sid_race = race_res.session_id
+        
+        # Fire two refreshes simultaneously
+        import asyncio
+        tasks = [
+            sessions.refresh_session(user_obj_v2, session_id=sid_race, refresh_token=refresh_race, ip="127.0.0.1", user_agent="RaceDevice"),
+            sessions.refresh_session(user_obj_v2, session_id=sid_race, refresh_token=refresh_race, ip="127.0.0.1", user_agent="RaceDevice")
+        ]
+        
+        # We expect exactly one to succeed and one to fail with 'refresh_invalid'
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        successes = [r for r in results if not isinstance(r, Exception)]
+        failures = [r for r in results if isinstance(r, Exception)]
+        
+        if len(successes) == 1 and len(failures) == 1:
+            if "refresh_invalid" in str(failures[0]):
+                print("[PASS] Atomic race protection: One succeeded, one rejected.")
+            else:
+                 print(f"[FAIL] Unexpected failure in race: {failures[0]}")
+        else:
+            print(f"[FAIL] Race results: {len(successes)} successes, {len(failures)} failures.")
+            if len(successes) > 1:
+                print("       CRITICAL: Race condition allowed double rotation!")
 
         # 8. Rate Limiting (Mocking Redis)
         # Since we can't easily spin up a full HTTP client loop against a running server in this script 

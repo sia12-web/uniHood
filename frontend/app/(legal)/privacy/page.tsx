@@ -54,8 +54,8 @@ export default function PrivacyPolicyPage() {
 							</tr>
 							<tr>
 								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2 font-semibold">Technical Logs</td>
-								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2">IP address, device hardware info, browser version, session tokens</td>
-								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2">Preventing fraud, maintaining security, and optimizing platform performance.</td>
+								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2">IP address, device hardware info, browser fingerprint, session tokens</td>
+								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2">Preventing fraud, identifying compromised accounts via fingerprint matching, and optimizing platform performance.</td>
 							</tr>
 							<tr>
 								<td className="border border-gray-300 dark:border-gray-700 px-4 py-2 font-semibold">Proximity Data</td>

@@ -1131,3 +1131,35 @@ def increment_bulk(counter: Counter, labels: Iterable[tuple[str, str]]) -> None:
 	"""Deprecated shim for compatibility with legacy Redis counters."""
 	for label_name, label_value in labels:
 		counter.labels(**{label_name: label_value}).inc()
+
+
+# v2.2.1 Security Hardening Metrics
+IDENTITY_REFRESH_EVENTS = Counter(
+	"unihood_identity_refresh_events_total",
+	"Refresh token rotation events",
+	["type"]
+)
+
+IDENTITY_AUTH_FAILS = Counter(
+	"unihood_identity_auth_fails_total",
+	"Authentication failures for protected routes",
+	["type"]
+)
+
+def inc_refresh_success() -> None:
+	IDENTITY_REFRESH_EVENTS.labels(type="success").inc()
+
+def inc_refresh_race() -> None:
+	IDENTITY_REFRESH_EVENTS.labels(type="race").inc()
+
+def inc_refresh_reuse() -> None:
+	IDENTITY_REFRESH_EVENTS.labels(type="reuse").inc()
+
+def inc_refresh_stepup() -> None:
+	IDENTITY_REFRESH_EVENTS.labels(type="stepup").inc()
+
+def inc_auth_revoked_401() -> None:
+	IDENTITY_AUTH_FAILS.labels(type="revoked_401").inc()
+
+def inc_auth_db_503() -> None:
+	IDENTITY_AUTH_FAILS.labels(type="db_unavailable_503").inc()

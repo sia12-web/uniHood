@@ -111,21 +111,43 @@ async def get_current_user(
 		user = verify_access_jwt(credentials.credentials)
 		
 		# v2 Hardening: Verify token_version against DB to allow instant revocation
-		pool = await get_pool()
-		async with pool.acquire() as conn:
-			# We fetch only the version to keep it lightweight. 
-			# In high-scale, cache this in Redis "user:v:{id}" -> int
-			current_version = await conn.fetchval(
-				"SELECT token_version FROM users WHERE id = $1", 
-				user.id
-			)
-			if current_version is not None and current_version > user.token_version:
-				# Token is older than current version -> Revoked
-				raise HTTPException(
-					status_code=status.HTTP_401_UNAUTHORIZED, 
-					detail="token_revoked",
-					headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"revoked\""}
+		try:
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				current_version = await conn.fetchval(
+					"SELECT token_version FROM users WHERE id = $1", 
+					user.id
 				)
+				
+				# Reject if user not found or version is stale
+				if current_version is None:
+					raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user_not_found")
+					
+				if current_version > user.token_version:
+					obs_metrics.inc_auth_revoked_401()
+					raise HTTPException(
+						status_code=status.HTTP_401_UNAUTHORIZED, 
+						detail="token_revoked"
+					)
+		except HTTPException:
+			raise
+		except Exception as e:
+			# Fail-closed for sensitive routes, fail-soft for others
+			import posixpath
+			normalized_path = posixpath.normpath(request.url.path).lower()
+			
+			# Sensitive prefixes
+			prefixes = ["/admin", "/security", "/auth/password", "/profile/settings"]
+			is_sensitive = any(normalized_path.startswith(p) for p in prefixes)
+			
+			if is_sensitive:
+				obs_metrics.inc_auth_db_503()
+				raise HTTPException(
+					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+					detail="auth_temporarily_unavailable"
+				) from e
+			# For non-sensitive, we log and allow if the JWT itself is valid (already verified by verify_access_jwt)
+			print(f"WARN: Token version check failed (v={user.token_version}): {e}")
 
 		_enforce_signed_intent_identity(request, user)
 		return user

@@ -151,13 +151,13 @@ async def _fetch_live_candidates(key: str, auth_user_id: str, *, radius: int, ce
 
 
 async def _fetch_directory_candidates(
-	campus_id: Optional[str], 
-	auth_user_id: str, 
+	campus_id: Optional[UUID], 
+	auth_user_id: UUID, 
 	lat: Optional[float], 
 	lon: Optional[float], 
 	limit: int, 
 	offset: int = 0,
-	exclude_campus_id: Optional[str] = None
+	exclude_campus_id: Optional[UUID] = None
 ) -> List[PresenceTuple]:
 	"""Fetch directory candidates from DB.
 	
@@ -299,7 +299,16 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 	if not await allow("nearby", auth_user.id, limit=limit):
 		raise RateLimitExceeded("nearby")
 
-	campus_id = str(query.campus_id or auth_user.campus_id)
+	raw_campus = query.campus_id or auth_user.campus_id
+	try:
+		campus_id = UUID(str(raw_campus)) if raw_campus else None
+	except ValueError:
+		campus_id = None
+		
+	try:
+		auth_user_id = UUID(str(auth_user.id))
+	except ValueError:
+		raise LookupError("invalid_user_id")
 
 	# Handle the three discovery modes explicitly
 	# Room mode: Live proximity via Redis, 100m radius, ALL campuses (cross-campus)
@@ -431,7 +440,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		lat = user_row["lat"] if user_row else None
 		lon = user_row["lon"] if user_row else None
 
-		live = await _fetch_directory_candidates(campus_id, auth_user.id, lat, lon, limit=query.limit)
+		live = await _fetch_directory_candidates(campus_id, auth_user_id, lat, lon, limit=query.limit)
 		user_ids = [uid for uid, _ in live]
 		distances = {uid: dist for uid, dist in live}
 
@@ -488,7 +497,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 
 		# exclude_campus_id to focus on students from OTHER universities in the area
 		live = await _fetch_directory_candidates(
-			None, auth_user.id, lat, lon, limit=query.limit, exclude_campus_id=campus_id
+			None, auth_user_id, lat, lon, limit=query.limit, exclude_campus_id=campus_id
 		)
 		user_ids = [uid for uid, _ in live]
 		distances = {uid: dist for uid, dist in live}

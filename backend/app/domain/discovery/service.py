@@ -226,6 +226,11 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 		except:
 			return []
 
+	try:
+		auth_user_uuid = UUID(str(auth_user.id))
+	except:
+		return []
+
 	is_dev = settings.is_dev()
 	try:
 		async with pool.acquire() as conn:
@@ -269,12 +274,12 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 						   1 as score
 					FROM users u
 					WHERE u.campus_id = $2
-					  AND u.id = ANY(SELECT id FROM users WHERE id != $1)
+					  AND u.id != $1
 					  AND u.deleted_at IS NULL
 				)
 				SELECT * FROM candidates WHERE score > 0 ORDER BY score DESC LIMIT $3
 				""",
-				auth_user.id,
+				auth_user_uuid,
 				campus_id,
 				limit,
 			)

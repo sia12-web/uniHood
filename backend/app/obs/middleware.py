@@ -47,7 +47,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app, *, enabled: bool = True) -> None:
 		super().__init__(app)
 		self._enabled = enabled
-		self._logger = obs_logging.get_logger("divan.http")
+		self._logger = obs_logging.get_logger("unihood.http")
 
 	async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
 		if not settings.obs_enabled or not self._enabled:

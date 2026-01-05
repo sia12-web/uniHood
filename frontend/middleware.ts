@@ -94,8 +94,8 @@ export function middleware(req: NextRequest) {
 
 	// Basic auth detection: cookie or Authorization header already attached.
 	const hasAuthCookie =
-		req.cookies.get("divan.auth") ||
-		req.cookies.get("divan_auth") ||
+		req.cookies.get("unihood.auth") ||
+		req.cookies.get("divan.auth") || // Legacy fallback
 		req.cookies.get("session") ||
 		req.cookies.get("access_token");
 	const hasAuthHeader = req.headers.get("authorization");
@@ -109,7 +109,7 @@ export function middleware(req: NextRequest) {
 			if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
 				token = authHeader.slice(7).trim();
 			} else {
-				const cookie = req.cookies.get("divan.auth")?.value ?? req.cookies.get("access_token")?.value;
+				const cookie = req.cookies.get("unihood.auth")?.value ?? req.cookies.get("divan.auth")?.value ?? req.cookies.get("access_token")?.value;
 				if (cookie) {
 					try {
 						token = decodeURIComponent(cookie);

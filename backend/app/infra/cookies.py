@@ -19,7 +19,9 @@ FINGERPRINT_COOKIE_NAME = "rf_fp"
 REFRESH_COOKIE_PATH = "/auth/refresh"
 FINGERPRINT_PATH = "/"
 
-_SAMESITE = settings.cookie_samesite.capitalize() if getattr(settings, "cookie_samesite", None) else "Strict"
+_SAMESITE_RAW = getattr(settings, "cookie_samesite", "strict") or "strict"
+# Starlette accepts 'lax', 'strict', 'none' (case-insensitive but we normalize to lowercase)
+_SAMESITE = _SAMESITE_RAW.lower() if _SAMESITE_RAW.lower() == "none" else _SAMESITE_RAW.capitalize()
 _REFRESH_MAX_AGE = getattr(settings, "refresh_ttl_days", 30) * 24 * 60 * 60
 
 

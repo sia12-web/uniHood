@@ -98,6 +98,8 @@ async def ensure_mcgill_campus(pool) -> None:
 	"""Ensure the real McGill campus is seeded in the database."""
 	if not pool:
 		return
+	from uuid import UUID
+	mcgill_uuid = UUID(MCGILL_CAMPUS_ID)
 	async with pool.acquire() as conn:
 		await conn.execute(
 			"""
@@ -109,7 +111,7 @@ async def ensure_mcgill_campus(pool) -> None:
 				lat = COALESCE(campuses.lat, EXCLUDED.lat),
 				lon = COALESCE(campuses.lon, EXCLUDED.lon)
 			""",
-			MCGILL_CAMPUS_ID,
+			mcgill_uuid,
 			MCGILL_CAMPUS_NAME,
 			MCGILL_CAMPUS_DOMAIN,
 			MCGILL_LAT,
@@ -236,6 +238,7 @@ elif isinstance(raw_origins, (list, tuple)):
 else:
 	allow_origins = []
 
+<<<<<<< HEAD
 print(f"DEBUG: Parsed CORS origins: {allow_origins}", flush=True)
 if not allow_origins or (len(allow_origins) == 1 and not allow_origins[0]):
 	allow_origins = [
@@ -249,6 +252,24 @@ if not allow_origins or (len(allow_origins) == 1 and not allow_origins[0]):
 		"https://unihood-frontend.onrender.com",
 		"https://unihood-backend-14x8.onrender.com",
 	]
+=======
+# Baseline production and dev origins
+baseline_origins = [
+	"https://unihood.app",
+	"https://www.unihood.app",
+	"https://unihood-frontend.onrender.com",
+	"https://unihood-backend-14x8.onrender.com",
+	"http://localhost:3000",
+	"http://127.0.0.1:3000",
+	"https://localhost:3000",
+]
+
+for o in baseline_origins:
+	if o not in allow_origins:
+		allow_origins.append(o)
+
+print(f"DEBUG: Final CORS origins: {allow_origins}", flush=True)
+>>>>>>> dev-01
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:

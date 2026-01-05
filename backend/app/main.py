@@ -252,6 +252,10 @@ baseline_origins = [
 	"https://localhost:3000",
 ]
 
+# Ensure allow_origins is a list we can append to
+if not isinstance(allow_origins, list):
+	allow_origins = list(allow_origins) if isinstance(allow_origins, (tuple, set)) else []
+
 for o in baseline_origins:
 	if o not in allow_origins:
 		allow_origins.append(o)
@@ -288,7 +292,10 @@ from fastapi.responses import FileResponse
 
 uploads_router = APIRouter()
 upload_root = Path(os.environ.get("UPLOAD_DIR") or os.environ.get("DIVAN_UPLOAD_ROOT") or "app/uploads").resolve()
-upload_root.mkdir(parents=True, exist_ok=True)
+try:
+	upload_root.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+	print(f"WARN: Could not create upload directory {upload_root}: {e}", flush=True)
 
 print(f"DEBUG: uploads_router initialized (root={upload_root})", flush=True)
 

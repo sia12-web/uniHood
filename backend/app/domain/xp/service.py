@@ -108,12 +108,13 @@ class XPService:
                 # 3. Check for level up
                 calculated_level = self._calculate_level(current_total)
                 
-                # Emit XP Gained Event
+                # Emit XP Gained Event (only for non-zero amounts)
                 from app.domain.xp import sockets
                 # We do this inside transaction for safety, but ideal is AFTER commit. 
                 # However, asyncpg doesn't fully support on_commit hooks easily here.
                 # Fire and forget is okay for UI updates.
-                await sockets.emit_xp_gained(uid, amount, action.value, current_total, calculated_level)
+                if amount != 0:
+                    await sockets.emit_xp_gained(uid, amount, action.value, current_total, calculated_level)
 
                 # Log to Activity Feed (Audit)
                 try:

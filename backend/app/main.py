@@ -201,7 +201,10 @@ async def lifespan(app: FastAPI):
 		asyncio.create_task(live_sessions.run_presence_sweeper(redis_client), name="presence-sweeper")
 	)
 	# Ensure McGill campus exists for onboarding flows
-	await ensure_mcgill_campus(pool)
+	try:
+		await ensure_mcgill_campus(pool)
+	except Exception as e:
+		print(f"ERROR: Failed to seed McGill campus: {e}", flush=True)
 	try:
 		yield
 	finally:

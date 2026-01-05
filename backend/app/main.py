@@ -227,15 +227,28 @@ install_error_handlers(app)
 from app.domain.identity import s3 as _s3  # local import to avoid circulars
 _s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
 
-allow_origins = list(getattr(settings, "cors_allow_origins", []))
+raw_origins = getattr(settings, "cors_allow_origins", [])
+if isinstance(raw_origins, str):
+	# Handle comma-separated string from env var
+	allow_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+elif isinstance(raw_origins, (list, tuple)):
+	allow_origins = list(raw_origins)
+else:
+	allow_origins = []
+
 print(f"DEBUG: Parsed CORS origins: {allow_origins}", flush=True)
-if not allow_origins:
+if not allow_origins or (len(allow_origins) == 1 and not allow_origins[0]):
 	allow_origins = [
 		"http://localhost:3000",
 		"http://127.0.0.1:3000",
 		"https://localhost:3000",
 		"https://127.0.0.1:3000",
-	] if settings.environment in ["dev", "development"] else ["https://unihood.app", "https://www.unihood.app", "https://unihood-frontend.onrender.com"]
+	] if settings.environment in ["dev", "development"] else [
+		"https://unihood.app",
+		"https://www.unihood.app",
+		"https://unihood-frontend.onrender.com",
+		"https://unihood-backend-14x8.onrender.com",
+	]
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:

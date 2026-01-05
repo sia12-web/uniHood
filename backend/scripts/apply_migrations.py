@@ -25,35 +25,40 @@ if os.path.exists(env_path):
 from app.infra.postgres import get_pool
 
 async def main():
-    # If run from root, migrations are in backend/migrations
-    # If run from backend/, migrations are in migrations
-    if os.path.exists("backend/migrations"):
-         migration_dir = "backend/migrations"
-    else:
-         migration_dir = "migrations"
+    try:
+        # If run from root, migrations are in backend/migrations
+        # If run from backend/, migrations are in migrations
+        if os.path.exists("backend/migrations"):
+             migration_dir = "backend/migrations"
+        else:
+             migration_dir = "migrations"
 
-    if not os.path.exists(migration_dir):
-        print(f"Migrations directory not found at {migration_dir}")
-        return
+        if not os.path.exists(migration_dir):
+            print(f"Migrations directory not found at {migration_dir}")
+            return
 
-    files = sorted([f for f in os.listdir(migration_dir) if f.endswith(".sql")])
-    pool = await get_pool()
-    
-    async with pool.acquire() as conn:
-        for filename in files:
-            print(f"Executing {filename}...")
-            path = os.path.join(migration_dir, filename)
-            with open(path, "r") as f:
-                sql = f.read()
-            
-            # Use a simple approach: just run the SQL. 
-            # Most of our migrations use 'IF NOT EXISTS' or 'ALTER TABLE ... ADD COLUMN IF NOT EXISTS'.
-            try:
-                # asyncpg execute can handle multiple statements if they are separated by semicolons
-                await conn.execute(sql)
-                print(f"Finished {filename}")
-            except Exception as e:
-                print(f"Error in {filename}: {e}")
+        files = sorted([f for f in os.listdir(migration_dir) if f.endswith(".sql")])
+        print(f"Found {len(files)} migration files.")
+        pool = await get_pool()
+        
+        async with pool.acquire() as conn:
+            for filename in files:
+                print(f"Executing {filename}...")
+                path = os.path.join(migration_dir, filename)
+                with open(path, "r") as f:
+                    sql = f.read()
+                
+                try:
+                    await conn.execute(sql)
+                    print(f"Finished {filename}")
+                except Exception as e:
+                    print(f"Error in {filename}: {e}")
+    except Exception as e:
+        print(f"FATAL ERROR in migration script: {e}")
+        import traceback
+        traceback.print_exc()
+        # Still exit with 1 because we want to know if it failed
+        sys.exit(1)
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

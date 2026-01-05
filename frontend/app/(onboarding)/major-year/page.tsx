@@ -221,7 +221,7 @@ export default function MajorYearPage() {
 			<div className="w-full max-w-2xl space-y-8">
 				<div className="flex flex-col items-center">
 					<h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-slate-900">
-						Add Your Major
+						Select your major
 					</h2>
 					<p className="mt-2 text-center text-sm text-slate-600">
 						We use this to tailor study groups and suggestions.

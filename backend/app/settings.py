@@ -90,8 +90,9 @@ class Settings(BaseSettings):
     access_ttl_minutes: int = _env_field(15, "ACCESS_TTL_MINUTES")
     refresh_ttl_days: int = _env_field(7, "REFRESH_TTL_DAYS")
     refresh_pepper: str = _env_field(..., "REFRESH_PEPPER")
-    cookie_secure: bool = _env_field(False, "COOKIE_SECURE")
-    cookie_samesite: str = _env_field("strict", "COOKIE_SAMESITE")
+    # For cross-origin deployments (frontend != backend domain), use Secure=True, SameSite=None
+    cookie_secure: bool = _env_field(True, "COOKIE_SECURE")
+    cookie_samesite: str = _env_field("none", "COOKIE_SAMESITE")
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
     upload_base_url: str = _env_field("http://localhost:8001/uploads", "UPLOAD_BASE_URL")
 

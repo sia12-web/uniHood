@@ -225,14 +225,10 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 			campus_id = UUID(campus_id)
 		except:
 			return []
-<<<<<<< HEAD
-=======
-
 	try:
 		auth_user_uuid = UUID(str(auth_user.id))
 	except:
 		return []
->>>>>>> dev-01
 
 	is_dev = settings.is_dev()
 	try:

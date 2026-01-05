@@ -241,21 +241,6 @@ elif isinstance(raw_origins, (list, tuple)):
 else:
 	allow_origins = []
 
-<<<<<<< HEAD
-print(f"DEBUG: Parsed CORS origins: {allow_origins}", flush=True)
-if not allow_origins or (len(allow_origins) == 1 and not allow_origins[0]):
-	allow_origins = [
-		"http://localhost:3000",
-		"http://127.0.0.1:3000",
-		"https://localhost:3000",
-		"https://127.0.0.1:3000",
-	] if settings.environment in ["dev", "development"] else [
-		"https://unihood.app",
-		"https://www.unihood.app",
-		"https://unihood-frontend.onrender.com",
-		"https://unihood-backend-14x8.onrender.com",
-	]
-=======
 # Baseline production and dev origins
 baseline_origins = [
 	"https://unihood.app",
@@ -276,7 +261,6 @@ for o in baseline_origins:
 		allow_origins.append(o)
 
 print(f"DEBUG: Final CORS origins: {allow_origins}", flush=True)
->>>>>>> dev-01
 
 # Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
 if "*" in allow_origins:

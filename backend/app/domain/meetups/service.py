@@ -157,26 +157,30 @@ class MeetupService:
             pass  # Non-critical, don't block meetup creation
 
         # Analytics tracking
-        from app.domain.identity import audit
-        await audit.append_db_event(
-            user_id=auth_user.id,
-            event="meetup.create",
-            meta={
-                "meetup_id": str(row["id"]),
-                "category": payload.category.value if hasattr(payload.category, 'value') else str(payload.category),
-                "title": payload.title
-            }
-        )
+        # Analytics & Notifications (Non-blocking safeguard)
+        try:
+            from app.domain.identity import audit
+            await audit.append_db_event(
+                user_id=auth_user.id,
+                event="meetup.create",
+                meta={
+                    "meetup_id": str(row["id"]),
+                    "category": payload.category.value if hasattr(payload.category, 'value') else str(payload.category),
+                    "title": payload.title
+                }
+            )
 
-        # Notifications
-        import asyncio
-        asyncio.create_task(self._notify_meetup_creation(
-            meetup_id=row["id"],
-            title=payload.title,
-            visibility=payload.visibility.value,
-            creator=auth_user,
-            campus_id=str(payload.campus_id or auth_user.campus_id)
-        ))
+            # Notifications
+            import asyncio
+            asyncio.create_task(self._notify_meetup_creation(
+                meetup_id=row["id"],
+                title=payload.title,
+                visibility=payload.visibility.value,
+                creator=auth_user,
+                campus_id=str(payload.campus_id or auth_user.campus_id)
+            ))
+        except Exception:
+            pass # Prevent analytics/notification failures from failing the request
                 
         return self._map_row_to_response(row, auth_user.id, is_joined=True, my_role=schemas.MeetupRole.HOST)
 

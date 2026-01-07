@@ -47,7 +47,7 @@ def patch_postgres(monkeypatch):
 	async def _noop(*args, **kwargs):
 		return None
 
-	mock_pool = unittest.mock.AsyncMock()
+	mock_pool = unittest.mock.MagicMock()
 	async def _mock_get_pool():
 		return mock_pool
 

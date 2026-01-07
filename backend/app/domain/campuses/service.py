@@ -4,7 +4,7 @@ from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel
 
-from app.infra.postgres import get_pool
+from app.infra import postgres
 
 class Campus(BaseModel):
     id: UUID
@@ -19,7 +19,7 @@ class CampusService:
 
     async def list_campuses(self) -> List[dict]:
         """List all available campuses."""
-        pool = await get_pool()
+        pool = await postgres.get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT id, name, domain, logo_url, lat, lon 
@@ -30,7 +30,7 @@ class CampusService:
 
     async def get_campus(self, campus_id: UUID) -> Optional[dict]:
         """Get a specific campus."""
-        pool = await get_pool()
+        pool = await postgres.get_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow("""
                 SELECT id, name, domain, logo_url, lat, lon

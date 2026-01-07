@@ -174,6 +174,13 @@ class LeaderboardService:
 						await xp_svc.award_xp(user_uuid, XPAction.GAME_PLAYED, metadata={"game": game_kind})
 						if win_inc:
 							await xp_svc.award_xp(user_uuid, XPAction.GAME_WON, metadata={"game": game_kind})
+						else:
+							# Award GAME_LOST for either a loss or a draw
+							is_draw = (winner_id is None)
+							meta = {"game": game_kind}
+							if is_draw:
+								meta["is_draw"] = True
+							await xp_svc.award_xp(user_uuid, XPAction.GAME_LOST, metadata=meta)
 					except Exception as e:
 						logger.error(f"Failed to award XP for game: {e}")
 

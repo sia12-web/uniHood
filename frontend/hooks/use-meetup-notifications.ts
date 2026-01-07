@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { listMeetups, type MeetupResponse } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 
@@ -97,7 +97,9 @@ export function useMeetupNotifications() {
   };
 
   // Mark notifications as seen
-  const markAsSeen = () => {
+  const markAsSeen = useCallback(() => {
+    if (notifications.length === 0 && !hasNewMeetups) return;
+
     const allMeetupIds = notifications.map(n => n.meetup.id);
     allMeetupIds.forEach(id => seenMeetupIdsRef.current.add(id));
 
@@ -114,13 +116,13 @@ export function useMeetupNotifications() {
     setHasNewMeetups(false);
     setNotifications([]);
     window.dispatchEvent(new CustomEvent("meetups_seen"));
-  };
+  }, [notifications, hasNewMeetups]);
 
   // Clear all notifications
-  const clearNotifications = () => {
+  const clearNotifications = useCallback(() => {
     setNotifications([]);
     setHasNewMeetups(false);
-  };
+  }, []);
 
   // Polling effect
   useEffect(() => {

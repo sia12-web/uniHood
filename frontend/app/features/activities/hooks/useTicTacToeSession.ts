@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
-import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface TicTacToeState {
     board: (string | null)[];
@@ -64,9 +63,6 @@ export function useTicTacToeSession(sessionId: string) {
 
     const wsRef = useRef<WebSocket | null>(null);
     const selfRef = useRef<string>(getSelf());
-    const lastRecordedKeyRef = useRef<string | null>(null);
-    const gameStartedAtRef = useRef<number | null>(null);
-    const maxMoveCountRef = useRef<number>(0);
 
     useEffect(() => {
         if (!sessionId) return;
@@ -120,72 +116,6 @@ export function useTicTacToeSession(sessionId: string) {
         };
     }, [sessionId]);
 
-    // Track gameplay timing & move count across state updates.
-    useEffect(() => {
-        if (state.status === 'playing') {
-            if (gameStartedAtRef.current == null) {
-                gameStartedAtRef.current = Date.now();
-                maxMoveCountRef.current = 0;
-            }
-            const movesNow = state.board.filter((cell) => cell !== null).length;
-            if (movesNow > maxMoveCountRef.current) {
-                maxMoveCountRef.current = movesNow;
-            }
-        }
-
-        // Reset trackers when leaving a game.
-        if (state.status !== 'playing' && state.status !== 'finished') {
-            gameStartedAtRef.current = null;
-            maxMoveCountRef.current = 0;
-            // Allow recording again for the next finished match.
-            lastRecordedKeyRef.current = null;
-        }
-    }, [state.status, state.board]);
-
-    // Record game outcome when finished
-    useEffect(() => {
-        if (state.status !== 'finished') {
-            return;
-        }
-
-        // Get player IDs
-        const players = state.players;
-        const userIds = [players.X, players.O].filter((id): id is string => !!id);
-        if (userIds.length < 2) {
-            return;
-        }
-
-        // Only participants can record outcomes (backend enforces this).
-        if (!userIds.includes(selfRef.current)) {
-            return;
-        }
-
-        const winnerId = state.matchWinner ?? state.winner ?? null;
-        const recordKey = `${sessionId}:${state.roundIndex ?? 'match'}:${winnerId ?? 'draw'}`;
-        if (lastRecordedKeyRef.current === recordKey) {
-            return;
-        }
-        lastRecordedKeyRef.current = recordKey;
-
-        // Use the max move count seen while playing. The server may reset the board by the time
-        // the finished state arrives, which would otherwise send move_count=0 and get blocked.
-        const moveCount = Math.max(maxMoveCountRef.current, state.board.filter((cell) => cell !== null).length);
-
-        // Compute a reasonable duration. If we never observed the playing state, fall back.
-        const startedAt = gameStartedAtRef.current;
-        const durationSeconds = startedAt != null ? Math.max(1, Math.floor((Date.now() - startedAt) / 1000)) : 60;
-
-        // Record the outcome
-        recordGameOutcome({
-            userIds,
-            winnerId,
-            gameKind: 'tictactoe',
-            durationSeconds,
-            moveCount,
-        }).catch((err) => {
-            console.error('Failed to record game outcome:', err);
-        });
-    }, [sessionId, state.status, state.players, state.matchWinner, state.winner, state.board, state.roundIndex]);
 
     const makeMove = useCallback((index: number) => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

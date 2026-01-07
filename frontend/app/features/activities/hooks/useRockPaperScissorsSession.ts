@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export type RpsChoice = "rock" | "paper" | "scissors";
 type ScoreEntry = { userId: string; score: number };
@@ -88,7 +87,6 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
   const sessionIdRef = useRef<string | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const selfIdRef = useRef<string>(getSelf());
-  const outcomeRecordedRef = useRef(false);
 
   useEffect(() => {
     selfIdRef.current = getSelf();
@@ -385,11 +383,6 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
       setState((prev) => ({ ...prev, error: error instanceof Error ? error.message : "ready_failed" }));
     }
   }, []);
-
-  useEffect(() => {
-    resetOutcomeGuard(outcomeRecordedRef);
-  }, [state.sessionId]);
-
   const unready = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
@@ -449,21 +442,6 @@ export function useRockPaperScissorsSession(opts: { sessionId?: string }) {
     }
   }, []);
 
-  // Record game outcome when game ends (phase goes to "ended")
-  useEffect(() => {
-    if (state.phase === "ended" || state.leaveReason) {
-      maybeRecordOutcome({
-        phase: state.phase,
-        leaveReason: state.leaveReason,
-        scoreboard: state.scoreboard,
-        winnerUserId: state.winnerUserId,
-        selfUserId: selfIdRef.current,
-        gameKind: "rock_paper_scissors",
-        durationSeconds: 60,
-        outcomeRecordedRef,
-      });
-    }
-  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
 
   return useMemo(
     () => ({

@@ -700,28 +700,6 @@ class ActivitiesService:
 				duration_seconds=duration_seconds,
 				move_count=move_count,
 			)
-
-			if awarded_users:
-				from app.domain.xp import XPService
-				from app.domain.xp.models import XPAction
-				xp_service = XPService()
-				
-				# Award participation XP
-				for uid in awarded_users:
-					await xp_service.award_xp(uid, XPAction.GAME_PLAYED, metadata={"activity_id": activity.id, "kind": activity.kind})
-				
-				# Award outcome XP (Win or Loss)
-				is_draw = (winner_id is None)
-				for uid in awarded_users:
-					if winner_id and uid == winner_id:
-						await xp_service.award_xp(uid, XPAction.GAME_WON, metadata={"activity_id": activity.id, "kind": activity.kind})
-					else:
-						# Award GAME_LOST for either a loss or a draw
-						meta = {"activity_id": activity.id, "kind": activity.kind}
-						if is_draw:
-							meta["is_draw"] = True
-						await xp_service.award_xp(uid, XPAction.GAME_LOST, metadata=meta)
-			
 			# Deleted the redundant activity.finish audit log to prevent double items in feed.
 
 		except Exception:

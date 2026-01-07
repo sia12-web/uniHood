@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSelf, resolveActivitiesCoreUrl, leaveSession } from "../api/client";
-import { recordGameOutcome } from "@/lib/leaderboards";
 
 export interface StoryParagraph {
     userId: string;
@@ -169,34 +168,6 @@ export function useStoryBuilderSession(sessionId: string) {
         }
     }, [sessionId]);
 
-    const outcomeRecordedRef = useRef(false);
-
-    // Record game outcome when session ends
-    useEffect(() => {
-        if (state.phase !== 'ended' && !state.leaveReason) return;
-        if (outcomeRecordedRef.current) return;
-
-        const participants = state.participants.map(p => p.userId).filter(Boolean);
-        if (participants.length < 2) return;
-
-        outcomeRecordedRef.current = true;
-
-        const winnerId = state.winnerUserId ?? (state.leaveReason === 'opponent_left' ? selfRef.current : null);
-
-        recordGameOutcome({
-            userIds: participants,
-            winnerId,
-            gameKind: 'story_builder',
-            durationSeconds: 120,
-        }).catch((err) => {
-            console.error('Failed to record game outcome:', err);
-        });
-    }, [state.phase, state.leaveReason, state.participants, state.winnerUserId]);
-
-    // Reset outcome guard when session changes
-    useEffect(() => {
-        outcomeRecordedRef.current = false;
-    }, [sessionId]);
 
 
     return {

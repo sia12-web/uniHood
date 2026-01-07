@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, MessageCircle, UserPlus, Instagram, Linkedin, Loader2, MapPin, Sparkles } from "lucide-react";
+import { X, MessageCircle, UserPlus, Instagram, Linkedin, Loader2, MapPin, Sparkles, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfileScroll, cardVariants } from "@/hooks/use-profile-scroll";
 import { NearbyUser, DiscoveryProfile } from "@/lib/types";
@@ -278,6 +278,12 @@ function ProfileDetailContent({
                                                 <div className="flex justify-between items-center text-sm">
                                                     <span className="text-slate-500 font-medium">Orientation</span>
                                                     <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.sexual_orientation}</span>
+                                                </div>
+                                            )}
+                                            {user.height && (
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-slate-500 font-medium flex items-center gap-1.5"><Ruler size={14} className="text-slate-400" /> Height</span>
+                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.height} cm</span>
                                                 </div>
                                             )}
                                             {user.looking_for && user.looking_for.length > 0 && (

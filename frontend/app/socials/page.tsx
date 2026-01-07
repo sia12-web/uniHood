@@ -9,6 +9,7 @@ import { RequestsAndBlocks } from "@/components/social/RequestsAndBlocks";
 import { Sparkles, Users, Calendar, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
+import { useInviteInboxCount } from "@/hooks/social/use-invite-count";
 
 import { Suspense } from "react";
 
@@ -18,6 +19,7 @@ function SocialsContent() {
   const initialTab = (searchParams.get("tab") as "discover" | "friends" | "requests" | "meetups") || "discover";
   const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">(initialTab);
   const { markAsSeen } = useMeetupNotifications();
+  const { inboundPending } = useInviteInboxCount();
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab);
@@ -74,6 +76,11 @@ function SocialsContent() {
             )}
           >
             <Inbox size={16} /> Requests
+            {inboundPending > 0 && (
+              <span className="flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                {inboundPending}
+              </span>
+            )}
           </button>
           <button
             onClick={() => handleTabChange("meetups")}

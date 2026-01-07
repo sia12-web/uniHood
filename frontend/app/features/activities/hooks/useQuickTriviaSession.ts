@@ -1,7 +1,6 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { readAuthSnapshot } from "@/lib/auth-storage";
 import { getSelf, joinSession, leaveSession, setSessionReady } from "../api/client";
-import { maybeRecordOutcome, resetOutcomeGuard } from "./outcome-recorder";
 
 export interface TriviaState {
   phase: "idle" | "connecting" | "lobby" | "running" | "ended" | "error" | "countdown";
@@ -59,7 +58,6 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
   const joinedRef = useRef(false);
   const expiredRef = useRef(false);
   const socketCleanupRef = useRef<(() => void) | null>(null);
-  const outcomeRecordedRef = useRef(false);
 
   const isSessionGone = useCallback((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error ?? "");
@@ -454,25 +452,6 @@ export function useQuickTriviaSession(opts: { sessionId?: string }) {
     }
   }, [state.sessionId]);
 
-  // Record game outcome when session ends
-  useEffect(() => {
-    if (state.phase === 'ended' || state.leaveReason) {
-      maybeRecordOutcome({
-        phase: state.phase,
-        leaveReason: state.leaveReason,
-        scoreboard: state.scoreboard,
-        winnerUserId: state.winnerUserId,
-        selfUserId: selfRef.current,
-        gameKind: 'quick_trivia',
-        durationSeconds: 60,
-        outcomeRecordedRef,
-      });
-    }
-  }, [state.phase, state.leaveReason, state.scoreboard, state.winnerUserId]);
-
-  useEffect(() => {
-    resetOutcomeGuard(outcomeRecordedRef);
-  }, [state.sessionId]);
 
   return { state, selectOption, toggleReady, leave, progress, countdownRemainingMs, questionMsRemaining: remainingMs, self: selfRef.current };
 }

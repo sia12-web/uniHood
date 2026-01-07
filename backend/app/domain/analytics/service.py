@@ -97,7 +97,7 @@ class AnalyticsService:
                 LEFT JOIN users u ON a.user_id = u.id
                 WHERE (
                     a.event IN ('friend.accepted', 'friend.removed', 'activity.create', 'activity.join', 'meetup.create', 'meetup.join', 'meetup.leave', 'meetup.cancel', 'level.up')
-                    OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
+                    OR (a.event = 'xp.gained' AND a.meta->>'action' IN ('game_won', 'game_played', 'game_lost'))
                 )
                 AND (
                     $2::uuid IS NULL 

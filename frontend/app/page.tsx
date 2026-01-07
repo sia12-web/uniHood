@@ -288,8 +288,22 @@ export default function HomePage() {
         Icon = Trophy;
         iconBg = "bg-yellow-100 dark:bg-yellow-900/30";
         iconColor = "text-yellow-600 dark:text-yellow-400";
-        const kind = (meta.source_meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
+        const kind = (meta.source_meta as { game?: string })?.game?.replace(/_/g, " ") || "a game";
         content = <span>{actor} won {kind}!</span>;
+        xpGain = `+${amount} XP`;
+      } else if (action === "game_played") {
+        Icon = Gamepad2;
+        iconBg = "bg-indigo-100 dark:bg-indigo-900/30";
+        iconColor = "text-indigo-600 dark:text-indigo-400";
+        const kind = (meta.source_meta as { game?: string })?.game?.replace(/_/g, " ") || "a game";
+        content = <span>{actor} played {kind}</span>;
+        xpGain = `+${amount} XP`;
+      } else if (action === "game_lost") {
+        Icon = Gamepad2;
+        iconBg = "bg-slate-100 dark:bg-slate-800";
+        iconColor = "text-slate-400 dark:text-slate-500";
+        const kind = (meta.source_meta as { game?: string })?.game?.replace(/_/g, " ") || "a game";
+        content = <span>{actor} finished {kind}</span>;
         xpGain = `+${amount} XP`;
       } else {
         Icon = Zap;

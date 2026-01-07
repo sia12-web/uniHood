@@ -167,12 +167,15 @@ function writeAuthCookie(value: string | null): void {
   if (typeof document === "undefined") {
     return;
   }
-  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const secure = isHttps ? "; Secure" : "";
+  const samesite = isHttps ? "; SameSite=None" : "; SameSite=Lax";
+
   if (!value) {
     document.cookie = `${AUTH_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
     return;
   }
-  document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(value)}; Max-Age=${AUTH_COOKIE_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+  document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(value)}; Max-Age=${AUTH_COOKIE_MAX_AGE}; Path=/${samesite}${secure}`;
 }
 
 function emitAuthEvent(): void {

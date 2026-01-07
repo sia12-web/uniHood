@@ -28,9 +28,10 @@ function validatePayload(raw: string): string | null {
 		if (typeof parsed !== "object" || parsed === null) {
 			return "invalid_payload";
 		}
-		if (typeof (parsed as { event?: unknown }).event !== "string") {
-			return "missing_event";
-		}
+		// Relaxed: Allow payload without event for generic telemetry
+		// if (typeof (parsed as { event?: unknown }).event !== "string") {
+		// 	return "missing_event";
+		// }
 	} catch {
 		return "invalid_json";
 	}

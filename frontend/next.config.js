@@ -68,6 +68,16 @@ const nextConfig = (() => {
 				transform: "lucide-react/dist/esm/icons/{{kebabCase member}}",
 			},
 		},
+		// Redirects for legacy routes
+		async redirects() {
+			return [
+				{
+					source: "/friends",
+					destination: "/socials?tab=friends",
+					permanent: true,
+				},
+			];
+		},
 	};
 })();
 

@@ -101,7 +101,7 @@ export function FriendsSnapshot() {
       )}
       <div className="mt-auto flex items-center justify-between text-sm">
         <span className="text-navy/60 dark:text-slate-400">{friends.length} total</span>
-        <Link href="/friends" className="font-medium text-midnight dark:text-indigo-400 hover:underline">
+        <Link href="/socials?tab=friends" className="font-medium text-midnight dark:text-indigo-400 hover:underline">
           Manage friends →
         </Link>
       </div>

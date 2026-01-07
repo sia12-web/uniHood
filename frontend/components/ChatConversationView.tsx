@@ -394,7 +394,7 @@ export default function ChatConversationView({ peerId }: Props) {
             <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
             <span>Live delivery enabled</span>
           </div>
-          <Link href="/friends" className="font-semibold text-midnight dark:text-indigo-400 underline-offset-4 hover:underline">
+          <Link href="/socials?tab=friends" className="font-semibold text-midnight dark:text-indigo-400 underline-offset-4 hover:underline">
             Add more friends
           </Link>
         </footer>

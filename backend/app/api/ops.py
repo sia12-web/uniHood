@@ -121,6 +121,8 @@ async def trigger_rollover(_: None = Depends(require_admin)) -> dict[str, str]:
 
 
 class SafetyUiMetric(BaseModel):
+	model_config = {"extra": "allow"}
+
 	event: str
 	verdict: Optional[Literal["clean", "tombstone", "blocked"]] = None
 	count: Optional[int] = None

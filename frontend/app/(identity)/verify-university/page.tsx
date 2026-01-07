@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Target, Users, Gamepad2, School, ChevronRight, Loader2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";

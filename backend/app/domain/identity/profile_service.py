@@ -466,8 +466,18 @@ async def patch_profile(auth_user: AuthenticatedUser, payload: schemas.ProfilePa
 	try:
 		from app.domain.xp import XPService
 		from app.domain.xp.models import XPAction
-		# Award XP for updating profile
-		await XPService().award_xp(auth_user.id, XPAction.PROFILE_UPDATE)
+		from app.infra.redis import redis_client
+		
+		# Only award XP once for profile completion
+		# Check if user has already received profile completion bonus
+		profile_xp_key = f"profile_xp_awarded:{auth_user.id}"
+		already_awarded = await redis_client.get(profile_xp_key)
+		
+		if not already_awarded:
+			# Award XP for first-time profile completion
+			await XPService().award_xp(auth_user.id, XPAction.PROFILE_UPDATE)
+			# Set flag that never expires (permanent one-time award)
+			await redis_client.set(profile_xp_key, "1")
 	except Exception:
 		logger.warning("Failed to award profile update XP", exc_info=True)
 

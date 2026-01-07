@@ -258,7 +258,7 @@ export default function ContactPage() {
                                 id="contact-submit-button"
                                 type="submit"
                                 disabled={formState === "submitting"}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-coral to-rose-500 px-6 py-4 font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:from-indigo-600 dark:to-violet-600 dark:hover:from-indigo-500 dark:hover:to-violet-500"
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-coral px-6 py-4 font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl hover:bg-coral/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {formState === "submitting" ? (
                                     <>

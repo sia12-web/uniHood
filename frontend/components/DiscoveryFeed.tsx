@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/app/lib/http/client";
 import { applyDiff } from "@/lib/diff";
 import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
@@ -159,6 +159,49 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const positionRef = useRef<GeolocationPosition | null>(null);
   const sentInitialHeartbeat = useRef(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetUserId = searchParams.get("user");
+
+  // Bridge between fetchProfile results (ProfileRecord) and NearbyUser
+  const profileToNearby = useCallback((p: ProfileRecord): NearbyUser => ({
+    user_id: p.id,
+    display_name: p.display_name,
+    handle: p.handle,
+    avatar_url: p.avatar_url,
+    major: p.major,
+    bio: p.bio,
+    graduation_year: p.graduation_year,
+    campus_id: p.campus_id,
+    gallery: p.gallery,
+    passions: p.passions,
+    courses: p.courses?.map(c => c.name),
+    social_links: p.social_links,
+    gender: p.gender,
+    hometown: p.hometown,
+    relationship_status: p.relationship_status,
+    sexual_orientation: p.sexual_orientation,
+    looking_for: p.looking_for || undefined,
+    height: p.height,
+    lifestyle: p.lifestyle,
+    is_university_verified: p.is_university_verified,
+    xp: p.xp,
+    level: p.level,
+    level_label: p.level_label,
+    top_prompts: p.profile_prompts,
+  }), []);
+
+  useEffect(() => {
+    if (targetUserId && authEvaluated && !selectedUser) {
+      const found = users.find(u => u.user_id === targetUserId);
+      if (found) {
+        setSelectedUser(found);
+      } else {
+        fetchProfile(targetUserId, currentCampusId)
+          .then(p => setSelectedUser(profileToNearby(p)))
+          .catch(err => console.error("Failed to auto-select user", err));
+      }
+    }
+  }, [targetUserId, users, authEvaluated, selectedUser, currentCampusId, profileToNearby]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {

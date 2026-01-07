@@ -72,21 +72,34 @@ export async function refreshAccessToken(): Promise<AuthSnapshot | null> {
         cache: "no-store",
         body: JSON.stringify(payload),
       });
+
       if (!response.ok) {
-        clearAuthSnapshot();
+        // Only clear snapshot on 4xx client errors (invalid token, expired session, etc.)
+        // Preserve it on 5xx or network errors so we don't kick the user out due to temporary glitches.
+        if (response.status >= 400 && response.status < 500) {
+          console.warn("[auth-refresh] Refresh failed with 4xx, clearing session", response.status);
+          clearAuthSnapshot();
+        } else {
+          console.error("[auth-refresh] Refresh failed with server/network error", response.status);
+        }
         return null;
       }
+
       let data: RefreshResponse;
       try {
         data = (await response.json()) as RefreshResponse;
-      } catch {
-        clearAuthSnapshot();
+      } catch (err) {
+        console.error("[auth-refresh] Failed to parse refresh response", err);
+        // Don't clear here, might be a temporary parsing/network issue if response was ok but body garbled
         return null;
       }
+
       if (!data.access_token || typeof data.access_token !== "string") {
+        console.warn("[auth-refresh] Refresh response missing access token");
         clearAuthSnapshot();
         return null;
       }
+
       const nextSnapshot: AuthSnapshot = {
         ...(current ?? {}),
         ...data,
@@ -94,8 +107,12 @@ export async function refreshAccessToken(): Promise<AuthSnapshot | null> {
       };
       storeAuthSnapshot(nextSnapshot);
       return nextSnapshot;
-    } catch {
-      clearAuthSnapshot();
+    } catch (err) {
+      console.error("[auth-refresh] Network error during refresh", err);
+      // DO NOT clearAuthSnapshot() here! It might be a temporary dropout.
+      // If we clear, the user is immediately kicked out to login.
+      // By returning null, the caller (apiFetch) will treat it as a failed refresh
+      // but the original credentials remain in storage for a retry.
       return null;
     } finally {
       inFlightRefresh = null;

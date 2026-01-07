@@ -55,6 +55,10 @@ class SocialNamespace(socketio.AsyncNamespace):
 			raise ConnectionRefusedError("unauthenticated")
 		await self.enter_room(sid, self.user_room(user.id))
 
+	async def on_hb(self, sid: str) -> None:
+		"""Handle application-level heartbeat from client."""
+		pass
+
 	@staticmethod
 	def user_room(user_id: str) -> str:
 		return f"user:{user_id}"

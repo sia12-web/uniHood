@@ -185,21 +185,30 @@ async function executeApiFetch<T>(
 			}
 
 			if (response.status === 401 && typeof window !== "undefined") {
-				const path = window.location.pathname;
-				// Add common public routes to avoid redirect loops or hiding actual login errors
-				const isPublic =
-					path.startsWith("/login") ||
-					path.startsWith("/admin-login") ||
-					path.startsWith("/register") ||
-					path.startsWith("/reset-password") ||
-					path.startsWith("/forgot-") ||
-					path.startsWith("/verify");
+				const snapshotAfter = readAuthSnapshot();
+				if (!snapshotAfter) {
+					// Session is explicitly gone (cleared by refreshAccessToken 4xx failure)
+					const path = window.location.pathname;
+					// Add common public routes to avoid redirect loops or hiding actual login errors
+					const isPublic =
+						path.startsWith("/login") ||
+						path.startsWith("/admin-login") ||
+						path.startsWith("/register") ||
+						path.startsWith("/reset-password") ||
+						path.startsWith("/forgot-") ||
+						path.startsWith("/verify");
 
-				if (!isPublic) {
-					const next = encodeURIComponent(path + window.location.search);
-					window.location.href = `/login?next=${next}`;
-					// Return a non-resolving promise to suspend execution while the page redirects
-					return new Promise(() => { });
+					if (!isPublic) {
+						const next = encodeURIComponent(path + window.location.search);
+						console.warn("[http-client] Unauthorized and no session, redirecting to login", { path });
+						window.location.href = `/login?next=${next}`;
+						// Return a non-resolving promise to suspend execution while the page redirects
+						return new Promise(() => { });
+					}
+				} else {
+					// Session still exists but 401 happened and refresh failed (maybe network glitch)
+					// Throw a normal error so the UI can show a retry button instead of kicking user out
+					console.error("[http-client] 401 Unauthorized but session persists. Refresh may have failed due to network glitch.");
 				}
 			}
 

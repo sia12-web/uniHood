@@ -106,9 +106,16 @@ async def get_current_user(
 	"""
 	from app.infra.postgres import get_pool  # Lazy import to avoid circulars if any
 	
-	# Prefer bearer JWT when present
+	# Prefer bearer JWT when present, fallback to cookie
+	token = None
 	if credentials and credentials.scheme.lower() == "bearer":
-		user = verify_access_jwt(credentials.credentials)
+		token = credentials.credentials
+	else:
+		# Fallback to unihood.auth cookie (set by FE in localStorage sync)
+		token = request.cookies.get("unihood.auth")
+
+	if token:
+		user = verify_access_jwt(token)
 		
 		# v2 Hardening: Verify token_version against DB to allow instant revocation
 		try:
@@ -183,10 +190,16 @@ async def get_optional_user(
 	
 	This is useful for endpoints that work with both authenticated and anonymous users.
 	"""
-	# Prefer bearer JWT when present
+	# Prefer bearer JWT when present, fallback to cookie
+	token = None
 	if credentials and credentials.scheme.lower() == "bearer":
+		token = credentials.credentials
+	else:
+		token = request.cookies.get("unihood.auth")
+
+	if token:
 		try:
-			user = verify_access_jwt(credentials.credentials)
+			user = verify_access_jwt(token)
 			_enforce_signed_intent_identity(request, user)
 			return user
 		except HTTPException:

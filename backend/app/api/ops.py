@@ -121,15 +121,10 @@ async def trigger_rollover(_: None = Depends(require_admin)) -> dict[str, str]:
 
 
 class SafetyUiMetric(BaseModel):
-	event: Literal[
-		"quarantine_reveal",
-		"quarantine_decision",
-		"thresholds_simulate",
-		"hash_import",
-		"url_query",
-	]
-	verdict: Literal["clean", "tombstone", "blocked"] | None = None
-	count: int | None = None
+	event: str
+	verdict: Optional[Literal["clean", "tombstone", "blocked"]] = None
+	count: Optional[int] = None
+	metadata: Optional[dict] = None
 
 
 @router.post("/ops/ui-metrics", status_code=status.HTTP_202_ACCEPTED)

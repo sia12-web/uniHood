@@ -356,14 +356,18 @@ export default function ChatConversationView({ peerId }: Props) {
     <div className="w-full px-3 py-4 sm:px-4">
       <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-100 p-1 md:p-3.5">
         <header className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-midnight/10 dark:bg-indigo-500/20 text-base font-semibold text-midnight dark:text-indigo-300">
+          <Link
+            href={`/socials?tab=discover&user=${validPeer}`}
+            className="group relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-midnight/10 dark:bg-indigo-500/20 text-base font-semibold text-midnight dark:text-indigo-300 transition-all hover:scale-105 active:scale-95"
+          >
             {peerEntry?.displayName?.charAt(0).toUpperCase() ?? validPeer.slice(0, 1).toUpperCase()}
-          </div>
+            <div className="absolute inset-0 rounded-full ring-2 ring-transparent group-hover:ring-indigo-500/20 transition-all" />
+          </Link>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100">{headerTitle}</p>
+            <Link href={`/socials?tab=discover&user=${validPeer}`} className="group flex items-center gap-2 w-fit">
+              <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{headerTitle}</p>
               {peerEntry?.level ? <LevelBadge level={peerEntry.level} size="sm" /> : null}
-            </div>
+            </Link>
           </div>
           <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             {socketStatusLabel}

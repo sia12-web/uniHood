@@ -45,6 +45,10 @@ class ActivitiesNamespace(socketio.AsyncNamespace):
 		if user:
 			await self.leave_room(sid, self.user_room(user.id))
 
+	async def on_hb(self, sid: str) -> None:
+		"""Handle application-level heartbeat from client."""
+		pass
+
 	async def on_activity_join(self, sid: str, payload: dict) -> None:
 		obs_metrics.socket_event(self.namespace, "activity_join")
 		user = self._sessions.get(sid)

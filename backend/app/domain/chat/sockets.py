@@ -65,6 +65,12 @@ class ChatNamespace(socketio.AsyncNamespace):
 			room=self.user_room(peer_id),
 		)
 
+	async def on_hb(self, sid: str) -> None:
+		"""Handle application-level heartbeat from client."""
+		# We don't need to do much, just receiving it keeps the connection active
+		# and confirms the application logic is still responsive.
+		pass
+
 	async def _authorise(self, environ: dict, auth: Optional[dict]) -> AuthenticatedUser:
 		scope = environ.get("asgi.scope", environ)
 		auth_payload = auth or environ.get("auth") or scope.get("auth") or {}

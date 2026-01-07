@@ -288,7 +288,18 @@ if "*" in allow_origins:
 			"https://127.0.0.1:3001",
 		]
 	else:
-		allow_origins = ["https://unihood.app", "https://www.unihood.app", "https://unihood-frontend.onrender.com"]
+		# Keep baseline origins and add production ones
+		for o in [
+			"https://unihood.app",
+			"https://www.unihood.app",
+			"https://unihood-frontend.onrender.com",
+			"https://unihood-backend-14x8.onrender.com",
+		]:
+			if o not in allow_origins:
+				allow_origins.append(o)
+		# Filter out '*' if credentials are used
+		if "*" in allow_origins:
+			allow_origins.remove("*")
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -395,7 +406,12 @@ async def _head_upload(path: str):
 	return Response(status_code=200, headers={"Content-Type": media_type or "application/octet-stream"})
 
 # Use the same allowed origins for Socket.IO as for the REST API
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=allow_origins)
+sio = socketio.AsyncServer(
+	async_mode="asgi",
+	cors_allowed_origins=allow_origins,
+	ping_timeout=60,
+	ping_interval=25,
+)
 sio.register_namespace(PresenceNamespace())
 social_namespace = SocialNamespace()
 sio.register_namespace(social_namespace)

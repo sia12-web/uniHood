@@ -108,9 +108,12 @@ export default function ChatWindow({
 
 
 
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault?.();
     if (!draft.trim()) {
+      inputRef.current?.focus();
       return;
     }
     setSending(true);
@@ -119,6 +122,10 @@ export default function ChatWindow({
       setDraft("");
     } finally {
       setSending(false);
+      // Use setTimeout to ensure the focus happens after the re-enable
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   }
 
@@ -331,6 +338,7 @@ export default function ChatWindow({
           className="relative flex items-end gap-2 rounded-[28px] bg-slate-50 p-2 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:bg-white transition-all shadow-sm"
         >
           <textarea
+            ref={inputRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {

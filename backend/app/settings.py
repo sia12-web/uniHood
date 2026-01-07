@@ -87,7 +87,7 @@ class Settings(BaseSettings):
 
     # Security/cross-origin and auth cookie knobs
     cors_allow_origins: Any = _env_field((), "CORS_ALLOW_ORIGINS")
-    access_ttl_minutes: int = _env_field(15, "ACCESS_TTL_MINUTES")
+    access_ttl_minutes: int = _env_field(60, "ACCESS_TTL_MINUTES")
     refresh_ttl_days: int = _env_field(7, "REFRESH_TTL_DAYS")
     refresh_pepper: str = _env_field(..., "REFRESH_PEPPER")
     # For cross-origin deployments (frontend != backend domain), use Secure=True, SameSite=None

@@ -4,7 +4,7 @@
 import { useCallback, useContext, useEffect, useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, BookOpen, Settings, Trophy, Sparkles } from "lucide-react";
+import { User, BookOpen, Settings, Trophy, Sparkles, Check } from "lucide-react";
 import { SocialRoadmap } from "@/components/social/SocialRoadmap";
 import { SocialScoreGuideContent } from "@/components/social/SocialScoreGuide";
 
@@ -40,6 +40,17 @@ import { cn } from "@/lib/utils";
 const DEMO_USER_ID = getDemoUserId();
 const DEMO_CAMPUS_ID = getDemoCampusId();
 const DRAFT_STORAGE_KEY = "unihood.profile.draft";
+const POPULAR_CONCORDIA_COURSES = [
+	{ code: "COMP 248", name: "Object-Oriented Programming I" },
+	{ code: "COMP 232", name: "Mathematics for Computer Science" },
+	{ code: "SOEN 287", name: "Web Programming" },
+	{ code: "MATH 203", name: "Differential & Integral Calculus I" },
+	{ code: "MATH 204", name: "Vectors and Matrices" },
+	{ code: "COMM 210", name: "Contemporary Business Thinking" },
+	{ code: "ECON 201", name: "Introduction to Microeconomics" },
+	{ code: "PSYC 200", name: "Introduction to Psychology" },
+];
+
 
 type StoredProfileDraft = {
 	id: string;
@@ -977,6 +988,45 @@ export default function ProfileSettingsPage() {
 								No courses added yet. Add the classes you are taking to unlock smarter invites and study group suggestions.
 							</p>
 						)}
+
+						<div className="mt-8 border-t border-slate-100 pt-8">
+							<h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+								<Sparkles size={12} className="text-indigo-500" />
+								Popular at your university
+							</h3>
+							<div className="mt-4 flex flex-wrap gap-2">
+								{POPULAR_CONCORDIA_COURSES.map((course) => {
+									const isAdded = coursesDraft.some(c => c.code === course.code);
+									return (
+										<button
+											key={course.code}
+											type="button"
+											disabled={isAdded || courseSaving}
+											onClick={() => {
+												const newItem: CourseItem = {
+													_localId: randomLocalId(`popular-${course.code}`),
+													name: course.name,
+													code: course.code,
+													term: "",
+												};
+												void persistCourses([...coursesDraft, newItem]);
+											}}
+											className={cn(
+												"inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all border shadow-sm",
+												isAdded
+													? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+													: "bg-white text-indigo-600 border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow"
+											)}
+										>
+											<span className="font-bold">{course.code}</span>
+											<span className="h-1 w-1 rounded-full bg-slate-300" />
+											<span className={isAdded ? "text-slate-400" : "text-slate-500"}>{course.name}</span>
+											{isAdded && <Check size={12} className="text-emerald-500" />}
+										</button>
+									);
+								})}
+							</div>
+						</div>
 
 						{courseFeedback && !courseErrorMessage ? (
 							<p className="mt-3 text-xs font-medium text-emerald-600">{courseFeedback}</p>

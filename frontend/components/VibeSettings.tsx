@@ -29,6 +29,7 @@ const VIBE_PROMPTS = [
     "My ideal weekend is...",
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
     const [relationshipStatus, setRelationshipStatus] = useState(profile.relationship_status ?? "");
     const [sexualOrientation, setSexualOrientation] = useState(profile.sexual_orientation ?? "");

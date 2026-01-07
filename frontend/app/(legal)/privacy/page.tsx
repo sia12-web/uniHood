@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy - Divan",
-	description: "Divan privacy policy and data practices",
+	title: "Privacy Policy - uniHood",
+	description: "uniHood privacy policy and data practices",
 };
 
 export default function PrivacyPolicyPage() {
@@ -15,17 +15,17 @@ export default function PrivacyPolicyPage() {
 
 			<section className="mb-8">
 				<p>
-					Welcome to Divan (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We believe that the foundation of a great community is trust, and that trust starts with being transparent about how we handle your personal information. This Privacy Policy details the data we collect, why we collect it, and the robust measures we take to keep it secure.
+					Welcome to uniHood (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We believe that the foundation of a great community is trust, and that trust starts with being transparent about how we handle your personal information. This Privacy Policy details the data we collect, why we collect it, and the robust measures we take to keep it secure.
 				</p>
 				<p>
-					By using Divan, you agree to the practices described in this policy. We have designed our platform to minimize data collection and prioritize your privacy at every turn.
+					By using uniHood, you agree to the practices described in this policy. We have designed our platform to minimize data collection and prioritize your privacy at every turn.
 				</p>
 			</section>
 
 			<section className="mb-8">
 				<h2>1. Information We Collect</h2>
 				<p>
-					To provide a seamless experience on Divan, we collect several categories of information. We only ask for what is strictly necessary to run the platform and provide the features you enjoy.
+					To provide a seamless experience on uniHood, we collect several categories of information. We only ask for what is strictly necessary to run the platform and provide the features you enjoy.
 				</p>
 				<div className="overflow-x-auto">
 					<table className="min-w-full border-collapse">
@@ -70,7 +70,7 @@ export default function PrivacyPolicyPage() {
 			<section className="mb-8">
 				<h2>2. How We Use Your Information</h2>
 				<p>
-					We use your information strictly to support and enhance your experience on Divan. We process data under established legal bases as outlined below.
+					We use your information strictly to support and enhance your experience on uniHood. We process data under established legal bases as outlined below.
 				</p>
 				<div className="overflow-x-auto">
 					<table className="min-w-full border-collapse">
@@ -251,7 +251,7 @@ export default function PrivacyPolicyPage() {
 			<section className="mb-8">
 				<h2>7. Children&apos;s Privacy</h2>
 				<p>
-					Divan is a platform for adults and university students. You must be at least 18 years of age to use the platform. We do not knowingly collect personal information from children under 18. If we discover a minor has created an account, we will terminate it and delete their data immediately.
+					uniHood is a platform for adults and university students. You must be at least 18 years of age to use the platform. We do not knowingly collect personal information from children under 18. If we discover a minor has created an account, we will terminate it and delete their data immediately.
 				</p>
 			</section>
 
@@ -265,7 +265,7 @@ export default function PrivacyPolicyPage() {
 			<section className="mb-8">
 				<h2>9. Policy Updates</h2>
 				<p>
-					As Divan evolves, so will this policy. If we make significant changes, we will notify you through the app or via the email address associated with your account at least 30 days before the changes take effect.
+					As uniHood evolves, so will this policy. If we make significant changes, we will notify you through the app or via the email address associated with your account at least 30 days before the changes take effect.
 				</p>
 			</section>
 
@@ -294,9 +294,10 @@ export default function PrivacyPolicyPage() {
 				</Link>
 				{" · "}
 				<Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
-					Back to Divan
+					Back to uniHood
 				</Link>
 			</p>
 		</article>
 	);
 }
+

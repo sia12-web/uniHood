@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Terms of Service - Divan",
-	description: "Divan terms of service and user agreement",
+	title: "Terms of Service - uniHood",
+	description: "uniHood terms of service and user agreement",
 };
 
 export default function TermsOfServicePage() {
@@ -14,12 +14,12 @@ export default function TermsOfServicePage() {
 			<p className="text-sm text-gray-500 dark:text-gray-400">Last updated: December 19, 2025</p>
 
 			<p>
-				Welcome to Divan. We’re glad you’re here. These Terms of Service ("Terms") govern your access to and use of our platform. By accessing or using Divan, you agree to be bound by these Terms and our <Link href="/privacy">Privacy Policy</Link>. If any part of these terms doesn't work for you, please do not use our service.
+				Welcome to uniHood. We’re glad you’re here. These Terms of Service ("Terms") govern your access to and use of our platform. By accessing or using uniHood, you agree to be bound by these Terms and our <Link href="/privacy">Privacy Policy</Link>. If any part of these terms doesn't work for you, please do not use our service.
 			</p>
 
 			<h2>1. Eligibility</h2>
 			<p>
-				We want to keep Divan a safe and reliable space for our community. To use our platform, you must:
+				We want to keep uniHood a safe and reliable space for our community. To use our platform, you must:
 			</p>
 			<ul>
 				<li>Be at least 18 years old.</li>
@@ -31,7 +31,7 @@ export default function TermsOfServicePage() {
 
 			<h2>2. Your Account</h2>
 			<p>
-				Your account is your personal gateway to the Divan community. Keeping it secure is a shared responsibility.
+				Your account is your personal gateway to the uniHood community. Keeping it secure is a shared responsibility.
 			</p>
 
 			<div className="overflow-x-auto">
@@ -65,7 +65,7 @@ export default function TermsOfServicePage() {
 
 			<h2>3. Acceptable Use</h2>
 			<p>
-				Divan is built on trust and respect. We have a zero-tolerance policy for behavior that undermines the safety of our users.
+				uniHood is built on trust and respect. We have a zero-tolerance policy for behavior that undermines the safety of our users.
 			</p>
 
 			<h3>Prohibited Activities</h3>
@@ -108,7 +108,7 @@ export default function TermsOfServicePage() {
 
 			<h2>4. Content & Ownership</h2>
 			<p>
-				You retain ownership of the content you create and post on Divan. However, to make the platform work, we need certain permissions.
+				You retain ownership of the content you create and post on uniHood. However, to make the platform work, we need certain permissions.
 			</p>
 
 			<div className="overflow-x-auto">
@@ -142,7 +142,7 @@ export default function TermsOfServicePage() {
 
 			<h2>5. Intellectual Property</h2>
 			<p>
-				The Divan platform—including its design, code, logos, and features—is our property and is protected by intellectual property laws. You may not copy, modify, distribute, or reverse-engineer any part of our service without our express written permission.
+				The uniHood platform—including its design, code, logos, and features—is our property and is protected by intellectual property laws. You may not copy, modify, distribute, or reverse-engineer any part of our service without our express written permission.
 			</p>
 
 			<h2>6. Third-Party Services</h2>
@@ -201,13 +201,13 @@ export default function TermsOfServicePage() {
 
 			<h2>10. Indemnification</h2>
 			<p>
-				You agree to indemnify and hold harmless Divan and its affiliates from any claims, damages, or expenses (including legal fees) arising from your use of the service, your content, or your violation of these Terms.
+				You agree to indemnify and hold harmless uniHood and its affiliates from any claims, damages, or expenses (including legal fees) arising from your use of the service, your content, or your violation of these Terms.
 			</p>
 
 			<h2>11. Dispute Resolution</h2>
 			<p><strong>Governing Law:</strong> These terms are governed by the laws of Ontario, Canada.</p>
 			<p>
-				<strong>Informal Resolution:</strong> Before filing a formal dispute, you agree to contact us at <a href="mailto:legal@divan.app">legal@divan.app</a> to attempt to resolve the matter informally.
+				<strong>Informal Resolution:</strong> Before filing a formal dispute, you agree to contact us at <a href="mailto:legal@uniHood.app">legal@uniHood.app</a> to attempt to resolve the matter informally.
 			</p>
 			<p>
 				<strong>Arbitration:</strong> If informal resolution fails, disputes will be resolved through binding arbitration, except for small claims court matters or intellectual property disputes.
@@ -218,7 +218,7 @@ export default function TermsOfServicePage() {
 
 			<h2>12. Termination</h2>
 			<p>
-				Relationships change. You can stop using Divan at any time, and we may suspend access if our rules are not followed.
+				Relationships change. You can stop using uniHood at any time, and we may suspend access if our rules are not followed.
 			</p>
 
 			<div className="overflow-x-auto">
@@ -252,12 +252,12 @@ export default function TermsOfServicePage() {
 
 			<h2>13. Changes to Terms</h2>
 			<p>
-				As Divan grows, we may update these terms. If we make significant changes, we will notify you via email or in-app notification at least 30 days before they take effect. Continued use after changes constitutes acceptance of the new terms.
+				As uniHood grows, we may update these terms. If we make significant changes, we will notify you via email or in-app notification at least 30 days before they take effect. Continued use after changes constitutes acceptance of the new terms.
 			</p>
 
 			<h2>14. General Provisions</h2>
 			<ul>
-				<li><strong>Entire Agreement:</strong> These terms constitute the entire agreement between you and Divan.</li>
+				<li><strong>Entire Agreement:</strong> These terms constitute the entire agreement between you and uniHood.</li>
 				<li><strong>Severability:</strong> If any provision is found unenforceable, the rest of the terms remain in effect.</li>
 				<li><strong>No Waiver:</strong> Failure to enforce a provision does not mean we waive our right to do so later.</li>
 			</ul>
@@ -265,7 +265,7 @@ export default function TermsOfServicePage() {
 			<h2>15. Contact</h2>
 			<p>For questions regarding these terms, please reach out to us:</p>
 			<ul>
-				<li>Email: <a href="mailto:legal@divan.app">legal@divan.app</a></li>
+				<li>Email: <a href="mailto:legal@uniHood.app">legal@uniHood.app</a></li>
 			</ul>
 
 			<hr className="my-8" />
@@ -276,9 +276,10 @@ export default function TermsOfServicePage() {
 				</Link>
 				{" · "}
 				<Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline">
-					Back to Divan
+					Back to uniHood
 				</Link>
 			</p>
 		</article>
 	);
 }
+

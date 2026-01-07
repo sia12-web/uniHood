@@ -4,10 +4,10 @@
 import { useState } from "react";
 import type { ProfileRecord } from "@/lib/types";
 import type { ProfilePatchPayload } from "@/lib/identity";
-import { Check, Loader2 } from "lucide-react";
 
 type VibeSettingsProps = {
     profile: ProfileRecord;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onSubmit: (patch: ProfilePatchPayload) => Promise<ProfileRecord>;
 };
 
@@ -45,9 +45,6 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
         : [{ question: VIBE_PROMPTS[0], answer: "" }];
 
     const [prompts, setPrompts] = useState<{ question: string; answer: string }[]>(initialPrompts);
-    const [saving, setSaving] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const toggleLookingFor = (option: string) => {
         setLookingFor(prev =>
@@ -71,40 +68,9 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
         setPrompts(prompts.filter((_, i) => i !== index));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        setSuccess(false);
-        setError(null);
-
-        try {
-            const validPrompts = prompts.filter(p => p.answer.trim().length > 0);
-            const lifestyle = { drinking, smoking, workout };
-
-            await onSubmit({
-                relationship_status: relationshipStatus || null,
-                sexual_orientation: sexualOrientation || null,
-                looking_for: lookingFor.length > 0 ? lookingFor : null,
-                lifestyle,
-                profile_prompts: validPrompts.length > 0 ? validPrompts : null,
-            });
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to save settings.");
-        } finally {
-            setSaving(false);
-        }
-    };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-8">
-
-            {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">
-                    {error}
-                </div>
-            )}
+        <div className="space-y-8">
 
             {/* Relationship & Orientation */}
             <div id="section-vibe_details" className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -231,22 +197,6 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                     </div>
                 ))}
             </div>
-
-            <div className="pt-4 flex items-center gap-4">
-                <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                    {saving && <Loader2 size={16} className="animate-spin" />}
-                    {saving ? "Saving..." : "Save Changes"}
-                </button>
-                {success && (
-                    <span className="text-sm text-emerald-600 font-medium flex items-center gap-1">
-                        <Check size={16} /> Saved
-                    </span>
-                )}
-            </div>
-        </form>
+        </div>
     );
 }

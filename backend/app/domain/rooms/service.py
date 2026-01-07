@@ -431,9 +431,12 @@ class RoomService:
 		summary = schemas.RoomSummary(
 			**room.to_summary("owner", join_code, include_join_code=True)
 		)
-		await sockets.emit_room_created(auth_user.id, summary.model_dump(mode="json"))
-		await outbox.append_room_event("room_created", room.id, user_id=auth_user.id)
-		obs_metrics.inc_room_created()
+		try:
+			await sockets.emit_room_created(auth_user.id, summary.model_dump(mode="json"))
+			await outbox.append_room_event("room_created", room.id, user_id=auth_user.id)
+			obs_metrics.inc_room_created()
+		except Exception as e:
+			print(f"WARN: Failed to emit room_created events: {e}", flush=True)
 		return summary
 
 	async def rotate_join_code(self, auth_user: AuthenticatedUser, room_id: str) -> schemas.RotateInviteResponse:
@@ -451,8 +454,11 @@ class RoomService:
 				include_join_code=True,
 			)
 		)
-		await sockets.emit_room_updated(room.id, summary.model_dump(mode="json"))
-		await outbox.append_room_event("join_code_rotated", room_id, user_id=auth_user.id)
+		try:
+			await sockets.emit_room_updated(room.id, summary.model_dump(mode="json"))
+			await outbox.append_room_event("join_code_rotated", room_id, user_id=auth_user.id)
+		except Exception as e:
+			print(f"WARN: Failed to emit join_code_rotated events: {e}", flush=True)
 		return schemas.RotateInviteResponse(join_code=new_code)
 
 	async def join_by_code(self, auth_user: AuthenticatedUser, payload: schemas.JoinByCodeRequest) -> schemas.RoomSummary:
@@ -472,13 +478,18 @@ class RoomService:
 		)
 		await self._repo.add_member(room, member)
 		room.members_count += 1
-		await outbox.append_room_event("member_joined", room.id, user_id=auth_user.id)
-		obs_metrics.inc_room_join()
-		await sockets.emit_member_event(
-			"room_member_joined",
-			room.id,
-			{"room_id": room.id, "user_id": auth_user.id, "role": member.role},
-		)
+		await self._repo.add_member(room, member)
+		room.members_count += 1
+		try:
+			await outbox.append_room_event("member_joined", room.id, user_id=auth_user.id)
+			obs_metrics.inc_room_join()
+			await sockets.emit_member_event(
+				"room_member_joined",
+				room.id,
+				{"room_id": room.id, "user_id": auth_user.id, "role": member.role},
+			)
+		except Exception as e:
+			print(f"WARN: Failed to emit member_joined events: {e}", flush=True)
 		return schemas.RoomSummary(
 			**room.to_summary(member.role, room.join_code, include_join_code=False)
 		)
@@ -498,13 +509,18 @@ class RoomService:
 		)
 		await self._repo.add_member(room, member)
 		room.members_count += 1
-		await outbox.append_room_event("member_joined_direct", room_id, user_id=auth_user.id)
-		obs_metrics.inc_room_join()
-		await sockets.emit_member_event(
-			"room_member_joined",
-			room_id,
-			{"room_id": room_id, "user_id": auth_user.id, "role": member.role},
-		)
+		await self._repo.add_member(room, member)
+		room.members_count += 1
+		try:
+			await outbox.append_room_event("member_joined_direct", room_id, user_id=auth_user.id)
+			obs_metrics.inc_room_join()
+			await sockets.emit_member_event(
+				"room_member_joined",
+				room_id,
+				{"room_id": room_id, "user_id": auth_user.id, "role": member.role},
+			)
+		except Exception as e:
+			print(f"WARN: Failed to emit member_joined_direct events: {e}", flush=True)
 		return schemas.RoomSummary(
 			**room.to_summary(member.role, room.join_code, include_join_code=False)
 		)
@@ -517,12 +533,17 @@ class RoomService:
 		policy.ensure_can_leave(member, owner_count=owners, total_members=total)
 		await self._repo.remove_member(room, auth_user.id)
 		room.members_count = max(room.members_count - 1, 0)
-		await outbox.append_room_event("member_left", room_id, user_id=auth_user.id)
-		await sockets.emit_member_event(
-			"room_member_left",
-			room_id,
-			{"room_id": room_id, "user_id": auth_user.id},
-		)
+		await self._repo.remove_member(room, auth_user.id)
+		room.members_count = max(room.members_count - 1, 0)
+		try:
+			await outbox.append_room_event("member_left", room_id, user_id=auth_user.id)
+			await sockets.emit_member_event(
+				"room_member_left",
+				room_id,
+				{"room_id": room_id, "user_id": auth_user.id},
+			)
+		except Exception as e:
+			print(f"WARN: Failed to emit member_left events: {e}", flush=True)
 
 	async def list_my_rooms(self, auth_user: AuthenticatedUser) -> List[schemas.RoomSummary]:
 		rooms = await self._repo.list_rooms_for_user(auth_user.id)
@@ -577,12 +598,17 @@ class RoomService:
 		policy.ensure_can_update_role(actor, target, payload.role, owner_count=owners)
 		target.role = payload.role
 		await self._repo.update_member(target)
-		await sockets.emit_member_event(
-			"room_member_updated",
-			room_id,
-			{"room_id": room.id, "user_id": target_user_id, "role": payload.role, "muted": target.muted},
-		)
-		await outbox.append_room_event("member_role_updated", room_id, user_id=target_user_id, meta={"role": payload.role})
+		target.role = payload.role
+		await self._repo.update_member(target)
+		try:
+			await sockets.emit_member_event(
+				"room_member_updated",
+				room_id,
+				{"room_id": room.id, "user_id": target_user_id, "role": payload.role, "muted": target.muted},
+			)
+			await outbox.append_room_event("member_role_updated", room_id, user_id=target_user_id, meta={"role": payload.role})
+		except Exception as e:
+			print(f"WARN: Failed to emit role update events: {e}", flush=True)
 
 	async def mute_member(
 		self,
@@ -597,14 +623,19 @@ class RoomService:
 		policy.ensure_can_mute(actor, target)
 		target.muted = payload.on
 		await self._repo.update_member(target)
+		target.muted = payload.on
+		await self._repo.update_member(target)
 		event_payload = {
 			"room_id": room.id,
 			"user_id": target_user_id,
 			"role": target.role,
 			"muted": payload.on,
 		}
-		await sockets.emit_member_event("room_member_updated", room_id, event_payload)
-		await outbox.append_room_event("member_muted", room_id, user_id=target_user_id, meta={"muted": payload.on})
+		try:
+			await sockets.emit_member_event("room_member_updated", room_id, event_payload)
+			await outbox.append_room_event("member_muted", room_id, user_id=target_user_id, meta={"muted": payload.on})
+		except Exception as e:
+			print(f"WARN: Failed to emit mute events: {e}", flush=True)
 
 	async def kick_member(self, auth_user: AuthenticatedUser, room_id: str, target_user_id: str) -> None:
 		room = await self._require_room(room_id)
@@ -613,12 +644,17 @@ class RoomService:
 		policy.ensure_can_kick(actor, target)
 		await self._repo.remove_member(room, target_user_id)
 		room.members_count = max(room.members_count - 1, 0)
-		await sockets.emit_member_event(
-			"room_member_left",
-			room_id,
-			{"room_id": room.id, "user_id": target_user_id},
-		)
-		await outbox.append_room_event("member_kicked", room_id, user_id=target_user_id)
+		await self._repo.remove_member(room, target_user_id)
+		room.members_count = max(room.members_count - 1, 0)
+		try:
+			await sockets.emit_member_event(
+				"room_member_left",
+				room_id,
+				{"room_id": room.id, "user_id": target_user_id},
+			)
+			await outbox.append_room_event("member_kicked", room_id, user_id=target_user_id)
+		except Exception as e:
+			print(f"WARN: Failed to emit removal events: {e}", flush=True)
 
 	async def _require_room(self, room_id: str) -> models.Room:
 		room = await self._repo.get_room(room_id)

@@ -91,12 +91,13 @@ export async function updateMeetup(id: string, data: MeetupUpdateRequest): Promi
   return response.data;
 }
 
-export async function listMeetups(campusId?: string, category?: MeetupCategory, creatorId?: string, year?: number): Promise<MeetupResponse[]> {
+export async function listMeetups(campusId?: string, category?: MeetupCategory, creatorId?: string, year?: number, userId?: string): Promise<MeetupResponse[]> {
   const params = new URLSearchParams();
   if (campusId) params.set("campus_id", campusId);
   if (category) params.set("category", category);
   if (creatorId) params.set("creator_id", creatorId);
   if (year) params.set("year", year.toString());
+  if (userId) params.set("user_id", userId);
   const response = await api.get(`/meetups/?${params.toString()}`);
   return response.data;
 }

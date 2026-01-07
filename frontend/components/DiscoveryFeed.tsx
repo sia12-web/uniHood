@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/app/lib/http/client";
 import { applyDiff } from "@/lib/diff";
@@ -10,6 +11,7 @@ import {
   readAuthUser,
   type AuthUser,
 } from "@/lib/auth-storage";
+import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import {
   disconnectPresenceSocket,
   getPresenceSocket,
@@ -18,7 +20,7 @@ import {
   nearbyAccumulatorToArray,
 } from "@/lib/socket";
 import { getOrCreateIdemKey } from "@/app/api/idempotency";
-import { fetchFriends, fetchInviteOutbox, sendInvite } from "@/lib/social";
+import { fetchFriends, fetchInviteOutbox, sendInvite, fetchSocialUsage } from "@/lib/social";
 import { emitFriendshipFormed } from "@/lib/friends-events";
 import { updateProfileLocation } from "@/lib/profiles";
 import {
@@ -27,13 +29,12 @@ import {
   sendHeartbeat,
 } from "@/lib/presence/api";
 import type { NearbyDiff, NearbyUser } from "@/lib/types";
-import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, Home, GraduationCap, Building2, BadgeCheck } from "lucide-react";
+import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, Home, GraduationCap, Building2, BadgeCheck, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import { DiscoveryFeedResponse } from "@/lib/types";
-import { fetchProfile, fetchUserCourses } from "@/lib/identity";
-import { Lock } from "lucide-react";
+import type { DiscoveryFeedResponse } from "@/lib/types";
+import { fetchProfile } from "@/lib/identity";
 
 type DiscoveryFeedProps = {
   variant?: "full" | "mini";
@@ -76,7 +77,7 @@ type NearbyAccumulator<T> = {
 const HEARTBEAT_VISIBLE_MS = 10000; // 10 seconds for better real-time Room mode discovery
 const HEARTBEAT_HIDDEN_MS = 60000;  // 1 minute when tab is hidden
 const GO_LIVE_ENABLED =
-  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true";
+  typeof process !== 'undefined' && (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_GO_LIVE === "true");
 
 function getYearLabel(gradYear: number): string {
   const now = new Date();
@@ -137,21 +138,31 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   // Filters
   const [filterMajor, setFilterMajor] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
-  const [userLevel, setUserLevel] = useState<number>(1);
 
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
   const nearbyStateRef = useRef<NearbyAccumulator<NearbyUser> | null>(null);
   const usersRef = useRef<NearbyUser[]>([]);
   const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
+  const activity = useActivitySnapshot();
+  const currentLevel = activity.level ?? 1;
+
+  const currentUserId = authUser?.userId ?? null;
+  const currentCampusId = authUser?.campusId ?? null;
+
+  const { data: socialUsage, refetch: refetchUsage } = useQuery({
+    queryKey: ["social-usage", currentUserId],
+    queryFn: () => fetchSocialUsage(currentUserId!, currentCampusId),
+    enabled: !!currentUserId && !!currentCampusId,
+  });
   const positionRef = useRef<GeolocationPosition | null>(null);
   const sentInitialHeartbeat = useRef(false);
   const router = useRouter();
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      // 1. Level-based visibility: In Room mode, only show verified students for max safety
-      if (discoveryMode === "room" && !u.is_university_verified) return false;
+      // 1. Level-based visibility: Show all students (previously restricted Room mode to verified students)
+      // if (discoveryMode === "room" && !u.is_university_verified) return false;
 
       // 2. Filter by Major
       if (filterMajor !== "all" && u.major !== filterMajor) return false;
@@ -165,7 +176,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
       return true;
     });
-  }, [users, filterMajor, filterYear, discoveryMode]);
+  }, [users, filterMajor, filterYear]);
 
 
 
@@ -181,8 +192,6 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     return Array.from(allMajors).sort();
   }, [users]);
 
-  const currentUserId = authUser?.userId ?? null;
-  const currentCampusId = authUser?.campusId ?? null;
   const goLiveAllowed = GO_LIVE_ENABLED && Boolean(currentUserId && currentCampusId);
 
   useEffect(() => {
@@ -197,13 +206,9 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
 
   useEffect(() => {
     if (authUser && authUser.userId) {
-      fetchUserCourses(authUser.userId, authUser.campusId)
-        .then(courses => setMyCourses(courses.map(c => c.code || c.name || "").filter(Boolean)))
-        .catch(err => console.error("Failed to fetch my courses", err));
-
       fetchProfile(authUser.userId, authUser.campusId)
-        .then(profile => setUserLevel(profile.level))
-        .catch(err => console.error("Failed to fetch level", err));
+        .catch(err => console.error("Failed to fetch profile", err));
+
     } else {
       setMyCourses([]);
     }
@@ -429,6 +434,13 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const handleInvite = useCallback(
     async (targetUserId: string) => {
       if (!currentUserId || !currentCampusId) return;
+
+      // Enforcement of social limits
+      if (socialUsage && socialUsage.daily_usage >= socialUsage.daily_limit) {
+        setInviteError(`Daily invite limit reached (${socialUsage.daily_limit}). Level up to increase your limit!`);
+        return;
+      }
+
       setInviteMessage(null);
       setInviteError(null);
       setInvitePendingId(targetUserId);
@@ -446,13 +458,14 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
           setInvitedIds((prev) => new Set(prev).add(targetUserId));
         }
         emitInviteCountRefresh();
+        void refetchUsage();
       } catch (err) {
         setInviteError(err instanceof Error ? err.message : "Failed to send invite");
       } finally {
         setInvitePendingId(null);
       }
     },
-    [currentCampusId, currentUserId],
+    [currentCampusId, currentUserId, refetchUsage, socialUsage],
   );
 
   const handleChat = useCallback(
@@ -463,22 +476,15 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   );
   const handleModeSelect = (mode: DiscoveryMode) => {
     if (mode === "room") {
-      if (userLevel < 4) {
-        setInviteError("Social Level 4 required for Room Mode");
-        setTimeout(() => setInviteError(null), 3000);
+      if (currentLevel < 4) {
+        setInviteError("Level 4 required for Room Mode (Proximity)");
         return;
       }
-      if (!authUser?.isUniversityVerified) {
-        setInviteError("Elite Verification required for Room Mode");
-        setTimeout(() => setInviteError(null), 3000);
-        return;
-      }
-      // Room mode requires location permission
+      // Room mode requires location permission but no longer restricted by level or verification
       setShowProximityPrompt(true);
     } else if (mode === "city") {
-      if (userLevel < 3) {
-        setInviteError("Social Level 3 required for City Mode");
-        setTimeout(() => setInviteError(null), 3000);
+      if (currentLevel < 2) {
+        setInviteError("Level 2 required for City Mode");
         return;
       }
       setDiscoveryMode(mode);
@@ -527,6 +533,14 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
             </div>
 
             <div className="flex items-center gap-3">
+              {socialUsage && (
+                <div className="hidden sm:flex flex-col items-end mr-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Remaining Invites</div>
+                  <div className="text-sm font-black text-rose-600">
+                    {socialUsage.daily_limit - socialUsage.daily_usage} / {socialUsage.daily_limit}
+                  </div>
+                </div>
+              )}
               <div className={cn(
                 "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset backdrop-blur-md",
                 isDirectoryMode
@@ -594,7 +608,16 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                 {DISCOVERY_MODES.map((modeOption) => {
                   const isSelected = discoveryMode === modeOption.mode;
                   const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
-                  const isLocked = (modeOption.mode === 'room' && (userLevel < 4 || !authUser?.isUniversityVerified)) || (modeOption.mode === 'city' && userLevel < 3);
+
+                  let isLocked = false;
+                  let requiredLevel = 1;
+                  if (modeOption.mode === 'city') {
+                    isLocked = currentLevel < 2;
+                    requiredLevel = 2;
+                  } else if (modeOption.mode === 'room') {
+                    isLocked = currentLevel < 4;
+                    requiredLevel = 4;
+                  }
 
                   return (
                     <button
@@ -606,13 +629,18 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                         isSelected
                           ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-md shadow-blue-200"
                           : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700",
-                        isLocked && "opacity-60 cursor-not-allowed"
+                        isLocked && "opacity-60 grayscale-[0.5]"
                       )}
                     >
                       <Icon size={24} className={cn(isSelected ? "text-white" : "text-rose-400 opacity-80")} />
-                      <span className="text-xs font-semibold">{modeOption.label}</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs font-semibold">{modeOption.label}</span>
+                        {isLocked && (
+                          <span className="text-[9px] font-bold opacity-70">Lvl {requiredLevel}</span>
+                        )}
+                      </div>
                       {isLocked && (
-                        <div className="absolute top-2 right-2 rounded-full bg-slate-100 p-1 text-slate-400">
+                        <div className="absolute top-2 right-2 rounded-full bg-slate-900/10 p-1 text-slate-600">
                           <Lock size={10} />
                         </div>
                       )}
@@ -671,35 +699,22 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6">
         {/* Verification Banner */}
-        {authEvaluated && authUser && (!authUser.isUniversityVerified || userLevel >= 4) && (
-          <div className={cn(
-            "mb-6 rounded-2xl p-4 ring-1",
-            userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-50 ring-amber-100" : "bg-indigo-50 ring-indigo-100"
-          )}>
+        {authEvaluated && authUser && !authUser.isUniversityVerified && (
+          <div className="mb-6 rounded-2xl p-4 ring-1 bg-indigo-50 ring-indigo-100">
             <div className="flex items-start gap-3">
-              <div className={cn(
-                "rounded-full p-2",
-                userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-100 text-amber-600" : "bg-indigo-100 text-indigo-600"
-              )}>
+              <div className="rounded-full p-2 bg-indigo-100 text-indigo-600">
                 <BadgeCheck className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-bold">
-                  {userLevel >= 4 ? "Unlock Room Mode: Elite Verification" : "Get Verified & Boost Your Profile"}
-                </h3>
+                <h3 className="text-sm font-bold">Get Verified & Boost Your Profile</h3>
                 <p className="mt-1 text-xs opacity-90">
-                  {userLevel >= 4
-                    ? "You've reached Level 4! To unlock 'Room Mode' and level up, verify your Student Email, Phone Number, and Identity. AI verification completes in minutes!"
-                    : "Verify your university email to get a 5x discovery boost and a verification badge!"}
+                  Verify your university email to get a 5x discovery boost and a verification badge!
                 </p>
                 <button
                   onClick={() => router.push("/verify-university")}
-                  className={cn(
-                    "mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition",
-                    userLevel >= 4 && !authUser.isUniversityVerified ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
-                  )}
+                  className="mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition bg-indigo-600 hover:bg-indigo-700"
                 >
-                  {userLevel >= 4 ? "Complete Elite Verification" : "Verify Now"}
+                  Verify Now
                 </button>
               </div>
             </div>

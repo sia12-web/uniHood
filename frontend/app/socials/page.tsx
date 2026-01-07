@@ -8,16 +8,25 @@ import { MyMeetups } from "@/components/social/MyMeetups";
 import { RequestsAndBlocks } from "@/components/social/RequestsAndBlocks";
 import { Sparkles, Users, Calendar, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 
-export default function SocialsPage() {
+import { Suspense } from "react";
+
+function SocialsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as "discover" | "friends" | "requests" | "meetups") || "discover";
   const [activeTab, setActiveTab] = useState<"discover" | "friends" | "requests" | "meetups">(initialTab);
+  const { markAsSeen } = useMeetupNotifications();
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab);
     router.replace(`/socials?tab=${tab}`, { scroll: false });
+
+    // Clear meetup notifications when meetups tab is clicked
+    if (tab === "meetups") {
+      markAsSeen();
+    }
   };
 
   useEffect(() => {
@@ -102,6 +111,18 @@ export default function SocialsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function SocialsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <SocialsContent />
+    </Suspense>
   );
 }
 

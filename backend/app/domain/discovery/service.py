@@ -42,14 +42,6 @@ async def list_feed(
 	limit: int,
 ) -> DiscoveryFeedResponse:
 	"""Fetch a discovery feed using the proximity service as the initial source."""
-	# Enforce Level 3 for City Mode
-	if mode == "city":
-		stats = await XPService().get_user_stats(auth_user.id)
-		if stats.current_level < 3:
-			raise HTTPException(
-				status_code=status.HTTP_403_FORBIDDEN,
-				detail="Social Level 3 required for City Mode"
-			)
 
 	def _safe_uuid(value: Optional[str]) -> Optional[UUID]:
 		if not value:
@@ -99,8 +91,11 @@ async def list_feed(
 		# Fall back to redis-only when DB is unavailable
 		pass
 
-	# Fetch priority candidates (Friend of Friend, Similar Courses)
-	priority_cards = await _fetch_priority_candidates(auth_user, limit=limit)
+	# Fetch priority candidates (Friend of Friend, Similar Courses) - only for same-campus discovery.
+	# If mode is 'city', we skip this as 'city' is now strictly for other-campus discovery.
+	priority_cards = []
+	if mode != "city":
+		priority_cards = await _fetch_priority_candidates(auth_user, limit=limit)
 
 	items: list[DiscoveryCard] = []
 	seen_ids = set()
@@ -615,6 +610,89 @@ async def update_discovery_profile(user_id: UUID, update: DiscoveryProfileUpdate
 		return DiscoveryProfile(**res_data)
 
 
+async def get_discovery_card(auth_user: AuthenticatedUser, target_id: UUID) -> Optional[DiscoveryCard]:
+	"""Fetch a full discovery card for a specific user ID."""
+	pool = await get_pool()
+	if not pool:
+		return None
+
+	auth_user_id = UUID(str(auth_user.id))
+
+	async with pool.acquire() as conn:
+		# Fetch basic user info
+		row = await conn.fetchrow(
+			"""
+			SELECT u.id, u.display_name, u.handle, u.avatar_url, u.major, u.graduation_year, u.passions, u.profile_gallery, u.is_university_verified,
+				   u.gender, u.birthday, u.hometown, u.languages, u.relationship_status, u.sexual_orientation, u.looking_for, u.height, u.lifestyle, u.profile_prompts,
+				   u.campus_id,
+				   ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses,
+				   EXISTS(SELECT 1 FROM friendships WHERE ((user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)) AND status = 'accepted') as is_friend
+			FROM users u
+			WHERE u.id = $2 AND u.deleted_at IS NULL
+			""",
+			auth_user_id,
+			target_id
+		)
+
+		if not row:
+			return None
+
+		raw_passions = row["passions"]
+		passions: list[str] = _parse_json_field(raw_passions, is_list=True)
+		
+		gallery_raw = row["profile_gallery"]
+		gallery_objs = parse_profile_gallery(gallery_raw)
+		gallery = [img.to_dict() for img in gallery_objs]
+
+		card = DiscoveryCard(
+			user_id=row["id"],
+			display_name=row["display_name"],
+			handle=row["handle"],
+			avatar_url=row["avatar_url"],
+			campus_id=row["campus_id"],
+			major=row["major"],
+			graduation_year=row["graduation_year"],
+			interests=passions,
+			passions=passions,
+			courses=row["courses"] or [],
+			distance_m=None,
+			gallery=gallery,
+			is_friend=row["is_friend"],
+			is_university_verified=bool(row["is_university_verified"]),
+			gender=row["gender"],
+			age=_calculate_age(str(row["birthday"]) if row["birthday"] else None),
+			hometown=row["hometown"],
+			languages=row["languages"] or [],
+			relationship_status=row["relationship_status"],
+			sexual_orientation=row["sexual_orientation"],
+			looking_for=row["looking_for"] or [],
+			height=row["height"],
+			lifestyle=_parse_json_field(row["lifestyle"]),
+			top_prompts=_parse_json_field(row["profile_prompts"], is_list=True),
+		)
+
+		# Fetch discovery profile info (vibe tags, etc)
+		p_row = await conn.fetchrow("SELECT auto_tags, playful, core_identity FROM user_discovery_profiles WHERE user_id = $1", target_id)
+		if p_row:
+			card.vibe_tags = p_row['auto_tags'] or []
+			
+			playful = _parse_json_field(p_row['playful'])
+			core = _parse_json_field(p_row['core_identity'])
+			
+			prompts = card.top_prompts or []
+			if not prompts: # Only add if none from core profile
+				if core.get('vibe_sentence'):
+					prompts.append({'question': 'Campus Vibe', 'answer': core['vibe_sentence']})
+					
+				for k, v in playful.items():
+					if v and len(prompts) < 5:
+						prompts.append({'question': k.replace('_', ' ').title(), 'answer': v})
+			
+			card.top_prompts = prompts[:5]
+
+		return card
+
+
 def _calculate_age(birthday: str | date | None) -> int | None:
 	if not birthday:
 		return None
@@ -637,3 +715,4 @@ def _parse_json_field(val, is_list=False):
 		try: return json.loads(val)
 		except: return [] if is_list else {}
 	return val or ([] if is_list else {})
+

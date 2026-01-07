@@ -5,31 +5,104 @@ import Link from "next/link";
 import Image from "next/image";
 import { fetchLeaderboard } from "@/lib/leaderboards";
 import type { LeaderboardRow, NearbyUser } from "@/lib/types";
+import { readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { Trophy } from "lucide-react";
 import { ProfileDetailModal } from "./ProfileDetailModal";
+import { fetchDiscoveryCard } from "@/lib/discovery";
+import { sendInvite, fetchSocialUsage } from "@/lib/social";
+import { getOrCreateIdemKey } from "@/app/api/idempotency";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { emitInviteCountRefresh } from "@/hooks/social/use-invite-count";
+import { emitFriendshipFormed } from "@/lib/friends-events";
 
 export function LeaderboardPreview() {
   const [leaders, setLeaders] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [invitePendingId, setInvitePendingId] = useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const router = useRouter();
 
-  const handleRowClick = (row: LeaderboardRow) => {
-    // Construct minimal NearbyUser for the modal
-    const user: NearbyUser = {
+  const { data: socialUsage, refetch: refetchUsage } = useQuery({
+    queryKey: ["social-usage", authUser?.userId],
+    queryFn: () => fetchSocialUsage(authUser!.userId, authUser!.campusId),
+    enabled: !!authUser?.userId && !!authUser?.campusId,
+  });
+
+  const handleRowClick = async (row: LeaderboardRow) => {
+    // Show minimal version instantly
+    const minimal: NearbyUser = {
       user_id: row.user_id,
       display_name: row.display_name || "Anonymous",
       handle: row.handle || "",
       avatar_url: row.avatar_url,
-      // Default or minimal values for required fields
       distance_m: null,
     } as NearbyUser;
+    setSelectedUser(minimal);
 
-    setSelectedUser(user);
+    // Fetch full card
+    if (authUser?.userId && authUser?.campusId) {
+      try {
+        const full = await fetchDiscoveryCard(authUser.userId, authUser.campusId, row.user_id);
+        setSelectedUser(full);
+        if (full.is_friend) {
+          setFriendIds(prev => new Set(prev).add(row.user_id));
+        }
+      } catch (err) {
+        console.error("Failed to fetch full card:", err);
+      }
+    }
+  };
+
+  const handleInvite = async (targetUserId: string) => {
+    if (!authUser?.userId || !authUser?.campusId) return;
+
+    if (socialUsage && socialUsage.daily_usage >= socialUsage.daily_limit) {
+      alert(`Daily invite limit reached (${socialUsage.daily_limit}). Level up to increase your limit!`);
+      return;
+    }
+
+    setInvitePendingId(targetUserId);
+    try {
+      const payload = { to_user_id: targetUserId, campus_id: authUser.campusId } as const;
+      const idemKey = await getOrCreateIdemKey("/invites/send", payload);
+      const summary = await sendInvite(authUser.userId, authUser.campusId, targetUserId, { idemKey });
+
+      if (summary.status === "accepted") {
+        setFriendIds(prev => new Set(prev).add(targetUserId));
+        emitFriendshipFormed(targetUserId);
+      } else {
+        setInvitedIds(prev => new Set(prev).add(targetUserId));
+      }
+      emitInviteCountRefresh();
+      void refetchUsage();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to send invite");
+    } finally {
+      setInvitePendingId(null);
+    }
+  };
+
+  const handleChat = (targetUserId: string) => {
+    router.push(`/chat/${targetUserId}`);
   };
 
   useEffect(() => {
+    setAuthUser(readAuthUser());
+  }, []);
+
+  useEffect(() => {
     // Fetch social leaderboard to show players with highest Social Score
-    fetchLeaderboard("social", { limit: 5 })
+    const campusId = authUser?.campusId;
+    if (!campusId) {
+      if (authUser !== null) setLoading(false); // Done hydration but no campus
+      return;
+    }
+
+    fetchLeaderboard("social", { limit: 5, campusId })
       .then((data) => {
         setLeaders(data.items);
         setLoading(false);
@@ -38,7 +111,7 @@ export function LeaderboardPreview() {
         console.error("Failed to fetch leaderboard:", err);
         setLoading(false);
       });
-  }, []);
+  }, [authUser]);
 
   if (loading) {
     return (
@@ -147,11 +220,11 @@ export function LeaderboardPreview() {
           user={selectedUser}
           isOpen={!!selectedUser}
           onClose={() => setSelectedUser(null)}
-          onInvite={() => { }}
-          onChat={() => { }}
-          isFriend={false}
-          isInvited={false}
-          invitePending={false}
+          onInvite={() => handleInvite(selectedUser.user_id)}
+          onChat={() => handleChat(selectedUser.user_id)}
+          isFriend={friendIds.has(selectedUser.user_id) || !!selectedUser.is_friend}
+          isInvited={invitedIds.has(selectedUser.user_id)}
+          invitePending={invitePendingId === selectedUser.user_id}
         />
       )}
     </div>

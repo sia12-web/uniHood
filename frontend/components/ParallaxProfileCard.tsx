@@ -18,7 +18,8 @@ import {
     HeartHandshake,
     Globe2,
     Languages,
-    Search
+    Search,
+    Ruler
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NearbyUser } from "@/lib/types";
@@ -185,11 +186,6 @@ export function ParallaxProfileCard({
                                             <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                                                 <MapPin size={12} className="text-emerald-400" />
                                                 {distance}
-                                            </span>
-                                        )}
-                                        {user.height && (
-                                            <span className="text-[11px] font-bold text-slate-300">
-                                                {user.height}cm
                                             </span>
                                         )}
                                     </div>
@@ -391,10 +387,19 @@ export function ParallaxProfileCard({
                                                     <Search size={18} className="text-blue-400 shrink-0 mt-0.5" />
                                                     <div className="flex flex-wrap gap-1.5">
                                                         <span className="text-sm font-medium text-slate-400 mr-1">Looking for:</span>
-                                                        {user.looking_for.map(l => (
-                                                            <span key={l} className="text-sm font-bold text-white">{l}</span>
-                                                        )).reduce((prev, curr) => [prev, <span key={`sep-${Math.random()}`} className="text-slate-600">, </span>, curr] as unknown as React.ReactNode)}
+                                                        {user.looking_for.map((l, i) => (
+                                                            <span key={l}>
+                                                                <span className="text-sm font-bold text-white">{l}</span>
+                                                                {i < user.looking_for!.length - 1 && <span className="text-slate-600">, </span>}
+                                                            </span>
+                                                        ))}
                                                     </div>
+                                                </div>
+                                            )}
+                                            {user.height && (
+                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                    <Ruler size={18} className="text-blue-400 shrink-0" />
+                                                    <span className="text-sm font-medium text-slate-200">{user.height} cm</span>
                                                 </div>
                                             )}
                                         </div>

@@ -160,7 +160,7 @@ class MeetupService:
         # Analytics & Notifications (Non-blocking safeguard)
         try:
             from app.domain.identity import audit
-            await audit.append_db_event(
+            await audit.log_event(
                 user_id=auth_user.id,
                 event="meetup.create",
                 meta={
@@ -363,9 +363,7 @@ class MeetupService:
             y_idx = len(params)
             where_conditions.append(f"EXTRACT(YEAR FROM m.start_at) = ${y_idx}")
 
-        # Visibility Logic
-        params.append(UUID(auth_user.id)) # Reuse auth_user.id for visibility check? No, params are positional.
-        # We already have $2 as auth_user.id.
+        # Visibility Logic - uses $2 (auth_user.id) which is already in params
         # Postgres supports $2 reuse.
         
         where_conditions.append("""
@@ -697,7 +695,7 @@ class MeetupService:
 
             # Analytics tracking
             from app.domain.identity import audit
-            await audit.append_db_event(
+            await audit.log_event(
                 user_id=str(auth_user.id),
                 event="meetup.join",
                 meta={
@@ -773,6 +771,20 @@ class MeetupService:
                 )
             except Exception:
                 pass  # Non-critical, don't block meetup leave
+        
+        # Analytics tracking
+        try:
+            from app.domain.identity import audit
+            await audit.log_event(
+                user_id=str(auth_user.id),
+                event="meetup.leave",
+                meta={
+                    "meetup_id": str(meetup_id),
+                    "title": meetup.get("title", ""),
+                }
+            )
+        except Exception:
+            pass  # Non-critical
 
     async def update_meetup(
         self, meetup_id: UUID, auth_user: AuthenticatedUser, payload: schemas.MeetupUpdateRequest
@@ -871,6 +883,21 @@ class MeetupService:
                 )
             except Exception:
                 pass  # Non-critical, don't block cancellation
+        
+        # Analytics tracking
+        try:
+            from app.domain.identity import audit
+            await audit.log_event(
+                user_id=str(auth_user.id),
+                event="meetup.cancel",
+                meta={
+                    "meetup_id": str(meetup_id),
+                    "title": meetup.get("title", ""),
+                    "reason": reason,
+                }
+            )
+        except Exception:
+            pass  # Non-critical
 
     def _map_row_to_response(
         self, row: dict, current_user_id: UUID, is_joined: bool, my_role: Optional[str]

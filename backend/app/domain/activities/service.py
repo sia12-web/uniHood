@@ -164,7 +164,7 @@ class ActivitiesRepository:
 
 		# Analytics tracking
 		from app.domain.identity import audit
-		await audit.append_db_event(
+		await audit.log_event(
 			user_id=activity.user_a, # Initiator
 			event="activity.create",
 			meta={
@@ -1041,9 +1041,9 @@ class ActivitiesService:
 		# Analytics tracking
 		try:
 			from app.domain.identity import audit
-			await audit.append_db_event(
+			await audit.log_event(
+				"activity.join",
 				user_id=auth_user.id,
-				event="activity.join",
 				meta={
 					"activity_id": activity.id,
 					"kind": activity.kind

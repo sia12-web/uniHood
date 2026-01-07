@@ -61,7 +61,6 @@ async def request_export(auth_user: AuthenticatedUser) -> schemas.ExportStatus:
 	job = _build_default("pending", _now())
 	await redis_client.set(key, _serialize(job), ex=policy.EXPORT_JOB_TTL_SECONDS)
 	obs_metrics.inc_identity_export_request()
-	await audit.append_db_event(auth_user.id, "export_requested", {"job": key})
 	await audit.log_event("export_requested", user_id=auth_user.id, meta={"job": key})
 	return _to_schema(job)
 
@@ -92,7 +91,6 @@ async def mark_ready(user_id: str, *, download_path: Optional[str] = None) -> Op
 		}
 	)
 	await redis_client.set(key, _serialize(payload), ex=policy.EXPORT_JOB_TTL_SECONDS)
-	await audit.append_db_event(user_id, "export_ready", {"path": download_path})
 	await audit.log_event("export_ready", user_id=user_id, meta={"path": download_path})
 	return _to_schema(payload)
 

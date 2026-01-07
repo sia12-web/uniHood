@@ -22,15 +22,40 @@ export function useMeetupNotifications() {
 
   // Load seen meetup IDs from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(NOTIFICATION_STORAGE_KEY);
-      if (stored) {
-        const seenIds = JSON.parse(stored) as string[];
-        seenMeetupIdsRef.current = new Set(seenIds);
+    const loadSeenIds = () => {
+      try {
+        const stored = localStorage.getItem(NOTIFICATION_STORAGE_KEY);
+        if (stored) {
+          const seenIds = JSON.parse(stored) as string[];
+          seenMeetupIdsRef.current = new Set(seenIds);
+        }
+      } catch {
+        // Ignore storage errors
       }
-    } catch {
-      // Ignore storage errors
-    }
+    };
+
+    loadSeenIds();
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === NOTIFICATION_STORAGE_KEY) {
+        loadSeenIds();
+        setHasNewMeetups(false);
+        setNotifications([]);
+      }
+    };
+
+    const handleCustomEvent = () => {
+      setHasNewMeetups(false);
+      setNotifications([]);
+    };
+
+    window.addEventListener("storage" as any, handleStorageChange);
+    window.addEventListener("meetups_seen" as any, handleCustomEvent);
+
+    return () => {
+      window.removeEventListener("storage" as any, handleStorageChange);
+      window.removeEventListener("meetups_seen" as any, handleCustomEvent);
+    };
   }, []);
 
   // Check for new meetups
@@ -40,7 +65,7 @@ export function useMeetupNotifications() {
       if (!authUser?.campusId) return;
 
       const meetups = await listMeetups(authUser.campusId);
-      
+
       // Filter out meetups created by current user and already seen ones
       const newMeetups = meetups.filter(meetup => {
         const isNotMine = meetup.creator_user_id !== authUser.userId;
@@ -75,7 +100,7 @@ export function useMeetupNotifications() {
   const markAsSeen = () => {
     const allMeetupIds = notifications.map(n => n.meetup.id);
     allMeetupIds.forEach(id => seenMeetupIdsRef.current.add(id));
-    
+
     // Save to localStorage
     try {
       localStorage.setItem(
@@ -87,6 +112,8 @@ export function useMeetupNotifications() {
     }
 
     setHasNewMeetups(false);
+    setNotifications([]);
+    window.dispatchEvent(new CustomEvent("meetups_seen"));
   };
 
   // Clear all notifications

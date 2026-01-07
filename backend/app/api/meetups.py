@@ -37,12 +37,6 @@ async def list_meetups(
     return await _service.list_meetups(auth_user, cid, category, participant_id=user_id, creator_id=creator_id, year=year)
 
 
-@router.get("/{meetup_id}", response_model=schemas.MeetupDetailResponse)
-async def get_meetup(
-    meetup_id: UUID,
-    auth_user: AuthenticatedUser = Depends(get_current_user),
-):
-    return await _service.get_meetup(meetup_id, auth_user)
 
 
 @router.post("/{meetup_id}/reviews", response_model=schemas.MeetupReviewResponse)
@@ -111,6 +105,14 @@ async def get_meetup_usage(
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
     return await _service.get_usage(auth_user)
+
+
+@router.get("/{meetup_id}", response_model=schemas.MeetupDetailResponse)
+async def get_meetup(
+    meetup_id: UUID,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return await _service.get_meetup(meetup_id, auth_user)
 
 
 @router.post("/{meetup_id}/attendance", status_code=status.HTTP_204_NO_CONTENT)

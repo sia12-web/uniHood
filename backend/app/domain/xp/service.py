@@ -118,7 +118,7 @@ class XPService:
 
                 # Log to Activity Feed (Audit)
                 try:
-                    await audit.append_db_event(
+                    await audit.log_event(
                         user_id=uid,
                         event="xp.gained",
                         meta={
@@ -145,7 +145,7 @@ class XPService:
                     
                     # Log to Activity Feed (Audit)
                     try:
-                        await audit.append_db_event(
+                        await audit.log_event(
                             user_id=uid,
                             event="level.up",
                             meta={"level": calculated_level}

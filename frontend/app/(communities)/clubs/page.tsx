@@ -4,11 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Club, clubsApi } from "@/lib/clubs";
 import ClubCard from "@/app/features/clubs/components/ClubCard";
+import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
+import { Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ClubsPage() {
     const [clubs, setClubs] = useState<Club[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { level } = useActivitySnapshot();
+    const isLocked = (level ?? 1) < 6;
 
     useEffect(() => {
         async function loadClubs() {
@@ -37,10 +42,23 @@ export default function ClubsPage() {
                     </p>
                 </div>
                 <Link
-                    href="/clubs/create"
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    href={isLocked ? "#" : "/clubs/create"}
+                    className={cn(
+                        "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                        isLocked
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                            : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    )}
+                    onClick={(e) => {
+                        if (isLocked) {
+                            e.preventDefault();
+                            alert("You must be Level 6 (Campus Icon) to create a club.");
+                        }
+                    }}
                 >
+                    {isLocked && <Lock size={14} />}
                     Create Club
+                    {isLocked && <span className="ml-1 text-[10px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">Lvl 6</span>}
                 </Link>
             </div>
 

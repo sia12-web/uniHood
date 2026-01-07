@@ -58,7 +58,7 @@ async def _load_user_lite(user_ids: Sequence[str]) -> Dict[str, Dict[str, object
 		       ARRAY(SELECT course_code FROM user_courses WHERE user_id = u.id) as courses
 		FROM users u
 		LEFT JOIN campuses c ON u.campus_id = c.id
-		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND (u.email_verified = TRUE OR TRUE)
+		WHERE u.id = ANY($1::uuid[]) AND u.deleted_at IS NULL AND (u.email_verified = TRUE OR {str(is_dev).upper()})
 		""",
 		list({uid for uid in user_ids}),
 	)
@@ -174,8 +174,8 @@ async def _fetch_directory_candidates(
 	# ...
 	
 	is_dev = settings.is_dev()
-	# FORCE SHOW ALL USERS even if unverified for debugging specific user issue
-	force_show = "TRUE" # previously str(is_dev).upper()
+	# Only force show unverified users in development mode
+	force_show = str(is_dev).upper()
 
 	if lat is None or lon is None:
 		# Fallback: return users ordered by creation date if we don't know where the user is
@@ -446,45 +446,54 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 
 		profiles = await _load_user_lite(user_ids)
 		friends_map = await load_friendship_flags(auth_user.id, user_ids)
+		privacy_map = await load_privacy(user_ids)
+		blocks_map = await load_blocks(auth_user.id, user_ids)
 		
 		items = []
 		for uid in user_ids:
 			uid_str = str(uid)
+			if blocks_map.get(uid_str):
+				continue
 			profile = profiles.get(uid_str)
 			if not profile:
 				continue
-			distance = distances.get(uid, 0.0)
+			
 			is_friend = bool(friends_map.get(uid_str))
+			privacy_settings = privacy_map.get(uid_str, PrivacySettings())
+			if not privacy_settings.allows_visibility(is_friend):
+				continue
+
+			distance = distances.get(uid, 0.0)
 			
 			items.append(
 				NearbyUser(
-					user_id=UUID(uid),
-					display_name=profile.display_name,
-					handle=profile.handle,
-					avatar_url=profile.avatar_url,
-					campus_name=profile.campus_name,
-					major=profile.major,
-					graduation_year=profile.graduation_year,
+					user_id=UUID(uid_str),
+					display_name=str(profile["display_name"]),
+					handle=str(profile["handle"]),
+					avatar_url=str(profile["avatar_url"]) if profile.get("avatar_url") else None,
+					campus_name=profile.get("campus_name"),
+					major=profile.get("major"),
+					graduation_year=profile.get("graduation_year"),
 					distance_m=int(distance) if distance > 0 else None,
 					is_friend=is_friend,
-					bio=profile.bio,
-					passions=profile.passions,
-					gallery=profile.gallery,
-					courses=profile.courses,
-					social_links=profile.social_links,
-					banner_url=profile.banner_url,
-					ten_year_vision=profile.ten_year_vision,
-					is_university_verified=profile.is_university_verified,
-					gender=profile.gender,
-					birthday=profile.birthday,
-					hometown=profile.hometown,
-					languages=profile.languages,
-					relationship_status=profile.relationship_status,
-					sexual_orientation=profile.sexual_orientation,
-					looking_for=profile.looking_for,
-					height=profile.height,
-					lifestyle=profile.lifestyle,
-					profile_prompts=profile.profile_prompts,
+					bio=profile.get("bio"),
+					passions=profile.get("passions") or [],
+					gallery=profile.get("gallery") or [],
+					courses=profile.get("courses") or [],
+					social_links=profile.get("social_links") or {},
+					banner_url=profile.get("banner_url"),
+					ten_year_vision=profile.get("ten_year_vision"),
+					is_university_verified=bool(profile.get("is_university_verified", False)),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 		return NearbyResponse(items=items)
@@ -496,7 +505,7 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 		lat = user_row["lat"] if user_row else None
 		lon = user_row["lon"] if user_row else None
 
-		# exclude_campus_id to focus on students from OTHER universities in the area
+		# City mode: Exclude the viewer's own campus to show students from other universities.
 		live = await _fetch_directory_candidates(
 			None, auth_user_id, lat, lon, limit=query.limit, exclude_campus_id=campus_id
 		)
@@ -505,44 +514,54 @@ async def get_nearby(auth_user: AuthenticatedUser, query: NearbyQuery) -> Nearby
 
 		profiles = await _load_user_lite(user_ids)
 		friends_map = await load_friendship_flags(auth_user.id, user_ids)
+		privacy_map = await load_privacy(user_ids)
+		blocks_map = await load_blocks(auth_user.id, user_ids)
 
 		items = []
 		for uid in user_ids:
-			profile = profiles.get(uid)
+			uid_str = str(uid)
+			if blocks_map.get(uid_str):
+				continue
+			profile = profiles.get(uid_str)
 			if not profile:
 				continue
+			
+			is_friend = bool(friends_map.get(uid_str))
+			privacy_settings = privacy_map.get(uid_str, PrivacySettings())
+			if not privacy_settings.allows_visibility(is_friend):
+				continue
+
 			distance = distances.get(uid, 0.0)
-			is_friend = bool(friends_map.get(uid))
 
 			items.append(
 				NearbyUser(
-					user_id=UUID(uid),
-					display_name=profile.display_name,
-					handle=profile.handle,
-					avatar_url=profile.avatar_url,
-					campus_name=profile.campus_name,
-					major=profile.major,
-					graduation_year=profile.graduation_year,
+					user_id=UUID(uid_str),
+					display_name=str(profile["display_name"]),
+					handle=str(profile["handle"]),
+					avatar_url=str(profile["avatar_url"]) if profile.get("avatar_url") else None,
+					campus_name=profile.get("campus_name"),
+					major=profile.get("major"),
+					graduation_year=profile.get("graduation_year"),
 					distance_m=int(distance) if distance > 0 else None,
 					is_friend=is_friend,
-					bio=profile.bio,
-					passions=profile.passions,
-					gallery=profile.gallery,
-					courses=profile.courses,
-					social_links=profile.social_links,
-					banner_url=profile.banner_url,
-					ten_year_vision=profile.ten_year_vision,
-					is_university_verified=profile.is_university_verified,
-					gender=profile.gender,
-					birthday=profile.birthday,
-					hometown=profile.hometown,
-					languages=profile.languages,
-					relationship_status=profile.relationship_status,
-					sexual_orientation=profile.sexual_orientation,
-					looking_for=profile.looking_for,
-					height=profile.height,
-					lifestyle=profile.lifestyle,
-					profile_prompts=profile.profile_prompts,
+					bio=profile.get("bio"),
+					passions=profile.get("passions") or [],
+					gallery=profile.get("gallery") or [],
+					courses=profile.get("courses") or [],
+					social_links=profile.get("social_links") or {},
+					banner_url=profile.get("banner_url"),
+					ten_year_vision=profile.get("ten_year_vision"),
+					is_university_verified=bool(profile.get("is_university_verified", False)),
+					gender=profile.get("gender"),
+					birthday=profile.get("birthday"),
+					hometown=profile.get("hometown"),
+					languages=profile.get("languages") or [],
+					relationship_status=profile.get("relationship_status"),
+					sexual_orientation=profile.get("sexual_orientation"),
+					looking_for=profile.get("looking_for") or [],
+					height=profile.get("height"),
+					lifestyle=profile.get("lifestyle") or {},
+					profile_prompts=profile.get("profile_prompts") or [],
 				)
 			)
 		return NearbyResponse(items=items, cursor=None)

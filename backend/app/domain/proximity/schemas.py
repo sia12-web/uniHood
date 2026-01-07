@@ -34,7 +34,7 @@ class NearbyQuery(BaseModel):
 	campus_id: Optional[UUID] = None
 	# Allow flexible radii up to 50km to support directory mode (city-wide discovery).
 	# Real-time proximity (Redis) is used for ≤50m, directory mode (DB) for larger radii.
-	radius_m: int = Field(..., ge=1, le=50000)
+	radius_m: int = Field(..., ge=1, le=100000)
 	cursor: Optional[str] = None
 	limit: int = Field(default=50, ge=1, le=200)
 	filter: Literal["all", "friends"] = "all"

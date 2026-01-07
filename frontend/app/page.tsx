@@ -9,7 +9,6 @@ import { useDeferredFeatures } from "@/components/providers/deferred-features-pr
 import { useCampuses } from "@/components/providers/campus-provider";
 import SiteFooter from "@/components/SiteFooter";
 import { usePresence } from "@/hooks/presence/use-presence";
-import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import { fetchDiscoveryFeed } from "@/lib/discovery";
 import { onAuthChange, readAuthUser, type AuthUser } from "@/lib/auth-storage";
 import { fetchFriends, fetchInviteInbox, acceptInvite } from "@/lib/social";
@@ -78,9 +77,6 @@ export default function HomePage() {
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
   const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
   const [realActivity, setRealActivity] = useState<ActivityLogItem[]>([]);
-
-  // Meetup notifications (unused directly here, but keeps hook active)
-  const { } = useMeetupNotifications();
 
   // Use deferred features for heavy hooks (chat, social) to reduce TBT
   const {
@@ -308,7 +304,8 @@ export default function HomePage() {
       Icon = UserPlus;
       iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
       iconColor = "text-emerald-600 dark:text-emerald-400";
-      content = <span>{actor} became friends with someone</span>;
+      const friendName = ((item.meta as Record<string, unknown>)?.friend_name as string) || "someone";
+      content = <span>{actor} became friends with {friendName}</span>;
     }
     else if (item.event === "friend.removed") {
       Icon = UserMinus;
@@ -557,7 +554,7 @@ export default function HomePage() {
                   >
                     Invites {inboundPending > 0 && <span className="ml-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 text-[10px]">{inboundPending}</span>}
                   </button>
-                  <Link href="/friends" className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 pb-2">
+                  <Link href="/socials?tab=friends" className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 pb-2">
                     Manage Friends
                   </Link>
                 </div>
@@ -623,7 +620,7 @@ export default function HomePage() {
                             </div>
                           ))}
                           {pendingInvites.length > 3 && (
-                            <Link href="/friends" className="block text-center text-xs font-bold text-indigo-600 pt-2 hover:underline">
+                            <Link href="/socials?tab=requests" className="block text-center text-xs font-bold text-indigo-600 pt-2 hover:underline">
                               View all {pendingInvites.length} requests
                             </Link>
                           )}

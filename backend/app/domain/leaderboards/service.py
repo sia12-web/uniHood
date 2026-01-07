@@ -133,7 +133,7 @@ class LeaderboardService:
 		Returns list of user IDs that actually received points.
 		"""
 		import logging
-		logger = logging.getLogger("divan.leaderboards")
+		logger = logging.getLogger("unihood.leaderboards")
 		# Cache campus mappings for users
 		campus_map = campus_map or {}
 		for uid in user_ids:

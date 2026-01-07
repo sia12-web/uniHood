@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { listMeetups, joinMeetup, updateMeetup, MeetupResponse, MeetupCategory, MeetupVisibility } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
@@ -11,12 +12,13 @@ export function MyMeetups() {
     const authUser = readAuthUser();
     const queryClient = useQueryClient();
     const [filter, setFilter] = useState<"all" | "hosting" | "joined">("all");
+    const [timeFilter, setTimeFilter] = useState<"upcoming" | "past">("upcoming");
     const [editingMeetup, setEditingMeetup] = useState<MeetupResponse | null>(null);
 
     const { data: meetups, isLoading } = useQuery({
-        queryKey: ["meetups", authUser?.campusId],
-        queryFn: () => listMeetups(authUser?.campusId ?? undefined),
-        enabled: !!authUser?.campusId,
+        queryKey: ["meetups", authUser?.campusId, "my", authUser?.userId],
+        queryFn: () => listMeetups(authUser?.campusId ?? undefined, undefined, undefined, undefined, authUser?.userId),
+        enabled: !!authUser?.campusId && !!authUser?.userId,
     });
 
     const joinMutation = useMutation({
@@ -36,15 +38,27 @@ export function MyMeetups() {
 
     if (!authUser) return null;
 
+    const now = new Date();
     const myMeetups = meetups?.filter((meetup: MeetupResponse) => {
+        // First, apply role filter
         const isHost = meetup.creator_user_id === authUser.userId;
         const isJoined = meetup.is_joined;
 
         if (!isHost && !isJoined) return false;
 
-        if (filter === "hosting") return isHost;
-        if (filter === "joined") return isJoined && !isHost;
-        return true; // "all"
+        if (filter === "hosting") if (!isHost) return false;
+        if (filter === "joined") if (!isJoined || isHost) return false;
+
+        // Then, apply time filter
+        const startDate = new Date(meetup.start_at);
+        const duration = meetup.duration_min;
+        const endDate = new Date(startDate.getTime() + duration * 60000);
+
+        if (timeFilter === "upcoming") {
+            return endDate > now;
+        } else {
+            return endDate <= now;
+        }
     });
 
     const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -71,25 +85,57 @@ export function MyMeetups() {
 
     return (
         <div className="space-y-6">
-            <div className="flex gap-2">
-                <button
-                    onClick={() => setFilter("all")}
-                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "all" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
-                >
-                    All My Meetups
-                </button>
-                <button
-                    onClick={() => setFilter("hosting")}
-                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "hosting" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
-                >
-                    Hosting
-                </button>
-                <button
-                    onClick={() => setFilter("joined")}
-                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${filter === "joined" ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100"}`}
-                >
-                    Joined
-                </button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm">
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
+                    <button
+                        onClick={() => setFilter("all")}
+                        className={cn(
+                            "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                            filter === "all" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        )}
+                    >
+                        All
+                    </button>
+                    <button
+                        onClick={() => setFilter("hosting")}
+                        className={cn(
+                            "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                            filter === "hosting" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        )}
+                    >
+                        Hosting
+                    </button>
+                    <button
+                        onClick={() => setFilter("joined")}
+                        className={cn(
+                            "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                            filter === "joined" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        )}
+                    >
+                        Joined
+                    </button>
+                </div>
+
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
+                    <button
+                        onClick={() => setTimeFilter("upcoming")}
+                        className={cn(
+                            "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                            timeFilter === "upcoming" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        )}
+                    >
+                        Upcoming
+                    </button>
+                    <button
+                        onClick={() => setTimeFilter("past")}
+                        className={cn(
+                            "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                            timeFilter === "past" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        )}
+                    >
+                        Past
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
@@ -101,11 +147,11 @@ export function MyMeetups() {
                     <div className="mx-auto h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
                         <Users className="h-10 w-10" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900">No meetups found</h3>
+                    <h3 className="text-xl font-bold text-slate-900">No {timeFilter} meetups found</h3>
                     <p className="text-slate-500 mt-2">
-                        {filter === 'hosting' ? "You aren't hosting any meetups." :
-                            filter === 'joined' ? "You haven't joined any meetups." :
-                                "You haven't joined or created any meetups yet."}
+                        {filter === 'hosting' ? "You aren't hosting any " + timeFilter + " meetups." :
+                            filter === 'joined' ? "You haven't joined any " + timeFilter + " meetups." :
+                                "You haven't joined or created any " + timeFilter + " meetups yet."}
                     </p>
                 </div>
             ) : (

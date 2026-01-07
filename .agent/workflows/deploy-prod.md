@@ -38,7 +38,16 @@ Ensure that `dev` hasn't "drifted" from `prod`.
 - Check `backend/migrations/` for any new `.sql` files.
 - **Crucial**: Ensure the `preDeployCommand` on Render is set to run your migration script (e.g., `python scripts/apply_migrations.py`).
 
-### C. CORS & Security
+### D. Session & Cookie Security
+The system uses dynamic defaults for auth cookies based on the `ENVIRONMENT` variable:
+- **Dev**: `COOKIE_SECURE=False`, `COOKIE_SAMESITE=lax` (Allows HTTP).
+- **Prod**: `COOKIE_SECURE=True`, `COOKIE_SAMESITE=none` (Requires HTTPS/Cross-origin).
+
+**Check**:
+- Ensure `ENVIRONMENT=production` (or `prod`) is set in the Render environment variables for the production service.
+- If the frontend and backend are on different domains, verify `COOKIE_DOMAIN` is correctly set if needed, though `SameSite=none` usually suffices for cross-domain cookies on HTTPS.
+
+### E. CORS & Security
 - Check `backend/app/main.py`.
 - Ensure `allow_origins` explicitly includes:
   - `https://unihood.app`

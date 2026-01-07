@@ -64,7 +64,6 @@ async def request_deletion(auth_user: AuthenticatedUser) -> schemas.DeletionStat
 	if user_row.get("email"):
 		await mailer.send_deletion_confirmation(user_row["email"], token, user_id=auth_user.id)
 	obs_metrics.inc_identity_delete_request()
-	await audit.append_db_event(auth_user.id, "delete_requested", {"token_hash": "issued"})
 	await audit.log_event("delete_requested", user_id=auth_user.id, meta={"token": "issued"})
 	return await get_status(auth_user.id)
 
@@ -284,5 +283,4 @@ async def mark_purged(user_id: str) -> None:
 			""",
 			user_id,
 		)
-	await audit.append_db_event(user_id, "delete_purged", {})
 	await audit.log_event("delete_purged", user_id=user_id, meta={})

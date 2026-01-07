@@ -493,7 +493,7 @@ class ChatService:
 		# Log to Activity Feed (Audit)
 		try:
 			from app.domain.identity import audit
-			await audit.append_db_event(
+			await audit.log_event(
 				user_id=auth_user.id,
 				event="chat.sent",
 				meta={

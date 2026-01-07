@@ -4,12 +4,13 @@
 import { useState, useEffect } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Lock } from "lucide-react";
 import { listMeetups, createMeetup, joinMeetup, MeetupCategory, MeetupVisibility, fetchMeetupUsage, MeetupResponse, updateMeetup, getMeetup, createReview } from "@/lib/meetups";
 import { readAuthUser } from "@/lib/auth-storage";
 import { fetchProfile } from "@/lib/identity";
 import { LEVEL_CONFIG } from "@/lib/xp";
 import { cn } from "@/lib/utils";
+import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 
 import { MeetupCard, MEETUP_CATEGORIES } from "@/components/MeetupCard";
 
@@ -29,6 +30,7 @@ const DEFAULT_BANNERS = [
 export default function MeetupsPage() {
   const authUser = readAuthUser();
   const queryClient = useQueryClient();
+  const { markAsSeen } = useMeetupNotifications();
   const [selectedCategory, setSelectedCategory] = useState<MeetupCategory | undefined>();
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [year, setYear] = useState<number | undefined>();
@@ -39,12 +41,16 @@ export default function MeetupsPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Clear meetup notifications when page loads
+    markAsSeen();
+
     if (authUser?.userId && authUser?.campusId) {
       fetchProfile(authUser.userId, authUser.campusId)
         .then(profile => setUserLevel(profile.level))
         .catch(err => console.error("Failed to fetch level", err));
     }
-  }, [authUser]);
+  }, [authUser, markAsSeen]);
 
   const { data: meetups, isLoading } = useQuery({
     queryKey: ["meetups", authUser?.campusId, selectedCategory, showOnlyMine, year],
@@ -166,10 +172,22 @@ export default function MeetupsPage() {
             <p className="text-lg text-slate-500 font-medium">Join existing groups or create your own based on your interests.</p>
           </div>
           <button
-            onClick={() => setIsCreateOpen(true)}
-            className="group flex items-center gap-2 rounded-2xl bg-[#4f46e5] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:scale-105 hover:bg-indigo-700"
+            onClick={() => {
+              if (usage && usage.hosting_usage >= usage.hosting_limit) {
+                alert(`You have reached your simultaneous hosting limit (${usage.hosting_limit}) for Level ${userLevel}.`);
+                return;
+              }
+              setIsCreateOpen(true);
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold shadow-sm transition-all",
+              usage && usage.hosting_usage >= usage.hosting_limit
+                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                : "bg-[#4f46e5] text-white hover:scale-105 hover:bg-indigo-700"
+            )}
+            title={usage && usage.hosting_usage >= usage.hosting_limit ? "Hosting limit reached" : "Create a new group event"}
           >
-            <Plus className="h-5 w-5" />
+            {usage && usage.hosting_usage >= usage.hosting_limit ? <Lock className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
             Create Meetup
           </button>
         </div>

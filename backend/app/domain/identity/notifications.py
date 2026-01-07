@@ -54,6 +54,5 @@ async def update_preferences(user_id: str, patch: schemas.NotificationPreference
 	prefs = schemas.NotificationPreferences(**merged)
 	if updates:
 		fields_meta = ",".join(sorted(updates.keys())) or "none"
-		await audit.append_db_event(user_id, "notifications_change", {"fields": fields_meta})
 		await audit.log_event("notifications_change", user_id=user_id, meta={"fields": fields_meta})
 	return prefs

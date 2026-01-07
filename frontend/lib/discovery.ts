@@ -60,3 +60,16 @@ export async function sendDiscoveryPass(
   });
 }
 
+export async function fetchDiscoveryCard(
+  userId: string,
+  campusId: string,
+  targetId: string,
+): Promise<NearbyUser> {
+  return apiFetch<NearbyUser>(`${BASE_URL}/discovery/card/${targetId}`, {
+    headers: {
+      "X-User-Id": userId,
+      "X-Campus-Id": campusId,
+    },
+    cache: "no-store",
+  });
+}

@@ -98,3 +98,19 @@ async def get_user_discovery_profile(
 		# This prevents frontend crashes when viewing a user who hasn't set up discovery explicitly
 		return DiscoveryProfile(user_id=uid)
 	return profile
+
+
+@router.get("/card/{user_id}", response_model=DiscoveryCard)
+async def get_user_discovery_card(
+	user_id: str,
+	auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> DiscoveryCard:
+	try:
+		uid = UUID(user_id)
+	except ValueError:
+		raise HTTPException(status_code=400, detail="Invalid user ID")
+		
+	card = await service.get_discovery_card(auth_user, uid)
+	if not card:
+		raise HTTPException(status_code=404, detail="User not found")
+	return card

@@ -198,7 +198,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                       <div className="flex flex-col items-center justify-center py-8 text-center">
                         <Users className="mb-2 h-8 w-8 text-slate-300" />
                         <p className="text-sm text-slate-500">No friends available yet.</p>
-                        <Link href="/friends" className="mt-2 text-xs font-medium text-indigo-600 hover:underline">
+                        <Link href="/socials?tab=friends" className="mt-2 text-xs font-medium text-indigo-600 hover:underline">
                           Add friends first
                         </Link>
                       </div>

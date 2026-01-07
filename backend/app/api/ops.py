@@ -98,7 +98,7 @@ async def trace_test(_: None = Depends(require_admin)) -> dict[str, str]:
 		raise HTTPException(status.HTTP_403_FORBIDDEN, detail="disabled in prod")
 	if _tracing_available and trace is not None:
 		tracer = trace.get_tracer(settings.service_name)
-		with tracer.start_as_current_span("divan.trace.test") as span:  # pragma: no cover - optional
+		with tracer.start_as_current_span("unihood.trace.test") as span:  # pragma: no cover - optional
 			span.set_attribute("component", "ops")
 			span.set_attribute("sample", True)
 	return {"status": "ok"}

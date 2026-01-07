@@ -29,7 +29,7 @@ from app.obs import metrics as obs_metrics
 
 ACCESS_TTL_SECONDS = settings.access_ttl_minutes * 60
 REFRESH_TTL_SECONDS = settings.refresh_ttl_days * 24 * 60 * 60
-REFRESH_PEPPER = os.getenv("REFRESH_PEPPER", "dev-pepper")
+REFRESH_PEPPER = settings.refresh_pepper
 
 
 def _now() -> datetime:
@@ -276,6 +276,8 @@ async def refresh_session(
 	"""
 	persisted_hash = await _fetch_refresh_token(session_id)
 	if not persisted_hash:
+		# Session might have expired in Redis while row still exists in PG
+		print(f"WARN: Refresh failed for session {session_id}. Token not found in Redis (expired or never stored).")
 		raise policy.IdentityPolicyError("refresh_invalid")
 	
 	# Validate fingerprint if session has one stored

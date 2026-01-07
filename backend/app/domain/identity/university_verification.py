@@ -22,7 +22,8 @@ def _hash_code(code: str) -> str:
 
 async def send_code(user: AuthenticatedUser, email: str) -> None:
 	# Simple validation for now - in production this would check against allowed domains
-	if not email.endswith(".edu"):
+	# Allow .edu and .ca domains for now
+	if not (email.endswith(".edu") or email.endswith(".ca")):
 		# Placeholder: Allow any email for now if no rigid policy, but plan implied univ verification.
 		# For strict university check:
 		# raise policy.IdentityPolicyError("invalid_university_email")
@@ -55,7 +56,7 @@ async def send_code(user: AuthenticatedUser, email: str) -> None:
 			<html>
 				<body>
 					<p>Hello,</p>
-					<p>Your verification code for Divan is:</p>
+					<p>Your verification code for uniHood is:</p>
 					<h2>{code}</h2>
 					<p>This code will expire in 15 minutes.</p>
 				</body>

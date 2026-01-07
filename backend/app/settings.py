@@ -91,8 +91,9 @@ class Settings(BaseSettings):
     refresh_ttl_days: int = _env_field(7, "REFRESH_TTL_DAYS")
     refresh_pepper: str = _env_field(..., "REFRESH_PEPPER")
     # For cross-origin deployments (frontend != backend domain), use Secure=True, SameSite=None
-    cookie_secure: bool = _env_field(True, "COOKIE_SECURE")
-    cookie_samesite: str = _env_field("none", "COOKIE_SAMESITE")
+    # In 'dev', we default to False/lax to allow local HTTP testing.
+    cookie_secure: Optional[bool] = _env_field(None, "COOKIE_SECURE")
+    cookie_samesite: Optional[str] = _env_field(None, "COOKIE_SAMESITE")
     cookie_domain: Optional[str] = _env_field(None, "COOKIE_DOMAIN")
     upload_base_url: str = _env_field("http://localhost:8001/uploads", "UPLOAD_BASE_URL")
 
@@ -165,6 +166,26 @@ class Settings(BaseSettings):
             if isinstance(value, (list, tuple, set)):
                 return tuple(str(item).strip() for item in value if str(item).strip())
             return ()
+        @field_validator("cookie_secure", mode="before")
+        @classmethod
+        def _default_cookie_secure(cls, v, info):
+            if v is not None:
+                if isinstance(v, str):
+                    return v.lower() in ("1", "true", "yes", "on")
+                return bool(v)
+            # if ENVIRONMENT is dev/development, default to False
+            env = (info.data.get("environment") or "production").lower()
+            return env not in ("dev", "development")
+
+        @field_validator("cookie_samesite", mode="before")
+        @classmethod
+        def _default_cookie_samesite(cls, v, info):
+            if v is not None:
+                return str(v)
+            env = (info.data.get("environment") or "production").lower()
+            if env in ("dev", "development"):
+                return "lax"
+            return "none"
     else:  # pragma: no cover - legacy Pydantic v1 support
         class Config:
             env_prefix = ""

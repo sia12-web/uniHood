@@ -69,7 +69,6 @@ async def update_privacy_settings(
 	privacy = schemas.PrivacySettings(**merged)
 	fields_meta = ",".join(sorted(updates.keys())) or "none"
 	obs_metrics.inc_identity_privacy_update()
-	await audit.append_db_event(auth_user.id, "privacy_change", {"fields": fields_meta})
 	await audit.log_event(
 		"privacy_change",
 		user_id=auth_user.id,
@@ -168,7 +167,6 @@ async def block_user(auth_user: AuthenticatedUser, blocked_id: str) -> schemas.B
 		created_at=created_at,
 	)
 	obs_metrics.inc_identity_block("block")
-	await audit.append_db_event(auth_user.id, "block", {"target": str(blocked_id)})
 	await audit.log_event("block", user_id=auth_user.id, meta={"target": str(blocked_id)})
 	return blocked_entry
 
@@ -187,5 +185,4 @@ async def unblock_user(auth_user: AuthenticatedUser, blocked_id: str) -> None:
 	if result.endswith("0"):
 		raise policy.IdentityPolicyError("block_missing")
 	obs_metrics.inc_identity_block("unblock")
-	await audit.append_db_event(auth_user.id, "unblock", {"target": str(blocked_id)})
 	await audit.log_event("unblock", user_id=auth_user.id, meta={"target": str(blocked_id)})

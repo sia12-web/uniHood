@@ -93,16 +93,16 @@ class AnalyticsService:
                        CASE WHEN $2::uuid IS NULL THEN FALSE
                             ELSE EXISTS(SELECT 1 FROM activity_likes WHERE audit_log_id = a.id AND user_id = $2::uuid)
                        END as is_liked
-                FROM audit_log a
-                LEFT JOIN users u ON a.user_id::uuid = u.id
+                FROM audit_logs a
+                LEFT JOIN users u ON a.user_id = u.id
                 WHERE (
-                    a.event IN ('friend.accepted', 'friend.removed', 'activity.create', 'activity.join', 'meetup.create', 'level.up')
+                    a.event IN ('friend.accepted', 'friend.removed', 'activity.create', 'activity.join', 'meetup.create', 'meetup.join', 'meetup.leave', 'meetup.cancel', 'level.up')
                     OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
                 )
                 AND (
                     $2::uuid IS NULL 
-                    OR a.user_id::uuid = $2::uuid 
-                    OR EXISTS(SELECT 1 FROM friendships f WHERE f.user_id = $2::uuid AND f.friend_id = a.user_id::uuid AND f.status = 'accepted')
+                    OR a.user_id = $2::uuid 
+                    OR EXISTS(SELECT 1 FROM friendships f WHERE f.user_id = $2::uuid AND f.friend_id = a.user_id AND f.status = 'accepted')
                 )
                 ORDER BY a.created_at DESC
                 LIMIT $1

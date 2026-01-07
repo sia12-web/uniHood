@@ -287,7 +287,7 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 		# Log to DB Audit (Activity Feed)
 		try:
 			from app.domain.identity import audit as db_audit
-			await db_audit.append_db_event(
+			await db_audit.log_event(
 				user_id=sender_id,
 				event="invite.sent",
 				meta={
@@ -403,7 +403,7 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 	try:
 		from app.domain.identity import audit as db_audit
 		# Log for acceptor (current user)
-		await db_audit.append_db_event(
+		await db_audit.log_event(
 			user_id=str(summary.to_user_id),
 			event="friend.accepted",
 			meta={
@@ -418,7 +418,7 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 		# If A accepts B's invite:
 		# A's feed: "You became friends with B" (friend.accepted event for A)
 		# B's feed: "A accepted your friend request" or "You became friends with A" (friend.accepted event for B)
-		await db_audit.append_db_event(
+		await db_audit.log_event(
 			user_id=str(summary.from_user_id),
 			event="friend.accepted",
 			meta={
@@ -862,9 +862,9 @@ async def remove_friend(auth_user: AuthenticatedUser, target_user_id: UUID) -> N
 					# Analytics (Activity Feed) - Log for the person who did it
 					try:
 						from app.domain.identity import audit as db_audit
-						await db_audit.append_db_event(
+						await db_audit.log_event(
+							"friend.removed",
 							user_id=user_id,
-							event="friend.removed",
 							meta={"friend_id": target_id}
 						)
 					except Exception:

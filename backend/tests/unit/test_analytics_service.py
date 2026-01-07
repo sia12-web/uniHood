@@ -120,7 +120,9 @@ async def test_get_recent_activity(monkeypatch):
             "created_at": now,
             "display_name": "Alice",
             "avatar_url": None,
-            "handle": "alice"
+            "handle": "alice",
+            "likes_count": 0,
+            "is_liked": False
         },
         {
             "id": 100,
@@ -130,7 +132,9 @@ async def test_get_recent_activity(monkeypatch):
             "created_at": now,
             "display_name": None,
             "avatar_url": "http://img",
-            "handle": "bob"
+            "handle": "bob",
+            "likes_count": 5,
+            "is_liked": True
         }
     ]]
 

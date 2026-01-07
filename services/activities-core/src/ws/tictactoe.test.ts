@@ -60,7 +60,7 @@ describe('TicTacToe Logic', () => {
         expect(session.winner).toBe('draw');
     });
 
-    test('should not match ends early (Best of 3 behavior removed)', () => {
+    test('should match continue normally (Best of 5)', () => {
         const { session, sessionId } = setupSession();
 
         // Round 1: X wins
@@ -68,44 +68,63 @@ describe('TicTacToe Logic', () => {
         handleRoundEnd(sessionId);
         expect(session.roundWins['user1']).toBe(1);
         expect(session.roundIndex).toBe(1);
-        expect(session.status).toBe('countdown'); // playing next round
+        expect(session.status).toBe('lobby'); // waiting in lobby during delay
 
-        // Round 2: X wins again
-        session.winner = 'X';
+        jest.advanceTimersByTime(3000);
+        expect(session.status).toBe('countdown');
+
+        // Round 2: User 1 (now O) wins again
+        session.winner = 'O';
         handleRoundEnd(sessionId);
         expect(session.roundWins['user1']).toBe(2);
         expect(session.roundIndex).toBe(2);
-        // Should NOT be finished yet, because we play fixed 3 rounds
-        expect(session.status).toBe('countdown');
+        // Total 2 wins, but target is 3. Should continue.
+        expect(session.status).toBe('lobby');
     });
 
-    test('should end match after 3 rounds', () => {
+    test('should end match after WIN_TARGET reached (3 wins)', () => {
         const { session, sessionId } = setupSession();
 
         // Simulate 2 rounds played
         session.roundIndex = 2;
-        session.roundWins['user1'] = 2; // X has 2 wins
-        session.roundWins['user2'] = 0; // O has 0 wins
+        session.roundWins['user1'] = 2;
+        session.roundWins['user2'] = 0;
 
-        // Round 3: O wins
+        // Round 3: X wins (3rd win)
+        session.winner = 'X';
+        handleRoundEnd(sessionId);
+
+        expect(session.roundWins['user1']).toBe(3);
+        expect(session.status).toBe('finished');
+        expect(session.matchWinner).toBe('user1');
+    });
+
+    test('should end match after TOTAL_ROUNDS reached (5 rounds)', () => {
+        const { session, sessionId } = setupSession();
+
+        // Simulate 4 rounds played
+        session.roundIndex = 4;
+        session.roundWins['user1'] = 1;
+        session.roundWins['user2'] = 1;
+        // 2 draws or something
+
+        // Round 5: O wins
         session.winner = 'O';
         handleRoundEnd(sessionId);
 
-        expect(session.roundWins['user2']).toBe(1);
+        expect(session.roundWins['user2']).toBe(2);
         expect(session.status).toBe('finished');
-        expect(session.matchWinner).toBe('user1'); // X won 2-1
+        expect(session.matchWinner).toBe('user2'); // 2-1
     });
 
-    test('should handle draw match', () => {
-        // Since we have 3 rounds, draws are only possible if there are draws in rounds.
-        // e.g. R1:X, R2:O, R3:Draw -> 1-1. Match Draw?
+    test('should handle draw match after 5 rounds', () => {
         const { session, sessionId } = setupSession();
 
-        session.roundIndex = 2;
-        session.roundWins['user1'] = 1;
-        session.roundWins['user2'] = 1;
+        session.roundIndex = 4;
+        session.roundWins['user1'] = 2;
+        session.roundWins['user2'] = 2;
 
-        // Round 3: Draw
+        // Round 5: Draw
         session.winner = 'draw';
         handleRoundEnd(sessionId);
 

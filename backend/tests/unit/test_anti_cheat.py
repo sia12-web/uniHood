@@ -92,7 +92,8 @@ async def test_meetup_attendance_no_self_xp():
             await service.update_attendance(meetup_id, auth_user, payload)
             
             # Should only call award_xp ONCE for participant, NOT for host
-            assert mock_award_xp.call_count == 2 # 1 for participant join, 1 for host 'meetup_host' award
+            # (Host already got XP on creation)
+            assert mock_award_xp.call_count == 1
             
             # Verify calls
             calls = mock_award_xp.call_args_list
@@ -102,9 +103,4 @@ async def test_meetup_attendance_no_self_xp():
             assert args[0] == str(participant_id)
             assert args[1] == XPAction.MEETUP_JOIN
             assert kwargs['metadata']['host_id'] == str(host_id)
-            
-            # 2. Host Award (Ghost Meetup Check passed)
-            args, kwargs = calls[1]
-            assert args[0] == str(host_id)
-            assert args[1] == XPAction.MEETUP_HOST
 

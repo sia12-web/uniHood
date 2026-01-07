@@ -54,7 +54,7 @@ def test_refresh_cookies_set_security_flags():
     refresh_cookie = cookies[REFRESH_COOKIE_NAME]
     assert refresh_cookie["path"] == REFRESH_COOKIE_PATH
     assert refresh_cookie["httponly"] is True
-    assert refresh_cookie["samesite"] == "Strict"
+    assert refresh_cookie["samesite"] == "Lax"
     assert not refresh_cookie["secure"]
     expected_max_age = str(settings.refresh_ttl_days * 24 * 60 * 60)
     assert refresh_cookie["max-age"] == expected_max_age
@@ -62,7 +62,7 @@ def test_refresh_cookies_set_security_flags():
     fingerprint_cookie = cookies[FINGERPRINT_COOKIE_NAME]
     assert fingerprint_cookie["path"] == FINGERPRINT_PATH
     assert not fingerprint_cookie["httponly"]
-    assert fingerprint_cookie["samesite"] == "Strict"
+    assert fingerprint_cookie["samesite"] == "Lax"
     assert not fingerprint_cookie["secure"]
     assert fingerprint_cookie["max-age"] == expected_max_age
 

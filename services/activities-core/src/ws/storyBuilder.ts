@@ -331,7 +331,7 @@ export function handleStoryBuilderConnection(connection: SocketStream, _req: Fas
 
     socket.send(JSON.stringify({ type: 'state', payload: sessions[sessionId] }));
 
-    socket.on('message', (message: Buffer) => {
+    socket.on('message', async (message: Buffer) => {
         try {
             const data = JSON.parse(message.toString());
             // Capture userId from join message
@@ -340,7 +340,7 @@ export function handleStoryBuilderConnection(connection: SocketStream, _req: Fas
                 if (!userSockets[sessionId]) userSockets[sessionId] = new Map();
                 userSockets[sessionId].set(connectedUserId!, socket);
             }
-            handleMessage(sessionId, data, socket);
+            await handleMessage(sessionId, data, socket);
         } catch (e) {
             console.error('Failed to parse message', e);
         }
@@ -355,7 +355,7 @@ export function handleStoryBuilderConnection(connection: SocketStream, _req: Fas
     });
 }
 
-export function handleMessage(sessionId: string, data: any, socket?: any) {
+export async function handleMessage(sessionId: string, data: any, socket?: any) {
     const session = sessions[sessionId];
     if (!session) return;
 
@@ -419,12 +419,12 @@ export function handleMessage(sessionId: string, data: any, socket?: any) {
 
         paragraph.votes[userId] = score;
 
-        checkVotingComplete(sessionId);
+        await checkVotingComplete(sessionId);
         broadcastState(sessionId);
     }
 }
 
-function checkVotingComplete(sessionId: string) {
+async function checkVotingComplete(sessionId: string) {
     const session = sessions[sessionId];
     if (!session) return;
 
@@ -435,11 +435,11 @@ function checkVotingComplete(sessionId: string) {
     });
 
     if (allVoted) {
-        calculateScores(sessionId);
+        await calculateScores(sessionId);
     }
 }
 
-function calculateScores(sessionId: string) {
+async function calculateScores(sessionId: string) {
     const session = sessions[sessionId];
     if (!session) return;
 
@@ -465,18 +465,16 @@ function calculateScores(sessionId: string) {
     // Record stats using fixed points (only if not already recorded)
     if (!session.statsRecorded) {
         session.statsRecorded = true;
-        (async () => {
-            try {
-                for (const p of session.participants) {
-                    const isWinner = p.score === maxScore && maxScore > 0;
-                    const result = isWinner ? 'win' : 'loss';
-                    const fixedPoints = isWinner ? 200 : 50;
-                    await recordGameResult(p.userId, 'story_builder', result, fixedPoints);
-                }
-            } catch (err) {
-                console.error('[StoryBuilder] Failed to record game stats:', err);
+        try {
+            for (const p of session.participants) {
+                const isWinner = p.score === maxScore && maxScore > 0;
+                const result = isWinner ? 'win' : 'loss';
+                const fixedPoints = isWinner ? 200 : 50;
+                await recordGameResult(p.userId, 'story_builder', result, fixedPoints);
             }
-        })();
+        } catch (err) {
+            console.error('[StoryBuilder] Failed to record game stats:', err);
+        }
     }
 
     broadcastState(sessionId);

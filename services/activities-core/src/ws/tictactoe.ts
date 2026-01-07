@@ -598,13 +598,14 @@ export function handleRoundEnd(sessionId: string) {
     session.lastRoundWinner = roundWinnerId;
     session.roundIndex += 1;
     session.board = Array(9).fill(null);
-    session.turn = 'X'; // Force X to start every round? Or alternate? 
-    // Standard TT often winners start or alternate.
-    // Let's alternate start based on round index? 
-    // Round 0: X starts. Round 1: O starts?
-    // User didn't specify, keeping 'X' start is simple.
-    // Or simpler: whoever lost previous round starts? 
-    // Let's keep it 'X' starts for now to minimize logic drift.
+
+    // Swap roles for the next round: Round 0: UserA is X, UserB is O. Round 1: UserA is O, UserB is X.
+    const currentX = session.players.X;
+    const currentO = session.players.O;
+    session.players.X = currentO;
+    session.players.O = currentX;
+
+    session.turn = 'X'; // The new X starts the round
 
     session.winner = null;
     session.status = 'lobby';

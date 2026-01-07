@@ -125,9 +125,19 @@ async def test_refresh_session_rotates_token(fake_redis, monkeypatch: pytest.Mon
     session_id = uuid4()
     old_refresh = "old-refresh-token"
     # Pre-store the hash to simulate existing session state
+    import hmac
     import hashlib
-    token_hash = hashlib.sha256((sessions.REFRESH_PEPPER + old_refresh).encode()).hexdigest()
+    token_hash = hmac.new(
+        sessions.REFRESH_PEPPER.encode(),
+        old_refresh.encode(),
+        hashlib.sha256
+    ).hexdigest()
     await fake_redis.set(f"session:refresh:{session_id}", token_hash, ex=60)
+
+    # Mock eval for rotation
+    async def mock_eval(*args, **kwargs):
+        return 0
+    monkeypatch.setattr(fake_redis, "eval", mock_eval)
 
     result = await sessions.refresh_session(
         user,

@@ -20,13 +20,13 @@ async def test_create_club_success(club_service):
     with patch("app.domain.clubs.service.XPService") as MockXPService:
         mock_xp = MockXPService.return_value
         # Level 6
-        mock_xp.get_user_stats.return_value = UserXPStats(
+        mock_xp.get_user_stats = AsyncMock(return_value=UserXPStats(
             user_id=user_id, total_xp=15000, current_level=6, last_updated_at=None
-        )
+        ))
         
         # Mock DB
         with patch("app.domain.clubs.service.get_pool") as mock_get_pool:
-            mock_pool = AsyncMock()
+            mock_pool = MagicMock()
             mock_conn = AsyncMock()
             mock_get_pool.return_value = mock_pool
             mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
@@ -61,9 +61,9 @@ async def test_create_club_permission_denied(club_service):
     with patch("app.domain.clubs.service.XPService") as MockXPService:
         mock_xp = MockXPService.return_value
         # Level 5 (Too low)
-        mock_xp.get_user_stats.return_value = UserXPStats(
+        mock_xp.get_user_stats = AsyncMock(return_value=UserXPStats(
             user_id=user_id, total_xp=5000, current_level=5, last_updated_at=None
-        )
+        ))
         
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as exc:

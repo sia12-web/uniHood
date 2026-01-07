@@ -1,10 +1,10 @@
-import { 
-    createStoryBuilderSession, 
-    joinStoryBuilder, 
-    setStoryBuilderReady, 
-    handleMessage, 
+import {
+    createStoryBuilderSession,
+    joinStoryBuilder,
+    setStoryBuilderReady,
+    handleMessage,
     startStory,
-    getStoryBuilderSession 
+    getStoryBuilderSession
 } from './storyBuilder';
 import { recordGameResult } from '../services/stats';
 
@@ -25,7 +25,7 @@ describe('StoryBuilder Logic', () => {
     test('should create session and allow users to join', () => {
         const sessionId = createStoryBuilderSession('user1');
         const session = getStoryBuilderSession(sessionId);
-        
+
         expect(session).toBeDefined();
         expect(session?.creatorUserId).toBe('user1');
         expect(session?.participants).toHaveLength(1);
@@ -51,32 +51,32 @@ describe('StoryBuilder Logic', () => {
         expect(session?.currentTurnUserId).toBeDefined();
     });
 
-    test('should handle writing and voting flow', () => {
+    test('should handle writing and voting flow', async () => {
         const sessionId = createStoryBuilderSession('user1');
         joinStoryBuilder(sessionId, 'user2');
-        
+
         // Skip to writing phase
         startStory(sessionId);
         const session = getStoryBuilderSession(sessionId)!;
-        
+
         // Mock turn order to be deterministic
         session.turnOrder = ['user1', 'user2'];
         session.currentTurnUserId = 'user1';
         session.turnIndex = 0;
 
         // User 1 writes
-        handleMessage(sessionId, { 
-            type: 'submit_paragraph', 
-            payload: { userId: 'user1', text: 'Once upon a time' } 
+        await handleMessage(sessionId, {
+            type: 'submit_paragraph',
+            payload: { userId: 'user1', text: 'Once upon a time' }
         });
-        
+
         expect(session.paragraphs).toHaveLength(1);
         expect(session.currentTurnUserId).toBe('user2');
 
         // User 2 writes
-        handleMessage(sessionId, { 
-            type: 'submit_paragraph', 
-            payload: { userId: 'user2', text: 'There was a dragon' } 
+        await handleMessage(sessionId, {
+            type: 'submit_paragraph',
+            payload: { userId: 'user2', text: 'There was a dragon' }
         });
 
         expect(session.paragraphs).toHaveLength(2);
@@ -92,9 +92,9 @@ describe('StoryBuilder Logic', () => {
         ];
 
         for (const turn of turns) {
-            handleMessage(sessionId, { 
-                type: 'submit_paragraph', 
-                payload: { userId: turn.u, text: turn.t } 
+            await handleMessage(sessionId, {
+                type: 'submit_paragraph',
+                payload: { userId: turn.u, text: turn.t }
             });
         }
 
@@ -102,20 +102,20 @@ describe('StoryBuilder Logic', () => {
 
         // Voting Phase
         // User 1 votes on User 2's paragraphs (indices 1, 3, 5)
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 1, score: 10 } });
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 3, score: 10 } });
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 5, score: 10 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 1, score: 10 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 3, score: 10 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user1', paragraphIndex: 5, score: 10 } });
 
         // User 2 votes on User 1's paragraphs (indices 0, 2, 4)
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 0, score: 5 } });
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 2, score: 5 } });
-        handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 4, score: 5 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 0, score: 5 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 2, score: 5 } });
+        await handleMessage(sessionId, { type: 'vote_paragraph', payload: { userId: 'user2', paragraphIndex: 4, score: 5 } });
 
         expect(session.status).toBe('ended');
         expect(session.winnerUserId).toBe('user2'); // User 2 got 30 points, User 1 got 15 points
 
-        // Verify stats recorded
-        expect(recordGameResult).toHaveBeenCalledWith('user2', 'story_builder', 'win', 30);
-        expect(recordGameResult).toHaveBeenCalledWith('user1', 'story_builder', 'loss', 15);
+        // Verify stats recorded using fixed amounts (Winner: 200, Loser: 50)
+        expect(recordGameResult).toHaveBeenCalledWith('user2', 'story_builder', 'win', 200);
+        expect(recordGameResult).toHaveBeenCalledWith('user1', 'story_builder', 'loss', 50);
     });
 });

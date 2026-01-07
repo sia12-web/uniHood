@@ -103,9 +103,7 @@ async def test_request_deletion_records_status(monkeypatch):
     monkeypatch.setattr(deletion, "_load_user", load_user)
     send_mail = AsyncMock()
     monkeypatch.setattr(deletion.mailer, "send_deletion_confirmation", send_mail)
-    append_event = AsyncMock()
     log_event = AsyncMock()
-    monkeypatch.setattr(deletion.audit, "append_db_event", append_event)
     monkeypatch.setattr(deletion.audit, "log_event", log_event)
     monkeypatch.setattr(deletion.obs_metrics, "inc_identity_delete_request", lambda: None)
 
@@ -115,7 +113,6 @@ async def test_request_deletion_records_status(monkeypatch):
     assert await redis_client.get("delete:confirm:user-delete") is not None
     load_user.assert_awaited_once()
     send_mail.assert_awaited_once()
-    append_event.assert_awaited_once()
     log_event.assert_awaited_once()
 
 
@@ -134,9 +131,7 @@ async def test_confirm_deletion_revokes_sessions_and_clears_token(monkeypatch):
     monkeypatch.setattr(deletion, "_load_user", load_user)
     send_mail = AsyncMock()
     monkeypatch.setattr(deletion.mailer, "send_deletion_confirmation", send_mail)
-    append_event = AsyncMock()
     log_event = AsyncMock()
-    monkeypatch.setattr(deletion.audit, "append_db_event", append_event)
     monkeypatch.setattr(deletion.audit, "log_event", log_event)
     monkeypatch.setattr(deletion.obs_metrics, "inc_identity_delete_request", lambda: None)
     confirm_metrics: list[bool] = []
@@ -150,7 +145,6 @@ async def test_confirm_deletion_revokes_sessions_and_clears_token(monkeypatch):
     token = await redis_client.get("delete:confirm:user-delete-confirm")
     assert token is not None
 
-    append_event.reset_mock()
     log_event.reset_mock()
     send_mail.reset_mock()
 

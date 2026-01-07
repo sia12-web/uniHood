@@ -101,6 +101,10 @@ jobs:
       - name: Apply DB migrations (optional)
         env:
           POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/radius
+          SECRET_KEY: test-secret-key-for-ci
+          SERVICE_SIGNING_KEY: test-signing-key-for-ci
+          REFRESH_PEPPER: test-refresh-pepper-for-ci
+          ENVIRONMENT: test
         run:
           python scripts/apply_migrations.py
 

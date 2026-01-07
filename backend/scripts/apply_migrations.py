@@ -20,7 +20,9 @@ if os.path.exists(env_path):
                 continue
             if "=" in line:
                 key, value = line.split("=", 1)
-                os.environ[key.strip()] = value.strip()
+                k = key.strip()
+                if k not in os.environ:
+                    os.environ[k] = value.strip()
 
 from app.infra.postgres import get_pool
 

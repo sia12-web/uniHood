@@ -22,6 +22,8 @@ from app.api import (
 	admin_verify,
 	auth,
 	chat,
+	clubs,
+	campuses,
 	courses,
 	discovery,
 	consent as consent_api,
@@ -41,7 +43,6 @@ from app.api import (
 	proximity,
 	rbac as rbac_api,
 	rooms,
-	clubs,
 	search,
 	security,
 	social,
@@ -469,6 +470,7 @@ app.include_router(social.router, tags=["social"])
 app.include_router(chat.router, tags=["chat"])
 app.include_router(rooms.router, tags=["rooms"])
 app.include_router(clubs.router, tags=["clubs"])
+app.include_router(campuses.router)
 app.include_router(activities.router, tags=["activities"])
 app.include_router(leaderboards.router, tags=["leaderboards"])
 app.include_router(meetups.router, tags=["meetups"])

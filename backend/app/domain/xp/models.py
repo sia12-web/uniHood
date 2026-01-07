@@ -75,7 +75,6 @@ class XPAction(str, Enum):
     GAME_WON = "game_won"
     GAME_LOST = "game_lost"
     PROFILE_UPDATE = "profile_update"
-    DAILY_LOGIN = "daily_login"
     FRIEND_INVITE_SENT = "friend_invite_sent"
     FRIEND_REQUEST_ACCEPTED = "friend_request_accepted"
     DISCOVERY_SWIPE = "discovery_swipe"
@@ -91,7 +90,6 @@ XP_AMOUNTS = {
     XPAction.GAME_WON: 150,
     XPAction.GAME_LOST: 10,
     XPAction.PROFILE_UPDATE: 5,
-    XPAction.DAILY_LOGIN: 25,
     XPAction.FRIEND_INVITE_SENT: 0,
     XPAction.FRIEND_REQUEST_ACCEPTED: 50,
     XPAction.DISCOVERY_SWIPE: 0,

@@ -182,17 +182,36 @@ export function SocialRoadmap({ currentLevel, currentXp, nextLevelXp }: SocialRo
                         <Check className="text-indigo-600" /> Current Unlocks
                     </h4>
                     <div className="grid sm:grid-cols-2 gap-4">
-                        {levels.filter(l => l.level <= currentLevel).flatMap(l => l.unlocks).map((unlock, i) => (
-                            <div key={i} className="p-5 rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 shadow-sm flex items-start gap-4">
-                                <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-xl">
-                                    {unlock.icon}
+                        {levels
+                            .filter(l => l.level <= currentLevel)
+                            .flatMap(l => l.unlocks.map(Unlock => ({ ...Unlock, level: l.level })))
+                            .reduce((acc, unlock) => {
+                                // If it has a group, check if we already have a higher level version
+                                if (unlock.replacesGroup) {
+                                    const existingIndex = acc.findIndex(u => u.replacesGroup === unlock.replacesGroup);
+                                    if (existingIndex !== -1) {
+                                        // Since we iterate from lvl 1 upwards, the newer one is always higher level
+                                        // Replace the old one with the new one
+                                        acc[existingIndex] = unlock;
+                                    } else {
+                                        acc.push(unlock);
+                                    }
+                                } else {
+                                    acc.push(unlock);
+                                }
+                                return acc;
+                            }, [] as Array<typeof levels[0]['unlocks'][0] & { level: number }>)
+                            .map((unlock, i) => (
+                                <div key={i} className="p-5 rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 shadow-sm flex items-start gap-4">
+                                    <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-xl">
+                                        {unlock.icon}
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-black text-slate-900 dark:text-white">{unlock.title}</div>
+                                        <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-0.5">{unlock.category}</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-sm font-black text-slate-900 dark:text-white">{unlock.title}</div>
-                                    <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-0.5">{unlock.category}</div>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
 
                     <div className="p-6 rounded-[32px] bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50">

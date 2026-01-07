@@ -33,7 +33,7 @@ import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, Home, Graduatio
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import type { DiscoveryFeedResponse } from "@/lib/types";
+import type { DiscoveryFeedResponse, ProfileRecord } from "@/lib/types";
 import { fetchProfile } from "@/lib/identity";
 
 type DiscoveryFeedProps = {
@@ -122,6 +122,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const [users, setUsers] = useState<NearbyUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
 
+  const [userProfile, setUserProfile] = useState<ProfileRecord | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -207,10 +208,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   useEffect(() => {
     if (authUser && authUser.userId) {
       fetchProfile(authUser.userId, authUser.campusId)
+        .then(setUserProfile)
         .catch(err => console.error("Failed to fetch profile", err));
 
     } else {
       setMyCourses([]);
+      setUserProfile(null);
     }
   }, [authUser]);
 
@@ -719,6 +722,31 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
               </div>
             </div>
           </div>
+        )}
+
+        {/* Profile Completion Suggestion */}
+        {userProfile && (
+          (!userProfile.bio || !userProfile.major || !userProfile.graduation_year || !userProfile.avatar_url) && (
+            <div className="mb-6 rounded-2xl p-4 ring-1 bg-amber-50 ring-amber-100">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full p-2 bg-amber-100 text-amber-600">
+                  <Info className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold">Complete Your Profile</h3>
+                  <p className="mt-1 text-xs opacity-90">
+                    You have more chance to be shown if you complete your profile!
+                  </p>
+                  <button
+                    onClick={() => router.push("/settings/profile")}
+                    className="mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition bg-amber-600 hover:bg-amber-700"
+                  >
+                    Complete Profile
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         )}
 
         {locationNotice && (

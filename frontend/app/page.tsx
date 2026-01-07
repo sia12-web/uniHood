@@ -15,7 +15,6 @@ import { fetchFriends, fetchInviteInbox, acceptInvite } from "@/lib/social";
 
 import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
-import { DailyXPChecklist } from "@/components/DailyXPChecklist";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
 import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
 import { Zap, UserPlus, CalendarDays, Trophy, Gamepad2, Heart, Users, ArrowUpCircle, UserMinus } from "lucide-react";
@@ -715,7 +714,6 @@ export default function HomePage() {
               </div>
             </section >
 
-            <DailyXPChecklist />
 
             {/* 5. Games & Stats */}
             <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">

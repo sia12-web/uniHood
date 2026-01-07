@@ -86,7 +86,7 @@ export default function UniversityVerificationForm({ userId, campusId }: Univers
                                     </div>
                                     <h3 className="text-xl font-bold text-slate-900">University Email</h3>
                                     <p className="text-sm text-slate-500">
-                                        Enter your .edu email address to verify your student status.
+                                        Enter your university email address (e.g. .edu or .ca) to verify your student status.
                                     </p>
                                 </div>
 
@@ -97,7 +97,7 @@ export default function UniversityVerificationForm({ userId, campusId }: Univers
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="you@university.edu"
+                                        placeholder="student@university.edu"
                                         className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                                         autoFocus
                                     />

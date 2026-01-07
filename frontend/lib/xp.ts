@@ -37,6 +37,7 @@ export type LevelUnlock = {
     description: string;
     icon: string;
     category: "discovery" | "safety" | "perks" | "hosting";
+    replacesGroup?: string;
 };
 
 export type LevelDetail = {
@@ -57,8 +58,8 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "slate",
         unlocks: [
             { title: "Campus Discovery", description: "See students at your university.", icon: "🎓", category: "discovery" },
-            { title: "Social Quota", description: "Send up to 5 friend requests daily.", icon: "💌", category: "perks" },
-            { title: "Basic Meetups", description: "Host meetups for up to 5 people.", icon: "👥", category: "hosting" },
+            { title: "Social Quota", description: "Send up to 5 friend requests daily.", icon: "💌", category: "perks", replacesGroup: "quota" },
+            { title: "Basic Meetups", description: "Host meetups for up to 5 people.", icon: "👥", category: "hosting", replacesGroup: "capacity" },
             { title: "Personal Inbox", description: "Receive messages and invites.", icon: "📩", category: "perks" }
         ]
     },
@@ -70,8 +71,8 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "sky",
         unlocks: [
             { title: "City Mode", description: "Discover students from any local university.", icon: "🏙️", category: "discovery" },
-            { title: "Quota Boost", description: "Send up to 10 friend requests daily.", icon: "📮", category: "perks" },
-            { title: "Capacity Boost", description: "Host meetups for up to 10 people.", icon: "📈", category: "hosting" },
+            { title: "Quota Boost", description: "Send up to 10 friend requests daily.", icon: "📮", category: "perks", replacesGroup: "quota" },
+            { title: "Capacity Boost", description: "Host meetups for up to 10 people.", icon: "📈", category: "hosting", replacesGroup: "capacity" },
             { title: "Vibe Sync", description: "See shared passions on profiles.", icon: "✨", category: "perks" }
         ]
     },
@@ -83,8 +84,8 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "violet",
         unlocks: [
             { title: "Multi-Meetup", description: "Host up to 2 meetups simultaneously.", icon: "📅", category: "hosting" },
-            { title: "Quota Boost", description: "Send up to 20 friend requests daily.", icon: "📬", category: "perks" },
-            { title: "Crowd Hosting", description: "Host meetups for up to 25 people.", icon: "🎭", category: "hosting" },
+            { title: "Quota Boost", description: "Send up to 20 friend requests daily.", icon: "📬", category: "perks", replacesGroup: "quota" },
+            { title: "Crowd Hosting", description: "Host meetups for up to 25 people.", icon: "🎭", category: "hosting", replacesGroup: "capacity" },
             { title: "Smart Suggestions", description: "Priority placement in discovery.", icon: "⚡", category: "perks" }
         ]
     },
@@ -96,9 +97,9 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "indigo",
         unlocks: [
             { title: "Room Mode", description: "Live 100m proximity discovery.", icon: "🏠", category: "discovery" },
-            { title: "Quota Elite", description: "Send up to 50 friend requests daily.", icon: "💎", category: "perks" },
+            { title: "Quota Elite", description: "Send up to 50 friend requests daily.", icon: "💎", category: "perks", replacesGroup: "quota" },
             { title: "Social Aura", description: "Exclusive glow on your profile card.", icon: "🌟", category: "perks" },
-            { title: "Large Capacity", description: "Host meetups for up to 50 people.", icon: "🏢", category: "hosting" }
+            { title: "Large Capacity", description: "Host meetups for up to 50 people.", icon: "🏢", category: "hosting", replacesGroup: "capacity" }
         ]
     },
     5: {
@@ -109,8 +110,8 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "emerald",
         unlocks: [
             { title: "Visibility+ ", description: "25% permanent boost in all feeds.", icon: "🚀", category: "perks" },
-            { title: "Social Legend Quota", description: "Send up to 100 friend requests daily.", icon: "🔥", category: "perks" },
-            { title: "Massive Events", description: "Host meetups for up to 100 people.", icon: "🎪", category: "hosting" },
+            { title: "Social Legend Quota", description: "Send up to 100 friend requests daily.", icon: "🔥", category: "perks", replacesGroup: "quota" },
+            { title: "Massive Events", description: "Host meetups for up to 100 people.", icon: "🎪", category: "hosting", replacesGroup: "capacity" },
             { title: "Priority Support", description: "Direct line to community safety.", icon: "🛡️", category: "safety" }
         ]
     },
@@ -122,8 +123,8 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "amber",
         unlocks: [
             { title: "Global Border", description: "Exclusive golden profile frame.", icon: "👑", category: "perks" },
-            { title: "Unlimited Network", description: "Virtually unlimited daily social invites.", icon: "🌐", category: "perks" },
-            { title: "Unlimited Hosting", description: "No attendee limits on your meetups.", icon: "♾️", category: "hosting" },
+            { title: "Unlimited Network", description: "Virtually unlimited daily social invites.", icon: "🌐", category: "perks", replacesGroup: "quota" },
+            { title: "Unlimited Hosting", description: "No attendee limits on your meetups.", icon: "♾️", category: "hosting", replacesGroup: "capacity" },
             { title: "Nominate Mode", description: "Boost other students in the feed.", icon: "🔥", category: "perks" }
         ]
     }

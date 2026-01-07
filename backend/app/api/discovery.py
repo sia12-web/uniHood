@@ -12,7 +12,8 @@ from app.domain.discovery.schemas import (
 	InteractionResponse,
 	DiscoveryPrompt,
 	DiscoveryProfile,
-	DiscoveryProfileUpdate
+	DiscoveryProfileUpdate,
+	DiscoveryCard
 )
 from app.infra.auth import AuthenticatedUser, get_current_user
 

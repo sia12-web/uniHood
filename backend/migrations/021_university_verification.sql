@@ -1,8 +1,8 @@
 -- Add university verification status to users
-ALTER TABLE users ADD COLUMN is_university_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_university_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Create table for storing university verification codes
-CREATE TABLE university_verifications (
+CREATE TABLE IF NOT EXISTS university_verifications (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL,
@@ -11,4 +11,4 @@ CREATE TABLE university_verifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_university_verifications_user_id ON university_verifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_university_verifications_user_id ON university_verifications(user_id);

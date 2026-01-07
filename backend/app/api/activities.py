@@ -80,7 +80,11 @@ async def list_activities_endpoint(
 	try:
 		return await _service.list_my_activities(auth_user)
 	except Exception as exc:
-		raise _as_http_error(exc) from exc
+		# Log the error but don't crash the request if possible, 
+		# returning an empty list is safer for the UI than a 500/502.
+		import logging
+		logging.getLogger("unihood.activities").error(f"Failed to list activities: {exc}", exc_info=True)
+		return []
 
 
 @router.get("/{activity_id}/typing/prompt", response_model=schemas.TypingPromptResponse)

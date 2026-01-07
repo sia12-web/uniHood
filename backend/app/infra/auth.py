@@ -17,6 +17,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.settings import settings
 from app.infra import jwt as jwt_helper
 from app.obs import metrics as obs_metrics
+import posixpath
 
 
 @dataclass(slots=True)
@@ -115,7 +116,12 @@ async def get_current_user(
 		token = request.cookies.get("unihood.auth")
 
 	if token:
-		user = verify_access_jwt(token)
+		try:
+			user = verify_access_jwt(token)
+		except HTTPException:
+			raise
+		except Exception:
+			raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token")
 		
 		# v2 Hardening: Verify token_version against DB to allow instant revocation
 		try:
@@ -140,7 +146,6 @@ async def get_current_user(
 			raise
 		except Exception as e:
 			# Fail-closed for sensitive routes, fail-soft for others
-			import posixpath
 			normalized_path = posixpath.normpath(request.url.path).lower()
 			
 			# Sensitive prefixes

@@ -205,14 +205,22 @@ async def lifespan(app: FastAPI):
 		asyncio.create_task(leaderboard_jobs.finalize_daily_leaderboards(), name="leaderboard-startup")
 		app.state.communities_scheduler = scheduler
 	app.state.communities_workers = worker_instances
+	# Presence sweeper for nearby features
 	worker_tasks.append(
 		asyncio.create_task(live_sessions.run_presence_sweeper(redis_client), name="presence-sweeper")
 	)
-	# Ensure McGill campus exists for onboarding flows
-	try:
-		await ensure_mcgill_campus(pool)
-	except Exception as e:
-		print(f"ERROR: Failed to seed McGill campus: {e}", flush=True)
+	
+	# Background seeding task to avoid blocking startup (prevents 502/timeout on slow DB)
+	async def run_seeding():
+		try:
+			await ensure_mcgill_campus(pool)
+			# Ensure Concordia too
+			from app.domain.campuses.service import CampusService
+			await CampusService().seed_campuses()
+		except Exception as e:
+			print(f"ERROR: Seeding task failed: {e}", flush=True)
+
+	worker_tasks.append(asyncio.create_task(run_seeding(), name="campus-seeding"))
 	try:
 		yield
 	finally:
@@ -240,66 +248,44 @@ install_error_handlers(app)
 from app.domain.identity import s3 as _s3  # local import to avoid circulars
 _s3.DEFAULT_BASE_URL = settings.upload_base_url or "http://localhost:8001/uploads"
 
-raw_origins = getattr(settings, "cors_allow_origins", [])
-if isinstance(raw_origins, str):
-	# Handle comma-separated string from env var
-	allow_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-elif isinstance(raw_origins, (list, tuple)):
-	allow_origins = list(raw_origins)
-else:
-	allow_origins = []
+# Determine allowed origins based on environment
+backend_render_url = os.environ.get("RENDER_EXTERNAL_URL") or "https://unihood-backend-14x8.onrender.com"
+frontend_render_url = "https://unihood-frontend.onrender.com"
 
-# Baseline production and dev origins
-baseline_origins = [
+# Start with baseline origins
+allow_origins = [
 	"https://unihood.app",
 	"https://www.unihood.app",
-	"https://unihood-frontend.onrender.com",
-	"https://unihood-backend-14x8.onrender.com",
+	frontend_render_url,
+	backend_render_url,
 	"http://localhost:3000",
 	"http://127.0.0.1:3000",
 	"https://localhost:3000",
 ]
 
-# Ensure allow_origins is a list we can append to
-if not isinstance(allow_origins, list):
-	allow_origins = list(allow_origins) if isinstance(allow_origins, (tuple, set)) else []
+# Add additional origins from settings if provided
+env_origins = getattr(settings, "cors_allow_origins", [])
+if isinstance(env_origins, str):
+	env_origins = [o.strip() for o in env_origins.split(",") if o.strip()]
 
-for o in baseline_origins:
-	if o not in allow_origins:
+for o in env_origins:
+	if o and o not in allow_origins:
 		allow_origins.append(o)
 
-print(f"DEBUG: Final CORS origins: {allow_origins}", flush=True)
-
-# Starlette disallows wildcard '*' with allow_credentials=True. Replace '*' with explicit origins.
+# Starlette disallows wildcard '*' with allow_credentials=True.
+# If '*' is in the list, replace with common dev origins if in dev, or remove it.
 if "*" in allow_origins:
-	if settings.environment in ["dev", "development"]:
-		allow_origins = [
-			"http://localhost:3000",
-			"https://localhost:3000",
-			"http://127.0.0.1:3000",
-			"https://127.0.0.1:3000",
-			"http://localhost:5173",
-			"http://127.0.0.1:5173",
-			"http://localhost:4173",
-			"http://127.0.0.1:4173",
-			"http://localhost:3001",
-			"https://localhost:3001",
-			"http://127.0.0.1:3001",
-			"https://127.0.0.1:3001",
-		]
-	else:
-		# Keep baseline origins and add production ones
-		for o in [
-			"https://unihood.app",
-			"https://www.unihood.app",
-			"https://unihood-frontend.onrender.com",
-			"https://unihood-backend-14x8.onrender.com",
-		]:
+	allow_origins.remove("*")
+	if settings.is_dev():
+		dev_extras = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3001"]
+		for o in dev_extras:
 			if o not in allow_origins:
 				allow_origins.append(o)
-		# Filter out '*' if credentials are used
-		if "*" in allow_origins:
-			allow_origins.remove("*")
+
+# Final deduplication and cleaning
+allow_origins = list(set(o.rstrip("/") for o in allow_origins if o))
+
+print(f"INFO: Final CORS origins: {allow_origins}", flush=True)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

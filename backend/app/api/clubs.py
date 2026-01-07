@@ -94,3 +94,24 @@ async def join_club_endpoint(
         extra={"club_id": club_id},
     )
     return {"ok": True}
+
+@router.delete("/{club_id}/join", status_code=status.HTTP_200_OK)
+async def leave_club_endpoint(
+    request: Request,
+    club_id: str,
+    auth_user: AuthenticatedUser = Depends(get_current_user),
+) -> dict[str, bool]:
+    try:
+        await _club_service.leave_club(auth_user.id, UUID(club_id))
+    except HTTPException as exc:
+        raise exc
+    except Exception as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    await obs_audit.log_signed_intent_event(
+        request,
+        auth_user,
+        "clubs.leave",
+        extra={"club_id": club_id},
+    )
+    return {"ok": True}

@@ -13,6 +13,11 @@ import { fetchProfile } from "@/lib/identity";
 import { useMeetupNotifications } from "@/hooks/use-meetup-notifications";
 import type { ProfileRecord } from "@/lib/types";
 import { getSocialSocket } from "@/lib/socket";
+import {
+  bindChatUnreadSocket,
+  subscribeUnreadCounts,
+  getTotalUnread,
+} from "@/lib/chat/unread-manager";
 
 
 function isActive(pathname: string, href: string) {
@@ -405,8 +410,8 @@ export default function SiteHeader() {
   const avatarUrl = profile?.avatar_url || authUser?.photoURL || null;
   const avatarInitials = getInitials(profileName || authUser?.userId || "");
   const unreadBadge = unreadCount > 99 ? "99+" : String(unreadCount);
-
   const [socialRequestCount, setSocialRequestCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   useEffect(() => {
     if (authUser?.userId) {
@@ -414,6 +419,28 @@ export default function SiteHeader() {
         .then((inbox) => setSocialRequestCount(inbox.length))
         .catch(() => { });
     }
+  }, [authUser?.userId, authUser?.campusId]);
+
+  useEffect(() => {
+    if (!authUser?.userId) {
+      setChatUnreadCount(0);
+      return;
+    }
+
+    // Connect to chat socket for unread updates if not already bound
+    // Use env var directly to avoid circular dep issues or mismatch
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:8001";
+    bindChatUnreadSocket(socketUrl, authUser.userId, authUser.campusId ?? null);
+
+    // Initial count
+    setChatUnreadCount(getTotalUnread());
+
+    // Subscribe to changes
+    const unsubscribe = subscribeUnreadCounts(() => {
+      setChatUnreadCount(getTotalUnread());
+    });
+
+    return unsubscribe;
   }, [authUser?.userId, authUser?.campusId]);
 
 
@@ -451,6 +478,11 @@ export default function SiteHeader() {
               {link.label === "Socials" && socialRequestCount > 0 && (
                 <span className="flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
                   {socialRequestCount}
+                </span>
+              )}
+              {link.label === "Chat" && chatUnreadCount > 0 && (
+                <span className="flex items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                  {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
                 </span>
               )}
             </Link>

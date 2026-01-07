@@ -21,6 +21,14 @@ export interface ClubCreateRequest {
     campus_id?: string;
 }
 
+export interface ClubMeetup {
+    id: string;
+    title: string;
+    start_at: string;
+    description?: string;
+    [key: string]: unknown;
+}
+
 export const clubsApi = {
     createClub: async (data: ClubCreateRequest): Promise<Club> => {
         return api.post("/clubs/", data);
@@ -37,4 +45,12 @@ export const clubsApi = {
     joinClub: async (id: string): Promise<{ ok: boolean }> => {
         return api.post(`/clubs/${id}/join`);
     },
+
+    leaveClub: async (id: string): Promise<{ ok: boolean }> => {
+        return api.delete(`/clubs/${id}/join`);
+    },
+
+    getClubMeetups: async (clubId: string): Promise<ClubMeetup[]> => {
+        return api.get("/meetups/", { params: { club_id: clubId } });
+    }
 };

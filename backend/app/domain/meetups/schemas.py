@@ -61,6 +61,7 @@ class MeetupCreateRequest(BaseModel):
     visibility: MeetupVisibility = MeetupVisibility.FRIENDS
     capacity: int = Field(10, ge=2, le=50)
     location: Optional[str] = Field(None, max_length=100)
+    club_id: Optional[UUID] = None  # Optional club association
     banner_url: Optional[str] = None
 
 
@@ -80,6 +81,7 @@ class MeetupResponse(BaseModel):
     id: UUID
     creator_user_id: UUID
     campus_id: UUID
+    club_id: Optional[UUID] = None
     title: str
     description: Optional[str]
     location: Optional[str]

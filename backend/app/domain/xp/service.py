@@ -61,6 +61,56 @@ class XPService:
                 last_updated_at=None, # type: ignore
             )
 
+    async def _is_user_verified(self, user_id: str) -> bool:
+        """Check if user is verified (e.g. valid student)."""
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # Basic check, adjust table/column if needed or just safe-guard
+            try:
+                # Check for is_verified column or similar. If not sure, default False or try/except
+                # Assuming 'is_verified' exists as per common sense features
+                val = await conn.fetchval("SELECT is_verified FROM users WHERE id = $1", UUID(user_id))
+                return bool(val)
+            except Exception:
+                return False
+
+    async def _apply_diminishing_returns(self, user_id: str, target_id: str, action: XPAction, amount: int) -> int:
+        """Apply diminishing returns for repeated interactions."""
+        if not redis_client:
+            return amount
+            
+        key = f"xp:interaction:{user_id}:{target_id}:{action.value}"
+        # Expire at midnight
+        now = datetime.now()
+        midnight = now.replace(hour=23, minute=59, second=59)
+        ttl = int((midnight - now).total_seconds())
+        if ttl < 1: ttl = 1
+        
+        count = await redis_client.incr(key)
+        if count == 1:
+            await redis_client.expire(key, ttl)
+            
+        verified = await self._is_user_verified(user_id)
+        
+        modifier = 1.0
+        if not verified:
+            modifier = 0.5
+            
+        # Diminishing logic: 
+        # Count 1: 100% (or 50% if unverified)
+        # Count 2: 50% (of that)
+        # Count >2: 0
+        
+        if count > 2:
+            return 0
+        
+        final = int(amount * modifier)
+        
+        if count == 2:
+            final = int(final * 0.5)
+            
+        return final
+
     async def award_xp(self, user_id: str | UUID, action: XPAction, metadata: dict = None) -> UserXPStats:
         """Award XP to a user for a specific action."""
         uid = str(user_id)

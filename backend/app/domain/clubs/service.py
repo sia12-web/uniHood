@@ -74,12 +74,67 @@ class ClubService:
                     WHERE club_id = $1 AND user_id = $2
                 """, club_id, user_id)
             
+            # Award XP (idempotent handled by XP service mostly, but good to check)
+            # We do it after DB commit usually, or here if auto-commit.
+            from app.domain.xp.models import XPAction
+            xp_service = XPService()
+            await xp_service.award_xp(user_id, XPAction.CLUB_JOIN, metadata={"club_id": str(club_id)})
+
+            # Audit Log
+            from app.domain.identity import audit
+            await audit.log_event(
+                user_id=str(user_id),
+                event="club.join",
+                meta={"club_id": str(club_id)}
+            )
+
             return ClubMember(
                 club_id=row['club_id'],
                 user_id=row['user_id'],
                 role=row['role'],
                 joined_at=row['joined_at']
             )
+
+    async def leave_club(self, user_id: UUID, club_id: UUID) -> None:
+        """Leave a club and deduct XP."""
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # Check membership
+            member = await conn.fetchrow("""
+                SELECT role FROM club_members 
+                WHERE club_id = $1 AND user_id = $2
+            """, club_id, user_id)
+            
+            if not member:
+                raise HTTPException(status_code=404, detail="Not a member of this club")
+            
+            if member['role'] == 'owner':
+                raise HTTPException(status_code=400, detail="Owner cannot leave the club. Transfer ownership or delete club.")
+
+            await conn.execute("""
+                DELETE FROM club_members
+                WHERE club_id = $1 AND user_id = $2
+            """, club_id, user_id)
+            
+            # Deduct XP
+            from app.domain.xp.models import XPAction
+            xp_service = XPService()
+            await xp_service.award_xp(user_id, XPAction.CLUB_LEAVE, metadata={"club_id": str(club_id)})
+
+            # Audit Log
+            from app.domain.identity import audit
+            await audit.log_event(
+                user_id=str(user_id),
+                event="club.leave",
+                meta={"club_id": str(club_id)}
+            )
+    
+    async def get_club_members(self, club_id: UUID) -> List[UUID]:
+        """Fetch all member IDs for a club."""
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT user_id FROM club_members WHERE club_id = $1", club_id)
+            return [row['user_id'] for row in rows]
 
     async def list_clubs(self, campus_id: Optional[UUID] = None) -> List[Club]:
         """List all clubs, optionally filtered by campus."""

@@ -27,6 +27,7 @@ async def list_meetups(
     category: Optional[schemas.MeetupCategory] = None,
     user_id: Optional[str] = Query(default=None, description="Filter by participant ID"),
     creator_id: Optional[str] = Query(default=None, description="Filter by creator ID"),
+    club_id: Optional[str] = Query(default=None, description="Filter by Club ID"),
     year: Optional[int] = Query(default=None, description="Filter by year (e.g. 2025)"),
     auth_user: AuthenticatedUser = Depends(get_current_user),
 ):
@@ -34,7 +35,7 @@ async def list_meetups(
     cid = campus_id or auth_user.campus_id
     if not cid:
         raise HTTPException(status_code=400, detail="Campus ID required")
-    return await _service.list_meetups(auth_user, cid, category, participant_id=user_id, creator_id=creator_id, year=year)
+    return await _service.list_meetups(auth_user, cid, category, participant_id=user_id, creator_id=creator_id, year=year, club_id=club_id)
 
 
 

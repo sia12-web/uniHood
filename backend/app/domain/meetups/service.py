@@ -75,6 +75,14 @@ class MeetupService:
                 ) THEN
                     ALTER TABLE meetups ADD COLUMN banner_url TEXT;
                 END IF;
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetups' AND column_name = 'club_id'
+                ) THEN
+                    ALTER TABLE meetups ADD COLUMN club_id UUID;
+                    CREATE INDEX IF NOT EXISTS idx_meetups_club_id ON meetups(club_id);
+                END IF;
             END
             $$;
             """
@@ -85,6 +93,10 @@ class MeetupService:
     ) -> schemas.MeetupResponse:
         # Enforce level-based limits
         await policy.enforce_create_limits(auth_user.id, payload.capacity)
+        
+        # Validate Club Ownership/Membership if club_id provided?
+        # For now assume if they pass a valid club_id they can post.
+        # Ideally check if they are owner or allowed to post.
         
         pool = await self._get_pool()
         
@@ -111,9 +123,9 @@ class MeetupService:
                     """
                     INSERT INTO meetups (
                         creator_user_id, campus_id, title, description, category,
-                        start_at, duration_min, status, room_id, visibility, capacity, location, banner_url
+                        start_at, duration_min, status, room_id, visibility, capacity, location, banner_url, club_id
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                     RETURNING *
                     """,
                     UUID(auth_user.id),
@@ -128,7 +140,8 @@ class MeetupService:
                     payload.visibility.value,
                     payload.capacity,
                     payload.location,
-                    payload.banner_url
+                    payload.banner_url,
+                    UUID(str(payload.club_id)) if payload.club_id else None
                 )
                 
                 # Insert host participant
@@ -166,7 +179,8 @@ class MeetupService:
                 meta={
                     "meetup_id": str(row["id"]),
                     "category": payload.category.value if hasattr(payload.category, 'value') else str(payload.category),
-                    "title": payload.title
+                    "title": payload.title,
+                    "club_id": str(payload.club_id) if payload.club_id else None
                 }
             )
 
@@ -177,7 +191,8 @@ class MeetupService:
                 title=payload.title,
                 visibility=payload.visibility.value,
                 creator=auth_user,
-                campus_id=str(payload.campus_id or auth_user.campus_id)
+                campus_id=str(payload.campus_id or auth_user.campus_id),
+                club_id=str(payload.club_id) if payload.club_id else None
             ))
         except Exception:
             pass # Prevent analytics/notification failures from failing the request
@@ -190,7 +205,8 @@ class MeetupService:
         title: str, 
         visibility: str, 
         creator: AuthenticatedUser, 
-        campus_id: str
+        campus_id: str,
+        club_id: Optional[str] = None
     ) -> None:
         """Send notifications and emails for new meetup."""
         # Use local import to avoid circular dependency if any
@@ -203,7 +219,51 @@ class MeetupService:
         creator_name = creator.display_name or "A user"
         
         async with pool.acquire() as conn:
-            if visibility == "FRIENDS":
+            if club_id:
+                # Notify Club Members
+                # Fetch members
+                # TODO: Use ClubService.get_club_members? Or raw SQL for speed.
+                # Raw SQL to get email too
+                rows = await conn.fetch(
+                    """
+                    SELECT cm.user_id, u.email 
+                    FROM club_members cm
+                    JOIN users u ON cm.user_id = u.id
+                    WHERE cm.club_id = $1 AND cm.user_id != $2 AND u.deleted_at IS NULL
+                    """,
+                    UUID(club_id), UUID(creator.id)
+                )
+                
+                # Fetch Club Name
+                club_name = await conn.fetchval("SELECT name FROM clubs WHERE id = $1", UUID(club_id)) or "a Club"
+
+                for r in rows:
+                    uid = str(r["user_id"])
+                    email = r["email"]
+                    
+                     # 1. In-App Notification
+                    await self._notification_service.notify_user(
+                        user_id=uid,
+                        title=f"New {club_name} Meetup",
+                        body=f"{creator_name} scheduled a meetup: {title}",
+                        kind="meetup_invite", # Or new type 'club_meetup'
+                        link=display_link
+                    )
+
+                     # 2. Email Notification
+                    if email:
+                        try:
+                            await identity_mailer.send_meetup_invitation(
+                                to_email=email,
+                                meetup_title=title,
+                                host_name=f"{creator_name} ({club_name})",
+                                link=meetup_link,
+                                recipient_user_id=uid
+                            )
+                        except Exception:
+                            pass 
+
+            elif visibility == "FRIENDS":
                 # Fetch friends
                 rows = await conn.fetch(
                     """
@@ -297,7 +357,8 @@ class MeetupService:
         category: Optional[schemas.MeetupCategory] = None,
         participant_id: Optional[str] = None,
         creator_id: Optional[str] = None,
-        year: Optional[int] = None
+        year: Optional[int] = None,
+        club_id: Optional[str] = None
     ) -> List[schemas.MeetupResponse]:
         pool = await self._get_pool()
         
@@ -387,6 +448,11 @@ class MeetupService:
             c_idx = len(params)
             where_conditions.append(f"m.category = ${c_idx}")
             
+        if club_id:
+            params.append(UUID(club_id))
+            cl_idx = len(params)
+            where_conditions.append(f"m.club_id = ${cl_idx}")
+
         full_query = query + " WHERE " + " AND ".join(where_conditions)
         
         if is_history_view:

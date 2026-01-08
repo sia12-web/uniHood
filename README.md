@@ -1,16 +1,16 @@
-# Divan (uniHood)
+# uniHood
 
-![Divan Hero](docs/screenshots/hero.png)
+> **Live Demo:** [unihood.app](https://unihood.app)
 
-> **Live Demo:** [divan.app](https://divan.app)
-
-**Divan** is a real-time, campus-based social platform designed to bring the university "third place" into the digital age. It's a living, breathing digital campus where you can bump into friends, challenge rivals to quick games, and find your community via proximity-based discovery.
+**uniHood** is a real-time, campus-based social platform designed to bring the university "third place" into the digital age. It's a living, breathing digital campus where you can bump into friends, challenge rivals to quick games, and find your community via proximity-based discovery.
 
 ---
 
 ## ✨ Features
 
 - **📍 Campus Identity**: Verify your university email to join your school's exclusive network.
+- **📈 Social XP & Levels**: Earn reputation by hosting events, winning games, and socializing. Level up to unlock perks like hosting larger meetups, "City Mode" discovery, and elite profile badges.
+- **📅 Smart Meetups**: Host study sessions, parties, or club events with flexible visibility (Campus-wide, City-wide, or Friends-only). Includes built-in attendee tracking and automated reminders.
 - **🎮 Real-Time Activities**: unique micro-games like **Speed Typing**, **Quick Trivia**, and **Rock Paper Scissors**.
 - **💬 Live Messaging**: Instant DMs and group chats powered by WebSockets.
 - **📱 Mobile-First Design**: A responsive interface that feels like a native app on any device.
@@ -28,8 +28,8 @@ Get the project running locally in minutes using Docker.
 
 1.  **Clone the repo**
     ```bash
-    git clone https://github.com/sia12-web/Divan.git divan
-    cd divan
+    git clone https://github.com/sia12-web/Divan.git unihood
+    cd unihood
     ```
 
 2.  **Start Backend & Services**
@@ -74,12 +74,6 @@ We welcome contributions!
 - Check out issues labeled **"good first issue"** to get started.
 - Please read our [CONTRIBUTING.md](./CONTRIBUTING.md) guide before submitting a Pull Request.
 
-## 📸 Gallery
-
-| **Trivia Battles** | **Story Builder** | **Mobile Dashboard** |
-|:---:|:---:|:---:|
-| ![Trivia](docs/screenshots/trivia.png) | ![Story](docs/screenshots/story.png) | ![Mobile](docs/screenshots/mobile_dash.png) |
-
 ---
 
-Built with ❤️ by Siavash & The Divan Team.
+Built with ❤️ by Siavash & The uniHood Team.

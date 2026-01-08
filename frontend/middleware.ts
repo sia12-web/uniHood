@@ -14,6 +14,7 @@ const PUBLIC_PATHS = new Set([
 	"/select-university",
 	"/select-courses",
 	"/admin-login",
+	"/verify-university",
 ]);
 
 const FAVICON_PATHS = new Set([

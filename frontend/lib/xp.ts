@@ -59,8 +59,7 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         unlocks: [
             { title: "Campus Discovery", description: "See students at your university.", icon: "🎓", category: "discovery" },
             { title: "Social Quota", description: "Send up to 5 friend requests daily.", icon: "💌", category: "perks", replacesGroup: "quota" },
-            { title: "Basic Meetups", description: "Host meetups for up to 5 people.", icon: "👥", category: "hosting", replacesGroup: "capacity" },
-            { title: "Personal Inbox", description: "Receive messages and invites.", icon: "📩", category: "perks" }
+            { title: "Basic Meetups", description: "Host meetups for up to 5 people.", icon: "👥", category: "hosting", replacesGroup: "capacity" }
         ]
     },
     2: {
@@ -71,9 +70,7 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         color: "sky",
         unlocks: [
             { title: "City Mode", description: "Discover students from any local university.", icon: "🏙️", category: "discovery" },
-            { title: "Quota Boost", description: "Send up to 10 friend requests daily.", icon: "📮", category: "perks", replacesGroup: "quota" },
-            { title: "Capacity Boost", description: "Host meetups for up to 10 people.", icon: "📈", category: "hosting", replacesGroup: "capacity" },
-            { title: "Vibe Sync", description: "See shared passions on profiles.", icon: "✨", category: "perks" }
+            { title: "Capacity Boost", description: "Host meetups for up to 10 people.", icon: "📈", category: "hosting", replacesGroup: "capacity" }
         ]
     },
     3: {
@@ -83,10 +80,7 @@ export const LEVEL_DETAILS: Record<number, LevelDetail> = {
         summary: "Becoming a known figure in the community.",
         color: "violet",
         unlocks: [
-            { title: "Multi-Meetup", description: "Host up to 2 meetups simultaneously.", icon: "📅", category: "hosting" },
-            { title: "Quota Boost", description: "Send up to 20 friend requests daily.", icon: "📬", category: "perks", replacesGroup: "quota" },
-            { title: "Crowd Hosting", description: "Host meetups for up to 25 people.", icon: "🎭", category: "hosting", replacesGroup: "capacity" },
-            { title: "Smart Suggestions", description: "Priority placement in discovery.", icon: "⚡", category: "perks" }
+            { title: "Multi-Meetup", description: "Host up to 2 meetups simultaneously.", icon: "📅", category: "hosting" }
         ]
     },
     4: {

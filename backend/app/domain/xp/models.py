@@ -85,8 +85,8 @@ class XPAction(str, Enum):
     CLUB_LEAVE = "club_leave"
 
 XP_AMOUNTS = {
-    XPAction.CHAT_SENT: 0,
-    XPAction.MEETUP_JOIN: 50,
+    XPAction.CHAT_SENT: 1,
+    XPAction.MEETUP_JOIN: 30,
     XPAction.MEETUP_HOST: 100,
     XPAction.GAME_PLAYED: 50,
     XPAction.GAME_WON: 150,

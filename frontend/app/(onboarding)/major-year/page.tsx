@@ -106,7 +106,7 @@ export default function MajorYearPage() {
 				}
 				const profile = await fetchProfile(auth.user_id, null);
 				setCampusId(profile.campus_id ?? null);
-				setMajor(profile.major ?? "");
+				setMajor(profile.major === "None" ? "" : profile.major ?? "");
 				setGradYear(profile.graduation_year ? String(profile.graduation_year) : "");
 			} catch (err) {
 				console.error("Failed to load profile", err);

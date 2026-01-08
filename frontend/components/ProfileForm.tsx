@@ -372,10 +372,10 @@ export default function ProfileForm({
 						<span className="font-semibold text-slate-900">Hometown</span>
 						<input
 							type="text"
-							value={hometown}
+							value={hometown === "None" ? "" : hometown}
 							onChange={(event) => setHometown(event.target.value)}
 							maxLength={80}
-							placeholder="e.g. London, UK"
+							placeholder="e.g. Montreal, QC"
 							className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
 						/>
 					</label>

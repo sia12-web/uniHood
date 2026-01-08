@@ -112,7 +112,7 @@ export default function VisionPage() {
 				}
 				const profile = await fetchProfile(auth.user_id, null);
 				setCampusId(profile.campus_id ?? null);
-				setVision(profile.ten_year_vision ?? "");
+				setVision(profile.ten_year_vision === "None" ? "" : profile.ten_year_vision ?? "");
 			} catch (err) {
 				console.error("Failed to load profile", err);
 				setError("Unable to load your profile. Please try again.");

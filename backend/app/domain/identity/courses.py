@@ -49,36 +49,79 @@ POPULAR_COURSES_MCGILL = [
     {"code": "EPSY 202", "name": "Science of Education"},
 ]
 
+from app.domain.campuses.service import CampusService
+
 POPULAR_COURSES_CONCORDIA = [
-    # Freshman Science & Engineering Core
+    # Business / Commerce (JMSB)
+    {"code": "COMM 210", "name": "Contemporary Business Thinking"},
+    {"code": "COMM 215", "name": "Business Statistics"},
+    {"code": "COMM 217", "name": "Financial Accounting"},
+    {"code": "COMM 220", "name": "Analysis of Markets"},
+    {"code": "COMM 225", "name": "Production and Operations Management"},
+    {"code": "COMM 226", "name": "Business Technology Management"},
+    {"code": "COMM 301", "name": "Management Information Systems"},
+    {"code": "COMM 308", "name": "Introduction to Finance"},
+    
+    # Computer Science & Engineering
+    {"code": "COMP 228", "name": "System Hardware"},
+    {"code": "COMP 232", "name": "Mathematics for Computer Science"},
+    {"code": "COMP 248", "name": "Object-Oriented Programming I"},
+    {"code": "COMP 249", "name": "Object-Oriented Programming II"},
+    {"code": "COMP 352", "name": "Data Structures and Algorithms"},
+    {"code": "COMP 353", "name": "Databases"},
+    {"code": "COMP 371", "name": "Computer Graphics"},
+    {"code": "COMP 376", "name": "Introduction to Game Development"},
+
+    # Economics
+    {"code": "ECON 201", "name": "Introduction to Microeconomics"},
+    {"code": "ECON 203", "name": "Introduction to Macroeconomics"},
+    {"code": "ECON 221", "name": "Statistical Methods I"},
+    {"code": "ECON 222", "name": "Statistical Methods II"},
+
+    # Psychology
+    {"code": "PSYC 200", "name": "Intro to Psychology"},
+    {"code": "PSYC 201", "name": "Intro to Psychology"},
+    {"code": "PSYC 203", "name": "Intro to Psychology"},
+
+    # Biology
+    {"code": "BIOL 201", "name": "Introductory Biology"},
+    {"code": "BIOL 202", "name": "General Biology"},
+
+    # Chemistry
+    {"code": "CHEM 205", "name": "General Chemistry I"},
+    {"code": "CHEM 206", "name": "General Chemistry II"},
+
+    # Mathematics
     {"code": "MATH 203", "name": "Differential & Integral Calculus I"},
     {"code": "MATH 204", "name": "Vectors and Matrices"},
     {"code": "MATH 205", "name": "Differential & Integral Calculus II"},
+    {"code": "MATH 206", "name": "Algebra and Functions"},
+
+    # Film & Arts
+    {"code": "FILM 201"},
+    {"code": "FILM 202"},
+    {"code": "FFAR 248"},
+    {"code": "FFAR 249"},
+    {"code": "AHSC 220"},
+
+    # English
+    {"code": "ENGL 212"},
+    {"code": "ENGL 213"},
+
+    # Political Science
+    {"code": "POLI 203"},
+    {"code": "POLI 204"},
+
+    # Sociology
+    {"code": "SOCI 203"},
+    {"code": "SOCI 212"},
+
+    # Other Sciences
     {"code": "PHYS 204", "name": "Mechanics"},
-    {"code": "PHYS 205", "name": "Electricity and Magnetism"},
-    {"code": "PHYS 206", "name": "Waves and Modern Physics"},
-    {"code": "CHEM 205", "name": "General Chemistry I"},
-    {"code": "CHEM 206", "name": "General Chemistry II"},
-    {"code": "BIOL 201", "name": "Introductory Biology"},
 
-    # Freshman Business Core (JMSB Foundation)
-    {"code": "MATH 208", "name": "Fundamental Mathematics I"},
-    {"code": "MATH 209", "name": "Fundamental Mathematics II"},
-    {"code": "ECON 201", "name": "Introduction to Microeconomics"},
-    {"code": "ECON 203", "name": "Introduction to Macroeconomics"},
-    {"code": "BTM 200", "name": "Fundamentals of Information Technology"},
-
-    # Popular Electives & "Bird Courses"
-    {"code": "PHYS 284", "name": "Introduction to Astronomy"},
-    {"code": "INST 250", "name": "Information Literacy Skills"},
-    {"code": "THEO 202", "name": "Introduction to Biblical Studies"},
-    {"code": "THEO 204", "name": "Introduction to Christian Ethics"},
-    {"code": "EXCI 251", "name": "Health and Physical Activity"},
-    {"code": "EXCI 202", "name": "The Body Human"},
-    {"code": "MARK 201", "name": "Introduction to Marketing"},
+    # Linguistics & History
     {"code": "LING 200", "name": "Introduction to Language Study"},
-    {"code": "EDUC 240", "name": "Training and Development"},
-    {"code": "CLAS 260", "name": "Greek Mythology"},
+    {"code": "HIST 203"},
 ]
 
 
@@ -88,7 +131,14 @@ async def get_popular_courses(campus_id: UUID) -> List[schemas.Course]:
     
     if campus_id_str == MCGILL_CAMPUS_ID:
         return [schemas.Course(**c) for c in POPULAR_COURSES_MCGILL]
-    elif campus_id_str == CONCORDIA_CAMPUS_ID:
+    
+    # Check dynamically for Concordia if ID doesn't match known placeholder
+    if campus_id_str == CONCORDIA_CAMPUS_ID:
+        return [schemas.Course(**c) for c in POPULAR_COURSES_CONCORDIA]
+        
+    # Fallback to checking name if ID is not hardcoded
+    campus = await CampusService().get_campus(campus_id)
+    if campus and "Concordia" in campus["name"]:
         return [schemas.Course(**c) for c in POPULAR_COURSES_CONCORDIA]
     
     # For other campuses, return empty list for now

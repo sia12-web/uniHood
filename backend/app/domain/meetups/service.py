@@ -331,11 +331,11 @@ class MeetupService:
                 """
                 SELECT COUNT(*)
                 FROM meetups m
-                WHERE m.campus_id = $1 
-                  AND m.status != 'CANCELLED'
+                WHERE m.status != 'CANCELLED'
                   AND (m.start_at + (m.duration_min * INTERVAL '1 minute')) > $3
                   AND (
-                    m.visibility = 'GLOBAL' 
+                    (m.campus_id = $1 AND m.visibility = 'CAMPUS')
+                    OR m.visibility IN ('CITY', 'GLOBAL')
                     OR m.creator_user_id = $2
                     OR EXISTS (
                         SELECT 1 FROM friendships f 
@@ -393,7 +393,7 @@ class MeetupService:
         # Standard filter: not cancelled unless history view?
         # If year or creator_id or participant_id is present, we likely want history.
         
-        where_conditions = ["m.campus_id = $1"]
+        where_conditions = [] # We handle campus filtering in the visibility logic below
         
         # Only exclude CANCELLED if we are looking for 'upcoming' feed?
         # The user said "track of all of his meet ups".
@@ -424,12 +424,13 @@ class MeetupService:
             y_idx = len(params)
             where_conditions.append(f"EXTRACT(YEAR FROM m.start_at) = ${y_idx}")
 
-        # Visibility Logic - uses $2 (auth_user.id) which is already in params
-        # Postgres supports $2 reuse.
+        # Visibility Logic - uses $2 (auth_user.id) and $1 (campus_id)
+        # $1 is the viewer's campus (or selected campus context)
         
         where_conditions.append("""
             (
-                m.visibility IN ('CAMPUS', 'CITY') 
+                (m.campus_id = $1 AND m.visibility = 'CAMPUS')
+                OR m.visibility IN ('CITY', 'GLOBAL')
                 OR m.creator_user_id = $2
                 OR (
                     m.visibility = 'FRIENDS'

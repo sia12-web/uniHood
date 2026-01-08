@@ -183,7 +183,7 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-slate-700">Select Opponent</span>
-                    <span className="text-slate-400">You: {selfId || "…"}</span>
+                    <span className="text-slate-400">You</span>
                   </div>
 
                   <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2">

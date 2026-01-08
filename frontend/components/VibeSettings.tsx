@@ -61,7 +61,7 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
 
     const addPrompt = () => {
         if (prompts.length < 3) {
-            setPrompts([...prompts, { question: VIBE_PROMPTS[0], answer: "" }]);
+            setPrompts([{ question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
         }
     };
 

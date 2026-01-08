@@ -940,7 +940,12 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
       <ProfileDetailModal
         user={selectedUser}
         isOpen={!!selectedUser}
-        onClose={() => setSelectedUser(null)}
+        onClose={() => {
+          setSelectedUser(null);
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("user");
+          router.replace(`/socials?${params.toString()}`, { scroll: false });
+        }}
         isFriend={selectedUser ? friendIds.has(selectedUser.user_id) : false}
         isInvited={selectedUser ? invitedIds.has(selectedUser.user_id) : false}
         onInvite={() => selectedUser && handleInvite(selectedUser.user_id)}

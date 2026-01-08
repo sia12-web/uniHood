@@ -175,7 +175,7 @@ export default function TicTacToeEntryPage() {
               </li>
               <li className="flex items-start gap-3">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">2</div>
-                <p className="text-sm text-slate-200">Both players must <span className="font-bold text-white">Ready Up</span> to start.</p>
+                <p className="text-sm text-slate-200">Both players must <span className="font-bold text-white">Ready Up</span> to start (3s).</p>
               </li>
               <li className="flex items-start gap-3">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">3</div>

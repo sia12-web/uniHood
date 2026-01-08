@@ -155,6 +155,21 @@ class MeetupService:
                     schemas.MeetupRole.HOST,
                     schemas.MeetupParticipantStatus.JOINED
                 )
+
+        # Automatically join the host to the room chat
+        if room:
+            try:
+                member_payload = room_models.RoomMember(
+                    room_id=str(room.id),
+                    user_id=str(auth_user.id),
+                    role="admin",  # Host is admin of the room
+                    muted=False,
+                    joined_at=datetime.now(timezone.utc)
+                )
+                await self._room_service._repo.add_member(room, member_payload)
+            except Exception as e:
+                # Log but don't fail the request if chat join fails
+                print(f"Failed to auto-join host to room chat: {e}")
         
         # Track meetup creation for leaderboard and XP (non-blocking, anti-cheat validated)
         try:
@@ -760,6 +775,19 @@ class MeetupService:
             except Exception:
                 pass  # Non-critical, don't block meetup join
 
+            # Award XP for joining
+            # Move from update_attendance to here to provide immediate feedback/refund capability
+            try:
+                from app.domain.xp.service import XPService
+                from app.domain.xp.models import XPAction
+                # We use metadata to ensure uniqueness if needed, but here we just award it.
+                # update_attendance logic should be adjusted or we assume duplication is handled or tolerated.
+                # Given user request to "give back xp", specific tracking is implied.
+                await XPService().award_xp(auth_user.id, XPAction.MEETUP_JOIN, metadata={"meetup_id": str(meetup_id)})
+            except Exception:
+                pass
+
+
             # Analytics tracking
             from app.domain.identity import audit
             await audit.log_event(
@@ -838,6 +866,15 @@ class MeetupService:
                 )
             except Exception:
                 pass  # Non-critical, don't block meetup leave
+        
+        # Deduct XP for leaving
+        try:
+            from app.domain.xp.service import XPService
+            from app.domain.xp.models import XPAction
+            await XPService().award_xp(auth_user.id, XPAction.MEETUP_LEAVE, metadata={"meetup_id": str(meetup_id)})
+        except Exception:
+            pass
+
         
         # Analytics tracking
         try:

@@ -81,6 +81,7 @@ class XPAction(str, Enum):
     DISCOVERY_MATCH = "discovery_match"
     FRIEND_REMOVED = "friend_removed"
     MEETUP_CANCEL = "meetup_cancel"
+    MEETUP_LEAVE = "meetup_leave"
     CLUB_JOIN = "club_join"
     CLUB_LEAVE = "club_leave"
 
@@ -98,6 +99,7 @@ XP_AMOUNTS = {
     XPAction.DISCOVERY_MATCH: 15,
     XPAction.FRIEND_REMOVED: -50,
     XPAction.MEETUP_CANCEL: -100,
+    XPAction.MEETUP_LEAVE: -30,
     XPAction.CLUB_JOIN: 50,
     XPAction.CLUB_LEAVE: -50,
 }

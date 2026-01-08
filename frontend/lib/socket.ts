@@ -34,7 +34,7 @@ export { initialiseNearbyAccumulator, applyNearbyEvent, nearbyAccumulatorToArray
 export function getSocialSocket(userId: string, campusId: string | null): Socket {
 	const identityChanged =
 		socialIdentity?.userId !== userId || socialIdentity?.campusId !== campusId;
-	if (socialSocket && socialSocket.connected && !identityChanged) {
+	if (socialSocket && !identityChanged) {
 		return socialSocket;
 	}
 	if (socialSocket) {
@@ -67,7 +67,7 @@ let xpIdentity: { userId: string; campusId: string | null } | null = null;
 export function getXPSocket(userId: string, campusId: string | null): Socket {
 	const identityChanged =
 		xpIdentity?.userId !== userId || xpIdentity?.campusId !== campusId;
-	if (xpSocket && xpSocket.connected && !identityChanged) {
+	if (xpSocket && !identityChanged) {
 		return xpSocket;
 	}
 	if (xpSocket) {

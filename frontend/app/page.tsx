@@ -360,6 +360,13 @@ export default function HomePage() {
       iconColor = "text-emerald-600 dark:text-emerald-400";
       content = <span>{actor} joined a meetup</span>;
     }
+    else if (item.event === "meetup.leave") {
+      Icon = UserMinus;
+      iconBg = "bg-orange-100 dark:bg-orange-900/30";
+      iconColor = "text-orange-600 dark:text-orange-400";
+      const title = ((item.meta as Record<string, unknown>)?.title as string) || "a meetup";
+      content = <span>{actor} left the meetup: {title}</span>;
+    }
     // 3. Skip redundant events
     else if (item.event === "activity.finish") {
       return null;

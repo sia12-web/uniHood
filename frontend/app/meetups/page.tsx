@@ -205,10 +205,7 @@ export default function MeetupsPage() {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Joined:</span>
               <span className="text-sm font-black text-slate-900 dark:text-white">{usage.joining_usage}/{usage.joining_limit}</span>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Day Creates:</span>
-              <span className="text-sm font-black text-slate-900 dark:text-white">{usage.daily_create_usage}/{usage.daily_create_limit}</span>
-            </div>
+
             <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Max Size:</span>
               <span className="text-sm font-black text-slate-900 dark:text-white">{usage.max_capacity}</span>
@@ -230,17 +227,7 @@ export default function MeetupsPage() {
             All
           </button>
 
-          <button
-            onClick={() => setShowOnlyMine(!showOnlyMine)}
-            className={cn(
-              "flex items-center gap-2 rounded-2xl px-8 py-3.5 text-sm font-bold shadow-sm transition-all hover:scale-105 hover:shadow-md",
-              showOnlyMine
-                ? "bg-indigo-600 text-white shadow-sm ring-2 ring-transparent hover:bg-indigo-700"
-                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-            )}
-          >
-            My Meetups
-          </button>
+
 
           {CATEGORIES.map((cat) => (
             <button
@@ -565,15 +552,17 @@ export default function MeetupsPage() {
             </div>
 
             <div className="overflow-y-auto space-y-6">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <h3 className="font-bold text-slate-900 mb-2">Rate the Event</h3>
-                <div className="flex gap-2 mb-3">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <button key={star} onClick={() => reviewMutation.mutate({ id: reviewingMeetup.id, rating: star, content: "" })} className="text-2xl hover:scale-110 transition-transform">⭐</button>
-                  ))}
+              {authUser?.userId !== reviewingMeetup.creator_user_id && (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h3 className="font-bold text-slate-900 mb-2">Rate the Event</h3>
+                  <div className="flex gap-2 mb-3">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => reviewMutation.mutate({ id: reviewingMeetup.id, rating: star, content: "" })} className="text-2xl hover:scale-110 transition-transform">⭐</button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">Click a star to quick-rate the vibe.</p>
                 </div>
-                <p className="text-xs text-slate-500">Click a star to quick-rate the vibe.</p>
-              </div>
+              )}
 
               <div>
                 <h3 className="font-bold text-slate-900 mb-4">Participants</h3>

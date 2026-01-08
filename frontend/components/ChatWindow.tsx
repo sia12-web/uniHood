@@ -122,10 +122,10 @@ export default function ChatWindow({
       setDraft("");
     } finally {
       setSending(false);
-      // Use setTimeout to ensure the focus happens after the re-enable
-      setTimeout(() => {
+      // Use requestAnimationFrame to ensure focus happens after the re-render cycle
+      requestAnimationFrame(() => {
         inputRef.current?.focus();
-      }, 0);
+      });
     }
   }
 

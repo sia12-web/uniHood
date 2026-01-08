@@ -60,8 +60,20 @@ class ActivitiesNamespace(socketio.AsyncNamespace):
 		await self.enter_room(sid, self.activity_room(activity_id))
 		
 		# Trigger join logic to send initial state
-		from app.domain.activities.story_builder import manager as story_builder_manager
-		await story_builder_manager.handle_socketio_action(activity_id, user.id, "join", {})
+		# Dynamic dispatch based on activity kind
+		from app.domain.activities.service import ActivitiesService
+		service = ActivitiesService()
+		activity = await service._repo.get_activity(activity_id)
+		
+		if not activity:
+			return
+
+		if activity.kind == "tictactoe":
+			from app.domain.activities.tictactoe import manager as ttt_manager
+			await ttt_manager.handle_socketio_action(activity_id, user.id, "join", {})
+		elif activity.kind == "story_builder":
+			from app.domain.activities.story_builder import manager as story_builder_manager
+			await story_builder_manager.handle_socketio_action(activity_id, user.id, "join", {})
 
 	async def on_activity_leave(self, sid: str, payload: dict) -> None:
 		obs_metrics.socket_event(self.namespace, "activity_leave")
@@ -86,8 +98,20 @@ class ActivitiesNamespace(socketio.AsyncNamespace):
 		if not activity_id or not action_type:
 			return
 
-		from app.domain.activities.story_builder import manager as story_builder_manager
-		await story_builder_manager.handle_socketio_action(activity_id, user.id, action_type, action_payload)
+		# Dynamic dispatch based on activity kind
+		from app.domain.activities.service import ActivitiesService
+		service = ActivitiesService()
+		activity = await service._repo.get_activity(activity_id)
+		
+		if not activity:
+			return
+
+		if activity.kind == "tictactoe":
+			from app.domain.activities.tictactoe import manager as ttt_manager
+			await ttt_manager.handle_socketio_action(activity_id, user.id, action_type, action_payload)
+		elif activity.kind == "story_builder":
+			from app.domain.activities.story_builder import manager as story_builder_manager
+			await story_builder_manager.handle_socketio_action(activity_id, user.id, action_type, action_payload)
 
 	@staticmethod
 	def user_room(user_id: str) -> str:

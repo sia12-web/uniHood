@@ -433,7 +433,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
             </div>
 
             <div className="space-y-4">
-              {meetup.participants.map((p) => (
+              {meetup.participants.filter(p => p.status !== "LEFT").map((p) => (
                 <div key={p.user_id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
                     {p.avatar_url ? (

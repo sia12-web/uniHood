@@ -104,3 +104,41 @@
 "I had a bug where 'City-wide' meetups weren't showing up for students at other universities. The SQL query was strictly filtering by `campus_id`. I had to refactor the query to support conditional logic: `(is_campus_match OR visibility = 'CITY')`. It taught me a lot about writing complex, performant SQL filters."
 
 ---
+---
+
+## 6. 🔐 Technical Deep Dives (Core Features)
+
+### **A. User Authentication & Session Security**
+*   **The Problem**: How to maintain secure, high-performance sessions without hitting the database for every single request?
+*   **The Solution**: **Hybrid JWT + Redis Revocation Pattern**.
+    *   **JWT (HS256)**: Tokens contain the user's ID, campus context, is_university_verified, and a `token_version`. This allows most services to verify identity purely in-memory without a DB round-trip.
+    *   **Secure Storage**: On the web, we use **HTTP-Only, Secure, SameSite=Lax** cookies. This protects against XSS (JWTs aren't accessible via JS) while allowing cross-origin requests needed for microservices.
+    *   **Instant Revocation**: To support logging out of all devices or banning users instantly, we store a `token_version` in the DB. If a user changes their password, we increment this version. The API checks this version—if the JWT version is less than the DB version, it's rejected instantly.
+    *   **Role-Based Access (RBAC)**: Custom FastAPI dependencies (e.g., `Depends(get_admin_user)`) verify roles directly from the JWT claims, enabling fine-grained control over admin versus student endpoints.
+
+### **B. The Onboarding Engine (Data Flow & Persistence)**
+*   **The Problem**: Gathering diverse data (major, year, passions, vision, photos) without overwhelming the user or losing progress.
+*   **The Solution**: **Progressive Capture & Concurrent Uploads**.
+    *   **Frontend Logic**: The onboarding is a multi-step flow (`major-year` -> `passions` -> `vision` -> `photos`). Each step uses a `PATCH /profile/me` request to save progress incrementally, ensuring that if a user drops off, their partial data is safe.
+    *   **Complex Field Handling**:
+        *   **Passions & Courses**: Stored as arrays in PostgreSQL for fast indexing.
+        *   **Ten-Year Vision**: A rich text field (max 500 chars) that helps the "Proximity Matching" algorithm find like-minded peers.
+    *   **The Gallery Flow (S3 Presigned URLs)**:
+        1.  **Client Requests**: `POST /gallery/presign` (MIME type + file size).
+        2.  **Server Validates**: Checks user limits and returns temporary S3 upload URL.
+        3.  **Direct Upload**: Client sends file directly to S3 (conserving server bandwidth).
+        4.  **Commit**: `POST /gallery/commit` notifies the backend to store the final URL in the database.
+
+### **C. The Proximity Engine (Geospatial Real-time)**
+*   **The Problem**: "Campus Mode" needs to show who is nearby *right now*, but typical DB queries are too slow for high-frequency heartbeat updates.
+*   **The Solution**: **Redis-Native Geolocation Layer**.
+    *   **The Heartbeat**: Active users send a heartbeat (`POST /presence/heartbeat`) every ~30 seconds with their `lat/lon`.
+    *   **High-Speed Indexing**: We use Redis `GEOADD` with a `geo:presence:{campus_id}` key. This places users into a spatial index in RAM.
+    *   **Discovery Logic**:
+        *   **Campus Mode**: Uses `GEORADIUS` around the user's location, limited to their campus-specific index.
+        *   **Global Mode**: Scans a global index to find peers regardless of university.
+    *   **Anti-Spoofing**:
+        *   **Plausible Movement**: We calculate the speed of travel between heartbeats. If a user "teleports" from London to New York in 5 seconds, the update is rejected as spoofed.
+    *   **Automatic Cleanup**: A "Presence Sweeper" task monitors heartbeats. If a user doesn't update for 5 minutes, their Redis key expires, and they disappear from the map—no expensive "is_online" checks needed.
+
+---

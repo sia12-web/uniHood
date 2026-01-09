@@ -171,7 +171,7 @@ class LeaderboardService:
 					# Award XP
 					try:
 						xp_svc = XPService()
-						await xp_svc.award_xp(user_uuid, XPAction.GAME_PLAYED, metadata={"game": game_kind})
+						# GAME_PLAYED is already awarded at start in domain managers for immediate feedback
 						if win_inc:
 							await xp_svc.award_xp(user_uuid, XPAction.GAME_WON, metadata={"game": game_kind})
 						else:

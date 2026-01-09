@@ -7,6 +7,9 @@ from typing import Dict, List, Optional, Set
 from fastapi import WebSocket
 
 from app.domain.activities import models, service
+from app.domain.identity import audit
+from app.domain.xp.service import XPService
+from app.domain.xp.models import XPAction
 from app.infra.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,15 @@ class StoryBuilderManager:
                 story_meta["paragraphs"] = []
                 story_meta["turnIndex"] = 0
                 story_meta["currentTurnUserId"] = activity.user_a # Start with user_a
+
+            # Award XP for starting a game
+            try:
+                xp_svc = XPService()
+                # Determine opponent for each player
+                await xp_svc.award_xp(activity.user_a, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": activity.user_b, "game": activity.kind})
+                await xp_svc.award_xp(activity.user_b, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": activity.user_a, "game": activity.kind})
+            except Exception:
+                logger.exception("Failed to award GAME_PLAYED XP for StoryBuilder")
         
         await self.service._persist(activity)
         await self._broadcast_state(session_id, activity)
@@ -173,6 +185,22 @@ class StoryBuilderManager:
                 # Persist and record outcome
                 await self.service._persist(activity)
                 await self.service._record_leaderboard_outcome(activity, scoreboard)
+
+                # Log activity completion for feed
+                try:
+                    # Log for the winner if exists, otherwise first participant
+                    actor_id = winner_id or activity.user_a
+                    await audit.log_event(
+                        "activity_completed",
+                        user_id=actor_id,
+                        meta={
+                            "activity_id": activity.id,
+                            "kind": activity.kind,
+                            "winner_id": winner_id
+                        }
+                    )
+                except Exception:
+                    logger.exception("Failed to log activity_completed for StoryBuilder")
             else:
                 activity.meta["story"] = story_meta
                 await self.service._persist(activity)

@@ -696,6 +696,7 @@ class ActivitiesService:
 			awarded_users = await self._leaderboards.record_activity_outcome(
 				user_ids=user_ids,
 				winner_id=winner_id,
+				game_kind=activity.kind,
 				campus_map=campus_map,
 				duration_seconds=duration_seconds,
 				move_count=move_count,

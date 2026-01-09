@@ -3,7 +3,8 @@ import logging
 from typing import Dict, List, Optional
 import time
 
-from app.domain.activities import models, service, sockets, outbox
+from app.domain.activities import models, service, sockets, outbox, utils
+from app.domain.identity import audit
 from app.domain.xp.service import XPService
 from app.domain.xp.models import XPAction
 
@@ -85,9 +86,12 @@ class TicTacToeManager:
                 activity.state = "active" # Mark active so it shows in lists
 
                 # Award XP for starting a game
-                xp_svc = XPService()
-                await xp_svc.award_xp(x_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": o_id})
-                await xp_svc.award_xp(o_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": x_id})
+                try:
+                    xp_svc = XPService()
+                    await xp_svc.award_xp(x_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": o_id, "game": activity.kind})
+                    await xp_svc.award_xp(o_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": x_id, "game": activity.kind})
+                except Exception:
+                    logger.exception("Failed to award GAME_PLAYED XP for TicTacToe")
 
                 meta["status"] = "countdown"
                 meta["countdown"] = 3 # 3 seconds as requested
@@ -201,26 +205,24 @@ class TicTacToeManager:
             service._store_scoreboard(activity, scoreboard)
             
             await utils._persist(activity)
+            # Record outcome (including XP awarded by service)
             await utils._record_leaderboard_outcome(activity, scoreboard)
 
-            # Award XP for winning/losing
-            xp_svc = XPService()
-            # Winner gets GAME_WON
-            loser_id = next((uid for uid in players.values() if uid != match_winner_id), None)
-            
-            await xp_svc.award_xp(match_winner_id, XPAction.GAME_WON, {"activity_id": activity.id, "target_id": loser_id})
-            if loser_id:
-                 await xp_svc.award_xp(loser_id, XPAction.GAME_LOST, {"activity_id": activity.id, "target_id": match_winner_id})
-            
             # Log activity completion for feed
-            # attributed to match winner or just the last mover? 
-            # Usually strict consistency isn't required for "who" triggered it, but winner is good.
-            await outbox.append_activity_event(
-                "activity_completed",
-                activity_id=activity.id,
-                kind=activity.kind,
-                user_id=match_winner_id,
-            )
+            try:
+                # Log for the winner if exists, otherwise first participant
+                actor_id = match_winner_id or activity.user_a
+                await audit.log_event(
+                    "activity_completed",
+                    user_id=actor_id,
+                    meta={
+                        "activity_id": activity.id,
+                        "kind": activity.kind,
+                        "match_winner_id": match_winner_id
+                    }
+                )
+            except Exception:
+                logger.exception("Failed to log activity_completed for TicTacToe")
         else:
             # Next round
             # We can have a small delay before next round starts, or just reset immediately?

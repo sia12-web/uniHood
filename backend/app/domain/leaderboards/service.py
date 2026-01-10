@@ -78,7 +78,7 @@ class LeaderboardService:
 		
 		# Social points: friends, meetups, messaging (NOT games)
 		# These accumulate to determine Social Score LEVEL
-		social = (
+		social = max(0.0, (
 			policy.W_INVITE_ACCEPT * counters.invites_accepted
 			+ policy.W_FRIEND_NEW * counters.friends_new
 			+ policy.W_FRIEND_REMOVED * counters.friends_removed
@@ -86,24 +86,24 @@ class LeaderboardService:
 			+ policy.W_ROOM_SENT * counters.room_sent
 			+ policy.W_ROOM_JOIN * counters.rooms_joined
 			+ policy.W_ROOM_CREATE * counters.rooms_created
-		)
+		))
 		
 		# Game points: games played and won (separate from social)
-		engagement = (
+		engagement = max(0.0, (
 			policy.W_ACT_PLAYED * counters.acts_played
 			+ policy.W_ACT_WON * counters.acts_won
-		)
+		))
 		
 		# Popularity bonus
-		popularity = (
+		popularity = max(0.0, (
 			policy.W_POP_UNIQ_SENDER * counters.uniq_senders
 			+ policy.W_POP_UNIQ_INVITE_FROM * counters.uniq_invite_accept_from
-		)
+		))
 		
 		# Overall combines everything with streak multiplier
-		overall_raw = social + engagement + popularity
+		overall_raw = max(0.0, social + engagement + popularity)
 		multiplier = policy.streak_multiplier(streak_days)
-		overall = overall_raw * multiplier
+		overall = max(0.0, overall_raw * multiplier)
 		
 		return ScoreBreakdown(
 			social=social,

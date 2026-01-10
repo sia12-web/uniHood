@@ -145,9 +145,9 @@ class XPService:
                 # 2. Update stats and get new totals
                 row = await conn.fetchrow("""
                     INSERT INTO user_xp_stats (user_id, total_xp, current_level)
-                    VALUES ($1, $2, 1)
+                    VALUES ($1, GREATEST(0, $2::int), 1)
                     ON CONFLICT (user_id) DO UPDATE
-                    SET total_xp = user_xp_stats.total_xp + $2,
+                    SET total_xp = GREATEST(0, user_xp_stats.total_xp + $2::int),
                         last_updated_at = NOW()
                     RETURNING total_xp, current_level
                 """, uid, amount)

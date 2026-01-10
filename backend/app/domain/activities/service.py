@@ -642,6 +642,17 @@ class ActivitiesService:
 		self._repo = repository or ActivitiesRepository()
 		self._leaderboards = LeaderboardService()
 
+	async def _award_game_played_xp(self, activity: models.Activity) -> None:
+		"""Award XP to both participants when a game starts."""
+		try:
+			from app.domain.xp.models import XPAction
+			from app.domain.xp.service import XPService
+			xp_svc = XPService()
+			await xp_svc.award_xp(activity.user_a, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": activity.user_b, "game": activity.kind})
+			await xp_svc.award_xp(activity.user_b, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": activity.user_a, "game": activity.kind})
+		except Exception:
+			logger.exception("Failed to award GAME_PLAYED XP", extra={"activity_id": activity.id})
+
 	def _track_participant_campus(self, activity: models.Activity, user_id: str, campus_id: Optional[str]) -> None:
 		if not campus_id:
 			return
@@ -701,7 +712,23 @@ class ActivitiesService:
 				duration_seconds=duration_seconds,
 				move_count=move_count,
 			)
-			# Deleted the redundant activity.finish audit log to prevent double items in feed.
+			# Log activity completion for feed
+			try:
+				from app.domain.identity import audit
+				# Log for the winner if exists, otherwise first participant
+				actor_id = winner_id or activity.user_a
+				await audit.log_event(
+					"activity_completed",
+					user_id=actor_id,
+					meta={
+						"activity_id": activity.id,
+						"kind": activity.kind,
+						"winner_id": winner_id,
+						"match_winner_id": winner_id # for compatibility with some frontend components
+					}
+				)
+			except Exception:
+				logger.exception("Failed to log activity_completed")
 
 		except Exception:
 			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})
@@ -1017,6 +1044,9 @@ class ActivitiesService:
 			await self._persist_round(round_obj)
 		summary = _activity_summary(activity)
 		await sockets.emit_activity_state(activity.id, summary.model_dump(mode="json"))
+		# Award XP for starting a game
+		await self._award_game_played_xp(activity)
+ 
 		# Analytics tracking
 		try:
 			from app.domain.identity import audit

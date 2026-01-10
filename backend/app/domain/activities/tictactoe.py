@@ -86,12 +86,7 @@ class TicTacToeManager:
                 activity.state = "active" # Mark active so it shows in lists
 
                 # Award XP for starting a game
-                try:
-                    xp_svc = XPService()
-                    await xp_svc.award_xp(x_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": o_id, "game": activity.kind})
-                    await xp_svc.award_xp(o_id, XPAction.GAME_PLAYED, {"activity_id": activity.id, "target_id": x_id, "game": activity.kind})
-                except Exception:
-                    logger.exception("Failed to award GAME_PLAYED XP for TicTacToe")
+                await self.service._award_game_played_xp(activity)
 
                 meta["status"] = "countdown"
                 meta["countdown"] = 3 # 3 seconds as requested
@@ -208,21 +203,6 @@ class TicTacToeManager:
             # Record outcome (including XP awarded by service)
             await utils._record_leaderboard_outcome(activity, scoreboard)
 
-            # Log activity completion for feed
-            try:
-                # Log for the winner if exists, otherwise first participant
-                actor_id = match_winner_id or activity.user_a
-                await audit.log_event(
-                    "activity_completed",
-                    user_id=actor_id,
-                    meta={
-                        "activity_id": activity.id,
-                        "kind": activity.kind,
-                        "match_winner_id": match_winner_id
-                    }
-                )
-            except Exception:
-                logger.exception("Failed to log activity_completed for TicTacToe")
         else:
             # Next round
             # We can have a small delay before next round starts, or just reset immediately?

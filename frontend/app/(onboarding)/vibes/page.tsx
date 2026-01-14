@@ -73,12 +73,15 @@ export default function VibesPage() {
                 setCampusId(profile.campus_id ?? null);
 
                 // Personal
-                if (profile.gender) setGender(profile.gender);
+                if (profile.gender) setGender(profile.gender === "None" ? "" : profile.gender);
                 if (profile.birthday) setBirthday(new Date(profile.birthday).toISOString().split('T')[0]);
-                if (profile.hometown) setHometown(profile.hometown);
+                if (profile.hometown) setHometown(profile.hometown === "None" ? "" : profile.hometown);
                 if (profile.height) setHeight(String(profile.height));
-                if (profile.languages) setLanguages(profile.languages.join(", "));
-                if (profile.bio) setBio(profile.bio);
+                if (profile.languages) {
+                    const filtered = profile.languages.filter(l => l !== "None");
+                    setLanguages(filtered.join(", "));
+                }
+                if (profile.bio) setBio(profile.bio === "None" ? "" : profile.bio);
 
                 // Vibes
                 if (profile.relationship_status) setRelationshipStatus(profile.relationship_status);

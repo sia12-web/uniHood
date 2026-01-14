@@ -132,7 +132,6 @@ async def send_email_verification(email: str, token: str, *, user_id: str | None
             <p>Welcome!</p>
             <p>Please verify your email address by clicking the link below:</p>
             <p><a href="{verify_url}">Verify Email</a></p>
-            <p>Or use this token: <strong>{token}</strong></p>
         </body>
     </html>
     """

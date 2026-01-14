@@ -245,24 +245,6 @@ export default function OnboardingPage() {
                   <div className="group relative">
                     <input
                       required
-                      type="text"
-                      id="displayName"
-                      autoComplete="name"
-                      placeholder=" "
-                      value={form.displayName}
-                      onChange={(event) => handleChange("displayName")(event.target.value)}
-                      className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                    <label
-                      htmlFor="displayName"
-                      className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
-                    >
-                      Display Name
-                    </label>
-                  </div>
-                  <div className="group relative">
-                    <input
-                      required
                       type="email"
                       id="email"
                       inputMode="email"
@@ -315,6 +297,25 @@ export default function OnboardingPage() {
                       className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
                     >
                       Confirm Password
+                    </label>
+                  </div>
+
+                  <div className="group relative">
+                    <input
+                      required
+                      type="text"
+                      id="displayName"
+                      autoComplete="name"
+                      placeholder=" "
+                      value={form.displayName}
+                      onChange={(event) => handleChange("displayName")(event.target.value)}
+                      className="peer w-full rounded-xl border-none bg-[#eef2f6] px-4 pt-7 pb-3 text-base font-medium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                    <label
+                      htmlFor="displayName"
+                      className="pointer-events-none absolute left-4 top-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-all"
+                    >
+                      Display Name
                     </label>
                   </div>
                 </div>

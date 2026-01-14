@@ -62,8 +62,8 @@ export default function VibesPage() {
     const [workout, setWorkout] = useState("");
 
     // Prompts
-    const [prompts, setPrompts] = useState<{ question: string; answer: string }[]>([
-        { question: VIBE_PROMPTS[0], answer: "" },
+    const [prompts, setPrompts] = useState<{ id: string; question: string; answer: string }[]>([
+        { id: Math.random().toString(36).substring(7), question: VIBE_PROMPTS[0], answer: "" },
     ]);
 
     useEffect(() => {
@@ -101,6 +101,7 @@ export default function VibesPage() {
 
                 if (profile.profile_prompts && profile.profile_prompts.length > 0) {
                     setPrompts(profile.profile_prompts.map((p) => ({
+                        id: Math.random().toString(36).substring(7),
                         question: p.question || VIBE_PROMPTS[0],
                         answer: p.answer || ""
                     })));
@@ -132,7 +133,7 @@ export default function VibesPage() {
 
     const addPrompt = () => {
         if (prompts.length < 3) {
-            setPrompts([{ question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
+            setPrompts([{ id: Math.random().toString(36).substring(7), question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
         }
     };
 
@@ -192,7 +193,7 @@ export default function VibesPage() {
                     smoking: smoking || "",
                     workout: workout || "",
                 },
-                profile_prompts: prompts.filter(p => p.answer.trim().length > 0),
+                profile_prompts: prompts.filter(p => p.answer.trim().length > 0).map(({ question, answer }) => ({ question, answer })),
             });
 
             router.push("/vision");
@@ -522,13 +523,14 @@ export default function VibesPage() {
                     </div>
 
                     <div className="space-y-6">
-                        <AnimatePresence initial={false}>
+                        <AnimatePresence initial={false} mode="popLayout">
                             {prompts.map((prompt, idx) => (
                                 <motion.div
-                                    key={`${idx}-${prompt.question}`}
+                                    key={prompt.id}
                                     initial={{ opacity: 0, scale: 0.95, y: -20 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                                    layout
                                     className="relative group bg-slate-50 p-6 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors"
                                 >
                                     <div className="mb-3 pr-8">

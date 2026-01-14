@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import type { ProfileRecord } from "@/lib/types";
 import type { ProfilePatchPayload } from "@/lib/identity";
 
@@ -42,10 +44,12 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
 
     // Prompts
     const initialPrompts = profile.profile_prompts && profile.profile_prompts.length > 0
-        ? profile.profile_prompts
-        : [{ question: VIBE_PROMPTS[0], answer: "" }];
+        ? profile.profile_prompts.map(p => ({ ...p, id: Math.random().toString(36).substring(7) }))
+        : [{ id: Math.random().toString(36).substring(7), question: VIBE_PROMPTS[0], answer: "" }];
 
-    const [prompts, setPrompts] = useState<{ question: string; answer: string }[]>(initialPrompts);
+    const [prompts, setPrompts] = useState<{ id: string; question: string; answer: string }[]>(initialPrompts);
+
+    const [saving, setSaving] = useState(false);
 
     const toggleLookingFor = (option: string) => {
         setLookingFor(prev =>
@@ -61,12 +65,35 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
 
     const addPrompt = () => {
         if (prompts.length < 3) {
-            setPrompts([{ question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
+            setPrompts([{ id: Math.random().toString(36).substring(7), question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
         }
     };
 
     const removePrompt = (index: number) => {
         setPrompts(prompts.filter((_, i) => i !== index));
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await onSubmit({
+                relationship_status: relationshipStatus || null,
+                sexual_orientation: sexualOrientation || null,
+                looking_for: lookingFor.length > 0 ? lookingFor : null,
+                lifestyle: {
+                    drinking: drinking || "",
+                    smoking: smoking || "",
+                    workout: workout || "",
+                },
+                profile_prompts: prompts
+                    .filter(p => p.answer.trim().length > 0)
+                    .map(({ question, answer }) => ({ question, answer })),
+            });
+        } catch (err) {
+            console.error("Failed to save vibe check:", err);
+        } finally {
+            setSaving(false);
+        }
     };
 
 
@@ -167,36 +194,58 @@ export default function VibeSettings({ profile, onSubmit }: VibeSettingsProps) {
                     )}
                 </div>
 
-                {prompts.map((prompt, idx) => (
-                    <div key={idx} className="bg-slate-50 p-6 rounded-2xl relative group border border-slate-100 shadow-sm">
-                        <div className="mb-4">
-                            <select
-                                value={prompt.question}
-                                onChange={(e) => updatePrompt(idx, 'question', e.target.value)}
-                                className="block w-full border-none bg-transparent p-0 text-sm font-bold text-slate-900 focus:ring-0 cursor-pointer"
+                <div className="space-y-4">
+                    <AnimatePresence initial={false} mode="popLayout">
+                        {prompts.map((prompt, idx) => (
+                            <motion.div
+                                key={prompt.id}
+                                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                                layout
+                                className="bg-slate-50 p-6 rounded-2xl relative group border border-slate-100 shadow-sm"
                             >
-                                {VIBE_PROMPTS.map(q => <option key={q} value={q}>{q}</option>)}
-                            </select>
-                        </div>
-                        <textarea
-                            value={prompt.answer}
-                            onChange={(e) => updatePrompt(idx, 'answer', e.target.value)}
-                            placeholder="Your answer..."
-                            rows={3}
-                            maxLength={150}
-                            className="block w-full rounded-xl border-0 px-4 py-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white transition-all"
-                        />
-                        {prompts.length > 1 && (
-                            <button
-                                type="button"
-                                onClick={() => removePrompt(idx)}
-                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                &times;
-                            </button>
-                        )}
-                    </div>
-                ))}
+                                <div className="mb-4">
+                                    <select
+                                        value={prompt.question}
+                                        onChange={(e) => updatePrompt(idx, 'question', e.target.value)}
+                                        className="block w-full border-none bg-transparent p-0 text-sm font-bold text-slate-900 focus:ring-0 cursor-pointer"
+                                    >
+                                        {VIBE_PROMPTS.map(q => <option key={q} value={q}>{q}</option>)}
+                                    </select>
+                                </div>
+                                <textarea
+                                    value={prompt.answer}
+                                    onChange={(e) => updatePrompt(idx, 'answer', e.target.value)}
+                                    placeholder="Your answer..."
+                                    rows={3}
+                                    maxLength={150}
+                                    className="block w-full rounded-xl border-0 px-4 py-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white transition-all"
+                                />
+                                {prompts.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removePrompt(idx)}
+                                        className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                )}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
+
+                <div className="pt-6 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        {saving ? "Saving..." : "Save Vibe Check"}
+                    </button>
+                </div>
             </div>
         </div>
     );

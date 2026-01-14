@@ -97,9 +97,9 @@ XP_AMOUNTS = {
     XPAction.FRIEND_REQUEST_ACCEPTED: 50,
     XPAction.DISCOVERY_SWIPE: 0,
     XPAction.DISCOVERY_MATCH: 15,
-    XPAction.FRIEND_REMOVED: -50,
-    XPAction.MEETUP_CANCEL: -100,
-    XPAction.MEETUP_LEAVE: -30,
+    XPAction.FRIEND_REMOVED: 0,
+    XPAction.MEETUP_CANCEL: 0,
+    XPAction.MEETUP_LEAVE: 0,
     XPAction.CLUB_JOIN: 50,
-    XPAction.CLUB_LEAVE: -50,
+    XPAction.CLUB_LEAVE: 0,
 }

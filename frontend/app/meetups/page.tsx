@@ -483,6 +483,7 @@ export default function MeetupsPage() {
                   <input
                     type="number"
                     name="capacity"
+                    min={2}
                     defaultValue={Math.min(10, usage?.max_capacity || LEVEL_CONFIG[userLevel].maxMeetupCapacity)}
                     max={usage?.max_capacity || LEVEL_CONFIG[userLevel].maxMeetupCapacity}
                     className="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-semibold focus:border-indigo-500 focus:ring-indigo-200"

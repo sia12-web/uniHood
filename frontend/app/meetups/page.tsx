@@ -33,7 +33,6 @@ export default function MeetupsPage() {
   const { markAsSeen } = useMeetupNotifications();
   const [selectedCategory, setSelectedCategory] = useState<MeetupCategory | undefined>();
   const [showOnlyMine, setShowOnlyMine] = useState(false);
-  const [year, setYear] = useState<number | undefined>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [reviewingMeetup, setReviewingMeetup] = useState<MeetupResponse | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -53,8 +52,8 @@ export default function MeetupsPage() {
   }, [authUser, markAsSeen]);
 
   const { data: meetups, isLoading } = useQuery({
-    queryKey: ["meetups", authUser?.campusId, selectedCategory, showOnlyMine, year],
-    queryFn: () => listMeetups(authUser?.campusId ?? undefined, selectedCategory, showOnlyMine ? authUser?.userId : undefined, year),
+    queryKey: ["meetups", authUser?.campusId, selectedCategory, showOnlyMine],
+    queryFn: () => listMeetups(authUser?.campusId ?? undefined, selectedCategory, showOnlyMine ? authUser?.userId : undefined),
     enabled: !!authUser?.campusId,
   });
 
@@ -245,18 +244,6 @@ export default function MeetupsPage() {
             </button>
           ))}
 
-          {/* Year Filter */}
-          <select
-            value={year || ""}
-            onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
-            className="rounded-2xl border-none bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-          >
-            <option value="">Upcoming</option>
-            {Array.from({ length: 3 }).map((_, i) => {
-              const y = new Date().getFullYear() - i;
-              return <option key={y} value={y}>{y} History</option>;
-            })}
-          </select>
         </div>
 
         {/* Grid */}

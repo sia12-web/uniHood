@@ -170,7 +170,7 @@ function ProfileDetailContent({
                                     <MapPin size={14} /> {user.campus_name}
                                 </div>
                             )}
-                            {user.major && user.major !== "None" && (
+                            {user.major && user.major.toLowerCase() !== "none" && (
                                 <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1.5 border border-slate-200">
                                     <Sparkles size={14} className="text-amber-500" /> {user.major}
                                 </div>
@@ -180,14 +180,14 @@ function ProfileDetailContent({
                                     &apos;{String(user.graduation_year).slice(-2)}
                                 </div>
                             )}
-                            {user.hometown && (
+                            {user.hometown && user.hometown.toLowerCase() !== 'none' && (
                                 <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1.5 border border-slate-200">
                                     <MapPin size={14} className="text-rose-500" /> {user.hometown}
                                 </div>
                             )}
-                            {user.languages && user.languages.length > 0 && (
+                            {user.languages && user.languages.length > 0 && user.languages.some(l => l.toLowerCase() !== 'none') && (
                                 <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                                    🗣️ {user.languages.join(", ")}
+                                    🗣️ {user.languages.filter(l => l.toLowerCase() !== 'none').join(", ")}
                                 </div>
                             )}
                         </div>
@@ -248,98 +248,107 @@ function ProfileDetailContent({
                         )}
 
                         {/* DETAILED IDENTITY & VIBE CHECK */}
-                        {(user.relationship_status || user.sexual_orientation || user.looking_for || user.lifestyle) && (
-                            <motion.div
-                                variants={cardVariants}
-                                initial="hidden"
-                                whileInView="visible"
-                                viewport={{ once: true }}
-                                custom={1.2}
-                                className="grid gap-4"
-                            >
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                    <Sparkles size={14} className="text-indigo-500" /> The Vibe Check
-                                </h3>
+                        {/* DETAILED IDENTITY & VIBE CHECK */}
+                        {(() => {
+                            const hasIdentity = (user.relationship_status && user.relationship_status.toLowerCase() !== 'none') ||
+                                (user.sexual_orientation && !['prefer not to say', 'none'].includes(user.sexual_orientation.toLowerCase())) ||
+                                (user.looking_for && user.looking_for.length > 0 && user.looking_for.some(l => l.toLowerCase() !== 'none')) ||
+                                (user.height);
+                            const hasLifestyle = user.lifestyle && (
+                                (user.lifestyle.drinking && !['no', 'none'].includes(user.lifestyle.drinking.toLowerCase())) ||
+                                (user.lifestyle.smoking && !['no', 'none'].includes(user.lifestyle.smoking.toLowerCase())) ||
+                                (user.lifestyle.workout && !['never', 'none'].includes(user.lifestyle.workout.toLowerCase()))
+                            );
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Identity Card */}
-                                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                                        <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
-                                            <span className="text-xl">🪪</span> Identity
-                                        </div>
-                                        <div className="space-y-3">
-                                            {user.relationship_status && (
-                                                <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-slate-500 font-medium">Status</span>
-                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.relationship_status}</span>
-                                                </div>
-                                            )}
-                                            {user.sexual_orientation && user.sexual_orientation !== 'Prefer not to say' && (
-                                                <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-slate-500 font-medium">Orientation</span>
-                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.sexual_orientation}</span>
-                                                </div>
-                                            )}
-                                            {user.height && (
-                                                <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-slate-500 font-medium flex items-center gap-1.5"><Ruler size={14} className="text-slate-400" /> Height</span>
-                                                    <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.height} cm</span>
-                                                </div>
-                                            )}
-                                            {user.looking_for && user.looking_for.length > 0 && (
-                                                <div>
-                                                    <span className="text-slate-500 font-medium text-sm block mb-1.5">Looking For</span>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {user.looking_for.map(l => (
-                                                            <span key={l} className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100">
-                                                                {l}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                            if (!hasIdentity && !hasLifestyle) return null;
 
-                                    {/* Lifestyle Card */}
-                                    {user.lifestyle && (
-                                        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
-                                            <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
-                                                <span className="text-xl">⚡</span> Lifestyle
-                                            </div>
-                                            <div className="space-y-3">
-                                                {user.lifestyle.drinking && user.lifestyle.drinking !== 'No' && (
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-slate-500 font-medium">Drinking</span>
-                                                        <span className="font-bold text-slate-900">{user.lifestyle.drinking}</span>
-                                                    </div>
-                                                )}
-                                                {user.lifestyle.smoking && user.lifestyle.smoking !== 'No' && (
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-slate-500 font-medium">Smoking</span>
-                                                        <span className="font-bold text-slate-900">{user.lifestyle.smoking}</span>
-                                                    </div>
-                                                )}
-                                                {user.lifestyle.workout && user.lifestyle.workout !== 'Never' && (
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-slate-500 font-medium">Workout</span>
-                                                        <span className="font-bold text-slate-900">{user.lifestyle.workout}</span>
-                                                    </div>
-                                                )}
-                                                {/* Fallback to show something if only 'No'/'Never' are selected, or empty */}
-                                                {(!user.lifestyle.drinking || user.lifestyle.drinking === 'No') &&
-                                                    (!user.lifestyle.smoking || user.lifestyle.smoking === 'No') &&
-                                                    (!user.lifestyle.workout || user.lifestyle.workout === 'Never') && (
-                                                        <div className="text-center text-slate-400 text-sm italic py-2">
-                                                            Straight edge lifestyle 🌿
+                            return (
+                                <motion.div
+                                    variants={cardVariants}
+                                    initial="hidden"
+                                    whileInView="visible"
+                                    viewport={{ once: true }}
+                                    custom={1.2}
+                                    className="grid gap-4"
+                                >
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                        <Sparkles size={14} className="text-indigo-500" /> The Vibe Check
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Identity Card */}
+                                        {hasIdentity && (
+                                            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                                                <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                                                    <span className="text-xl">🪪</span> Identity
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {user.relationship_status && user.relationship_status.toLowerCase() !== 'none' && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium">Status</span>
+                                                            <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.relationship_status}</span>
                                                         </div>
                                                     )}
+                                                    {user.sexual_orientation && !['prefer not to say', 'none'].includes(user.sexual_orientation.toLowerCase()) && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium">Orientation</span>
+                                                            <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.sexual_orientation}</span>
+                                                        </div>
+                                                    )}
+                                                    {user.height && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium flex items-center gap-1.5"><Ruler size={14} className="text-slate-400" /> Height</span>
+                                                            <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded-md border border-slate-200">{user.height} cm</span>
+                                                        </div>
+                                                    )}
+                                                    {user.looking_for && user.looking_for.length > 0 && user.looking_for.some(l => l.toLowerCase() !== 'none') && (
+                                                        <div>
+                                                            <span className="text-slate-500 font-medium text-sm block mb-1.5">Looking For</span>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {user.looking_for.filter(l => l.toLowerCase() !== 'none').map(l => (
+                                                                    <span key={l} className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100">
+                                                                        {l}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
+                                        )}
+
+                                        {/* Lifestyle Card */}
+                                        {hasLifestyle && (
+                                            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                                                <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                                                    <span className="text-xl">⚡</span> Lifestyle
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {user.lifestyle!.drinking && !['no', 'none'].includes(user.lifestyle!.drinking.toLowerCase()) && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium">Drinking</span>
+                                                            <span className="font-bold text-slate-900">{user.lifestyle!.drinking}</span>
+                                                        </div>
+                                                    )}
+                                                    {user.lifestyle!.smoking && !['no', 'none'].includes(user.lifestyle!.smoking.toLowerCase()) && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium">Smoking</span>
+                                                            <span className="font-bold text-slate-900">{user.lifestyle!.smoking}</span>
+                                                        </div>
+                                                    )}
+                                                    {user.lifestyle!.workout && !['never', 'none'].includes(user.lifestyle!.workout.toLowerCase()) && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-slate-500 font-medium">Workout</span>
+                                                            <span className="font-bold text-slate-900">{user.lifestyle!.workout}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            );
+                        })()}
 
                         {/* Vibe Check (Compatibility) */}
                         {user.compatibility_hint && (
@@ -486,7 +495,7 @@ function ProfileDetailContent({
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 }

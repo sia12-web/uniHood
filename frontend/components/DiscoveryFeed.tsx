@@ -187,7 +187,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
     xp: p.xp,
     level: p.level,
     level_label: p.level_label,
-    top_prompts: p.profile_prompts,
+    top_prompts: p.profile_prompts ?? undefined,
   }), []);
 
   useEffect(() => {

@@ -356,105 +356,121 @@ export function ParallaxProfileCard({
                         )}
 
                         {/* SECTION 2.75: THE VIBE CHECK (Snap Center) */}
-                        {(user.relationship_status || user.looking_for || user.lifestyle || user.hometown || user.languages) && (
-                            <section className="relative min-h-[50%] w-full bg-slate-900/50 px-6 py-12 snap-center flex flex-col justify-center gap-8">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                                        <Sparkles size={16} className="text-indigo-400" />
-                                    </div>
-                                    <h3 className="text-lg font-black text-white/90 tracking-tight">The Vibe Check</h3>
-                                </div>
+                        {(() => {
+                            const hasIdentity = (user.relationship_status && user.relationship_status.toLowerCase() !== 'none') ||
+                                (user.sexual_orientation && !['prefer not to say', 'none'].includes(user.sexual_orientation.toLowerCase())) ||
+                                (user.looking_for && user.looking_for.length > 0 && user.looking_for.some(l => l.toLowerCase() !== 'none')) ||
+                                (user.height);
+                            const hasLifestyle = user.lifestyle && (
+                                (user.lifestyle.drinking && !['no', 'none'].includes(user.lifestyle.drinking.toLowerCase())) ||
+                                (user.lifestyle.smoking && !['no', 'none'].includes(user.lifestyle.smoking.toLowerCase())) ||
+                                (user.lifestyle.workout && !['never', 'none'].includes(user.lifestyle.workout.toLowerCase()))
+                            );
+                            const hasRoots = (user.hometown && user.hometown.toLowerCase() !== 'none') ||
+                                (user.languages && user.languages.length > 0 && user.languages.some(l => l.toLowerCase() !== 'none'));
 
-                                {/* Identity Grid */}
-                                {(user.relationship_status || user.sexual_orientation || (user.looking_for && user.looking_for.length > 0)) && (
-                                    <div className="grid gap-4">
-                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Identity & Intent</h4>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {user.relationship_status && (
-                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
-                                                    <HeartHandshake size={18} className="text-rose-400 shrink-0" />
-                                                    <span className="text-sm font-medium text-slate-200">{user.relationship_status}</span>
-                                                </div>
-                                            )}
-                                            {user.sexual_orientation && user.sexual_orientation !== 'Prefer not to say' && (
-                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
-                                                    <span className="text-lg leading-none">🌈</span>
-                                                    <span className="text-sm font-medium text-slate-200">{user.sexual_orientation}</span>
-                                                </div>
-                                            )}
-                                            {user.looking_for && user.looking_for.length > 0 && (
-                                                <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
-                                                    <Search size={18} className="text-blue-400 shrink-0 mt-0.5" />
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        <span className="text-sm font-medium text-slate-400 mr-1">Looking for:</span>
-                                                        {user.looking_for.map((l, i) => (
-                                                            <span key={l}>
-                                                                <span className="text-sm font-bold text-white">{l}</span>
-                                                                {i < user.looking_for!.length - 1 && <span className="text-slate-600">, </span>}
-                                                            </span>
-                                                        ))}
+                            if (!hasIdentity && !hasLifestyle && !hasRoots) return null;
+
+                            return (
+                                <section className="relative min-h-[50%] w-full bg-slate-900/50 px-6 py-12 snap-center flex flex-col justify-center gap-8">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                                            <Sparkles size={16} className="text-indigo-400" />
+                                        </div>
+                                        <h3 className="text-lg font-black text-white/90 tracking-tight">The Vibe Check</h3>
+                                    </div>
+
+                                    {/* Identity Grid */}
+                                    {hasIdentity && (
+                                        <div className="grid gap-4">
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Identity & Intent</h4>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {user.relationship_status && user.relationship_status.toLowerCase() !== 'none' && (
+                                                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                        <HeartHandshake size={18} className="text-rose-400 shrink-0" />
+                                                        <span className="text-sm font-medium text-slate-200">{user.relationship_status}</span>
                                                     </div>
-                                                </div>
-                                            )}
-                                            {user.height && (
-                                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
-                                                    <Ruler size={18} className="text-blue-400 shrink-0" />
-                                                    <span className="text-sm font-medium text-slate-200">{user.height} cm</span>
-                                                </div>
-                                            )}
+                                                )}
+                                                {user.sexual_orientation && !['prefer not to say', 'none'].includes(user.sexual_orientation.toLowerCase()) && (
+                                                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                        <span className="text-lg leading-none">🌈</span>
+                                                        <span className="text-sm font-medium text-slate-200">{user.sexual_orientation}</span>
+                                                    </div>
+                                                )}
+                                                {user.looking_for && user.looking_for.length > 0 && user.looking_for.some(l => l.toLowerCase() !== 'none') && (
+                                                    <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                        <Search size={18} className="text-blue-400 shrink-0 mt-0.5" />
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <span className="text-sm font-medium text-slate-400 mr-1">Looking for:</span>
+                                                            {user.looking_for.filter(l => l.toLowerCase() !== 'none').map((l, i, arr) => (
+                                                                <span key={l}>
+                                                                    <span className="text-sm font-bold text-white">{l}</span>
+                                                                    {i < arr.length - 1 && <span className="text-slate-600">, </span>}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {user.height && (
+                                                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800/50">
+                                                        <Ruler size={18} className="text-blue-400 shrink-0" />
+                                                        <span className="text-sm font-medium text-slate-200">{user.height} cm</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Lifestyle Grid */}
-                                {user.lifestyle && (
-                                    <div className="grid gap-4">
-                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Lifestyle</h4>
-                                        <div className="flex flex-wrap gap-3">
-                                            {user.lifestyle.drinking && user.lifestyle.drinking !== 'No' && (
-                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
-                                                    <Wine size={14} className="text-amber-400" />
-                                                    <span className="text-xs font-bold">{user.lifestyle.drinking === 'Socially' ? 'Social Drinker' : 'Drinks'}</span>
-                                                </div>
-                                            )}
-                                            {user.lifestyle.smoking && user.lifestyle.smoking !== 'No' && (
-                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
-                                                    <Flame size={14} className="text-orange-400" />
-                                                    <span className="text-xs font-bold">{user.lifestyle.smoking === 'Socially' ? 'Social Smoker' : 'Smokes'}</span>
-                                                </div>
-                                            )}
-                                            {user.lifestyle.workout && user.lifestyle.workout !== 'Never' && (
-                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
-                                                    <Dumbbell size={14} className="text-emerald-400" />
-                                                    <span className="text-xs font-bold">{user.lifestyle.workout} Workout</span>
-                                                </div>
-                                            )}
+                                    {/* Lifestyle Grid */}
+                                    {hasLifestyle && (
+                                        <div className="grid gap-4">
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Lifestyle</h4>
+                                            <div className="flex flex-wrap gap-3">
+                                                {user.lifestyle!.drinking && !['no', 'none'].includes(user.lifestyle!.drinking.toLowerCase()) && (
+                                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                        <Wine size={14} className="text-amber-400" />
+                                                        <span className="text-xs font-bold">{user.lifestyle!.drinking === 'Socially' ? 'Social Drinker' : 'Drinks'}</span>
+                                                    </div>
+                                                )}
+                                                {user.lifestyle!.smoking && !['no', 'none'].includes(user.lifestyle!.smoking.toLowerCase()) && (
+                                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                        <Flame size={14} className="text-orange-400" />
+                                                        <span className="text-xs font-bold">{user.lifestyle!.smoking === 'Socially' ? 'Social Smoker' : 'Smokes'}</span>
+                                                    </div>
+                                                )}
+                                                {user.lifestyle!.workout && !['never', 'none'].includes(user.lifestyle!.workout.toLowerCase()) && (
+                                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-slate-300">
+                                                        <Dumbbell size={14} className="text-emerald-400" />
+                                                        <span className="text-xs font-bold">{user.lifestyle!.workout} Workout</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Roots & tongues */}
-                                {(user.hometown || user.languages) && (
-                                    <div className="grid gap-4">
-                                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Roots</h4>
-                                        <div className="grid gap-3">
-                                            {user.hometown && (
-                                                <div className="flex items-center gap-3">
-                                                    <Globe2 size={16} className="text-indigo-400" />
-                                                    <span className="text-sm text-slate-300">From <span className="font-bold text-white">{user.hometown}</span></span>
-                                                </div>
-                                            )}
-                                            {user.languages && user.languages.length > 0 && (
-                                                <div className="flex items-start gap-3">
-                                                    <Languages size={16} className="text-indigo-400 mt-0.5" />
-                                                    <span className="text-sm text-slate-300">Speaks <span className="font-bold text-white">{user.languages.join(", ")}</span></span>
-                                                </div>
-                                            )}
+                                    {/* Roots & tongues */}
+                                    {hasRoots && (
+                                        <div className="grid gap-4">
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Roots</h4>
+                                            <div className="grid gap-3">
+                                                {user.hometown && user.hometown.toLowerCase() !== 'none' && (
+                                                    <div className="flex items-center gap-3">
+                                                        <Globe2 size={16} className="text-indigo-400" />
+                                                        <span className="text-sm text-slate-300">From <span className="font-bold text-white">{user.hometown}</span></span>
+                                                    </div>
+                                                )}
+                                                {user.languages && user.languages.length > 0 && user.languages.some(l => l.toLowerCase() !== 'none') && (
+                                                    <div className="flex items-start gap-3">
+                                                        <Languages size={16} className="text-indigo-400 mt-0.5" />
+                                                        <span className="text-sm text-slate-300">Speaks <span className="font-bold text-white">{user.languages.filter(l => l.toLowerCase() !== 'none').join(", ")}</span></span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </section>
-                        )}
+                                    )}
+                                </section>
+                            );
+                        })()}
 
                         {/* SECTION 3: IMMERSIVE PROMPT (Snap Start) */}
                         {user.top_prompts && user.top_prompts[1] && (

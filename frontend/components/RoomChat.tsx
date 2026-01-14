@@ -104,7 +104,7 @@ export default function RoomChat({ messages, onSend, connectionStatus, participa
                   {/* Time & Actions */}
                   <div className="flex items-center gap-2 mt-1 px-1">
                     <span className="text-[10px] text-slate-400">
-                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </span>
                     {!isMe && <ReportUI kind="room_message" targetId={message.id} />}
                   </div>

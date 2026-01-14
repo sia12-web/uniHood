@@ -194,7 +194,7 @@ export default function ClubDetailPage() {
                                 {/* Simple Inline Card or use MeetupCard component if accessible */}
                                 <h3 className="font-bold text-lg mb-1">{meetup.title}</h3>
                                 <p className="text-sm text-slate-500 mb-4">
-                                    {new Date(meetup.start_at).toLocaleDateString()} at {new Date(meetup.start_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    {new Date(meetup.start_at).toLocaleDateString()} at {new Date(meetup.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                                 </p>
                                 <Link
                                     href={`/meetups/${meetup.id}`}

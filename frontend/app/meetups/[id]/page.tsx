@@ -380,7 +380,7 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-slate-400" />
-                <span>{startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({meetup.duration_min}m)</span>
+                <span>{startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} ({meetup.duration_min}m)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-400" />

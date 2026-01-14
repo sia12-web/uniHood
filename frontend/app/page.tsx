@@ -262,7 +262,7 @@ export default function HomePage() {
   }, [realActivity, activityFilter, authUser?.userId, allFriends]);
 
   const renderActivityItem = (item: ActivityLogItem) => {
-    const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = new Date(item.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     let Icon = Zap;
     let iconBg = "bg-slate-100 dark:bg-slate-800";

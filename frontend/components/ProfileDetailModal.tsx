@@ -99,7 +99,7 @@ function ProfileDetailContent({
     const prompts = (user.top_prompts && user.top_prompts.length > 0)
         ? user.top_prompts.map(p => ({ k: p.question, v: p.answer }))
         : getPrompts();
-    const gallery = user.gallery || [];
+    const gallery = (user.gallery || []).filter(img => img.url !== user.avatar_url);
     const remainingImages = gallery.slice(prompts.length);
 
     return (

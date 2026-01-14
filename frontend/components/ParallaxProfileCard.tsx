@@ -54,8 +54,8 @@ export function ParallaxProfileCard({
     // Gather all unique images
     const images = useMemo(() => {
         const set = new Set<string>();
-        user.gallery?.forEach(g => { if (g.url) set.add(g.url); });
         if (user.avatar_url) set.add(user.avatar_url);
+        user.gallery?.forEach(g => { if (g.url) set.add(g.url); });
         // Banner removed as per request to cleaner look
         return Array.from(set).filter(Boolean);
     }, [user]);

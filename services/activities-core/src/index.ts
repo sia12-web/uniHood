@@ -7,7 +7,7 @@ import { handleTicTacToeConnection, createTicTacToeSession, getSession, joinSess
 import { handleQuickTriviaConnection, createQuickTriviaSession, listQuickTriviaSessions, getQuickTriviaSession, joinQuickTrivia, setQuickTriviaReady, leaveQuickTrivia } from './ws/quickTrivia';
 import { handleStoryBuilderConnection, createStoryBuilderSession, listStoryBuilderSessions, getStoryBuilderSession, joinStoryBuilder, setStoryBuilderReady, leaveStoryBuilder } from './ws/storyBuilder';
 import { connectDb } from './lib/db';
-import { recordGameResult } from './services/stats';
+import { recordGameResult, notifyBackendAudit } from './services/stats';
 
 const server = fastify({ logger: true });
 
@@ -446,9 +446,10 @@ server.register(async function (fastify) {
             /* ignore */
         }
 
-        socket.addEventListener('message', (evt) => {
+        socket.addEventListener('message', async (evt) => {
             try {
                 const msg = JSON.parse(evt.data.toString());
+                console.log(`[WS] Message from ${sessionId}: type=${msg?.type}`);
 
                 // Handle join to track user-socket mapping
                 if (msg?.type === 'join') {
@@ -579,7 +580,7 @@ server.register(async function (fastify) {
 
                                         session.status = 'ended';
                                         session.phase = 'ended';
-                                        broadcastGenericEnded(sessionId);
+                                        await broadcastGenericEnded(sessionId);
                                     } else {
                                         // Start next round after a delay to show round result
                                         session.currentRound++;
@@ -626,7 +627,8 @@ server.register(async function (fastify) {
                                 const points = wpm + 50;
 
                                 session.scores[userId] = points;
-                                broadcastGenericEnded(sessionId);
+                                console.log(`[SpeedTyping] Ending session ${sessionId}, winner=${userId}, points=${points}`);
+                                await broadcastGenericEnded(sessionId);
                             }
                         }
                     }
@@ -740,18 +742,21 @@ server.register(async function (fastify) {
         if (activityKey === 'tictactoe' || activityKey === 'tic_tac_toe') {
             const sessionId = createTicTacToeSession(creatorUserId, body?.opponentId);
             trackUserSession(creatorUserId, sessionId);
+            void notifyBackendAudit('activity.create', creatorUserId, { activity_id: sessionId, kind: 'tictactoe' });
             return { sessionId };
         }
 
         if (activityKey === 'quick_trivia') {
             const sessionId = createQuickTriviaSession(creatorUserId, participants);
             trackUserSession(creatorUserId, sessionId);
+            void notifyBackendAudit('activity.create', creatorUserId, { activity_id: sessionId, kind: 'quick_trivia' });
             return { sessionId };
         }
 
         if (activityKey === 'story_builder') {
             const sessionId = createStoryBuilderSession(creatorUserId, participants, (body as any).sessionId);
             trackUserSession(creatorUserId, sessionId);
+            void notifyBackendAudit('activity.create', creatorUserId, { activity_id: sessionId, kind: 'story_builder' });
             return { sessionId };
         }
 
@@ -779,6 +784,23 @@ server.register(async function (fastify) {
             winnerUserId: null,
         };
         trackUserSession(creatorUserId, sessionId);
+
+        // Log to backend for recent activities feed
+        void notifyBackendAudit('activity.create', creatorUserId, {
+            activity_id: sessionId,
+            kind: activityKey
+        });
+
+        // Log join for other participants
+        participants.forEach(uid => {
+            if (uid !== creatorUserId) {
+                void notifyBackendAudit('activity.join', uid, {
+                    activity_id: sessionId,
+                    kind: activityKey
+                });
+            }
+        });
+
         return { sessionId };
     });
 
@@ -887,17 +909,22 @@ server.register(async function (fastify) {
             if (ttt) {
                 joinSession(sessionId, userId);
                 const session = getSession(sessionId);
+                void notifyBackendAudit('activity.join', userId, { activity_id: sessionId, kind: 'tictactoe' });
                 return { sessionId, ...session };
             }
 
             const qt = getQuickTriviaSession(sessionId);
             if (qt) {
-                return joinQuickTrivia(sessionId, userId);
+                const res = joinQuickTrivia(sessionId, userId);
+                void notifyBackendAudit('activity.join', userId, { activity_id: sessionId, kind: 'quick_trivia' });
+                return res;
             }
 
             const sb = getStoryBuilderSession(sessionId);
             if (sb) {
-                return joinStoryBuilder(sessionId, userId);
+                const res = joinStoryBuilder(sessionId, userId);
+                void notifyBackendAudit('activity.join', userId, { activity_id: sessionId, kind: 'story_builder' });
+                return res;
             }
 
             const generic = genericSessions[sessionId];
@@ -912,6 +939,7 @@ server.register(async function (fastify) {
             }
             generic.lobbyReady = generic.participants.every((p) => p.ready);
             broadcastGenericPresence(sessionId);
+            void notifyBackendAudit('activity.join', userId, { activity_id: sessionId, kind: generic.activityKey });
             return generic;
         } catch (e) {
             const message = e instanceof Error ? e.message : 'join_failed';

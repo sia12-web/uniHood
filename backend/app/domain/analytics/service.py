@@ -96,8 +96,9 @@ class AnalyticsService:
                 FROM audit_logs a
                 LEFT JOIN users u ON a.user_id = u.id
                 WHERE (
-                    a.event IN ('friend.accepted', 'friend.removed', 'activity.create', 'activity.join', 'meetup.create', 'meetup.join', 'meetup.leave', 'meetup.cancel', 'level.up', 'activity_completed')
-                    OR (a.event = 'xp.gained' AND a.meta->>'action' IN ('game_won', 'game_played', 'game_lost'))
+                    a.event IN ('activity.create', 'activity.join')
+                    OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
+                    OR (a.event = 'activity_completed' AND (a.meta->>'winner_id' IS NOT NULL OR a.meta->>'match_winner_id' IS NOT NULL))
                 )
                 AND (
                     $2::uuid IS NULL 

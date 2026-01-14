@@ -366,7 +366,6 @@ export default function ChatConversationView({ peerId }: Props) {
           <div className="min-w-0 flex-1">
             <Link href={`/socials?tab=discover&user=${validPeer}`} className="group flex items-center gap-2 w-fit">
               <p className="truncate text-xl font-semibold text-midnight dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{headerTitle}</p>
-              {peerEntry?.level ? <LevelBadge level={peerEntry.level} size="sm" /> : null}
             </Link>
           </div>
           <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X, MessageCircle, UserPlus, Instagram, Linkedin, Loader2, MapPin, Sparkles, Ruler } from "lucide-react";
+import { X, MessageCircle, UserPlus, Instagram, Linkedin, Loader2, MapPin, Sparkles, Ruler, Twitter, Globe, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfileScroll, cardVariants } from "@/hooks/use-profile-scroll";
 import { NearbyUser, DiscoveryProfile } from "@/lib/types";
@@ -155,9 +155,20 @@ function ProfileDetailContent({
                                 {user.level ? <LevelBadge level={user.level} size="sm" className="bg-white/20 text-white border-white/10" /> : null}
                                 {isOnline && <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />}
                             </h1>
-                            <p className="text-lg font-medium text-white/90 flex items-center gap-2 truncate">
-                                @{user.handle}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <p className="text-lg font-medium text-white/90 truncate">
+                                    @{user.handle}
+                                </p>
+                                {typeof user.reputation_score === "number" && (
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-sm border border-white/10 text-white text-sm font-bold">
+                                        <Star size={12} className="fill-amber-400 text-amber-400" />
+                                        {user.reputation_score.toFixed(1)}
+                                        {user.review_count !== undefined && (
+                                            <span className="text-white/70 text-xs font-normal">({user.review_count})</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
 
@@ -168,6 +179,11 @@ function ProfileDetailContent({
                             {user.campus_name && (
                                 <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1.5 border border-slate-200">
                                     <MapPin size={14} /> {user.campus_name}
+                                </div>
+                            )}
+                            {user.gender && user.gender.toLowerCase() !== 'none' && (
+                                <div className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 capitalize">
+                                    {user.gender}
                                 </div>
                             )}
                             {user.major && user.major.toLowerCase() !== "none" && (
@@ -228,6 +244,21 @@ function ProfileDetailContent({
                                     <Linkedin size={24} />
                                 </a>
                             )}
+                            {user.social_links?.twitter && (
+                                <a href={`https://twitter.com/${user.social_links.twitter.replace('@', '')}`} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-500 transition">
+                                    <Twitter size={24} />
+                                </a>
+                            )}
+                            {user.social_links?.tiktok && (
+                                <a href={`https://tiktok.com/@${user.social_links.tiktok.replace('@', '')}`} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white transition">
+                                    <div className="font-bold text-xs">TikTok</div>
+                                </a>
+                            )}
+                            {user.social_links?.website && (
+                                <a href={user.social_links.website} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition">
+                                    <Globe size={24} />
+                                </a>
+                            )}
                         </div>
                     </div>
 
@@ -247,7 +278,25 @@ function ProfileDetailContent({
                             </motion.div>
                         )}
 
-                        {/* DETAILED IDENTITY & VIBE CHECK */}
+                        {/* 10-Year Vision */}
+                        {user.ten_year_vision && (
+                            <motion.div
+                                variants={cardVariants}
+                                initial="hidden"
+                                whileInView="visible"
+                                viewport={{ once: true }}
+                                custom={1.1}
+                                className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100"
+                            >
+                                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <Globe size={12} /> 10-Year Vision
+                                </h3>
+                                <p className="text-lg text-indigo-950 font-medium italic">
+                                    &quot;{user.ten_year_vision}&quot;
+                                </p>
+                            </motion.div>
+                        )}
+
                         {/* DETAILED IDENTITY & VIBE CHECK */}
                         {(() => {
                             const hasIdentity = (user.relationship_status && user.relationship_status.toLowerCase() !== 'none') ||

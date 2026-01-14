@@ -56,6 +56,8 @@ export type NearbyUser = {
   xp?: number;
   level?: number;
   level_label?: string;
+  reputation_score?: number;
+  review_count?: number;
 };
 
 export type DiscoveryProfile = {

@@ -82,7 +82,8 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       // Backend sets 60s expiry. We cache for 45s to be safe.
       cachedTicketExpiresAt = now + 45_000;
       return ticket;
-    } catch {
+    } catch (err) {
+      console.warn("[socket] Failed to fetch realtime ticket:", err);
       return null;
     }
   }
@@ -313,7 +314,8 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
       scheduleReconnect();
     });
 
-    instance.on("connect_error", () => {
+    instance.on("connect_error", (err) => {
+      console.error("[socket] connect_error:", err.message);
       clearHeartbeat();
       connecting = false;
       // Clear cached ticket - may have been rejected, get a fresh one
@@ -352,6 +354,16 @@ export function createSocketManager<Identity>(options: SocketManagerOptions<Iden
     }
     const attempt = reconnectAttempt;
     reconnectAttempt += 1;
+
+    // Optimization: if we have failed to reconnect many times, give up to avoid infinite loops/spam
+    // and let the user manually retry or wait for a full page reload/navigation.
+    if (reconnectAttempt > 10) {
+      console.warn("[socket] Too many reconnect attempts, giving up.");
+      shouldReconnect = false;
+      updateStatus("disconnected");
+      return;
+    }
+
     const baseDelay = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** attempt);
     const jitter = baseDelay * RECONNECT_JITTER_FACTOR * Math.random();
     const delay = forceImmediate ? 0 : Math.round(baseDelay + jitter);

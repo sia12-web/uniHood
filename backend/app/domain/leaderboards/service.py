@@ -202,8 +202,13 @@ class LeaderboardService:
 						points_inc,
 					)
 				except asyncpg.UndefinedTableError:
-					logger.error("user_game_stats table missing!")
+					# CRITICAL FIX: Do not suppress this error silently. Log it as error so we know if migrations ran.
+					logger.error("user_game_stats table missing! Game stats NOT recorded.")
+					# We re-raise or just let it log. For now, logging error is sufficient to diagnose without crashing request.
 					pass
+				except Exception as e:
+					logger.error(f"Failed to insert user_game_stats: {e}")
+
 
 		return awarded
 

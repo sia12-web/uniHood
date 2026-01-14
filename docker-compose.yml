@@ -98,6 +98,8 @@ services:
       POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/unihood
       REDIS_URL: redis://redis:6379/0
       PORT: 3001
+      BACKEND_URL: http://backend:8000
+      SERVICE_SIGNING_KEY: ${SERVICE_SIGNING_KEY:-pTv2KiIj}
     ports:
       - "3011:3001"
     depends_on:

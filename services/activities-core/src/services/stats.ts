@@ -13,7 +13,7 @@ export async function recordGameResult(
 
     console.log(`[Stats] Delegating game result to Backend API for user=${userId}, activity=${activityKey}`);
 
-    const BACKEND_URL = process.env.BACKEND_URL || 'https://unihood-backend-14x8.onrender.com';
+    const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:8000';
     const INTERNAL_SECRET = process.env.SERVICE_SIGNING_KEY || 'pTv2KiIj';
 
     try {
@@ -28,9 +28,11 @@ export async function recordGameResult(
             user_ids: [userId],
             winner_id: result === 'win' ? userId : null,
             game_kind: activityKey,
-            duration_seconds: 60, // approximate, or pass in
-            move_count: 5 // approximate
+            duration_seconds: 60,
+            move_count: 5
         };
+
+        console.log(`[Stats] Sending payload to ${BACKEND_URL}: ${JSON.stringify(payload)}`);
 
         const response = await fetch(`${BACKEND_URL}/internal/leaderboards/record-outcome`, {
             method: 'POST',
@@ -42,7 +44,8 @@ export async function recordGameResult(
         });
 
         if (!response.ok) {
-            console.error(`[Stats] Backend API failed: ${response.status} ${await response.text()}`);
+            const errorText = await response.text();
+            console.error(`[Stats] Backend API failed: ${response.status} ${errorText}`);
             return false;
         }
 
@@ -51,6 +54,44 @@ export async function recordGameResult(
 
     } catch (e) {
         console.error(`[Stats] Error calling Backend API`, e);
+        return false;
+    }
+}
+
+export async function notifyBackendAudit(
+    event: string,
+    userId: string,
+    meta?: Record<string, any>
+): Promise<boolean> {
+    if (!userId || userId === 'anonymous' || userId.startsWith('anon-')) {
+        return false;
+    }
+
+    const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:8000';
+    const INTERNAL_SECRET = process.env.SERVICE_SIGNING_KEY || 'pTv2KiIj';
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/internal/audit/log-event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Internal-Secret': INTERNAL_SECRET
+            },
+            body: JSON.stringify({
+                event,
+                user_id: userId,
+                meta
+            })
+        });
+
+        if (!response.ok) {
+            console.error(`[Audit] Backend API failed: ${response.status} ${await response.text()}`);
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        console.error(`[Audit] Error calling Backend API`, e);
         return false;
     }
 }

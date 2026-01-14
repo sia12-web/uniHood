@@ -1050,6 +1050,7 @@ class ActivitiesService:
 		# Analytics tracking
 		try:
 			from app.domain.identity import audit
+			# Log join for the initiator (optional, but good for completeness if they rejoin)
 			await audit.log_event(
 				"activity.join",
 				user_id=auth_user.id,
@@ -1058,6 +1059,17 @@ class ActivitiesService:
 					"kind": activity.kind
 				}
 			)
+			# CRITICAL: Log join for the opponent (user_b) because they are now "in" the game
+			# verify we aren't logging for same user twice if they are playing themselves (dev mode)
+			if activity.user_b != auth_user.id:
+				await audit.log_event(
+					"activity.join",
+					user_id=activity.user_b,
+					meta={
+						"activity_id": activity.id,
+						"kind": activity.kind
+					}
+				)
 		except Exception:
 			pass
 

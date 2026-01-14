@@ -76,3 +76,25 @@ async def record_game_outcome_internal(
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 
+
+class InternalAuditRequest(BaseModel):
+	event: str
+	user_id: str
+	meta: Optional[dict] = None
+
+@router.post("/audit/log-event", status_code=status.HTTP_200_OK)
+async def log_audit_event_internal(
+	payload: InternalAuditRequest,
+	_auth: str = Depends(verify_internal_secret)
+):
+	from app.domain.identity import audit
+	try:
+		await audit.log_event(
+			payload.event,
+			user_id=payload.user_id,
+			meta=payload.meta
+		)
+		return {"logged": True}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+

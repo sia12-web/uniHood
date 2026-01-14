@@ -629,6 +629,11 @@ class LeaderboardService:
 		else:
 			key = _format_zset_key(scope, period, str(campus_id), ymd)
 			items = await self._redis.zrevrange(key, 0, limit - 1, withscores=True)
+			if not items and scope == LeaderboardScope.OVERALL:
+				# Use live XP stats for OVERALL scope if Redis is empty (or always)
+				# This ensures "Total XP" is accurate and available immediately
+				items = await self._calculate_live_xp_scores(campus_id, limit)
+			
 			if not items:
 				items = await self._fallback_query(scope, period, campus_id, ymd, limit)
 		
@@ -654,8 +659,34 @@ class LeaderboardService:
 			campus_id=campus_id,
 			items=rows,
 		)
-	
-	async def _calculate_live_social_scores(self, campus_id: UUID, limit: int) -> List[Tuple[str, float]]:
+
+	async def _calculate_live_xp_scores(self, campus_id: UUID, limit: int) -> List[Tuple[str, float]]:
+		"""Calculate Total XP scores for all users in a campus from user_xp_stats."""
+		import logging
+		logger = logging.getLogger(__name__)
+		
+		try:
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				rows = await conn.fetch(
+					"""
+					SELECT 
+						uxs.user_id,
+						uxs.total_xp
+					FROM user_xp_stats uxs
+					JOIN users u ON u.id = uxs.user_id
+					WHERE u.campus_id = $1 AND u.deleted_at IS NULL
+					ORDER BY uxs.total_xp DESC
+					LIMIT $2
+					""",
+					campus_id,
+					limit,
+				)
+				
+				return [(str(row["user_id"]), float(row["total_xp"])) for row in rows]
+		except Exception as e:
+			logger.error(f"_calculate_live_xp_scores failed: {e}")
+			return []
 		"""Calculate social scores for all users in a campus from database."""
 		import logging
 		logger = logging.getLogger(__name__)

@@ -134,7 +134,7 @@ export default function LeaderboardTable({ scope, items, highlightUserId, isLoad
               const displayName = row.display_name || `${row.user_id.slice(0, 8)}…${row.user_id.slice(-4)}`;
               // For social scope, display as Level
               const scoreDisplay = scope === "social"
-                ? `Lvl ${Math.floor(row.score)}`
+                ? Math.floor(row.score)
                 : formatScore(row.score);
 
               const initials = (displayName || "?")[0]?.toUpperCase();

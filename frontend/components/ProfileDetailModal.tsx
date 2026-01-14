@@ -234,27 +234,27 @@ function ProfileDetailContent({
                             )}
 
                             {/* Socials */}
-                            {user.social_links?.instagram && (
+                            {user.social_links?.instagram && user.social_links.instagram.trim() && (
                                 <a href={`https://instagram.com/${user.social_links.instagram.replace('@', '')}`} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-pink-50 hover:text-pink-600 transition">
                                     <Instagram size={24} />
                                 </a>
                             )}
-                            {user.social_links?.linkedin && (
+                            {user.social_links?.linkedin && user.social_links.linkedin.trim() && (
                                 <a href={user.social_links.linkedin} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition">
                                     <Linkedin size={24} />
                                 </a>
                             )}
-                            {user.social_links?.twitter && (
+                            {user.social_links?.twitter && user.social_links.twitter.trim() && (
                                 <a href={`https://twitter.com/${user.social_links.twitter.replace('@', '')}`} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-500 transition">
                                     <Twitter size={24} />
                                 </a>
                             )}
-                            {user.social_links?.tiktok && (
+                            {user.social_links?.tiktok && user.social_links.tiktok.trim() && (
                                 <a href={`https://tiktok.com/@${user.social_links.tiktok.replace('@', '')}`} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white transition">
                                     <div className="font-bold text-xs">TikTok</div>
                                 </a>
                             )}
-                            {user.social_links?.website && (
+                            {user.social_links?.website && user.social_links.website.trim() && (
                                 <a href={user.social_links.website} target="_blank" className="p-3.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition">
                                     <Globe size={24} />
                                 </a>
@@ -265,7 +265,7 @@ function ProfileDetailContent({
                     {/* 3. CONTENT FLOW */}
                     <div className="px-6 space-y-8 pb-10">
                         {/* Bio */}
-                        {user.bio && (
+                        {user.bio && user.bio.trim() && (
                             <motion.div
                                 variants={cardVariants}
                                 initial="hidden"
@@ -279,7 +279,7 @@ function ProfileDetailContent({
                         )}
 
                         {/* 10-Year Vision */}
-                        {user.ten_year_vision && (
+                        {user.ten_year_vision && user.ten_year_vision.trim() && user.ten_year_vision.toLowerCase() !== 'none' && (
                             <motion.div
                                 variants={cardVariants}
                                 initial="hidden"

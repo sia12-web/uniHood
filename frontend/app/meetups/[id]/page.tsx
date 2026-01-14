@@ -80,7 +80,10 @@ export default function MeetupDetailPage({ params }: { params: { id: string } })
 
   const cancelMutation = useMutation({
     mutationFn: (reason: string) => cancelMeetup(id, reason),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetup", id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetup", id] });
+      router.push("/meetups");
+    },
     onError: (err) => console.error("Cancel failed", err),
   });
 

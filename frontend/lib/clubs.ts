@@ -31,26 +31,32 @@ export interface ClubMeetup {
 
 export const clubsApi = {
     createClub: async (data: ClubCreateRequest): Promise<Club> => {
-        return api.post("/clubs/", data);
+        const response = await api.post<Club>("/clubs/", data);
+        return response.data;
     },
 
     listClubs: async (campusId?: string): Promise<Club[]> => {
-        return api.get("/clubs/", { params: { campus_id: campusId } });
+        const response = await api.get<Club[]>("/clubs/", { params: { campus_id: campusId } });
+        return response.data;
     },
 
     getClub: async (id: string): Promise<ClubDetail> => {
-        return api.get(`/clubs/${id}`);
+        const response = await api.get<ClubDetail>(`/clubs/${id}`);
+        return response.data;
     },
 
     joinClub: async (id: string): Promise<{ ok: boolean }> => {
-        return api.post(`/clubs/${id}/join`);
+        const response = await api.post<{ ok: boolean }>(`/clubs/${id}/join`);
+        return response.data;
     },
 
     leaveClub: async (id: string): Promise<{ ok: boolean }> => {
-        return api.delete(`/clubs/${id}/join`);
+        const response = await api.delete<{ ok: boolean }>(`/clubs/${id}/join`);
+        return response.data;
     },
 
     getClubMeetups: async (clubId: string): Promise<ClubMeetup[]> => {
-        return api.get("/meetups/", { params: { club_id: clubId } });
+        const response = await api.get<ClubMeetup[]>("/meetups/", { params: { club_id: clubId } });
+        return response.data;
     }
 };

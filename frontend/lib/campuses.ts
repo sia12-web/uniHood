@@ -9,6 +9,7 @@ export interface Campus {
 
 export const campusesApi = {
     listCampuses: async (): Promise<Campus[]> => {
-        return api.get("/campuses/");
+        const response = await api.get<Campus[]>("/campuses/");
+        return response.data;
     }
 };

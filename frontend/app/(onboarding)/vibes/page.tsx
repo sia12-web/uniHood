@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { fetchProfile, patchProfile } from "@/lib/identity";
 import { readAuthSnapshot } from "@/lib/auth-storage";
-import { CheckCircle2, Circle, Trophy, User, Sparkles, Heart, Activity, Quote, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Trophy, User, Sparkles, Heart, Activity, Quote, ChevronRight, X, Languages as LangIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,11 @@ const VIBE_PROMPTS = [
     "My ideal weekend is...",
     "One thing you should know...",
 ];
+const POPULAR_LANGUAGES = [
+    "English", "Spanish", "French", "German", "Mandarin", "Hindi", "Arabic",
+    "Portuguese", "Bengali", "Russian", "Japanese", "Punjabi", "Marathi",
+    "Telugu", "Turkish", "Tamil", "Vietnamese", "Korean", "Italian", "Thai"
+].sort();
 
 export default function VibesPage() {
     const router = useRouter();
@@ -42,7 +47,7 @@ export default function VibesPage() {
     const [birthday, setBirthday] = useState("");
     const [hometown, setHometown] = useState("");
     const [height, setHeight] = useState("");
-    const [languages, setLanguages] = useState("");
+    const [languages, setLanguages] = useState<string[]>([]);
 
     const [bio, setBio] = useState("");
 
@@ -78,8 +83,7 @@ export default function VibesPage() {
                 if (profile.hometown) setHometown(profile.hometown === "None" ? "" : profile.hometown);
                 if (profile.height) setHeight(String(profile.height));
                 if (profile.languages) {
-                    const filtered = profile.languages.filter(l => l !== "None");
-                    setLanguages(filtered.join(", "));
+                    setLanguages(profile.languages.filter(l => l !== "None"));
                 }
                 if (profile.bio) setBio(profile.bio === "None" ? "" : profile.bio);
 
@@ -171,8 +175,6 @@ export default function VibesPage() {
             const auth = readAuthSnapshot();
             if (!auth?.user_id) return;
 
-            const langList = languages.split(",").map(l => l.trim()).filter(Boolean);
-
             await patchProfile(auth.user_id, campusId, {
                 // Personal
                 bio: bio || undefined,
@@ -180,7 +182,7 @@ export default function VibesPage() {
                 birthday: birthday || null,
                 hometown: hometown || null,
                 height: height ? parseInt(height) : null,
-                languages: langList.length > 0 ? langList : null,
+                languages: languages.length > 0 ? languages : null,
                 // Vibes
                 relationship_status: relationshipStatus || null,
                 sexual_orientation: sexualOrientation || null,
@@ -338,13 +340,60 @@ export default function VibesPage() {
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-semibold text-slate-700 mb-2">Languages</label>
-                                <input
-                                    type="text"
-                                    value={languages}
-                                    onChange={(e) => setLanguages(e.target.value)}
-                                    placeholder="English, French, etc."
-                                    className="block w-full rounded-xl border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-indigo-600 focus:ring-indigo-600 transition-all sm:text-sm"
-                                />
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50 min-h-[56px] focus-within:ring-2 focus-within:ring-indigo-600/20 focus-within:border-indigo-600 transition-all">
+                                        <AnimatePresence>
+                                            {languages.map((lang) => (
+                                                <motion.span
+                                                    key={lang}
+                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.8 }}
+                                                    className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium border border-indigo-200"
+                                                >
+                                                    {lang}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setLanguages(prev => prev.filter(l => l !== lang))}
+                                                        className="hover:text-indigo-900 transition-colors"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </motion.span>
+                                            ))}
+                                        </AnimatePresence>
+                                        <input
+                                            type="text"
+                                            placeholder={languages.length === 0 ? "Type a language and press Enter..." : "Add more..."}
+                                            className="flex-1 bg-transparent border-none p-0 focus:ring-0 text-sm placeholder:text-slate-400 min-w-[150px]"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ',') {
+                                                    e.preventDefault();
+                                                    const val = e.currentTarget.value.trim().replace(/,$/, '');
+                                                    if (val && !languages.includes(val)) {
+                                                        setLanguages(prev => [...prev, val]);
+                                                        e.currentTarget.value = '';
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1 flex items-center">
+                                            <LangIcon size={12} className="mr-1" /> Quick Add:
+                                        </span>
+                                        {POPULAR_LANGUAGES.filter(l => !languages.includes(l)).slice(0, 8).map(lang => (
+                                            <button
+                                                key={lang}
+                                                type="button"
+                                                onClick={() => setLanguages(prev => [...prev, lang])}
+                                                className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-sm"
+                                            >
+                                                + {lang}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

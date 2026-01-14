@@ -20,7 +20,13 @@ function readSocketBase(): string {
   if (typeof candidate === "string" && candidate.trim().length > 0) {
     return candidate.trim().replace(/\/$/, "");
   }
-  return getBackendUrl().replace(/\/$/, "");
+  const backend = getBackendUrl();
+  try {
+    const url = new URL(backend);
+    return url.origin;
+  } catch {
+    return backend.replace(/\/$/, "");
+  }
 }
 
 const SOCKET_BASE = readSocketBase();

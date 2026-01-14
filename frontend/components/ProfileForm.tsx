@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { X, Languages as LangIcon } from "lucide-react";
 
 /* Image removed */
 import AvatarUploader from "./AvatarUploader";
@@ -20,6 +21,12 @@ type ProfileFormProps = {
 
 // HANDLE_PATTERN was here but is no longer needed as we removed handle from the UI.
 const PASSION_LIMIT = 6;
+
+const POPULAR_LANGUAGES = [
+	"English", "Spanish", "French", "German", "Mandarin", "Hindi", "Arabic",
+	"Portuguese", "Bengali", "Russian", "Japanese", "Punjabi", "Marathi",
+	"Telugu", "Turkish", "Tamil", "Vietnamese", "Korean", "Italian", "Thai"
+].sort();
 
 export default function ProfileForm({
 	profile,
@@ -50,7 +57,7 @@ export default function ProfileForm({
 	const [birthday, setBirthday] = useState<string>(profile.birthday ? new Date(profile.birthday).toISOString().split('T')[0] : "");
 	const [hometown, setHometown] = useState<string>(profile.hometown ?? "");
 	const [height, setHeight] = useState<string>(profile.height ? String(profile.height) : "");
-	const [languages, setLanguages] = useState<string>(profile.languages ? profile.languages.join(", ") : "");
+	const [languages, setLanguages] = useState<string[]>(profile.languages ? profile.languages.filter(l => l !== "None") : []);
 
 	const [saving, setSaving] = useState<boolean>(false);
 	const [feedback, setFeedback] = useState<string | null>(null);
@@ -74,7 +81,7 @@ export default function ProfileForm({
 		setBirthday(next.birthday ? new Date(next.birthday).toISOString().split('T')[0] : "");
 		setHometown(next.hometown ?? "");
 		setHeight(next.height ? String(next.height) : "");
-		setLanguages(next.languages ? next.languages.join(", ") : "");
+		setLanguages(next.languages ? next.languages.filter(l => l !== "None") : []);
 		setPassionDraft("");
 	}, []);
 
@@ -183,9 +190,8 @@ export default function ProfileForm({
 			changed = true;
 		}
 
-		const normLangs = languages.split(",").map(l => l.trim()).filter(Boolean);
+		const normLangs = languages.map(l => l.trim()).filter(Boolean);
 		const currentLangs = current.languages ?? [];
-		// Simple array comparison (assuming order matters or handled reasonably)
 		const langsChanged = normLangs.length !== currentLangs.length || normLangs.some((l, i) => l !== currentLangs[i]);
 		if (langsChanged) {
 			patch.languages = normLangs.length > 0 ? normLangs : null;
@@ -391,16 +397,58 @@ export default function ProfileForm({
 					</label>
 				</div>
 
-				<label className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
+				<div className="flex flex-col gap-1.5 text-sm text-slate-700 pt-2">
 					<span className="font-semibold text-slate-900">Languages</span>
-					<input
-						type="text"
-						value={languages}
-						onChange={(event) => setLanguages(event.target.value)}
-						placeholder="English, Spanish, French..."
-						className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-600 focus:ring-indigo-600 focus:outline-none transition-all shadow-sm"
-					/>
-				</label>
+					<div className="space-y-3">
+						<div className="flex flex-wrap gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50 min-h-[56px] focus-within:ring-2 focus-within:ring-indigo-600/20 focus-within:border-indigo-600 transition-all shadow-sm">
+							{languages.map((lang) => (
+								<span
+									key={lang}
+									className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium border border-indigo-200"
+								>
+									{lang}
+									<button
+										type="button"
+										onClick={() => setLanguages(prev => prev.filter(l => l !== lang))}
+										className="hover:text-indigo-900 transition-colors"
+									>
+										<X size={14} />
+									</button>
+								</span>
+							))}
+							<input
+								type="text"
+								placeholder={languages.length === 0 ? "Type a language and press Enter..." : "Add more..."}
+								className="flex-1 bg-transparent border-none p-0 focus:ring-0 text-sm placeholder:text-slate-400 min-w-[150px]"
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' || e.key === ',') {
+										e.preventDefault();
+										const val = e.currentTarget.value.trim().replace(/,$/, '');
+										if (val && !languages.includes(val)) {
+											setLanguages(prev => [...prev, val]);
+											e.currentTarget.value = '';
+										}
+									}
+								}}
+							/>
+						</div>
+						<div className="flex flex-wrap gap-1.5">
+							<span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1 flex items-center">
+								<LangIcon size={12} className="mr-1" /> Quick Add:
+							</span>
+							{POPULAR_LANGUAGES.filter(l => !languages.includes(l)).slice(0, 8).map(lang => (
+								<button
+									key={lang}
+									type="button"
+									onClick={() => setLanguages(prev => [...prev, lang])}
+									className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-sm"
+								>
+									+ {lang}
+								</button>
+							))}
+						</div>
+					</div>
+				</div>
 
 				<div id="section-details" className="grid gap-6 md:grid-cols-2 pt-2">
 					<label className="flex flex-col gap-1.5 text-sm text-slate-700">

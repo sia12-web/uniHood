@@ -132,7 +132,7 @@ export default function VibesPage() {
 
     const addPrompt = () => {
         if (prompts.length < 3) {
-            setPrompts([...prompts, { question: VIBE_PROMPTS[0], answer: "" }]);
+            setPrompts([{ question: VIBE_PROMPTS[0], answer: "" }, ...prompts]);
         }
     };
 
@@ -525,10 +525,10 @@ export default function VibesPage() {
                         <AnimatePresence initial={false}>
                             {prompts.map((prompt, idx) => (
                                 <motion.div
-                                    key={idx}
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    key={`${idx}-${prompt.question}`}
+                                    initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -20 }}
                                     className="relative group bg-slate-50 p-6 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors"
                                 >
                                     <div className="mb-3 pr-8">

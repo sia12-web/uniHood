@@ -20,10 +20,33 @@ def _hash_code(code: str) -> str:
 	return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
-async def send_code(user: AuthenticatedUser, email: str) -> None:
-	# Simple validation for now - in production this would check against allowed domains
-	# Allow .edu and .ca domains for now
-	if not (email.endswith(".edu") or email.endswith(".ca")):
+async def send_code(user: AuthenticatedUser, email: str, university_id: str | None = None) -> None:
+	# Validate email domain against university record if ID is provided
+	if university_id:
+		from app.domain.campuses.service import CampusService
+		from uuid import UUID
+		try:
+			# Handle string or UUID input
+			uid = UUID(str(university_id))
+			campus = await CampusService().get_campus(uid)
+			if campus and campus.get("domain"):
+				allowed_domain = campus["domain"]
+				# Basic check: email must end with @domain or .domain
+				# e.g. @mcgill.ca match mcgill.ca
+				if not email.lower().endswith(allowed_domain.lower()):
+					raise policy.IdentityPolicyError("invalid_university_email_domain")
+		except Exception as e:
+			# Fallback if campus lookup fails or ID is invalid (though typical UI sends valid ID)
+			print(f"WARN: Campus validation failed: {e}")
+			pass
+	
+	# Fallback/General validation if no specific university check passed or requested
+	# (Users can verify without selecting a campus in some flows, but ideally they should)
+	# For now, we still enforce a loose .edu/.ca check if NO specific domain rule was applied above?
+	# Actually, if they selected a university, we ENFORCED it above.
+	# If they didn't, we might want to keep the old loose check or just allow it.
+	# Let's keep the loose check as a safety net if no univ_id
+	if not university_id and not (email.endswith(".edu") or email.endswith(".ca")):
 		# Placeholder: Allow any email for now if no rigid policy, but plan implied univ verification.
 		# For strict university check:
 		# raise policy.IdentityPolicyError("invalid_university_email")

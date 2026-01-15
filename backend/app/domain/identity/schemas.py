@@ -695,6 +695,7 @@ class VerificationDocSubmit(BaseModel):
 
 class UniversityVerificationSendCode(BaseModel):
 	email: EmailStr
+	university_id: Optional[UUID] = None
 
 
 class UniversityVerificationConfirmCode(BaseModel):

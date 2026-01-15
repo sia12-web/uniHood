@@ -99,7 +99,7 @@ async def send_university_code(
 		raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limit_exceeded")
 
 	try:
-		await university_verification.send_code(auth_user, payload.email)
+		await university_verification.send_code(auth_user, payload.email, payload.university_id)
 	except policy.IdentityPolicyError as exc:
 		raise _map_policy_error(exc) from None
 

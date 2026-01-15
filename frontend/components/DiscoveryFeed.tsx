@@ -652,6 +652,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                   const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
 
                   let isLocked = false;
+                  let requiredLevel = 1;
                   if (modeOption.mode === 'city') {
                     isLocked = currentLevel < 2;
                     requiredLevel = 2;

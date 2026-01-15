@@ -421,7 +421,7 @@ export default function HomePage() {
                   return (
                     <Link
                       key={person.userId}
-                      href={`/u/${person.userId}`}
+                      href={`/socials?user=${person.userId}&tab=discover`}
                       className="flex flex-col items-center gap-2 flex-shrink-0 group snap-start"
                     >
                       <div className="relative">

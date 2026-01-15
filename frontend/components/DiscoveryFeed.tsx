@@ -33,7 +33,8 @@ import { Loader2, MapPin, Zap, Filter, ChevronDown, Users, Info, Home, Graduatio
 import { cn } from "@/lib/utils";
 import { ProfileDetailModal } from "@/components/ProfileDetailModal";
 import { ParallaxProfileCard } from "@/components/ParallaxProfileCard";
-import type { DiscoveryFeedResponse, ProfileRecord } from "@/lib/types";
+import { DiscoveryFeedResponse, fetchDiscoveryCard } from "@/lib/discovery";
+import type { ProfileRecord } from "@/lib/types";
 import { fetchProfile } from "@/lib/identity";
 
 type DiscoveryFeedProps = {
@@ -162,46 +163,20 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   const searchParams = useSearchParams();
   const targetUserId = searchParams.get("user");
 
-  // Bridge between fetchProfile results (ProfileRecord) and NearbyUser
-  const profileToNearby = useCallback((p: ProfileRecord): NearbyUser => ({
-    user_id: p.id,
-    display_name: p.display_name,
-    handle: p.handle,
-    avatar_url: p.avatar_url,
-    major: p.major,
-    bio: p.bio,
-    graduation_year: p.graduation_year,
-    campus_id: p.campus_id,
-    gallery: p.gallery,
-    passions: p.passions,
-    courses: p.courses?.map(c => c.name),
-    social_links: p.social_links,
-    gender: p.gender,
-    hometown: p.hometown,
-    relationship_status: p.relationship_status,
-    sexual_orientation: p.sexual_orientation,
-    looking_for: p.looking_for || undefined,
-    height: p.height,
-    lifestyle: p.lifestyle,
-    is_university_verified: p.is_university_verified,
-    xp: p.xp,
-    level: p.level,
-    level_label: p.level_label,
-    top_prompts: p.profile_prompts ?? undefined,
-  }), []);
+
 
   useEffect(() => {
-    if (targetUserId && authEvaluated && !selectedUser) {
+    if (targetUserId && authEvaluated && !selectedUser && currentUserId && currentCampusId) {
       const found = users.find(u => u.user_id === targetUserId);
       if (found) {
         setSelectedUser(found);
       } else {
-        fetchProfile(targetUserId, currentCampusId)
-          .then(p => setSelectedUser(profileToNearby(p)))
+        fetchDiscoveryCard(currentUserId, currentCampusId, targetUserId)
+          .then(p => setSelectedUser(p))
           .catch(err => console.error("Failed to auto-select user", err));
       }
     }
-  }, [targetUserId, users, authEvaluated, selectedUser, currentCampusId, profileToNearby]);
+  }, [targetUserId, users, authEvaluated, selectedUser, currentCampusId, currentUserId]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {

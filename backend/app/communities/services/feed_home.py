@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from uuid import UUID
 
-import asyncpg
 
 from app.communities.ranking.feed_ranker import PostFeatures
 from app.domain.identity import flags as flag_service

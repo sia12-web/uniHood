@@ -9,8 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.domain.clubs import service, schemas
 from app.infra.auth import AuthenticatedUser, get_current_user
-from app.api.request_id import get_request_id
-from app.infra.postgres import get_pool
 from app.obs import audit as obs_audit
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])

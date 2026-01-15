@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterable, Sequence
+from typing import Iterable
 
 from .pagination import KeysetCursor, SortOrder, build_keyset_predicate
 

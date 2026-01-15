@@ -1,13 +1,10 @@
 from fastapi import FastAPI
-import uvicorn
-import os
 
 # Test importing main dependencies one by one
 # from app.infra import postgres
 # from app.settings import settings
 
 import socketio
-from app.domain.proximity.sockets import PresenceNamespace
 
 app = FastAPI()
 

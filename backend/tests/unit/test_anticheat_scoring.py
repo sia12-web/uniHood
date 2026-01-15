@@ -13,7 +13,7 @@ Tests cover:
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

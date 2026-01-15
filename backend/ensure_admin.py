@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 import uuid
-from argon2 import PasswordHasher
 
 # Add parent dir to path if needed to find app
 sys.path.append(os.getcwd())
@@ -81,7 +80,7 @@ async def ensure_admin():
             print(f"\nFinal configuration for {TEST_EMAIL}:")
             print(f"Email: {TEST_EMAIL}")
             print(f"Password: {TEST_PASSWORD}")
-            print(f"Verified: True")
+            print("Verified: True")
             print(f"Role: {ADMIN_ROLE_NAME}")
 
     finally:

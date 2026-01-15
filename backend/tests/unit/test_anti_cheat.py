@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-from datetime import datetime
 
 from app.domain.xp.service import XPService
 from app.domain.xp.models import XPAction

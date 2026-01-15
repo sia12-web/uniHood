@@ -7,7 +7,6 @@ Central policy:
 
 from __future__ import annotations
 
-from datetime import timedelta
 
 from fastapi import Response
 

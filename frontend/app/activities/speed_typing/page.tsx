@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Keyboard, Trophy, Users } from "lucide-react";
 
-import { createSpeedTypingSession, getSelf } from "@/app/features/activities/api/client";
+import { createSpeedTypingSession } from "@/app/features/activities/api/client";
 import { useTypingDuelInvite } from "@/hooks/activities/use-typing-duel-invite";
 import { fetchFriends } from "@/lib/social";
 import { readAuthUser } from "@/lib/auth-storage";
@@ -35,7 +35,7 @@ export default function SpeedTypingEntryPage() {
 function SpeedTypingEntryPageContent() {
   const [sessionId, setSessionId] = useState<string>("");
   const [friendId, setFriendId] = useState<string>("");
-  const [selfId, setSelfId] = useState<string>("");
+  // const [selfId, setSelfId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [friends, setFriends] = useState<FriendRow[]>([]);
@@ -50,7 +50,7 @@ function SpeedTypingEntryPageContent() {
 
   useEffect(() => {
     // Resolve selfId on client to avoid hydration mismatches
-    setSelfId(getSelf());
+    // setSelfId(getSelf());
   }, []);
 
   // Read session ID from URL query parameter (for game invite links)

@@ -2,8 +2,6 @@ import asyncio
 import os
 import sys
 import uuid
-import json
-from datetime import datetime
 
 # Load .env manually to ensure settings override defaults
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../backend/.env"))
@@ -148,8 +146,8 @@ sys.modules["app.obs.metrics"] = metrics_mock
 # Wait, sessions.py imports "from app.obs import metrics as obs_metrics".
 # So inside sessions.py, "obs_metrics" refers to the mock we just injected into sys.modules.
 
-from app.domain.identity import models, schemas, sessions, service, rbac, audit
-from app.infra import auth, jwt, postgres
+from app.domain.identity import schemas, sessions, service, rbac, audit
+from app.infra import auth, postgres
 
 # Force re-bind of obs_metrics in sessions if needed (usually module cache handles it if we patched sys.modules first)
 # But sessions.py uses "obs_metrics.inc_..." so if we mocked it, it should work.
@@ -228,7 +226,7 @@ async def debug_schema():
 async def run_verification():
     # await debug_schema()
     
-    print(f"--- Verify Security Hardening (v2.1) ---")
+    print("--- Verify Security Hardening (v2.1) ---")
 
     # 0. Fail-Closed Test (Check sensitive routes if DB is down)
     print("\n[FailClosed] Verifying sensitive routes block if DB fails...")
@@ -260,7 +258,7 @@ async def run_verification():
                  auth.verify_access_jwt = orig_verify
         except Exception as e:
              if hasattr(e, 'status_code') and e.status_code == 503:
-                 print(f"[PASS] Sensitive route blocked (503) when DB down.")
+                 print("[PASS] Sensitive route blocked (503) when DB down.")
              else:
                  print(f"[FAIL] Unexpected error on fail-closed: {e}")
 
@@ -280,7 +278,7 @@ async def run_verification():
                  auth.verify_access_jwt = orig_verify
         except Exception as e:
              if hasattr(e, 'status_code') and e.status_code == 503:
-                 print(f"[PASS] Path normalization (/Admin/users) blocked (503).")
+                 print("[PASS] Path normalization (/Admin/users) blocked (503).")
              else:
                  print(f"[FAIL] Unexpected error on normalization test: {e}")
 
@@ -330,7 +328,7 @@ async def run_verification():
     except Exception as e:
         with open("registration_error.log", "w") as f:
             f.write(str(e))
-        print(f"[FAIL] Registration failed via service (see registration_error.log). Attempting manual fallback...")
+        print("[FAIL] Registration failed via service (see registration_error.log). Attempting manual fallback...")
         
         # Fallback: Insert Manually
         user_id = str(uuid.uuid4())
@@ -444,11 +442,10 @@ async def run_verification():
         
         # Rotate (Valid)
         print("       Rotating refresh token 1 -> 2...")
-        rotate_res = await sessions.refresh_session(
+        await sessions.refresh_session(
             user_obj_v2, session_id=sid, refresh_token=refresh_1, 
             ip="127.0.0.1", user_agent="DeviceA" # Same device
         )
-        refresh_2 = rotate_res.refresh_token
         print("       [PASS] Rotation successful.")
 
         # Reuse Old Refresh (Detect Theft) - WITHIN GRACE
@@ -481,7 +478,7 @@ async def run_verification():
         sid_fp = res_fp_grace.session_id
         
         # 2. Rotate it (stores last_fp="fp_original" in Redis meta)
-        res_rot = await sessions.refresh_session(
+        await sessions.refresh_session(
             user_obj_v2, session_id=sid_fp, refresh_token=t1, 
             ip="1.1.1.1", user_agent="DeviceGrace", fingerprint="fp_original"
         )
@@ -499,7 +496,7 @@ async def run_verification():
              elif "refresh_step_up_required" in str(e):
                  print(f"[PASS] Grace bypassed for different fingerprint (Step-Up Required): {e}")
              elif "refresh_invalid" in str(e):
-                 print(f"[FAIL] Attacker reuse treated as benign race! (refresh_invalid)")
+                 print("[FAIL] Attacker reuse treated as benign race! (refresh_invalid)")
              else:
                  print(f"[FAIL] Unexpected error: {e}")
 

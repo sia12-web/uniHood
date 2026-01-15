@@ -31,7 +31,6 @@ from app.domain.xp.models import XPAction
 from app.settings import settings
 
 
-from fastapi import HTTPException, status
 
 async def list_feed(
 	auth_user: AuthenticatedUser,
@@ -219,11 +218,11 @@ async def _fetch_priority_candidates(auth_user: AuthenticatedUser, limit: int) -
 	except:
 		return []
 
-	is_dev = settings.is_dev()
+	settings.is_dev()
 	try:
 		async with pool.acquire() as conn:
 			rows = await conn.fetch(
-				f"""
+				"""
 				WITH my_courses AS (
 					SELECT course_code FROM user_courses WHERE user_id = $1
 				),

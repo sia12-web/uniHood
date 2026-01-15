@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.domain.activities import policy, schemas
 from app.domain.activities.service import ActivitiesService
-from app.domain.activities.story_builder import manager as story_builder_manager
 from app.infra.auth import AuthenticatedUser, get_current_user
 
 router = APIRouter(prefix="/activities", tags=["activities"])

@@ -3,7 +3,6 @@
 import asyncio
 import asyncpg
 import sys
-import os
 from pathlib import Path
 
 # Load database URL from .env
@@ -90,7 +89,7 @@ async def delete_all_users() -> None:
             count = result.split()[-1] if result else "0"
             print(f"   Deleted {count} users from 'users' table")
         
-        print(f"\nSuccessfully deleted all users and their data!")
+        print("\nSuccessfully deleted all users and their data!")
         
     finally:
         await conn.close()

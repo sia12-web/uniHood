@@ -15,7 +15,7 @@ async def main():
             uid = user["id"]
             # Try to get social score from the service (live)
             try:
-                score_data = await svc._calculate_live_social_scores(UUID('00000000-0000-0000-0000-000000000001'), 100) # Dummy campus, wait
+                await svc._calculate_live_social_scores(UUID('00000000-0000-0000-0000-000000000001'), 100) # Dummy campus, wait
                 # Actually, let's just query the counts directly
                 counts = await conn.fetchrow("""
                     SELECT 

@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from uuid import UUID
 
 # Ensure backend path is in sys.path
 if os.path.exists("backend"):

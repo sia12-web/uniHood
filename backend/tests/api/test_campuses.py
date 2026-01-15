@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from uuid import UUID, uuid4
+from uuid import uuid4
 import unittest.mock
 from app.infra import postgres
 

@@ -13,7 +13,6 @@ import secrets
 import hmac
 import hashlib
 import time
-import os
 from datetime import datetime, timezone
 from typing import Iterable, Mapping, Optional
 from uuid import UUID, uuid4

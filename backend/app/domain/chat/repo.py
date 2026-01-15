@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterable
 from uuid import UUID
 
 from app.infra.postgres import get_pool

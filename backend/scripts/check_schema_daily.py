@@ -1,6 +1,5 @@
 
 import asyncio
-import os
 from app.infra.postgres import get_pool
 
 async def check_schema():

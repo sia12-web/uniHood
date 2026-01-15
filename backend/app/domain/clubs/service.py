@@ -10,7 +10,6 @@ from app.domain.clubs.models import Club, ClubMember
 from app.domain.clubs.schemas import ClubCreateRequest
 from app.domain.xp.service import XPService
 from app.infra.postgres import get_pool
-from app.infra.redis import redis_client
 
 class ClubService:
     async def create_club(self, user_id: UUID, data: ClubCreateRequest) -> Club:

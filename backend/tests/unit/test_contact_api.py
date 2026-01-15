@@ -1,12 +1,11 @@
 """Tests for the contact API endpoints."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
 from uuid import uuid4
 
 # Mock the dependencies before importing the module
-import sys
 
 
 class MockAuthUser:
@@ -61,7 +60,6 @@ class TestContactSubmission:
 
     def test_valid_submission_fields(self, sample_contact_submission):
         """Test that valid submission data passes validation."""
-        from pydantic import ValidationError
         from app.api.contact import ContactSubmission
         
         # Should not raise

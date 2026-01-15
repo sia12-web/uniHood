@@ -29,7 +29,6 @@ import { getBackendUrl } from "@/lib/env";
 import { usePresenceForUser } from "@/hooks/presence/use-presence";
 import { useAutoLivePresence } from "@/hooks/presence/use-auto-live";
 import { useSocketStatus } from "@/app/lib/socket/useStatus";
-import { LevelBadge } from "@/components/xp/LevelBadge";
 
 type Props = {
   peerId: string | null;

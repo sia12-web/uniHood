@@ -11,7 +11,7 @@ import re
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Pattern
+from typing import Dict, List, Any, Pattern
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -346,7 +346,7 @@ class RetentionManager:
         if not self.storage:
             return 0
         
-        cutoff = datetime.utcnow() - timedelta(hours=_config.trace_retention_hours)
+        datetime.utcnow() - timedelta(hours=_config.trace_retention_hours)
         # Implementation depends on storage backend
         # Example: self.storage.delete_traces_before(cutoff)
         return 0
@@ -359,7 +359,7 @@ class RetentionManager:
         if not self.storage:
             return 0
         
-        cutoff = datetime.utcnow() - timedelta(hours=_config.metric_retention_hours)
+        datetime.utcnow() - timedelta(hours=_config.metric_retention_hours)
         # Implementation depends on storage backend
         return 0
     

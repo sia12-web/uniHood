@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple
 
 from app.moderation.domain.cases_service import CaseService

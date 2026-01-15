@@ -6,7 +6,7 @@ import hashlib
 import hmac
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, List, Mapping, Optional, Sequence
 
 import yaml
 

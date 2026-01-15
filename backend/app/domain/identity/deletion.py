@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import UUID
 
 import asyncpg

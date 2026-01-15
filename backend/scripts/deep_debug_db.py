@@ -22,7 +22,7 @@ if os.path.exists(env_path):
                 os.environ[key.strip()] = value.strip()
 
 from app.settings import settings
-from app.infra.postgres import init_pool, get_pool
+from app.infra.postgres import init_pool
 
 async def main():
     print(f"Original Settings POSTGRES_URL: {settings.postgres_url}")
@@ -36,7 +36,7 @@ async def main():
         test_dsn = dsn.replace(":5433", f":{port}")
         print(f"Trying port {port} ({test_dsn})...")
         try:
-            pool = await init_pool() # This uses settings.postgres_url with replacement
+            await init_pool() # This uses settings.postgres_url with replacement
             # Wait, init_pool uses settings.postgres_url. We need to override it.
             # But settings is a singleton.
             # Let's just try direct connection.

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.domain.identity import recovery, policy, mailer
+from app.domain.identity import recovery
 
 @pytest.mark.asyncio
 async def test_request_password_reset_success():

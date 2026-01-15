@@ -26,7 +26,7 @@ import asyncio
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Optional
 
 # For friendlier error messages on DB connectivity issues.
 import asyncpg

@@ -6,7 +6,6 @@ import time
 from datetime import datetime
 from typing import Any
 
-import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 

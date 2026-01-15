@@ -1,7 +1,6 @@
 
 import pytest
 import json
-from unittest.mock import MagicMock
 from app.domain.analytics.service import AnalyticsService
 
 # Stub classes similar to test_phase_b_hardening.py

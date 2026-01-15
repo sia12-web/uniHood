@@ -10,7 +10,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import secrets
-import sys
 
 from app.infra import rate_limit
 from app.settings import settings  # noqa: F401 - may be used for future gating

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 from app.domain.legal.holds import (
     HoldService,
     CreateHoldRequest,
-    LegalHold,
     is_user_under_hold,
     get_users_under_hold,
 )

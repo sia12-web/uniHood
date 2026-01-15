@@ -1,4 +1,3 @@
-import pytest
 from uuid import uuid4
 from app.domain.xp.models import UserXPStats
 from app.domain.xp.service import XPService

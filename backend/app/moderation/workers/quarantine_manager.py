@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Mapping
+from typing import Mapping
 
 from app.moderation.domain.enforcement import ModerationEnforcer
 from app.moderation.domain.policy_engine import Decision

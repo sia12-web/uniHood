@@ -1,6 +1,5 @@
 """Policy helpers and guard checks for meetups."""
 from __future__ import annotations
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -9,7 +8,7 @@ from app.domain.xp.service import XPService
 from app.infra.postgres import get_pool
 
 if TYPE_CHECKING:
-    import asyncpg
+    pass
 
 # Level-based limits for meetups
 LEVEL_MEETUP_CAPACITY = {

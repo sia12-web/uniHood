@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import Iterable
 
 from fastapi import HTTPException, status
 
 from app.moderation.domain.reputation import ReputationBand, ReputationService
-from app.moderation.domain.restrictions import RestrictionMode, RestrictionService
+from app.moderation.domain.restrictions import RestrictionService
 from app.moderation.domain.velocity import VelocityService
 from app.obs import metrics
 

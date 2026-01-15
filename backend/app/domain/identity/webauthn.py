@@ -6,7 +6,6 @@ import base64
 import json
 import secrets
 from typing import Any, Dict, Optional
-from uuid import UUID
 
 from asyncpg import Record
 

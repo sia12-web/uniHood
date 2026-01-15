@@ -14,7 +14,6 @@ from app.obs import metrics as obs_metrics
 router = APIRouter()
 
 
-import sys
 
 def _inc_reject(reason: str) -> None:
 	try:

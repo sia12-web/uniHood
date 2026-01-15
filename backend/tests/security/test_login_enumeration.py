@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.domain.identity import service, models
+from app.domain.identity import service
 
 @pytest.mark.asyncio
 async def test_login_user_not_found_returns_invalid_credentials():

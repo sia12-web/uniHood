@@ -34,7 +34,7 @@ export default function MeetupsPage() {
   const queryClient = useQueryClient();
   const { markAsSeen } = useMeetupNotifications();
   const [selectedCategory, setSelectedCategory] = useState<MeetupCategory | undefined>();
-  const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [showOnlyMine] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [reviewingMeetup, setReviewingMeetup] = useState<MeetupResponse | null>(null);
   const [mounted, setMounted] = useState(false);

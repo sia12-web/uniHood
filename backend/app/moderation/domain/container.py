@@ -322,7 +322,6 @@ def configure_postgres(
     from app.moderation.domain.tools.executor import AdminToolsExecutor
     from app.moderation.domain.tools.guards import GuardEvaluator
     from app.moderation.domain.tools.jobs import BatchJobScheduler
-    from app.moderation.domain.tools.revertors import RevertRegistry
 
     global _batch_job_scheduler, _guard_evaluator, _bundle_service, _revert_registry, _admin_tools_executor
     scheduler = BatchJobScheduler(pool=pool)

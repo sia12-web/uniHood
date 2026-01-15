@@ -48,7 +48,7 @@ async def main():
         viewer_id = viewer['id']
         viewer_campus = viewer['campus_id']
         
-        print(f"\n--- DISCOVERY SIMULATION (Campus Mode) ---")
+        print("\n--- DISCOVERY SIMULATION (Campus Mode) ---")
         print(f"Viewer: {viewer['display_name']} ({viewer_id})")
         print(f"Looking in Campus: {viewer_campus}")
         
@@ -78,11 +78,11 @@ async def main():
                 if other['campus_id'] != viewer_campus:
                     print(f"    [FAIL] Different Campus: {other['campus_id']} vs {viewer_campus}")
                 elif other['deleted_at'] is not None:
-                     print(f"    [FAIL] Deleted")
+                     print("    [FAIL] Deleted")
                 elif not other['email_verified'] and not is_dev:
-                     print(f"    [FAIL] Not Verified and not in Dev Mode")
+                     print("    [FAIL] Not Verified and not in Dev Mode")
                 else:
-                     print(f"    [SUCCESS] Should be visible!")
+                     print("    [SUCCESS] Should be visible!")
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

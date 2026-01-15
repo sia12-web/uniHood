@@ -7,7 +7,6 @@ import sys
 sys.path.append(os.getcwd())
 
 from app.infra.postgres import init_pool
-from uuid import UUID
 
 async def check():
     pool = await init_pool()

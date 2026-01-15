@@ -141,7 +141,7 @@ async def test_confirm_deletion_revokes_sessions_and_clears_token(monkeypatch):
     generated_handle = AsyncMock(return_value="deleted-deadbeef")
     monkeypatch.setattr(deletion, "_generate_deleted_handle", generated_handle)
 
-    request_status = await deletion.request_deletion(auth_user)
+    await deletion.request_deletion(auth_user)
     token = await redis_client.get("delete:confirm:user-delete-confirm")
     assert token is not None
 

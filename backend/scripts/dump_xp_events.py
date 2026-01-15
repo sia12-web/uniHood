@@ -1,7 +1,6 @@
 
 import asyncio
 from app.infra.postgres import get_pool
-from uuid import UUID
 
 async def main():
     pool = await get_pool()

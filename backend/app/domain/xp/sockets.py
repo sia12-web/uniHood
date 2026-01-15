@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from typing import Dict, Optional
 
 import socketio
 from uuid import UUID
 
-from app.infra.auth import AuthenticatedUser
-from app.infra.redis import redis_client
 from app.settings import settings
-from app.obs import metrics as obs_metrics
 
 _namespace: "XPNamespace" | None = None
 

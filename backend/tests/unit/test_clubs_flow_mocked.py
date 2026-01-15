@@ -64,7 +64,7 @@ async def test_leave_club_deducts_xp(club_service):
         mock_xp = MockXPService.return_value
         mock_xp.award_xp = AsyncMock()
         
-        with patch("app.domain.identity.audit.log_event", new_callable=AsyncMock) as mock_audit:
+        with patch("app.domain.identity.audit.log_event", new_callable=AsyncMock):
             
             with patch("app.domain.clubs.service.get_pool") as mock_get_pool:
                 mock_pool = MagicMock()

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import ulid
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
@@ -13,7 +12,6 @@ from fastapi.responses import FileResponse
 from app.domain.identity import schemas
 from app.domain.identity.s3 import ALLOWED_MIME_TYPES, MAX_AVATAR_BYTES
 from app.infra.auth import AuthenticatedUser, get_current_user
-from app.settings import settings
 
 router = APIRouter()
 

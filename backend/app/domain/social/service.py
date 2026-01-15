@@ -27,7 +27,6 @@ from app.domain.social.notifications import NotificationService
 logger = logging.getLogger(__name__)
 _leaderboards = LeaderboardService()
 from app.infra.postgres import get_pool
-from datetime import datetime
 from typing import Tuple, Optional
 
 def _record_to_summary(record: asyncpg.Record) -> InviteSummary:
@@ -164,7 +163,7 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 
 		open_ab = await policy.get_open_invite(conn, sender_id, target_id)
 		if open_ab:
-			invite = _record_to_summary(open_ab)
+			_record_to_summary(open_ab)
 			audit.inc_send_reject("already_sent")
 			raise InviteAlreadySent()
 

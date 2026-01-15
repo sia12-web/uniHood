@@ -302,7 +302,7 @@ class ChatRepository:
 			where_clause = ""
 			if cursor:
 				params.extend([cursor[0], cursor[1]])
-				where_clause = f" AND (created_at, message_id) < ($2, $3)"
+				where_clause = " AND (created_at, message_id) < ($2, $3)"
 			params.append(limit)
 			query = (
 				"""

@@ -17,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import random
-from datetime import datetime, timezone
 from uuid import UUID
 
 from app.infra.redis import redis_client

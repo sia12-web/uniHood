@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from typing import Iterable, Optional
 from uuid import UUID, uuid4
 
-import asyncpg
 from asyncpg.exceptions import UniqueViolationError
 
 from app.domain.identity import attest, audit, models, policy, schemas

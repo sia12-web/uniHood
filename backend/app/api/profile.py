@@ -8,7 +8,6 @@ from app.domain.identity import policy, profile_service, schemas
 from app.domain.identity.service import IdentityServiceError
 from app.infra.auth import AuthenticatedUser, get_current_user
 from app.obs import metrics as obs_metrics
-import sys
 
 def _inc_reject(reason: str) -> None:
 	try:

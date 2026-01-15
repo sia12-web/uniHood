@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from app.domain.identity import models, policy, schemas, trust

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.domain.identity import hashmatch, models, policy
+from app.domain.identity import hashmatch, models
 
 
 class ContactConnection:

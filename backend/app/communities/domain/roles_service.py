@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.communities.domain import policies, repo as repo_module
-from app.communities.domain.exceptions import ForbiddenError, NotFoundError
+from app.communities.domain.exceptions import NotFoundError
 from app.communities.schemas import dto
 from app.infra.auth import AuthenticatedUser
 

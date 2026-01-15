@@ -1,6 +1,6 @@
 import pytest
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from app.domain.discovery import service
 from app.domain.discovery.schemas import DiscoveryFeedResponse

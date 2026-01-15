@@ -1,8 +1,6 @@
 """Verification script for XP Triggers."""
 
 import asyncio
-import uuid
-import os
 import sys
 from pathlib import Path
 
@@ -10,10 +8,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.domain.xp.models import XPAction, XP_AMOUNTS
-from app.domain.xp.service import XPService
-from app.infra.postgres import init_pool, close_pool
-from app.api import profile, chat, social, meetups
-from app.infra.auth import AuthenticatedUser
 
 # Mock the database/calls to verify trigger logic?
 # Actually, I can just check if I can 'award' XP directly using the service to verify the service works.
@@ -24,7 +18,6 @@ async def verify_xp_hooks():
     print("Verifying XP Hooks Implementation...")
     
     # 1. Profile Update
-    from app.domain.identity import profile_service
     # Inspect source code dynamically? No, that's flaky.
     # I've manually added the hook to profile_service.py.
     # I verified chat/social/meetups/activities via grep.

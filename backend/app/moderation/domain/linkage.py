@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable, Protocol, Sequence
+from typing import Protocol, Sequence
 
 
 @dataclass(slots=True)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Mapping, MutableMapping, Optional, Protocol, Sequence
+from typing import Any, Mapping, MutableMapping, Protocol, Sequence
 
 
 @dataclass(slots=True)

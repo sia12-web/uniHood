@@ -12,7 +12,6 @@ from app.obs import metrics as obs_metrics
 router = APIRouter()
 
 
-import sys
 
 def _inc_reject(reason: str) -> None:
 	try:
@@ -96,7 +95,6 @@ async def send_university_code(
 	"""Send a verification code to a university email."""
 	from app.domain.identity import university_verification
 	
-	ip = request.client.host if request and request.client else "unknown"
 	if not await rate_limit.allow("univ_send", str(auth_user.id), limit=3, window_seconds=600):
 		raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limit_exceeded")
 
@@ -115,7 +113,6 @@ async def confirm_university_code(
 	"""Confirm a university verification code."""
 	from app.domain.identity import university_verification
 	
-	ip = request.client.host if request and request.client else "unknown"
 	if not await rate_limit.allow("univ_confirm", str(auth_user.id), limit=10, window_seconds=600):
 		raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limit_exceeded")
 

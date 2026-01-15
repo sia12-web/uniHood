@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 from datetime import datetime, timezone
 
 from app.domain.identity import deletion, policy, sessions

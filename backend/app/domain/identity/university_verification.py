@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from app.domain.identity import mailer, models, policy
+from app.domain.identity import mailer, policy
 from app.infra.auth import AuthenticatedUser
 from app.infra.postgres import get_pool
 

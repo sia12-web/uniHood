@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Iterable, Mapping, Protocol
+from typing import Iterable, Protocol
 from urllib.parse import urlparse
 
 import httpx

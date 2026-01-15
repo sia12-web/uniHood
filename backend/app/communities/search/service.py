@@ -103,7 +103,7 @@ class SearchService:
 				backend_label = "opensearch" if backend_hits else "opensearch-empty"
 			except exceptions.SearchError as exc:
 				_LOG.warning("communities.search.backend_failure", extra={"detail": exc.detail})
-			except Exception as exc:  # pragma: no cover - defensive log
+			except Exception:  # pragma: no cover - defensive log
 				_LOG.exception("communities.search.backend_exception")
 
 		if backend_hits:

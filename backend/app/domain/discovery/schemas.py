@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 from app.domain.identity.schemas import GalleryImage
 

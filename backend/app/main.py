@@ -11,9 +11,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi import Request
-from starlette.staticfiles import StaticFiles
 import os
-from pathlib import Path
 
 from app.api import (
 	account_link,
@@ -85,7 +83,6 @@ from app.api.middleware_signed_intent import SignedIntentMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.api.openapi import custom_openapi
 from app.api.errors import install_error_handlers
-from app.settings import settings
 
 MCGILL_CAMPUS_ID = "c4f7d1ec-7b01-4f7b-a1cb-4ef0a1d57ae2"
 MCGILL_CAMPUS_DOMAIN = None  # allow any email domain while keeping campus id real
@@ -362,7 +359,6 @@ async def _head_upload(path: str):
 	# Some clients (including image optimizers/CDNs) perform HEAD requests.
 	# Mirror GET behavior but return an empty body.
 	import mimetypes
-	from fastapi import Response
 	from typing import Optional
 
 	rel = Path(path)

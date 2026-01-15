@@ -11,11 +11,10 @@ import asyncpg
 from argon2 import exceptions as argon_exc
 
 from app.domain.identity import models, policy, recovery, schemas, sessions, twofa, mailer, rbac, audit
-from app.infra.password import PASSWORD_HASHER, check_needs_rehash
+from app.infra.password import PASSWORD_HASHER
 from app.infra.postgres import get_pool
 import re
 import string
-from app.infra.postgres import get_pool
 from app.settings import settings
 from app.obs import metrics as obs_metrics
 

@@ -1,8 +1,6 @@
 import asyncio
 import os
 import sys
-import json
-from uuid import UUID
 
 # Ensure backend path is in sys.path
 if os.path.exists("backend"):
@@ -44,7 +42,7 @@ async def main():
             if presence:
                 print(f"  [REDIS] Presence: {presence}")
             else:
-                print(f"  [REDIS] No presence data")
+                print("  [REDIS] No presence data")
                 
             # Check online status
             online = await redis_client.exists(f"online:user:{uid}")

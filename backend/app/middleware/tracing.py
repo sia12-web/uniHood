@@ -18,7 +18,7 @@ import time
 import logging
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Callable
 from functools import wraps
 
 from fastapi import Request, Response

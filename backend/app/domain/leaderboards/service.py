@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from uuid import UUID
 import uuid
 

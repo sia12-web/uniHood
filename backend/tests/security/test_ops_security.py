@@ -1,8 +1,5 @@
-import pytest
-from fastapi import FastAPI, status
+from fastapi import status
 from fastapi.testclient import TestClient
-from app.api import ops
-from app.settings import Settings
 from app.main import app
 
 # We need to override settings to test the "no token configured" case

@@ -6,7 +6,7 @@ All optimizations must have a measurable target from this file.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict
 from enum import Enum
 
 

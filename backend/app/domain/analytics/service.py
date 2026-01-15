@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import List, Optional
 import json
 
 import asyncpg
 from app.infra.postgres import get_pool
 from app.domain.analytics import schemas
-from app.domain.meetups import schemas as meetup_schemas
-from app.domain.activities import models as activity_models
 
 class AnalyticsService:
     async def _get_pool(self) -> asyncpg.Pool:

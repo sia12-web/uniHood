@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional
 
 from app.domain.identity import models, policy
 from app.infra.postgres import get_pool

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID
 
 import asyncpg

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from app.infra.auth import AuthenticatedUser
 
 
 Visibility = Literal["everyone", "friends", "none"]

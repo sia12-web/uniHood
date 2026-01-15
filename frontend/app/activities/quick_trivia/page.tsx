@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Loader2, Zap, Trophy, Users } from "lucide-react";
 
-import { createQuickTriviaSession, getSelf } from "@/app/features/activities/api/client";
+import { createQuickTriviaSession } from "@/app/features/activities/api/client";
 import { useQuickTriviaInvite } from "@/hooks/activities/use-quick-trivia-invite";
 import { fetchFriends } from "@/lib/social";
 import { readAuthUser } from "@/lib/auth-storage";
@@ -31,10 +31,10 @@ export default function QuickTriviaEntryPage({ searchParams }: PageProps) {
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const { invite, acknowledge } = useQuickTriviaInvite();
-  const [selfId, setSelfId] = useState<string>("");
+  // const [selfId, setSelfId] = useState<string>("");
 
   useEffect(() => {
-    setSelfId(getSelf());
+    // setSelfId(getSelf());
   }, []);
 
   // Acknowledge the invite when session is loaded from URL (suppresses notification)

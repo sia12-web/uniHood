@@ -1,7 +1,6 @@
 
 import asyncio
 from app.domain.leaderboards.service import LeaderboardService
-from uuid import UUID
 import json
 
 async def main():

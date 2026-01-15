@@ -84,7 +84,6 @@ async def create_dm_room_endpoint(
 		raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="idempotency_unavailable", headers={"X-Request-Id": request_id}) from None
 	except IdempotencyConflictError:
 		raise HTTPException(status.HTTP_409_CONFLICT, detail="idempotency_conflict", headers={"X-Request-Id": request_id}) from None
-	conversation_id = f"chat:{a}:{b}"
 	room_id = f"dm:{a}:{b}"
 	idempotent_hit = False
 	if idem:

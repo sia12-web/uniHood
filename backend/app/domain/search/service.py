@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Dict, Iterable, List, Optional
+from typing import Iterable, Optional
 
 import asyncpg
 from app.domain.identity import flags as flag_service

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.domain.identity import models, profile_service, schemas as identity_schemas
+from app.domain.identity import profile_service, schemas as identity_schemas
 from app.domain.xp.service import XPService
 from app.domain.xp.models import XPAction
 from app.domain.social import service as social_service

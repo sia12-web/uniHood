@@ -6,7 +6,7 @@ import hashlib
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Iterable, Mapping
+from typing import Iterable
 
 import asyncpg
 

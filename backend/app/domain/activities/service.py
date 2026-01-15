@@ -704,7 +704,7 @@ class ActivitiesService:
 		move_count = await self._get_activity_move_count(activity)
 		
 		try:
-			awarded_users = await self._leaderboards.record_activity_outcome(
+			await self._leaderboards.record_activity_outcome(
 				user_ids=user_ids,
 				winner_id=winner_id,
 				game_kind=activity.kind,

@@ -13,7 +13,6 @@ else:
 
 from app.main import app
 from app.infra.postgres import get_pool
-from app.settings import settings
 
 async def main():
     print("🚀 Starting Review Flow Test...")
@@ -108,7 +107,7 @@ async def main():
             else:
                 print(f"❌ Reputation Verification Failed. Expected 4.0/1. Got: Score {score}, Count {count}")
         else:
-            print(f"❌ Reputation Verification Failed. Host not found.")
+            print("❌ Reputation Verification Failed. Host not found.")
 
 if __name__ == "__main__":
     if sys.platform == 'win32':

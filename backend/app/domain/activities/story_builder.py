@@ -1,16 +1,7 @@
-import asyncio
-import json
 import logging
-import time
-from typing import Dict, List, Optional, Set
 
-from fastapi import WebSocket
 
 from app.domain.activities import models, service
-from app.domain.identity import audit
-from app.domain.xp.service import XPService
-from app.domain.xp.models import XPAction
-from app.infra.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
 

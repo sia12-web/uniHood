@@ -522,11 +522,7 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
   );
   const handleModeSelect = (mode: DiscoveryMode) => {
     if (mode === "room") {
-      if (currentLevel < 4) {
-        setInviteError("Level 4 required for Room Mode (Proximity)");
-        return;
-      }
-      // Room mode requires location permission but no longer restricted by level or verification
+      // Room mode requires location permission (removed level restriction)
       setShowProximityPrompt(true);
     } else if (mode === "city") {
       if (currentLevel < 2) {
@@ -656,13 +652,13 @@ export default function DiscoveryFeed({ variant = "full" }: DiscoveryFeedProps) 
                   const Icon = modeOption.mode === 'room' ? Home : modeOption.mode === 'campus' ? GraduationCap : Building2;
 
                   let isLocked = false;
-                  let requiredLevel = 1;
                   if (modeOption.mode === 'city') {
                     isLocked = currentLevel < 2;
                     requiredLevel = 2;
                   } else if (modeOption.mode === 'room') {
-                    isLocked = currentLevel < 4;
-                    requiredLevel = 4;
+                    // Room mode now unlocked for everyone
+                    isLocked = false;
+                    requiredLevel = 1;
                   }
 
                   return (

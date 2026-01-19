@@ -39,6 +39,22 @@ class CampusService:
             """, campus_id)
             return dict(row) if row else None
 
+    async def find_by_domain(self, domain_suffix: str) -> Optional[dict]:
+        """Find a campus by matching domain suffix (e.g. 'concordia.ca')."""
+        pool = await postgres.get_pool()
+        async with pool.acquire() as conn:
+            # Simple suffix match or exact match on domain field
+            # The domain field usually stores 'concordia.ca'.
+            # We want to find the campus where the user's email domain ENDS with this campus domain.
+            # But here we are passing the extracted domain from email, or we just pass the email?
+            # Better to pass the domain part.
+            row = await conn.fetchrow("""
+                SELECT id, name, domain, logo_url, lat, lon
+                FROM campuses
+                WHERE domain = $1 OR domain = $2
+            """, domain_suffix, domain_suffix.lower())
+            return dict(row) if row else None
+
     async def seed_campuses(self):
         """Seed default campuses (Concordia)."""
         pool = await postgres.get_pool()

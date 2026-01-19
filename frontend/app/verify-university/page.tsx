@@ -1,41 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Target, Users, Gamepad2, School, ChevronRight, Loader2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { getDemoUserId } from "@/lib/env";
 import UniversityVerificationForm from "@/components/UniversityVerificationForm";
-import { campusesApi, Campus } from "@/lib/campuses";
-import { useToast } from "@/hooks/use-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { Target, Users, Gamepad2 } from "lucide-react";
 
 export default function UniversityVerificationPage() {
     const userId = getDemoUserId();
-    const [step, setStep] = useState<"select" | "verify">("select");
-    const [campuses, setCampuses] = useState<Campus[]>([]);
-    const [selectedCampus, setSelectedCampus] = useState<Campus | null>(null);
-    const [loading, setLoading] = useState(true);
-    const { push: toast } = useToast();
-
-    useEffect(() => {
-        async function loadCampuses() {
-            try {
-                const data = await campusesApi.listCampuses();
-                setCampuses(data);
-            } catch (err) {
-                console.error("Failed to load campuses", err);
-                toast({ title: "Error", description: "Failed to load universities.", variant: "error" });
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadCampuses();
-    }, [toast]);
-
-    const handleSelect = (campus: Campus) => {
-        setSelectedCampus(campus);
-        setStep("verify");
-    };
 
     return (
         <main className="min-h-screen w-full bg-[#f8f9fa] flex items-stretch">
@@ -105,86 +76,15 @@ export default function UniversityVerificationPage() {
                         </div>
                     </div>
 
-                    <AnimatePresence mode="wait">
-                        {step === "select" ? (
-                            <motion.div
-                                key="select"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
-                                <div className="text-center space-y-2">
-                                    <div className="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600">
-                                        <School className="w-8 h-8" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-slate-900">Select Your University</h3>
-                                    <p className="text-sm text-slate-500">
-                                        Choose your campus to proceed with verification.
-                                    </p>
-                                </div>
-
-                                {loading ? (
-                                    <div className="flex justify-center p-8">
-                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3 max-h-[400px] overflow-y-auto p-1">
-                                        {campuses.map((campus) => (
-                                            <button
-                                                key={campus.id}
-                                                onClick={() => handleSelect(campus)}
-                                                className="flex items-center justify-between w-full p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500/20 transition-all group text-left"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {campus.logo_url ? (
-                                                        /* eslint-disable-next-line @next/next/no-img-element */
-                                                        <img src={campus.logo_url} alt={campus.name} className="w-10 h-10 object-contain rounded-md" />
-                                                    ) : (
-                                                        <div className="w-10 h-10 bg-slate-100 rounded-md flex items-center justify-center text-slate-400">
-                                                            <School size={20} />
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <p className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                                                            {campus.name}
-                                                        </p>
-                                                        {campus.domain && (
-                                                            <p className="text-xs text-slate-500">
-                                                                {campus.domain}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                            </button>
-                                        ))}
-                                        {campuses.length === 0 && (
-                                            <p className="text-center text-slate-500 py-4">No campuses found.</p>
-                                        )}
-                                    </div>
-                                )}
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="verify"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                            >
-                                <button
-                                    onClick={() => setStep("select")}
-                                    className="mb-6 text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1"
-                                >
-                                    &larr; Back to Selection
-                                </button>
-                                <div className="mb-6 text-center">
-                                    <h3 className="text-lg font-bold text-slate-900">{selectedCampus?.name}</h3>
-                                </div>
-                                <UniversityVerificationForm userId={userId} campusId={selectedCampus?.id || ""} />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <div className="space-y-6">
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-bold text-slate-900">University Verification</h3>
+                            <p className="text-sm text-slate-500">
+                                Verify your student status using your university email.
+                            </p>
+                        </div>
+                        <UniversityVerificationForm userId={userId} />
+                    </div>
                 </div>
             </section>
         </main>

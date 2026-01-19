@@ -10,10 +10,9 @@ type Step = "email" | "code" | "success";
 
 interface UniversityVerificationFormProps {
     userId: string;
-    campusId: string;
 }
 
-export default function UniversityVerificationForm({ userId, campusId }: UniversityVerificationFormProps) {
+export default function UniversityVerificationForm({ userId }: UniversityVerificationFormProps) {
     const { push: toast } = useToast();
     const [step, setStep] = useState<Step>("email");
     const [email, setEmail] = useState("");
@@ -29,7 +28,7 @@ export default function UniversityVerificationForm({ userId, campusId }: Univers
 
         setIsLoading(true);
         try {
-            await sendUniversityVerificationCode(email, userId, campusId);
+            await sendUniversityVerificationCode(email, userId, null);
             setStep("code");
             toast({ title: "Code Sent", description: "Check your inbox for the verification code." });
         } catch (err: unknown) {
@@ -49,7 +48,7 @@ export default function UniversityVerificationForm({ userId, campusId }: Univers
 
         setIsLoading(true);
         try {
-            await confirmUniversityVerificationCode(code, userId, campusId);
+            await confirmUniversityVerificationCode(code, userId, null);
             // Refresh token to get updated isUniversityVerified claim
             try {
                 await reissueAccessToken();

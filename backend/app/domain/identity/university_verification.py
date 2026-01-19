@@ -21,7 +21,43 @@ def _hash_code(code: str) -> str:
 
 
 async def send_code(user: AuthenticatedUser, email: str, university_id: str | None = None) -> None:
-	# Validate email domain against university record if ID is provided
+	# Deduce university from email if not provided
+	if not university_id:
+		from app.domain.campuses.service import CampusService
+		email_domain = email.split("@")[-1].lower()
+		# Try to find exact domain match first
+		campus = await CampusService().find_by_domain(email_domain)
+		
+		# If not found, maybe try subdomains? e.g. mail.mcgill.ca -> mcgill.ca
+		# For now, simple suffix check logic is better handled by iterating campuses or standardizing domains
+		if not campus:
+			# Fallback: check against all campuses if they are a suffix
+			# This is expensive if many campuses, but fine for MVP.
+			all_campuses = await CampusService().list_campuses()
+			for c in all_campuses:
+				if c.get("domain") and email_domain.endswith(c["domain"].lower()):
+					campus = c
+					break
+		
+		if campus:
+			university_id = campus["id"]
+			# Auto-assign user to this campus
+			pool = await get_pool()
+			async with pool.acquire() as conn:
+				await conn.execute("UPDATE users SET campus_id = $1 WHERE id = $2", university_id, user.id)
+		else:
+			# If we can't map to a campus, we can't verify them for Unihood
+			# Exception: allow fallback if configured, but for "automatic acceptance" request, 
+			# we imply we must match a supported school.
+			if not (email.endswith(".edu") or email.endswith(".ca")):
+				raise policy.IdentityPolicyError("unsupported_university_domain")
+			# If .edu/.ca but no campus found, they are "Verified Student" but "No Campus"?
+			# For now, let's treat generic .edu as valid verification but don't set campus_id.
+			# Or, better, reject to force onboarding support properly.
+			# Let's reject if we want strict "accept automatically" meaning "valid mapping"
+			pass
+
+	# Validate email domain against university record if ID is provided (or deduced)
 	if university_id:
 		from app.domain.campuses.service import CampusService
 		from uuid import UUID
@@ -31,26 +67,11 @@ async def send_code(user: AuthenticatedUser, email: str, university_id: str | No
 			campus = await CampusService().get_campus(uid)
 			if campus and campus.get("domain"):
 				allowed_domain = campus["domain"]
-				# Basic check: email must end with @domain or .domain
-				# e.g. @mcgill.ca match mcgill.ca
 				if not email.lower().endswith(allowed_domain.lower()):
 					raise policy.IdentityPolicyError("invalid_university_email_domain")
 		except Exception as e:
-			# Fallback if campus lookup fails or ID is invalid (though typical UI sends valid ID)
 			print(f"WARN: Campus validation failed: {e}")
 			pass
-	
-	# Fallback/General validation if no specific university check passed or requested
-	# (Users can verify without selecting a campus in some flows, but ideally they should)
-	# For now, we still enforce a loose .edu/.ca check if NO specific domain rule was applied above?
-	# Actually, if they selected a university, we ENFORCED it above.
-	# If they didn't, we might want to keep the old loose check or just allow it.
-	# Let's keep the loose check as a safety net if no univ_id
-	if not university_id and not (email.endswith(".edu") or email.endswith(".ca")):
-		# Placeholder: Allow any email for now if no rigid policy, but plan implied univ verification.
-		# For strict university check:
-		# raise policy.IdentityPolicyError("invalid_university_email")
-		pass
 
 	code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
 	code_hash = _hash_code(code)

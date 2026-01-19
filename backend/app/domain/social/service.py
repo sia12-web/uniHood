@@ -409,14 +409,10 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 				"invite_id": str(summary.id),
 				"friend_id": str(summary.from_user_id),
 				"friend_name": summary.from_display_name,
-				"xp": 50 # New Friend XP
+				"xp": 50 # XPAction.FRIEND_REQUEST_ACCEPTED amount
 			}
 		)
-		# Log for sender (original requester) - so they see they have a new friend too in their feed?
-		# Activity feed typically shows "Your" actions or friends' actions.
-		# If A accepts B's invite:
-		# A's feed: "You became friends with B" (friend.accepted event for A)
-		# B's feed: "A accepted your friend request" or "You became friends with A" (friend.accepted event for B)
+		# Log for sender (original requester)
 		await db_audit.log_event(
 			user_id=str(summary.from_user_id),
 			event="friend.accepted",
@@ -429,6 +425,7 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 		)
 	except Exception:
 		logger.warning("Failed to log DB audit for friend.accepted", exc_info=True)
+
 	await audit.log_friend_event(
 		"accepted",
 		{

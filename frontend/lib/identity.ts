@@ -161,7 +161,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 	});
 }
 
-export async function sendUniversityVerificationCode(email: string, userId: string, campusId: string | null): Promise<void> {
+export async function sendUniversityVerificationCode(email: string, userId: string, campusId: string | null = null): Promise<void> {
 	await request<void>("/verification/university/send-code", {
 		method: "POST",
 		body: { email },
@@ -169,7 +169,7 @@ export async function sendUniversityVerificationCode(email: string, userId: stri
 	});
 }
 
-export async function confirmUniversityVerificationCode(code: string, userId: string, campusId: string | null): Promise<void> {
+export async function confirmUniversityVerificationCode(code: string, userId: string, campusId: string | null = null): Promise<void> {
 	await request<void>("/verification/university/confirm-code", {
 		method: "POST",
 		body: { code },

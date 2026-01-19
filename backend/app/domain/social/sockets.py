@@ -7,9 +7,11 @@ from typing import Optional
 import socketio
 
 from app.infra.auth import AuthenticatedUser
+from app.infra.redis import redis_client
 from app.obs import metrics as obs_metrics
 
 _namespace: "SocialNamespace" | None = None
+_ONLINE_TTL = 300  # 5 minutes
 
 
 def _header(scope: dict, name: str) -> Optional[str]:
@@ -27,6 +29,12 @@ class SocialNamespace(socketio.AsyncNamespace):
 		super().__init__("/social")
 		self._sessions: dict[str, AuthenticatedUser] = {}
 
+	async def _mark_online(self, user_id: str) -> None:
+		"""Mark user as online in Redis for friend activity."""
+		# We use the same key as proximity to ensure consistent 'Online' status
+		# regardless of whether it came from a map heartbeat or app activity.
+		await redis_client.setex(f"online:user:{user_id}", _ONLINE_TTL, "1")
+
 	async def on_connect(self, sid: str, environ: dict, auth: Optional[dict] = None) -> None:
 		obs_metrics.socket_connected(self.namespace)
 		scope = environ.get("asgi.scope", environ)
@@ -40,6 +48,7 @@ class SocialNamespace(socketio.AsyncNamespace):
 		user = AuthenticatedUser(id=user_id, campus_id=campus_id or "")
 		self._sessions[sid] = user
 		await self.enter_room(sid, self.user_room(user_id))
+		await self._mark_online(user_id)
 		await self.emit("social:ack", {"ok": True}, room=sid)
 
 	async def on_disconnect(self, sid: str) -> None:
@@ -54,10 +63,13 @@ class SocialNamespace(socketio.AsyncNamespace):
 		if not user:
 			raise ConnectionRefusedError("unauthenticated")
 		await self.enter_room(sid, self.user_room(user.id))
+		await self._mark_online(user.id)
 
 	async def on_hb(self, sid: str) -> None:
 		"""Handle application-level heartbeat from client."""
-		pass
+		user = self._sessions.get(sid)
+		if user:
+			await self._mark_online(user.id)
 
 	@staticmethod
 	def user_room(user_id: str) -> str:

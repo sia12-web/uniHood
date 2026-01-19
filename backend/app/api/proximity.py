@@ -84,7 +84,8 @@ async def heartbeat(
         },
     )
     await redis_client.expire(f"presence:{auth_user.id}", settings.campus_ttl_seconds)
-    await redis_client.setex(f"online:user:{auth_user.id}", settings.campus_ttl_seconds, "1")
+    # Use 5 minutes (300) for online status to match sockets.py, ensuring users go offline quickly.
+    await redis_client.setex(f"online:user:{auth_user.id}", 300, "1")
     await redis_client.xadd(
         "x:presence.heartbeats",
         {"user_id": auth_user.id, "campus_id": campus_id, "acc": payload.accuracy_m},

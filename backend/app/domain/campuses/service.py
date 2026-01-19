@@ -40,20 +40,37 @@ class CampusService:
             return dict(row) if row else None
 
     async def find_by_domain(self, domain_suffix: str) -> Optional[dict]:
-        """Find a campus by matching domain suffix (e.g. 'concordia.ca')."""
+        """Find a campus by matching domain suffix (e.g. 'concordia.ca' or 'mail.concordia.ca')."""
         pool = await postgres.get_pool()
         async with pool.acquire() as conn:
-            # Simple suffix match or exact match on domain field
-            # The domain field usually stores 'concordia.ca'.
-            # We want to find the campus where the user's email domain ENDS with this campus domain.
-            # But here we are passing the extracted domain from email, or we just pass the email?
-            # Better to pass the domain part.
-            row = await conn.fetchrow("""
+            # We want to find a campus where the user's email domain ENDS with the campus domain.
+            # e.g. user has 'student.mcgill.ca', campus has 'mcgill.ca' -> match.
+            #     user has 'concordia.ca', campus has 'concordia.ca' -> match.
+            # Note: We prioritize the longest matching domain if we had multiple (not handled here),
+            # but for now we just look for ANY match.
+            rows = await conn.fetch("""
                 SELECT id, name, domain, logo_url, lat, lon
                 FROM campuses
-                WHERE domain = $1 OR domain = $2
-            """, domain_suffix, domain_suffix.lower())
-            return dict(row) if row else None
+                WHERE domain IS NOT NULL AND length(domain) > 0
+            """)
+            
+            # Application-side matching is safer for "ends with" logic than regex in SQL for now
+            target_domain = domain_suffix.lower().strip()
+            
+            for row in rows:
+                campus_domain = (row["domain"] or "").lower().strip()
+                if not campus_domain:
+                    continue
+                    
+                # Exact match
+                if target_domain == campus_domain:
+                    return dict(row)
+                    
+                # Suffix match (ensure it's a dot boundary, e.g. .concordia.ca)
+                if target_domain.endswith("." + campus_domain):
+                    return dict(row)
+                    
+            return None
 
     async def seed_campuses(self):
         """Seed default campuses (Concordia)."""

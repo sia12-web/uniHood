@@ -126,7 +126,7 @@ export default function HomePage() {
           }
           return;
         }
-        const payload = await fetchDiscoveryFeed(userId, campusId, { limit: 50 });
+        const payload = await fetchDiscoveryFeed(userId, campusId, { limit: 50, mode: "live", radius: 10000 });
         const items = Array.isArray(payload?.items) ? payload.items : [];
         const mapped: FriendPreview[] = items.map((raw, idx) => {
           const graduationYear = (raw as { graduation_year?: number | string }).graduation_year;

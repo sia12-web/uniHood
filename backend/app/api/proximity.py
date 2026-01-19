@@ -183,7 +183,7 @@ async def _build_nearby_query(
     filter: str = Query(default="all"),
     include: Optional[List[str]] = Query(default=None),
     scope: str = Query(default="campus", pattern="^(campus|global)$"),
-    mode: str = Query(default="campus", pattern="^(room|campus|city)$"),
+    mode: str = Query(default="campus", pattern="^(room|campus|city|live)$"),
 ) -> NearbyQuery:
     include_list = list(include) if include else None
     return NearbyQuery(

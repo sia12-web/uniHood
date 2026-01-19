@@ -40,8 +40,8 @@ class NearbyQuery(BaseModel):
 	filter: Literal["all", "friends"] = "all"
 	include: Optional[list[Literal["profile", "distance"]]] = None
 	scope: Literal["campus", "global"] = "campus"
-	# Discovery mode: room (live 100m proximity), campus (same campus directory), city (all campuses directory)
-	mode: Literal["room", "campus", "city"] = "campus"
+	# Discovery mode: room (live 100m proximity), campus (same campus directory), city (all campuses directory), live (live on campus, any radius)
+	mode: Literal["room", "campus", "city", "live"] = "campus"
 
 
 class NearbyUser(BaseModel):

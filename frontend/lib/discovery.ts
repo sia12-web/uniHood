@@ -13,11 +13,13 @@ export type DiscoveryFeedResponse = {
 export async function fetchDiscoveryFeed(
   userId: string,
   campusId: string,
-  opts: { cursor?: string | null; limit?: number } = {},
+  opts: { cursor?: string | null; limit?: number; mode?: "room" | "campus" | "city" | "live"; radius?: number } = {},
 ): Promise<DiscoveryFeedResponse> {
   const params = new URLSearchParams();
   if (opts.cursor) params.set("cursor", opts.cursor);
   if (opts.limit) params.set("limit", String(opts.limit));
+  if (opts.mode) params.set("mode", opts.mode);
+  if (opts.radius) params.set("radius_m", String(opts.radius));
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<DiscoveryFeedResponse>(`${BASE_URL}/discovery/feed${suffix}`, {
     headers: {

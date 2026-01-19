@@ -106,7 +106,11 @@ export function MyFriends() {
                                 </div>
                                 <div className="overflow-hidden">
                                     <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{friendPrimaryLabel(friend)}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{friendSecondaryLabel(friend)}</p>
+                                    {friend.is_online ? (
+                                        <p className="text-xs text-emerald-500 font-medium">Online now</p>
+                                    ) : (
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{friendSecondaryLabel(friend)}</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex gap-2">
@@ -128,7 +132,8 @@ export function MyFriends() {
                         </div>
                     ))}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

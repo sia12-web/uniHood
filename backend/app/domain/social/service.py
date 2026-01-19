@@ -711,6 +711,16 @@ async def list_friends(auth_user: AuthenticatedUser, status_filter: str) -> List
 	
 	result = [_record_to_friend_row(row) for row in rows]
 	
+	# Populate online status
+	if result:
+		async with redis_client.pipeline() as pipe:
+			for r in result:
+				pipe.exists(f"online:user:{r.friend_id}")
+			online_results = await pipe.execute()
+			
+			for row, is_online_val in zip(result, online_results):
+				row.is_online = bool(is_online_val)
+	
 	# Cache the result
 	try:
 		cache_data = json.dumps([r.model_dump(mode="json") for r in result])

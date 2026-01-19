@@ -130,6 +130,7 @@ export type FriendRow = {
   friend_display_name?: string | null;
   xp?: number;
   level?: number;
+  is_online?: boolean;
 };
 
 export type LeaderboardScope = "overall" | "social" | "engagement" | "popularity" | "tictactoe" | "typing_duel" | "trivia" | "rps" | "story_builder";

@@ -43,6 +43,7 @@ class FriendRow(BaseModel):
 	friend_display_name: Optional[str] = None
 	xp: Optional[int] = None
 	level: Optional[int] = None
+	is_online: bool = False
 
 
 class MutualFriend(BaseModel):

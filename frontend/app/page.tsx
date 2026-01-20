@@ -17,7 +17,7 @@ import { fetchFriends, fetchInviteInbox, acceptInvite } from "@/lib/social";
 import type { FriendRow, InviteSummary } from "@/lib/types";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { useActivitySnapshot } from "@/hooks/use-activity-snapshot";
-import { fetchRecentActivity, type ActivityLogItem } from "@/lib/analytics";
+import { fetchRecentActivity, toggleLikeActivity, type ActivityLogItem } from "@/lib/analytics";
 import { Zap, Trophy, Gamepad2, Heart, Users, UserPlus } from "lucide-react";
 
 
@@ -78,6 +78,7 @@ export default function HomePage() {
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
   const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
   const [realActivity, setRealActivity] = useState<ActivityLogItem[]>([]);
+  const [likedItems, setLikedItems] = useState<Set<number>>(new Set());
 
   // Use deferred features for heavy hooks (chat, social) to reduce TBT
   const {
@@ -382,16 +383,30 @@ export default function HomePage() {
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <span>{time}</span>
-            {item.likes_count > 0 && (
-              <span className="flex items-center gap-1.5 text-rose-500 font-bold">
-                <Heart
-                  size={12}
-                  className="fill-current"
-                  strokeWidth={3}
-                />
-                <span>{item.likes_count}</span>
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const res = await toggleLikeActivity(item.id);
+                  setLikedItems(prev => {
+                    const next = new Set(prev);
+                    if (res.liked) next.add(item.id); else next.delete(item.id);
+                    return next;
+                  });
+                  // Update likes count in realActivity
+                  setRealActivity(prev => prev.map(a => a.id === item.id ? { ...a, likes_count: a.likes_count + (res.liked ? 1 : -1), is_liked: res.liked } : a));
+                } catch (err) { console.error('Failed to like', err); }
+              }}
+              className={`flex items-center gap-1.5 font-bold transition-colors ${item.is_liked || likedItems.has(item.id) ? 'text-rose-500' : 'text-slate-400 hover:text-rose-400'}`}
+            >
+              <Heart
+                size={12}
+                className={item.is_liked || likedItems.has(item.id) ? 'fill-current' : ''}
+                strokeWidth={3}
+              />
+              <span>{item.likes_count || ''}</span>
+            </button>
           </div>
         </div>
       </div>

@@ -280,12 +280,18 @@ class LeaderboardAccrual:
 		# Validate game duration
 		if not policy.validate_game_duration(duration_seconds):
 			logger.info(f"[record_activity_ended] Game too short: duration={duration_seconds}s. No points awarded.")
+			# #region agent log
+			import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"B","location":"accrual.py:duration_fail","message":"ANTI-CHEAT: duration too short","data":{"duration_seconds":duration_seconds,"min_required":policy.GAME_MIN_DURATION_SECONDS},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+			# #endregion
 			for uid in user_list:
 				await self._touch(uid, day=day)
 			return awarded_users
 		# Validate game had enough moves/actions
 		if not policy.validate_game_moves(move_count):
 			logger.info(f"[record_activity_ended] Not enough moves: moves={move_count}. No points awarded.")
+			# #region agent log
+			import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"B","location":"accrual.py:moves_fail","message":"ANTI-CHEAT: moves too few","data":{"move_count":move_count,"min_required":policy.GAME_MIN_MOVES},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+			# #endregion
 			for uid in user_list:
 				await self._touch(uid, day=day)
 			return awarded_users
@@ -308,6 +314,9 @@ class LeaderboardAccrual:
 			await policy.increment_game_opponent_count(user_a, user_b, day)
 			await policy.set_game_opponent_cooldown(user_a, user_b)
 		# Award points to all participants
+		# #region agent log
+		import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"B","location":"accrual.py:awarding","message":"ANTI-CHEAT PASSED - awarding points","data":{"user_list":user_list,"winner_id":winner_id,"day":day},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+		# #endregion
 		for uid in user_list:
 			logger.info(f"[record_activity_ended] Awarding points to {uid}")
 			await self._hincr(_hash_key(day, uid), "acts_played", 1)

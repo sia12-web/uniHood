@@ -687,6 +687,9 @@ class ActivitiesService:
 		scoreboard: Optional[models.ScoreBoard] = None,
 		winner_hint: Optional[str] = None,
 	) -> None:
+		# #region agent log
+		import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"A","location":"service.py:_record_leaderboard_outcome:entry","message":"_record_leaderboard_outcome called","data":{"activity_id":activity.id,"kind":activity.kind,"state":activity.state,"started_at":str(activity.started_at),"ended_at":str(activity.ended_at)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+		# #endregion
 		user_ids = [uid for uid in activity.participants() if uid]
 		if not user_ids:
 			return
@@ -702,6 +705,10 @@ class ActivitiesService:
 		
 		# Calculate move count from activity rounds/submissions
 		move_count = await self._get_activity_move_count(activity)
+		
+		# #region agent log
+		import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"B,E","location":"service.py:_record_leaderboard_outcome:pre_call","message":"Calling record_activity_outcome","data":{"user_ids":user_ids,"winner_id":winner_id,"kind":activity.kind,"duration_seconds":duration_seconds,"move_count":move_count,"ttt_meta_board":activity.meta.get("tictactoe",{}).get("board")},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+		# #endregion
 		
 		try:
 			await self._leaderboards.record_activity_outcome(

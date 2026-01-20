@@ -150,6 +150,10 @@ class LeaderboardService:
 			move_count=move_count,
 		)
 		logger.info(f"[record_activity_outcome] awarded={awarded}")
+		
+		# #region agent log
+		import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"B","location":"leaderboards/service.py:after_accrual","message":"After accrual call","data":{"awarded":awarded,"user_ids":user_ids,"winner_id":winner_id},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+		# #endregion
 
 		# Persist lifetime counters to Postgres so they don't reset when Redis rolls over.
 		# Important: even if anti-cheat blocks awarding points, we still record games played/wins.
@@ -174,6 +178,9 @@ class LeaderboardService:
 						# GAME_PLAYED is already awarded at start in domain managers for immediate feedback
 						if win_inc:
 							await xp_svc.award_xp(user_uuid, XPAction.GAME_WON, metadata={"game": game_kind})
+							# #region agent log
+							import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"D","location":"leaderboards/service.py:xp_won","message":"XP GAME_WON awarded","data":{"user_id":str(user_uuid),"game_kind":game_kind},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+							# #endregion
 						else:
 							# Award GAME_LOST for either a loss or a draw
 							is_draw = (winner_id is None)
@@ -181,8 +188,14 @@ class LeaderboardService:
 							if is_draw:
 								meta["is_draw"] = True
 							await xp_svc.award_xp(user_uuid, XPAction.GAME_LOST, metadata=meta)
+							# #region agent log
+							import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"D","location":"leaderboards/service.py:xp_lost","message":"XP GAME_LOST awarded","data":{"user_id":str(user_uuid),"game_kind":game_kind,"is_draw":is_draw},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+							# #endregion
 					except Exception as e:
 						logger.error(f"Failed to award XP for game: {e}")
+						# #region agent log
+						import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"D","location":"leaderboards/service.py:xp_error","message":"XP award FAILED","data":{"user_id":str(user_uuid),"error":str(e)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+						# #endregion
 
 				logger.info(f"[record_activity_outcome] DB write: user={uid} game={game_kind} played=1 win={win_inc} points={points_inc}")
 				try:
@@ -201,13 +214,21 @@ class LeaderboardService:
 						win_inc,
 						points_inc,
 					)
+					# #region agent log
+					import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"C","location":"leaderboards/service.py:db_write_success","message":"user_game_stats INSERT success","data":{"user_id":str(user_uuid),"game_kind":game_kind,"win_inc":win_inc,"points_inc":points_inc},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+					# #endregion
 				except asyncpg.UndefinedTableError:
 					# CRITICAL FIX: Do not suppress this error silently. Log it as error so we know if migrations ran.
 					logger.error("user_game_stats table missing! Game stats NOT recorded.")
-					# We re-raise or just let it log. For now, logging error is sufficient to diagnose without crashing request.
+					# #region agent log
+					import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"C","location":"leaderboards/service.py:db_write_fail","message":"user_game_stats table MISSING","data":{"user_id":str(user_uuid)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+					# #endregion
 					pass
 				except Exception as e:
 					logger.error(f"Failed to insert user_game_stats: {e}")
+					# #region agent log
+					import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"C","location":"leaderboards/service.py:db_write_error","message":"user_game_stats INSERT error","data":{"user_id":str(user_uuid),"error":str(e)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+					# #endregion
 
 
 		return awarded

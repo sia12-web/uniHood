@@ -185,6 +185,10 @@ class TicTacToeManager:
             meta["status"] = "finished"
             meta["matchWinner"] = match_winner_id
             
+            # #region agent log
+            import json as _json; open(r'c:\Users\shahb\myApplications\uniHood\.cursor\debug.log','a').write(_json.dumps({"hypothesisId":"A","location":"tictactoe.py:match_complete","message":"TTT match completed","data":{"activity_id":activity.id,"winner":match_winner_id,"started_at":str(activity.started_at),"ended_at":str(activity.ended_at),"board":meta.get("board"),"roundWins":round_wins},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
+            # #endregion
+            
             # Create ScoreBoard for recording
             scoreboard = models.ScoreBoard(activity.id)
             scoreboard.totals = {uid: float(w) for uid, w in round_wins.items()} # Total wins as score

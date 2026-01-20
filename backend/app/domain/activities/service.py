@@ -1202,11 +1202,13 @@ class ActivitiesService:
 				await sockets.emit_score_update(activity.id, payload_score)
 				await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
 				await outbox.append_score_event(activity_id=activity.id, kind=activity.kind, result=payload_score)
+				winner_id = _winner_from_scoreboard(scoreboard)
 				await outbox.append_activity_event(
 					"activity_completed",
 					activity_id=activity.id,
 					kind=activity.kind,
 					user_id=auth_user.id,
+					meta={"winner_id": winner_id, "participants": list(scoreboard.participants.keys()), "scores": scoreboard.totals}
 				)
 				await self._record_leaderboard_outcome(activity, scoreboard)
 			else:
@@ -1348,11 +1350,13 @@ class ActivitiesService:
 				rps_meta["phase"] = "done"
 				await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
 				await outbox.append_score_event(activity_id=activity.id, kind=activity.kind, result=payload_score)
+				winner_id = _winner_from_scoreboard(scoreboard)
 				await outbox.append_activity_event(
 					"activity_completed",
 					activity_id=activity.id,
 					kind=activity.kind,
 					user_id=auth_user.id,
+					meta={"winner_id": winner_id, "participants": list(scoreboard.participants.keys()), "scores": scoreboard.totals}
 				)
 				await self._record_leaderboard_outcome(activity, scoreboard)
 			else:
@@ -1499,6 +1503,7 @@ class ActivitiesService:
 				activity_id=activity.id,
 				kind=activity.kind,
 				user_id=auth_user.id,
+				meta={"participants": [activity.user_a, activity.user_b]}
 			)
 			return {"status": "completed"}
 		next_turn += 1

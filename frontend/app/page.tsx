@@ -74,6 +74,8 @@ export default function HomePage() {
 
   const [recentFriends, setRecentFriends] = useState<FriendRow[]>([]);
   const [allFriends, setAllFriends] = useState<FriendRow[]>([]);
+  const friendPeerIds = useMemo(() => allFriends.map((f) => f.friend_id), [allFriends]);
+  const { presence: friendPresence } = usePresence(friendPeerIds);
 
   const [connectionsTab, setConnectionsTab] = useState<"online" | "invites">("online");
   const [pendingInvites, setPendingInvites] = useState<InviteSummary[]>([]);
@@ -583,14 +585,14 @@ export default function HomePage() {
                 <div className="flex-1 overflow-y-auto max-h-[300px] scrollbar-hide space-y-4">
                   {connectionsTab === "online" ? (
                     <div className="space-y-4">
-                      {/* Using recentFriends as mock for online friends list if specific online friend list is empty */}
-                      {recentFriends.length === 0 ? (
+                      {/* Only show friends who are actually online */}
+                      {allFriends.filter(f => friendPresence[f.friend_id]?.online).length === 0 ? (
                         <div className="text-center py-6">
                           <p className="text-sm text-slate-500">No friends online.</p>
                           <Link href="/socials" className="mt-2 block text-xs font-bold text-indigo-600">Find new people</Link>
                         </div>
                       ) : (
-                        recentFriends.map(friend => (
+                        allFriends.filter(f => friendPresence[f.friend_id]?.online).map(friend => (
                           <div key={friend.friend_id} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
@@ -619,7 +621,6 @@ export default function HomePage() {
                       )}
                     </div>
                   ) : (
-
                     <div className="space-y-4">
                       {pendingInvites.length === 0 ? (
                         <div className="text-center py-6 text-slate-500">

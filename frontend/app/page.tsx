@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 
 import { useDeferredFeatures } from "@/components/providers/deferred-features-provider";
@@ -50,6 +51,7 @@ const HERO_GRADIENTS = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [heroGradientIndex, setHeroGradientIndex] = useState(0);
@@ -587,7 +589,11 @@ export default function HomePage() {
                                 </p>
                               </div>
                             </div>
-                            <button className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors">
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/chat/${friend.friend_id}`)}
+                              className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+                            >
                               Message
                             </button>
                           </div>

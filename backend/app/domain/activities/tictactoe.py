@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from app.domain.activities import models, service, sockets
+from app.domain.activities import models, outbox, service, sockets
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +197,19 @@ class TicTacToeManager:
             await utils._persist(activity)
             # Record outcome (including XP awarded by service)
             await utils._record_leaderboard_outcome(activity, scoreboard)
+            
+            # Log for feed
+            await outbox.append_activity_event(
+                "activity_completed",
+                activity_id=activity.id,
+                kind=activity.kind,
+                user_id=match_winner_id, # Log as winner event
+                meta={
+                    "winner_id": match_winner_id,
+                    "participants": list(scoreboard.participants.keys()),
+                    "scores": scoreboard.totals
+                }
+            )
 
         else:
             # Next round

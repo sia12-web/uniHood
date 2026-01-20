@@ -618,7 +618,9 @@ class LeaderboardService:
 				import json
 				items = [(item["user_id"], item["score"]) for item in json.loads(cached)]
 			else:
-				items = await self._calculate_live_social_scores(campus_id, limit)
+				# Use XP scores to align with Sidebar "Social Explorer" level (which relies on XP)
+				# This ensures consistency: Leaderboard shows 256 XP, Sidebar shows 256 XP.
+				items = await self._calculate_live_xp_scores(campus_id, limit)
 				# Cache for 30 seconds to reduce DB load
 				import json
 				await self._redis.setex(

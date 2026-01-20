@@ -134,8 +134,8 @@ MEETUP_CANCEL_PENALTY_WINDOW = 300 # 5 min - if cancelled within this, no points
 MEETUP_STAY_DURATION_MINUTES = 10  # Must stay 10+ mins in meetup to get join points
 
 # --- Game validation requirements ---
-GAME_MIN_DURATION_SECONDS = 30     # Game must last 30+ seconds
-GAME_MIN_MOVES = 2                 # Minimum moves/actions in game
+GAME_MIN_DURATION_SECONDS = 5      # Game must last 5+ seconds (lowered for speed typing)
+GAME_MIN_MOVES = 1                 # Minimum moves/actions in game (lowered for single submission games)
 
 # --- Friendship validation ---
 FRIEND_MIN_ACCOUNT_AGE_HOURS = 24  # New account must be 24h+ old before friend points count

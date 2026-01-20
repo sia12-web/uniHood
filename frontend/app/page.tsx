@@ -299,6 +299,26 @@ export default function HomePage() {
         xpGain = isNegative ? `${amount} XP` : `+${amount} XP`;
       }
     }
+    // 1.5 Handle New Friendships
+    else if (item.event === "friend.accepted") {
+      const meta = item.meta as Record<string, unknown>;
+      const friendName = (meta.friend_name as string) || "Someone";
+      Icon = UserPlus;
+      iconBg = "bg-emerald-100 dark:bg-emerald-900/30";
+      iconColor = "text-emerald-600 dark:text-emerald-400";
+
+      // If viewing your own feed: "You became friends with Jack"
+      // If viewing Jack's feed: "Jack became friends with You" (if you are the friend)
+      // or "Jack became friends with Sarah"
+
+      let targetName = friendName;
+      if (meta.friend_id === authUser?.userId) {
+        targetName = "You";
+      }
+
+      content = <span>{actor} became friends with {targetName}</span>;
+      xpGain = `+${meta.xp || 50} XP`;
+    }
     // 2. Activity creation/join
     else if (item.event === "activity.create") {
       Icon = Gamepad2;

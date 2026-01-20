@@ -558,7 +558,13 @@ export default function HomePage() {
                               </div>
                               <div>
                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{friend.friend_display_name || "Friend"}</p>
-                                <p className="text-xs text-emerald-500 font-medium">Online now</p>
+                                <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                  </span>
+                                  Online
+                                </p>
                               </div>
                             </div>
                             <button className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors">

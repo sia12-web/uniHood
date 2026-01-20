@@ -95,7 +95,7 @@ class AnalyticsService:
                 WHERE (
                     a.event IN ('activity.create', 'activity.join')
                     OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
-                    OR (a.event = 'activity_completed' AND (a.meta->>'winner_id' IS NOT NULL OR a.meta->>'match_winner_id' IS NOT NULL))
+                    OR a.event = 'activity_completed'
                 )
                 AND (
                     $2::uuid IS NULL 

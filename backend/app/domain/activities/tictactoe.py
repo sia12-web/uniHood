@@ -109,6 +109,8 @@ class TicTacToeManager:
             meta = activity.meta.get("tictactoe", {})
             meta["status"] = "playing"
             meta["countdown"] = None
+            if activity.started_at is None:
+                activity.started_at = service._now()
             activity.meta["tictactoe"] = meta
             await self.service._persist(activity)
             await self._broadcast_state(session_id, activity)
@@ -179,6 +181,7 @@ class TicTacToeManager:
         
         if match_winner_id:
             activity.state = "completed"
+            activity.ended_at = service._now()
             meta["status"] = "finished"
             meta["matchWinner"] = match_winner_id
             
@@ -258,6 +261,7 @@ class TicTacToeManager:
         # If active, forfeit?
         if activity.state == "active":
             activity.state = "completed"
+            activity.ended_at = service._now()
             meta = activity.meta.get("tictactoe", {})
             meta["status"] = "finished"
             meta["leaveReason"] = "opponent_left"
@@ -266,11 +270,26 @@ class TicTacToeManager:
             winner_id = players.get("X") if players.get("O") == user_id else players.get("O")
             if winner_id:
                 meta["matchWinner"] = winner_id
-                # Record win for remaining player?
-                # ...
+                round_wins = meta.get("roundWins") or {winner_id: 1}
+                round_wins.setdefault(winner_id, 1)
+                for pid in players.values():
+                    if pid and pid not in round_wins:
+                        round_wins[pid] = 0
+                meta["roundWins"] = round_wins
                 
+                scoreboard = models.ScoreBoard(activity.id)
+                scoreboard.totals = {uid: float(w) for uid, w in round_wins.items()}
+                for uid in players.values():
+                    if uid:
+                        scoreboard.upsert_participant(uid)
+                utils = self.service
+                await utils._populate_scoreboard_participants(activity, scoreboard)
+                service._store_scoreboard(activity, scoreboard)
+            
             activity.meta["tictactoe"] = meta
             await self.service._persist(activity)
+            if winner_id:
+                await self.service._record_leaderboard_outcome(activity, scoreboard)
             await self._broadcast_state(session_id, activity)
         # Handle lobby leave...
 

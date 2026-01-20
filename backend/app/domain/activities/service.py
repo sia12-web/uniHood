@@ -712,26 +712,30 @@ class ActivitiesService:
 				duration_seconds=duration_seconds,
 				move_count=move_count,
 			)
-			# Log activity completion for feed
-			try:
-				from app.domain.identity import audit
-				# Log for the winner if exists, otherwise first participant
-				actor_id = winner_id or activity.user_a
-				await audit.log_event(
-					"activity_completed",
-					user_id=actor_id,
-					meta={
-						"activity_id": activity.id,
-						"kind": activity.kind,
-						"winner_id": winner_id,
-						"match_winner_id": winner_id # for compatibility with some frontend components
-					}
-				)
-			except Exception:
-				logger.exception("Failed to log activity_completed")
-
 		except Exception:
 			logger.exception("Failed to update leaderboards for activity", extra={"activity_id": activity.id})
+
+		# Always log activity completion for feed, even if leaderboard writes failed.
+		try:
+			from app.domain.identity import audit
+			# Log for the winner if exists, otherwise first participant
+			actor_id = winner_id or activity.user_a
+			meta = {
+				"activity_id": activity.id,
+				"kind": activity.kind,
+				"winner_id": winner_id,
+				"match_winner_id": winner_id,  # compatibility with some frontend components
+				"participants": list(activity.participants()),
+			}
+			if scoreboard is not None:
+				meta["scores"] = scoreboard.totals
+			await audit.log_event(
+				"activity_completed",
+				user_id=actor_id,
+				meta=meta,
+			)
+		except Exception:
+			logger.exception("Failed to log activity_completed")
 
 	async def _get_activity_move_count(self, activity: models.Activity) -> int:
 		"""Calculate the number of meaningful moves/actions in an activity."""
@@ -1496,6 +1500,9 @@ class ActivitiesService:
 		if next_turn >= turns:
 			activity.state = "completed"
 			activity.ended_at = _now()
+			scoreboard = _scoreboard_from_activity(activity)
+			await self._populate_scoreboard_participants(activity, scoreboard)
+			_store_scoreboard(activity, scoreboard)
 			await self._persist(activity)
 			await sockets.emit_activity_ended(activity.id, {"activity_id": activity.id, "reason": "completed"})
 			await outbox.append_activity_event(
@@ -1505,6 +1512,7 @@ class ActivitiesService:
 				user_id=auth_user.id,
 				meta={"participants": [activity.user_a, activity.user_b]}
 			)
+			await self._record_leaderboard_outcome(activity, scoreboard)
 			return {"status": "completed"}
 		next_turn += 1
 		next_user = models.other_participant(activity, auth_user.id)

@@ -97,6 +97,9 @@ export default function HomePage() {
   const [discoverPeople, setDiscoverPeople] = useState<FriendPreview[]>([]);
   const discoverPeerIds = useMemo(() => discoverPeople.map((p) => p.userId), [discoverPeople]);
   const { presence: discoverPresence } = usePresence(discoverPeerIds);
+  const onlineCount = useMemo(() => {
+    return discoverPeople.filter(p => discoverPresence[p.userId]?.online).length;
+  }, [discoverPeople, discoverPresence]);
 
   const { getCampus } = useCampuses();
 
@@ -422,7 +425,7 @@ export default function HomePage() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
-                      {discoverPeople.length} students active now
+                      {onlineCount > 0 ? `${onlineCount} students active now` : `${discoverPeople.length} students on campus`}
                     </p>
                   </div>
                 </div>

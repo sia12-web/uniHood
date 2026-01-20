@@ -687,6 +687,7 @@ class LeaderboardService:
 		except Exception as e:
 			logger.error(f"_calculate_live_xp_scores failed: {e}")
 			return []
+	async def _calculate_live_social_scores(self, campus_id: UUID, limit: int) -> List[Tuple[str, float]]:
 		"""Calculate social scores for all users in a campus from database."""
 		import logging
 		logger = logging.getLogger(__name__)

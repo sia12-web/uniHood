@@ -276,7 +276,7 @@ export default function HomePage() {
     let iconBg = "bg-slate-100 dark:bg-slate-800";
     let iconColor = "text-slate-500 dark:text-slate-400";
     let content = <span>Unknown activity</span>;
-    let xpGain = null;
+    let xpGain: string | null = null;
     let isNegative = false;
 
     // Helper to get name
@@ -334,6 +334,7 @@ export default function HomePage() {
       iconColor = "text-indigo-600 dark:text-indigo-400";
       const kind = (item.meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
       content = <span>{actor} created {kind}</span>;
+      xpGain = "+50 XP"; // GAME_PLAYED
     }
     else if (item.event === "activity.join") {
       Icon = Gamepad2;
@@ -341,6 +342,7 @@ export default function HomePage() {
       iconColor = "text-violet-600 dark:text-violet-400";
       const kind = (item.meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
       content = <span>{actor} joined {kind}</span>;
+      xpGain = "+50 XP"; // GAME_PLAYED
     }
     // Meetup Events
     else if (item.event === "meetup.create") {
@@ -351,6 +353,7 @@ export default function HomePage() {
       const title = (meta.title as string) || "a meetup";
       const category = ((meta.category as string) || "").replace(/_/g, " ").toLowerCase();
       content = <span>{actor} created {category ? `${category} meetup` : "a meetup"}: {title}</span>;
+      xpGain = "+100 XP"; // MEETUP_HOST
     }
     else if (item.event === "meetup.join") {
       const meta = item.meta as Record<string, unknown>;
@@ -358,6 +361,7 @@ export default function HomePage() {
       iconBg = "bg-cyan-100 dark:bg-cyan-900/30";
       iconColor = "text-cyan-600 dark:text-cyan-400";
       content = <span>{actor} joined a meetup</span>;
+      xpGain = "+30 XP"; // MEETUP_JOIN
     }
     // Level Up Event
     else if (item.event === "level.up") {
@@ -399,7 +403,6 @@ export default function HomePage() {
         </div>
         <div className="flex flex-col gap-1">
           <p className="text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-            {content}
             {xpGain && (
               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${isNegative
                 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -408,33 +411,37 @@ export default function HomePage() {
                 <Zap size={10} className="mr-0.5" />{xpGain}
               </span>
             )}
+            {content}
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <span>{time}</span>
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  const res = await toggleLikeActivity(item.id);
-                  setLikedItems(prev => {
-                    const next = new Set(prev);
-                    if (res.liked) next.add(item.id); else next.delete(item.id);
-                    return next;
-                  });
-                  // Update likes count in realActivity
-                  setRealActivity(prev => prev.map(a => a.id === item.id ? { ...a, likes_count: a.likes_count + (res.liked ? 1 : -1), is_liked: res.liked } : a));
-                } catch (err) { console.error('Failed to like', err); }
-              }}
-              className={`flex items-center gap-1.5 font-bold transition-colors ${item.is_liked || likedItems.has(item.id) ? 'text-rose-500' : 'text-slate-400 hover:text-rose-400'}`}
-            >
-              <Heart
-                size={12}
-                className={item.is_liked || likedItems.has(item.id) ? 'fill-current' : ''}
-                strokeWidth={3}
-              />
-              <span>{item.likes_count || ''}</span>
-            </button>
+            {/* Only show like button when viewing friends' activity */}
+            {activityFilter === 'friends' && (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const res = await toggleLikeActivity(item.id);
+                    setLikedItems(prev => {
+                      const next = new Set(prev);
+                      if (res.liked) next.add(item.id); else next.delete(item.id);
+                      return next;
+                    });
+                    // Update likes count in realActivity
+                    setRealActivity(prev => prev.map(a => a.id === item.id ? { ...a, likes_count: a.likes_count + (res.liked ? 1 : -1), is_liked: res.liked } : a));
+                  } catch (err) { console.error('Failed to like', err); }
+                }}
+                className={`flex items-center gap-1.5 font-bold transition-colors ${item.is_liked || likedItems.has(item.id) ? 'text-rose-500' : 'text-slate-400 hover:text-rose-400'}`}
+              >
+                <Heart
+                  size={12}
+                  className={item.is_liked || likedItems.has(item.id) ? 'fill-current' : ''}
+                  strokeWidth={3}
+                />
+                <span>{item.likes_count || ''}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

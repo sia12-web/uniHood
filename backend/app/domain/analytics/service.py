@@ -93,7 +93,7 @@ class AnalyticsService:
                 FROM audit_logs a
                 LEFT JOIN users u ON a.user_id = u.id
                 WHERE (
-                    a.event IN ('activity.create', 'activity.join')
+                    a.event IN ('activity.create', 'activity.join', 'friend.accepted', 'meetup.create', 'meetup.join', 'level.up')
                     OR (a.event = 'xp.gained' AND a.meta->>'action' = 'game_won')
                     OR a.event = 'activity_completed'
                 )

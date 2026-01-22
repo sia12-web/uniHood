@@ -342,6 +342,34 @@ export default function HomePage() {
       const kind = (item.meta as { kind?: string })?.kind?.replace(/_/g, " ") || "a game";
       content = <span>{actor} joined {kind}</span>;
     }
+    // Meetup Events
+    else if (item.event === "meetup.create") {
+      const meta = item.meta as Record<string, unknown>;
+      Icon = Users;
+      iconBg = "bg-blue-100 dark:bg-blue-900/30";
+      iconColor = "text-blue-600 dark:text-blue-400";
+      const title = (meta.title as string) || "a meetup";
+      const category = ((meta.category as string) || "").replace(/_/g, " ").toLowerCase();
+      content = <span>{actor} created {category ? `${category} meetup` : "a meetup"}: {title}</span>;
+      xpGain = `+100 XP`;
+    }
+    else if (item.event === "meetup.join") {
+      const meta = item.meta as Record<string, unknown>;
+      Icon = Users;
+      iconBg = "bg-cyan-100 dark:bg-cyan-900/30";
+      iconColor = "text-cyan-600 dark:text-cyan-400";
+      content = <span>{actor} joined a meetup</span>;
+      xpGain = `+30 XP`;
+    }
+    // Level Up Event
+    else if (item.event === "level.up") {
+      const meta = item.meta as Record<string, unknown>;
+      const level = meta.level as number;
+      Icon = Trophy;
+      iconBg = "bg-purple-100 dark:bg-purple-900/30";
+      iconColor = "text-purple-600 dark:text-purple-400";
+      content = <span>{actor} leveled up to Level {level}!</span>;
+    }
     else if (item.event === "activity_completed") {
       const meta = item.meta as Record<string, unknown>;
       const kind = (meta.kind as string)?.replace(/_/g, " ") || "a game";

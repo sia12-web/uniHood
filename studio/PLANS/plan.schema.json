@@ -1,0 +1,93 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Planner Schema",
+    "type": "object",
+    "properties": {
+        "plan_id": {
+            "type": "string"
+        },
+        "steps": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "depends_on": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "inputs": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "outputs": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "risk_level": {
+                        "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                        ]
+                    },
+                    "task_type": {
+                        "enum": [
+                            "implementation",
+                            "ux",
+                            "security",
+                            "qa",
+                            "contract"
+                        ]
+                    },
+                    "acceptance_criteria": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "test_plan": {
+                        "type": "string"
+                    },
+                    "review_gates": {
+                        "type": "object",
+                        "properties": {
+                            "must_run_security": {
+                                "type": "boolean"
+                            },
+                            "require_contract_check": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "rollback_plan": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "description",
+                    "risk_level",
+                    "task_type",
+                    "acceptance_criteria",
+                    "rollback_plan"
+                ]
+            }
+        }
+    },
+    "required": [
+        "plan_id",
+        "steps"
+    ]
+}

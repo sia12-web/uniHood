@@ -1,0 +1,9 @@
+{
+    "current_plan_id": null,
+    "lifecycle_state": "idle",
+    "completed_steps": [],
+    "decisions": [],
+    "contracts": [],
+    "open_risks": [],
+    "failure_history": {}
+}

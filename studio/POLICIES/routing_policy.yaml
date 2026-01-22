@@ -1,0 +1,22 @@
+routing_rules:
+  - if: "risk_level == 'high'"
+    then: 
+      primary: "claude-3-5-sonnet"
+      secondary: "gpt-4o"
+      mode: "dual-run"
+      require: ["security", "integration_lead"]
+
+  - if: "task_type == 'ux'"
+    then: 
+      primary: "gemini-1.5-pro"
+      require: ["ui_review"]
+
+  - if: "task_type == 'implementation' and is_small_change == true"
+    then: 
+      primary: "glm-4"
+      escalate_to: "gpt-4o"
+
+  - if: "failure_count >= 2"
+    then: 
+      action: "escalate_and_refactor"
+      primary: "gpt-4o"

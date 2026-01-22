@@ -1,0 +1,23 @@
+mandatory_gates:
+  - id: "qa_verification"
+    trigger: "test_plan_not_empty or task_type == 'implementation'"
+    checks:
+      - "unit_tests_pass"
+      - "integration_tests_pass"
+
+  - id: "security_audit"
+    trigger: "risk_level >= medium or touches_auth == true or touches_pii == true"
+    checks:
+      - "no_secrets_exposed"
+      - "input_validation_proper"
+
+  - id: "integration_review"
+    trigger: "contracts_changed == true or cross_module == true"
+    checks:
+      - "openapi_updated"
+      - "backward_compatibility_verified"
+
+definition_of_done:
+  - "lint_cleanup_done"
+  - "documentation_updated"
+  - "rollback_plan_verified"

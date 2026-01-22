@@ -248,9 +248,9 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 				from app.domain.xp.models import XPAction
 				xp_service = XPService()
 				# Original sender gets accept points
-				await xp_service.award_xp(target_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": sender_id})
+				_, _ = await xp_service.award_xp(target_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": sender_id})
 				# New sender gets accept points
-				await xp_service.award_xp(sender_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": target_id})
+				_, _ = await xp_service.award_xp(sender_id, XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": target_id})
 			except Exception:
 				logger.exception("Failed to award XP for auto-friendship")
 
@@ -306,7 +306,7 @@ async def send_invite(auth_user: AuthenticatedUser, to_user_id: UUID, campus_id:
 		try:
 			from app.domain.xp.service import XPService
 			from app.domain.xp.models import XPAction
-			await XPService().award_xp(sender_id, XPAction.FRIEND_INVITE_SENT, metadata={"invite_id": str(summary.id), "to": target_id})
+			_, _ = await XPService().award_xp(sender_id, XPAction.FRIEND_INVITE_SENT, metadata={"invite_id": str(summary.id), "to": target_id})
 		except Exception:
 			logger.exception("Failed to award XP for sending invite")
 
@@ -397,8 +397,22 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 			"status": summary.status,
 		},
 	)
+	
+	# Award XP for both first, so we can capture actual amounts
+	actual_xp_from = 0
+	actual_xp_to = 0
+	try:
+		from app.domain.xp.service import XPService
+		from app.domain.xp.models import XPAction
+		xp_service = XPService()
+		# Sender (from_user_id) gets accept points
+		_, actual_xp_from = await xp_service.award_xp(str(summary.from_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.to_user_id)})
+		# Recipient (to_user_id, who accepted) gets accept points
+		_, actual_xp_to = await xp_service.award_xp(str(summary.to_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.from_user_id)})
+	except Exception:
+		logger.exception("Failed to award XP for friendship acceptance")
 
-	# Log to DB Audit (Activity Feed)
+	# Log to DB Audit (Activity Feed) with actual XP amounts
 	try:
 		from app.domain.identity import audit as db_audit
 		# Log for acceptor (current user)
@@ -409,7 +423,7 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 				"invite_id": str(summary.id),
 				"friend_id": str(summary.from_user_id),
 				"friend_name": summary.from_display_name,
-				"xp": 50 # XPAction.FRIEND_REQUEST_ACCEPTED amount
+				"xp": actual_xp_to
 			}
 		)
 		# Log for sender (original requester)
@@ -420,7 +434,7 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 				"invite_id": str(summary.id),
 				"friend_id": str(summary.to_user_id),
 				"friend_name": summary.to_display_name,
-				"xp": 50
+				"xp": actual_xp_from
 			}
 		)
 	except Exception:
@@ -451,18 +465,6 @@ async def accept_invite(auth_user: AuthenticatedUser, invite_id: UUID) -> Invite
 		)
 	except Exception:
 		logger.exception("Failed to create notification for invite acceptance")
-
-	# Award XP for both 
-	try:
-		from app.domain.xp.service import XPService
-		from app.domain.xp.models import XPAction
-		xp_service = XPService()
-		# Sender (from_user_id) gets accept points
-		await xp_service.award_xp(str(summary.from_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.to_user_id)})
-		# Recipient (to_user_id, who accepted) gets accept points
-		await xp_service.award_xp(str(summary.to_user_id), XPAction.FRIEND_REQUEST_ACCEPTED, metadata={"invite_id": str(summary.id), "target_id": str(summary.from_user_id)})
-	except Exception:
-		logger.exception("Failed to award XP for friendship acceptance")
 
 	return summary
 
@@ -792,8 +794,8 @@ async def block_user(auth_user: AuthenticatedUser, target_user_id: UUID) -> Frie
 					from app.domain.xp.service import XPService
 					from app.domain.xp.models import XPAction
 					xp_service = XPService()
-					await xp_service.award_xp(blocker_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": target_id, "reason": "block"})
-					await xp_service.award_xp(target_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": blocker_id, "reason": "blocked_by"})
+					_, _ = await xp_service.award_xp(blocker_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": target_id, "reason": "block"})
+					_, _ = await xp_service.award_xp(target_id, XPAction.FRIEND_REMOVED, metadata={"friend_id": blocker_id, "reason": "blocked_by"})
 				except Exception:
 					logger.exception("Failed to apply XP penalty for friend removal via block")
 

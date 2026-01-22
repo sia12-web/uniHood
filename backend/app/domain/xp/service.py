@@ -110,10 +110,15 @@ class XPService:
             
         return final
 
-    async def award_xp(self, user_id: str | UUID, action: XPAction, metadata: dict = None) -> UserXPStats:
-        """Award XP to a user for a specific action."""
+    async def award_xp(self, user_id: str | UUID, action: XPAction, metadata: dict = None) -> tuple[UserXPStats, int]:
+        """Award XP to a user for a specific action.
+        
+        Returns:
+            Tuple of (UserXPStats, actual_amount_awarded)
+        """
         uid = str(user_id)
         amount = XP_AMOUNTS.get(action, 0)
+        original_amount = amount  # Store to track what was actually awarded
         
         # --- Anti-Cheat: Diminishing Returns ---
         target_id = None
@@ -130,7 +135,7 @@ class XPService:
         
         if amount == 0:
             # No XP change for this action, just return current stats
-            return await self.get_user_stats(uid)
+            return await self.get_user_stats(uid), 0
 
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -203,5 +208,5 @@ class XPService:
                         logger.warning("Failed to log level up audit event", exc_info=True)
                 
                 # Re-fetch strictly to match UserXPStats structure with ID
-                return await self.get_user_stats(uid)
-
+                stats = await self.get_user_stats(uid)
+                return stats, amount  # Return both stats and actual amount awarded

@@ -351,7 +351,6 @@ export default function HomePage() {
       const title = (meta.title as string) || "a meetup";
       const category = ((meta.category as string) || "").replace(/_/g, " ").toLowerCase();
       content = <span>{actor} created {category ? `${category} meetup` : "a meetup"}: {title}</span>;
-      xpGain = `+100 XP`;
     }
     else if (item.event === "meetup.join") {
       const meta = item.meta as Record<string, unknown>;
@@ -359,7 +358,6 @@ export default function HomePage() {
       iconBg = "bg-cyan-100 dark:bg-cyan-900/30";
       iconColor = "text-cyan-600 dark:text-cyan-400";
       content = <span>{actor} joined a meetup</span>;
-      xpGain = `+30 XP`;
     }
     // Level Up Event
     else if (item.event === "level.up") {
